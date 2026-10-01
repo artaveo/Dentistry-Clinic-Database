@@ -16,7 +16,7 @@
 | R-10 | Brute-force کد Pairing / MITM در LAN | متوسط | بالا | حل‌شده | SPAKE2 + Channel Binding + محدودیت ۵ تلاش — ADR-18 |
 | R-11 | شبکه «Public» ویندوز یا Client Isolation روتر | متوسط | متوسط | کنترل‌شده | تشخیص در Wizard، ورود دستی آدرس؛ H4 |
 | R-12 | نبود WebView2 روی Windows 10 آفلاین | متوسط | بالا | حل‌شده | Installer آفلاین — ADR-20؛ H2 |
-| R-13 | نبود ترجمه پشتو در NSIS | قطعی | پایین | کنترل‌شده | `customLanguageFiles` در فاز ۱۰ |
+| R-13 | نبود ترجمه پشتو در NSIS و خرابی گزینه `Persian` Tauri با NSIS 3.11 | قطعی | پایین | کنترل‌شده | `customLanguageFiles` در فاز ۱۰ |
 | R-14 | Serial جعلی/تکراری فلش‌های ارزان | بالا | متوسط | حل‌شده | Marker امضاشده + لیست سیاه Serial — ADR-22؛ H5 |
 | R-15 | اختلاف تقویم UI و Core | پایین | متوسط | حل‌شده | `@internationalized/date` = Core در ۷۳٬۴۱۴ روز؛ ICU مستقیم استفاده نمی‌شود — ADR-21 |
 | R-16 | نام ماه‌های ایرانی به‌جای افغانی | بالا | پایین | حل‌شده | جدول نام ماه خودمان — ADR-21 |

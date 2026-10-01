@@ -19,7 +19,7 @@
 
 ## یافته‌ها
 
-1. **زبان Installer:** NSIS در Tauri فارسی (`Persian`) دارد ولی **پشتو ندارد** ← در فاز ۱۰ فایل زبان سفارشی با `customLanguageFiles` اضافه شود.
+1. **زبان Installer:** Tauri یک ترجمه `Persian` دارد، ولی با NSIS 3.11 ساخت Installer شکست می‌خورد، چون Tauri نام `Persian` را به NSIS می‌دهد و فایل زبان NSIS `Farsi.nlf` نام دارد (خطای `Can't open language file ... Persian.nlf` در CI). پشتو هم اصلاً وجود ندارد ← Installer فاز ۰ فقط English است؛ دری و پشتو در فاز ۱۰ با فایل زبان سفارشی (`customLanguageFiles`) اضافه می‌شوند.
 2. WebView2 همان موتوری است که PDF/چاپ را انجام می‌دهد (ADR-13) ← در CI ویندوز تولید PDF با **Edge** انجام می‌شود تا رفتار موتور واقعی تست شود.
 3. نسخه حداقل WebView2 برای APIهای چاپ: `PrintToPdf` (ICoreWebView2_7) و `Print`/`PrinterName` (ICoreWebView2_16، Runtime 1.0.1518+) — Evergreen همیشه جدیدتر است؛ Installer آفلاین نسخه جدید را همراه دارد.
 
