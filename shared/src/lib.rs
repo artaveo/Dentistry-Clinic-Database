@@ -102,59 +102,43 @@ pub struct AppStatus {
     pub default_language: Language,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CalendarSystem {
+    #[default]
     Shamsi,
     Gregorian,
-}
-impl Default for CalendarSystem {
-    fn default() -> Self {
-        CalendarSystem::Shamsi
-    }
 }
 
 /// Roadmap 2.6: a clinic with one doctor gets a simplified UI (doctor picker
 /// hidden, no per-doctor comparisons). Architecture and data are the same
 /// either way; this is only a UI preference, changeable at any time.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ClinicMode {
+    #[default]
     Solo,
     Multi,
-}
-impl Default for ClinicMode {
-    fn default() -> Self {
-        ClinicMode::Solo
-    }
 }
 
 /// Only `single` is functional in Phase 2; `server`/`client` are stored
 /// preferences the wizard offers but LAN mode itself is Phase 7 (ADR-01/02).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallMode {
+    #[default]
     Single,
     Server,
     Client,
 }
-impl Default for InstallMode {
-    fn default() -> Self {
-        InstallMode::Single
-    }
-}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ThemePreference {
     Light,
     Dark,
+    #[default]
     System,
-}
-impl Default for ThemePreference {
-    fn default() -> Self {
-        ThemePreference::System
-    }
 }
 
 /// One day of the clinic's working hours. `day`: 0 = Saturday … 6 = Friday
