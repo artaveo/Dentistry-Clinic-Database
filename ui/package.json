@@ -1,0 +1,29 @@
+{
+  "name": "artaveo-dental-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "preview": "vite preview --port 4173 --strictPort",
+    "e2e": "playwright test",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "~1.56.1",
+    "@tauri-apps/cli": "^2.12.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.2"
+  }
+}

@@ -27,3 +27,11 @@ Thumbs.db
 *.whl
 __pycache__/
 .venv/
+
+# UI build / test output
+ui/dist/
+ui/.e2e-data/
+ui/test-results/
+ui/playwright-report/
+app/gen/
+.artaveo-*/

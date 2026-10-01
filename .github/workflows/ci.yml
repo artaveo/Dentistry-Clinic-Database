@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    name: Linux — lint, tests, contract, E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Version is consistent (SemVer)
+        run: node scripts/check-version.mjs
+      - run: cargo fmt --all --check
+      - run: cargo clippy -p artaveo-core -p artaveo-shared --all-targets --features artaveo-core/dev-server -- -D warnings
+      - name: Unit + integration tests (Core, contract)
+        run: cargo test -p artaveo-core -p artaveo-shared
+      - name: TypeScript contract is up to date
+        run: git diff --exit-code shared/ts
+      - name: Large seed smoke (users + 100k audit rows, timings)
+        run: cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir "$RUNNER_TEMP/seed" --users 50 --audit 100000
+      - name: UI — install, translations, typecheck, build
+        working-directory: ui
+        run: |
+          npm ci
+          npm run i18n:check
+          npm run build
+      - name: E2E (Playwright, real Core over the dev transport)
+        working-directory: ui
+        run: |
+          cargo build -p artaveo-core --features dev-server --bin artaveo-dev-server
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: ui/playwright-report/
+
+  windows:
+    name: Windows ${{ matrix.arch }} — tests, installers, install smoke test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+            runner: windows-latest
+          - arch: x86
+            target: i686-pc-windows-msvc
+            runner: windows-latest
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Full Perl for the vendored OpenSSL build
+        shell: pwsh
+        run: |
+          $perl = "C:\Strawberry\perl\bin\perl.exe"
+          if (-not (Test-Path $perl)) {
+            if (Get-Command choco -ErrorAction SilentlyContinue) {
+              choco install strawberryperl -y --no-progress
+            } else {
+              $zip = "$env:RUNNER_TEMP\strawberry.zip"
+              Invoke-WebRequest "https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54001_64bit_UCRT/strawberry-perl-5.40.0.1-64bit-portable.zip" -OutFile $zip
+              Expand-Archive $zip -DestinationPath C:\Strawberry
+            }
+          }
+          if (-not (Test-Path $perl)) { throw "Strawberry Perl not available" }
+          & $perl -v | Select-Object -First 2
+          "OPENSSL_SRC_PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Tests on ${{ matrix.arch }} (real DPAPI, SQLCipher, Argon2id)
+        run: cargo test -p artaveo-core -p artaveo-shared --target ${{ matrix.target }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Build UI
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build
+      - name: Clippy for the Tauri shell
+        if: matrix.arch == 'x64'
+        run: cargo clippy -p artaveo-app --target ${{ matrix.target }} -- -D warnings
+      - name: Build installers (online + offline WebView2)
+        working-directory: app
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAURI=../ui/node_modules/.bin/tauri
+          OUT=../dist
+          mkdir -p "$OUT"
+          BUNDLE=../target/${{ matrix.target }}/release/bundle/nsis
+          "$TAURI" build --target ${{ matrix.target }}
+          cp "$BUNDLE"/*-setup.exe "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}.exe"
+          rm -f "$BUNDLE"/*-setup.exe
+          "$TAURI" build --target ${{ matrix.target }} --config tauri.offline.conf.json
+          cp "$BUNDLE"/*-setup.exe "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}-offline.exe"
+          ls -la "$OUT"
+      - name: Install silently, start the app, check it opened its encrypted-database core
+        shell: pwsh
+        run: |
+          $setup = "dist\ArtaveoDental-Setup-${{ matrix.arch }}.exe"
+          Start-Process $setup -ArgumentList "/S" -Wait
+          $exe = @("$env:ProgramFiles\Artaveo Dental\artaveo-dental.exe", "${env:ProgramFiles(x86)}\Artaveo Dental\artaveo-dental.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { throw "installed exe not found" }
+          Write-Host "installed: $exe"
+          $p = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 15
+          $logs = "$env:ProgramData\ArtaveoDental\logs"
+          $text = Get-Content "$logs\artaveo*.log" -Raw
+          Write-Host $text
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          if ($text -notmatch "starting Artaveo Dental") { throw "app did not start" }
+          if ($text -match "core failed to start") { throw "core failed" }
+          if ($text -notmatch '"arch":"${{ matrix.arch }}"') { throw "wrong architecture build" }
+          $acl = (Get-Acl "$env:ProgramData\ArtaveoDental").Access | Where-Object { $_.IdentityReference -match "Users" }
+          if (-not $acl) { throw "data folder ACL for Users missing" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.arch }}
+          path: dist/*.exe
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [checks, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches version
+        run: node scripts/check-version.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: dist
+      - name: Checksums
+        run: cd dist && sha256sum *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Artaveo Dental ${{ github.ref_name }}
+          body_path: docs/releases/${{ github.ref_name }}.md
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          files: |
+            dist/*.exe
+            dist/SHA256SUMS.txt

@@ -2,46 +2,41 @@
 
 نرم‌افزار دسکتاپ ویندوز برای مدیریت کامل کلینیک دندان‌پزشکی — آفلاین، دیتابیس محلی رمزشده، تک‌کامپیوتر یا چندکامپیوتر در شبکه داخلی، چندزبانه (دری، پشتو، انگلیسی).
 
-* نقشه راه کامل: [Artaveo_Dental_Roadmap.md](Artaveo_Dental_Roadmap.md)
-* **فاز ۰ (Technical Spikes):** ✅ انجام شد — [گزارش‌ها](docs/spikes/README.md) · [ADRها](docs/adr/README.md) · [جدول ریسک](docs/risk-register.md) · [چک‌لیست سخت‌افزار](docs/spikes/hardware-checklist.md)
+* نقشه راه: [Artaveo_Dental_Roadmap.md](Artaveo_Dental_Roadmap.md)
+* فاز ۰ (Technical Spikes): ✅ — [گزارش‌ها](docs/spikes/README.md) · [ADRها](docs/adr/README.md) · [جدول ریسک](docs/risk-register.md)
+* فاز ۱ (Engineering Foundation): [راهنمای تست دستی](docs/testing/phase-1-manual-test.md) · Installerها در GitHub Releases
 
-## ساختار مخزن
+## ساختار
 
 ```text
-.
-├── Artaveo_Dental_Roadmap.md   نقشه راه و تصمیم‌های پایه
-├── core/                       Rust Core — Business Logic، دیتابیس، Audit (فاز ۱)
-├── app/                        Tauri Shell و Installer (فاز ۱)
-├── ui/                         React + TypeScript (فاز ۱–۲)
-├── shared/                     API Contract و Typeهای مشترک (فاز ۱)
-├── spikes/                     فاز ۰ — نمونه‌های اثبات مفهوم (Cargo workspace)
-│   ├── key-protect/            DPAPI + Recovery Key
-│   ├── sqlcipher-core/         SQLCipher، Migration، Backup، Restore، Benchmark
-│   ├── shamsi/                 تقویم شمسی افغانی + ارقام
-│   ├── escpos/                 چاپ حرارتی ESC/POS Raster + Spooler ویندوز
-│   ├── usb-identity/           هویت فلش/هارد USB
-│   ├── lan-mode/               mDNS + Pairing (SPAKE2) + TLS Pinning + WebSocket
-│   ├── tauri-shell/            Tauri 2: اتصال همه Spikeها، WebView2، چاپ بی‌صدا، قالب‌های رسید/N-up، Installer
-│   └── print-lab/              Node + Chromium/Edge: PDFهای RTL، رستر، مقایسه تقویم
-├── docs/
-│   ├── spikes/                 گزارش هر Spike
-│   ├── adr/                    ADRهای به‌روز/جدید
-│   └── risk-register.md
-└── .github/workflows/          CI روی Linux و Windows
+core/      Rust Core — تمام منطق، دیتابیس SQLCipher، Migration، Auth (Argon2id)، Permission، Audit، Backup
+  migrations/   SQL نسخه‌دار (هر Migration در Transaction، Backup قبل از اجرا)
+  seeds/        داده مرجع و جغرافیا (CSV، سه زبان)
+  src/bin/      artaveo-dev-server (HTTP توسعه/E2E) · artaveo-seed (دیتابیس آزمایشی بزرگ)
+shared/    API Contract (Rust) → shared/ts/contract.ts (تولید خودکار)
+app/       پوسته Tauri 2 — فقط فرمان `rpc` + Installer (NSIS، WebView2 آنلاین/آفلاین)
+ui/        React + TypeScript + Vite — بدون دسترسی مستقیم به دیتابیس
+  e2e/          تست Playwright روی Core واقعی
+spikes/    نمونه‌های فاز ۰ (workspace جدا)
+docs/      ADR، گزارش Spikeها، راهنمای تست، یادداشت انتشار
 ```
 
-## اجرای Spikeها
+## توسعه
 
-پیش‌نیاز: Rust (stable)، Node 22، و روی Linux یک Chrome/Chromium (`CHROME_PATH`). روی Windows: Perl (برای OpenSSL) و Microsoft Edge.
+پیش‌نیاز: Rust stable، Node 22. روی ویندوز: Strawberry Perl (برای OpenSSL ایستا) و WebView2.
 
 ```bash
-cd spikes
-cargo test                                            # تست‌های Rust
-cargo run --release -p sqlcipher-core --example bench # کارایی با ۱۰۰٬۰۰۰ بیمار
-cd print-lab && npm ci && npm run all                 # PDF/رستر/تقویم + اعتبارسنجی
+cargo test -p artaveo-core -p artaveo-shared          # تست‌های Core و Contract (+ تولید contract.ts)
 
-# Windows
-cd spikes/tauri-shell && npx @tauri-apps/cli@^2 dev   # برنامه نمونه
-npx @tauri-apps/cli@^2 build                          # Installer آنلاین
-npx @tauri-apps/cli@^2 build --config tauri.offline.conf.json   # Installer آفلاین
+# UI در مرورگر روی Core واقعی:
+cargo run -p artaveo-core --features dev-server --bin artaveo-dev-server -- --data-dir .artaveo-development
+cd ui && npm ci && npm run dev                          # http://localhost:5173
+
+cd ui && npx playwright test                            # E2E (dev server را خودش اجرا می‌کند؛ قبلش cargo build --features dev-server)
+cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir /tmp/big --audit 100000
+
+# برنامه دسکتاپ (ویندوز):
+cd ui && npm run build && cd ../app && ../ui/node_modules/.bin/tauri build --target x86_64-pc-windows-msvc
 ```
+
+نسخه (SemVer) فقط در `Cargo.toml` (workspace) و `ui/package.json` است؛ `scripts/check-version.mjs` یکسان بودنشان را بررسی می‌کند. انتشار: Tag `vX.Y.Z` → CI سه معماری را می‌سازد، نصب و اجرا را تست می‌کند و GitHub Release می‌سازد.

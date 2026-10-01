@@ -1,0 +1,12 @@
+[package]
+name = "artaveo-shared"
+description = "API contract between the Artaveo Dental Core and every transport (Tauri IPC, LAN, dev HTTP)"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+ts-rs = { version = "12", features = ["serde-json-impl"] }

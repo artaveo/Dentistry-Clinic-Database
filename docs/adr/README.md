@@ -12,5 +12,6 @@
 | ADR-20 | توزیع WebView2 | جدید | [ADR-20](ADR-20-webview2.md) |
 | ADR-21 | پیاده‌سازی تقویم شمسی | جدید | [ADR-21](ADR-21-calendar.md) |
 | ADR-22 | هویت دستگاه USB | جدید | [ADR-22](ADR-22-usb-identity.md) |
+| ADR-23 | محل داده و Transportهای Core | جدید (فاز ۱) | [ADR-23](ADR-23-data-location-and-transports.md) |
 
 قالب هر ADR: زمینه · تصمیم · پیامدها · شواهد.

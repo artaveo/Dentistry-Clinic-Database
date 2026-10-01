@@ -2,7 +2,9 @@ name: Phase 0 spikes
 
 on:
   push:
+    paths: ["spikes/**", ".github/workflows/phase0-spikes.yml"]
   pull_request:
+    paths: ["spikes/**", ".github/workflows/phase0-spikes.yml"]
   workflow_dispatch:
 
 env:

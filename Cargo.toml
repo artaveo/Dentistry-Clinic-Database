@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["core", "shared", "app"]
+# The Tauri shell needs WebView2 (Windows) or webkit2gtk (Linux); plain
+# `cargo test` covers the portable crates. Phase 0 spikes are a separate workspace.
+default-members = ["core", "shared"]
+exclude = ["spikes"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "UNLICENSED"
+repository = "https://github.com/artaveo/Dentistry-Clinic-Database"
+
+[workspace.dependencies]
+artaveo-shared = { path = "shared" }
+artaveo-core = { path = "core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"

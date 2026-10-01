@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window may only call the Core RPC command",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

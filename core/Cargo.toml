@@ -1,0 +1,55 @@
+[package]
+name = "artaveo-core"
+description = "Artaveo Dental Rust Core: all business logic, data access, auth, audit and backup (ADR-01)"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[features]
+# Plain-HTTP JSON-RPC server for development and Playwright E2E tests.
+# Binds to 127.0.0.1 only and is never part of release builds.
+dev-server = ["dep:tiny_http"]
+
+[[bin]]
+name = "artaveo-dev-server"
+path = "src/bin/dev_server.rs"
+required-features = ["dev-server"]
+
+[[bin]]
+name = "artaveo-seed"
+path = "src/bin/seed.rs"
+
+[dependencies]
+artaveo-shared.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+tracing-appender = "0.2"
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+uuid = { version = "1", features = ["v7"] }
+argon2 = { version = "0.5", features = ["std"] }
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
+chacha20poly1305 = "0.10"
+hkdf = "0.12"
+data-encoding = "2"
+zeroize = { version = "1", features = ["derive"] }
+time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+gethostname = "1"
+tiny_http = { version = "0.12", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security_Cryptography",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Wdk_System_SystemServices",
+] }
+
+[dev-dependencies]
+tempfile = "3"

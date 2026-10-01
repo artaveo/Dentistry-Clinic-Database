@@ -1,0 +1,19 @@
+type,code,sort,fa,ps,en
+gender,male,1,مرد,نارینه,Male
+gender,female,2,زن,ښځینه,Female
+blood_group,a_pos,1,A+,A+,A+
+blood_group,a_neg,2,A-,A-,A-
+blood_group,b_pos,3,B+,B+,B+
+blood_group,b_neg,4,B-,B-,B-
+blood_group,ab_pos,5,AB+,AB+,AB+
+blood_group,ab_neg,6,AB-,AB-,AB-
+blood_group,o_pos,7,O+,O+,O+
+blood_group,o_neg,8,O-,O-,O-
+marital_status,single,1,مجرد,مجرد,Single
+marital_status,married,2,متأهل,واده شوی,Married
+marital_status,widowed,3,بیوه,کونډ,Widowed
+marital_status,divorced,4,جداشده,بېل شوی,Divorced
+payment_method,cash,1,نقد,نغدې,Cash
+payment_method,card,2,کارت بانکی,بانکي کارت,Bank card
+payment_method,bank_transfer,3,انتقال بانکی,بانکي لېږد,Bank transfer
+payment_method,mobile_money,4,پول موبایلی,موبایلي پیسې,Mobile money
