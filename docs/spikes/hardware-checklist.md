@@ -4,9 +4,9 @@
 
 | # | سناریو | مراحل | معیار قبولی | نتیجه |
 |---|---|---|---|---|
-| H1 | SQLCipher + DPAPI روی Win10 22H2 و Win11 | نصب Installer → «Run database self-test» | `WindowsDpapiMachine`، SQLCipher 4.5.7، `reopened: true` | ☐ Win10 ☐ Win11 |
+| H1 | SQLCipher + DPAPI روی Win10 22H2 و Win11، روی هر سه نوع پردازنده | نصب Installer مخصوص همان معماری → «Run database self-test» | `WindowsDpapiMachine`، SQLCipher 4.5.7، `reopened: true` | ☐ Win10 x64 ☐ Win11 x64 ☐ Win10 x86 (32-bit) ☐ ARM64 |
 | H1b | انتقال به کامپیوتر دیگر | کپی `spike.db` و `.key` به PC دوم و باز کردن | باز **نشود**؛ با Recovery Key باز شود | ☐ |
-| H2 | WebView2 آفلاین | VM ویندوز ۱۰ تمیز، بدون اینترنت، Installer `offline-*.exe` | برنامه بدون خطا باز شود | ☐ |
+| H2 | WebView2 آفلاین | VM ویندوز ۱۰ تمیز، بدون اینترنت، Installer `offline-*.exe` | برنامه بدون خطا باز شود | ☐ x64 ☐ x86 (32-bit) |
 | H3 | پرینتر حرارتی 80mm | 80mm · دری → «ESC/POS raster» و «WebView2 silent print» | بدون Dialog؛ متن خوانا؛ برش خودکار؛ بدون کاغذ اضافه | ☐ Xprinter ☐ Epson ☐ Rongta |
 | H3b | پرینتر حرارتی 58mm | 58mm · پښتو → «ESC/POS raster» | حروف پشتو خوانا | ☐ |
 | H4 | LAN با ۳ کامپیوتر | PC1: `lan_server`؛ PC2/PC3: `lan_client <code>` (یکی Wi-Fi، یکی کابل) | کشف خودکار، Pair، دریافت Event در کمتر از 300ms | ☐ |

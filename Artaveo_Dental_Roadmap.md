@@ -16,7 +16,8 @@ Artaveo Dental یک **Windows Desktop Application** برای مدیریت کام
 
 | موضوع | تصمیم |
 |---|---|
-| سیستم‌عامل | فقط **Windows 10 و Windows 11** (64-bit). Windows 7/8 پشتیبانی نمی‌شود. |
+| سیستم‌عامل | فقط **Windows 10 و Windows 11**. Windows 7/8 پشتیبانی نمی‌شود. |
+| نوع پردازنده | **همه انواع رایج**: x64 (Intel/AMD 64-bit — اصلی)، x86 (Windows 10 نسخه 32-bit روی کامپیوترهای قدیمی)، ARM64 (لپ‌تاپ‌های Snapdragon). برای هر کدام Installer جدا ساخته می‌شود و وب‌سایت نسخه مناسب را پیشنهاد می‌دهد. |
 | ارز | فقط **افغانی (AFN)**. ساختار داده برای افزودن ارز در آینده باز می‌ماند، ولی UI و منطق V1 تک‌ارزی است. |
 | مدل License | **هر کلینیک یک License**؛ تعداد کامپیوترهای مجاز بر اساس **پلن** تعیین می‌شود. |
 | حالت پیش‌فرض | **تک‌کامپیوتر**. حالت چندکامپیوتری (LAN) اختیاری است و بدون نیاز به IT راه‌اندازی می‌شود. |
@@ -57,7 +58,7 @@ Artaveo Dental یک **Windows Desktop Application** برای مدیریت کام
 
 | معیار | هدف |
 |---|---|
-| حداقل سخت‌افزار | Windows 10 64-bit، 4GB RAM، 2GB فضای خالی (بدون احتساب تصاویر) |
+| حداقل سخت‌افزار | Windows 10 (x64، x86 یا ARM64)، 4GB RAM، 2GB فضای خالی (بدون احتساب تصاویر) |
 | زمان اجرای برنامه | کمتر از ۳ ثانیه تا صفحه Login |
 | جستجوی بیمار | کمتر از ۲۰۰ms با ۱۰۰٬۰۰۰ بیمار |
 | باز شدن پروفایل بیمار | کمتر از ۵۰۰ms |
@@ -185,7 +186,7 @@ Central Services (Supabase)
 * Application Versioning (SemVer)
 * Dev / Test / Production configuration
 * Structured Logging با چرخش فایل (Log Rotation)
-* Windows Build و Installer اولیه
+* Windows Build و Installer اولیه برای هر سه معماری: x64، x86 (32-bit) و ARM64 (CI هر سه را می‌سازد و تست می‌کند)
 
 ### 1.2 CI و کیفیت کد
 
@@ -1082,6 +1083,7 @@ License · Backup · Restore · Printing (Thermal/A4) · PDF
 RTL · LTR · Persian · Pashto · English · Shamsi · Gregorian
 Light · Dark · Installer · Update · Rollback · Performance (NFR)
 Windows 10 · Windows 11 · Low-end Hardware
+x64 (Intel/AMD) · x86 32-bit · ARM64
 ```
 
 ### 11.6 Pilot در کلینیک واقعی
