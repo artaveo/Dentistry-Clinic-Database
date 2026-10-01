@@ -45,6 +45,8 @@ fn main() {
 
     let backend = match Core::open(config) {
         Ok(core) => {
+            // CI's upgrade test reads this line: an existing clinic must still open after an update.
+            tracing::info!(set_up = core.is_set_up(), "core ready");
             let core = Arc::new(core);
             let tick = core.clone();
             std::thread::spawn(move || loop {

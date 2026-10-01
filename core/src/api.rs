@@ -109,13 +109,13 @@ fn decode_logo(base64: Option<&str>, file_name: Option<&str>) -> Result<Option<(
         Some(e) if e == "png" => "png",
         Some(e) if e == "jpg" || e == "jpeg" => "jpg",
         Some(e) if e == "webp" => "webp",
-        _ => return Err(CoreError::validation("logo must be a .png, .jpg or .webp file")),
+        _ => return Err(CoreError::invalid("logo", ValidationRule::LogoType, "logo must be a .png, .jpg or .webp file")),
     };
     let bytes = data_encoding::BASE64
         .decode(b64.as_bytes())
-        .map_err(|e| CoreError::validation(format!("invalid logo data: {e}")))?;
+        .map_err(|e| CoreError::invalid("logo", ValidationRule::LogoType, format!("invalid logo data: {e}")))?;
     if bytes.is_empty() || bytes.len() > MAX_LOGO_BYTES {
-        return Err(CoreError::validation("logo must be 1 byte – 2 MiB"));
+        return Err(CoreError::invalid("logo", ValidationRule::LogoSize, "logo must be 1 byte – 2 MiB"));
     }
     Ok(Some((ext, bytes)))
 }
@@ -169,6 +169,13 @@ impl Core {
                 default_language: self.default_language(),
             }),
             m::APP_SETUP => self.setup(params(p)?),
+            m::APP_CLINIC_LOGO => {
+                let data_url = match self.lock_db().as_ref() {
+                    Some(o) => clinic::logo_data_url(&o.conn)?,
+                    None => None,
+                };
+                ok(ClinicLogo { data_url })
+            }
             m::AUTH_LOGIN => {
                 let LoginParams { username, password } = params(p)?;
                 let (user, permissions) = self.with_db(|o| {
@@ -211,10 +218,12 @@ impl Core {
                         return Err(CoreError::api(
                             ErrorCode::RecoveryKeyInvalid,
                             "recovery key does not match this clinic",
-                        ));
+                        )
+                        .on_field("recovery_key", ValidationRule::RecoveryKey));
                     }
                     let actor = Actor::user(&owner.id, &owner.username);
-                    auth::set_password(&o.conn, &actor, &owner.id, &new_password)?;
+                    auth::set_password(&o.conn, &actor, &owner.id, &new_password)
+                        .map_err(|e| e.rename_field("new_password"))?;
                     audit::record(
                         &o.conn,
                         &actor,
@@ -258,9 +267,11 @@ impl Core {
                         return Err(CoreError::api(
                             ErrorCode::InvalidCredentials,
                             "current password is wrong",
-                        ));
+                        )
+                        .on_field("current_password", ValidationRule::WrongPassword));
                     }
-                    auth::set_password(&o.conn, &actor(&s), &s.user.id, &new_password)?;
+                    auth::set_password(&o.conn, &actor(&s), &s.user.id, &new_password)
+                        .map_err(|e| e.rename_field("new_password"))?;
                     audit::record(
                         &o.conn,
                         &actor(&s),
@@ -310,7 +321,8 @@ impl Core {
                     Ok(good)
                 })?;
                 if !good {
-                    return Err(CoreError::api(ErrorCode::InvalidCredentials, "wrong password"));
+                    return Err(CoreError::api(ErrorCode::InvalidCredentials, "wrong password")
+                        .on_field("password", ValidationRule::WrongPassword));
                 }
                 let mut store = self.lock_sessions();
                 let live = store.get(Some(token), timeout)?;
@@ -419,6 +431,14 @@ impl Core {
                 let new: ClinicProfile = params(p)?;
                 ok(self.with_db(|o| clinic::update(&o.conn, &actor(&s), &new))?)
             }
+            m::CLINIC_SET_LOGO => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let SetLogoParams { logo_base64, logo_file_name } = params(p)?;
+                let logo = decode_logo(logo_base64.as_deref(), logo_file_name.as_deref())?;
+                let dir = self.config.data_dir.join("branding");
+                let data_url = self.with_db(|o| clinic::set_logo(&o.conn, &actor(&s), &dir, logo))?;
+                ok(ClinicLogo { data_url })
+            }
             m::SETTINGS_GET => ok(self.with_db(|o| settings::get(&o.conn))?),
             m::SETTINGS_UPDATE => {
                 s.require(perm::SETTINGS_MANAGE)?;
@@ -472,10 +492,15 @@ impl Core {
     /// First run: create the encrypted database, the clinic identity and the Owner.
     fn setup(&self, p: SetupParams) -> Result<Value> {
         if p.clinic_name.trim().is_empty() || p.clinic_name.chars().count() > 120 {
-            return Err(CoreError::validation("clinic name must be 1–120 characters"));
+            return Err(CoreError::invalid(
+                "clinic_name",
+                ValidationRule::ClinicNameLength,
+                "clinic name must be 1–120 characters",
+            ));
         }
-        auth::validate_username(&p.owner_username)?;
-        auth::validate_password(&p.owner_password)?;
+        auth::validate_username(&p.owner_username).map_err(|e| e.rename_field("owner_username"))?;
+        auth::validate_display_name(&p.owner_display_name).map_err(|e| e.rename_field("owner_display_name"))?;
+        auth::validate_password(&p.owner_password).map_err(|e| e.rename_field("owner_password"))?;
         let logo_bytes = decode_logo(p.logo_base64.as_deref(), p.logo_file_name.as_deref())?;
         let mut guard = self.lock_db();
         if guard.is_some() || self.config.db_path().exists() {

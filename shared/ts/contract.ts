@@ -12,7 +12,19 @@ export type RpcError = { code: ErrorCode,
 /**
  * Developer-facing detail (English, logged); never shown verbatim to users.
  */
-detail: string, };
+detail: string, 
+/**
+ * The request parameter at fault (e.g. `username`, `owner_password`), so
+ * the UI shows the message under that exact input (OF-002). `None` for
+ * errors that are not about one field.
+ */
+field: string | null, 
+/**
+ * Which rule failed; the UI translates it (`error.rule.<rule>`).
+ */
+rule: ValidationRule | null, };
+
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -50,6 +62,10 @@ export type SetupParams = { clinic_name: string, owner_username: string, owner_d
  * Base64-encoded logo image (png/jpg/webp), optional.
  */
 logo_base64: string | null, logo_file_name: string | null, calendar_system: CalendarSystem, clinic_mode: ClinicMode, theme: ThemePreference, color_primary: string, color_secondary: string, color_accent: string, working_hours: Array<DayHours>, trial_acknowledged: boolean, };
+
+export type ClinicLogo = { data_url: string | null, };
+
+export type SetLogoParams = { logo_base64: string | null, logo_file_name: string | null, };
 
 export type SetupResult = { 
 /**
@@ -130,6 +146,7 @@ machine_arch: string, emulated: boolean, os: string, environment: string, comput
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
+  "app.clinic_logo": { params: Empty; result: ClinicLogo };
   "auth.login": { params: LoginParams; result: SessionInfo };
   "auth.recover_owner": { params: RecoverOwnerParams; result: Empty };
   "auth.logout": { params: Empty; result: Empty };
@@ -147,6 +164,7 @@ export interface Api {
   "geo.districts": { params: DistrictListParams; result: Array<LabeledItem> };
   "clinic.get": { params: Empty; result: ClinicProfile };
   "clinic.update": { params: ClinicProfile; result: ClinicProfile };
+  "clinic.set_logo": { params: SetLogoParams; result: ClinicLogo };
   "settings.get": { params: Empty; result: Settings };
   "settings.update": { params: Settings; result: Settings };
   "backup.create": { params: Empty; result: BackupInfo };
@@ -155,4 +173,4 @@ export interface Api {
   "system.info": { params: Empty; result: SystemInfo };
 }
 
-export const PUBLIC_METHODS = ["app.status","app.setup","auth.login","auth.recover_owner"] as const;
+export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;

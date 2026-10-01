@@ -24,5 +24,8 @@ for (const f of walk(path.join(root, "src")).filter((f) => f.endsWith(".tsx"))) 
 const contract = fs.readFileSync(path.join(root, "../shared/ts/contract.ts"), "utf8");
 const codes = contract.match(/export type ErrorCode = ([^;]+);/)[1].match(/"([a-z_]+)"/g).map((s) => s.slice(1, -1));
 for (const c of codes) if (!(`error.${c}` in fa)) { console.error(`missing error.${c}`); bad++; }
+// Every validation rule the Core can report under a field needs a message (OF-002).
+const rules = contract.match(/export type ValidationRule = ([^;]+);/)[1].match(/"([a-z_]+)"/g).map((s) => s.slice(1, -1));
+for (const r of rules) if (!(`rule.${r}` in fa)) { console.error(`missing rule.${r}`); bad++; }
 console.log(bad ? `${bad} i18n problem(s)` : `i18n ok: ${Object.keys(fa).length} keys × 3 languages, ${codes.length} error codes`);
 process.exit(bad ? 1 : 0);

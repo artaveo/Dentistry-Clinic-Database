@@ -5,7 +5,9 @@
 //! and `install_mode` live in `db_meta` / are fixed at Setup and are not
 //! changed by `update` (see [`update`] doc).
 
-use artaveo_shared::{CalendarSystem, ClinicMode, ClinicProfile, DayHours, InstallMode, ThemePreference};
+use artaveo_shared::{
+    CalendarSystem, ClinicMode, ClinicProfile, DayHours, InstallMode, ThemePreference, ValidationRule,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
 
@@ -74,16 +76,16 @@ pub fn get(conn: &Connection) -> Result<ClinicProfile> {
     })
 }
 
-fn validate_color(c: &str) -> Result<()> {
+fn validate_color(field: &str, c: &str) -> Result<()> {
     let ok = c.len() == 7 && c.starts_with('#') && c.chars().skip(1).all(|ch| ch.is_ascii_hexdigit());
     if !ok {
-        return Err(CoreError::validation(format!("`{c}` is not a #rrggbb color")));
+        return Err(CoreError::invalid(field, ValidationRule::ColorFormat, format!("`{c}` is not a #rrggbb color")));
     }
     Ok(())
 }
 
 fn validate_hhmm(s: &str) -> Result<()> {
-    let bad = || CoreError::validation(format!("`{s}` is not an HH:MM time"));
+    let bad = || CoreError::invalid("working_hours", ValidationRule::TimeFormat, format!("`{s}` is not an HH:MM time"));
     let (h, m) = s.split_once(':').ok_or_else(bad)?;
     let h: u32 = h.parse().map_err(|_| bad())?;
     let m: u32 = m.parse().map_err(|_| bad())?;
@@ -94,27 +96,89 @@ fn validate_hhmm(s: &str) -> Result<()> {
 }
 
 fn validate(p: &ClinicProfile) -> Result<()> {
-    validate_color(&p.color_primary)?;
-    validate_color(&p.color_secondary)?;
-    validate_color(&p.color_accent)?;
+    validate_color("color_primary", &p.color_primary)?;
+    validate_color("color_secondary", &p.color_secondary)?;
+    validate_color("color_accent", &p.color_accent)?;
+    let hours_error = |detail: &str| CoreError::invalid("working_hours", ValidationRule::WorkingHours, detail);
     if p.working_hours.len() > 7 {
-        return Err(CoreError::validation("at most 7 working-hours rows"));
+        return Err(hours_error("at most 7 working-hours rows"));
     }
     for d in &p.working_hours {
         if d.day > 6 {
-            return Err(CoreError::validation("day must be 0–6 (Saturday–Friday)"));
+            return Err(hours_error("day must be 0–6 (Saturday–Friday)"));
         }
         if !d.closed {
             match (&d.open, &d.close) {
                 (Some(o), Some(c)) => {
                     validate_hhmm(o)?;
                     validate_hhmm(c)?;
+                    if minutes(o) >= minutes(c) {
+                        return Err(hours_error("closing time must be after opening time"));
+                    }
                 }
-                _ => return Err(CoreError::validation("an open day needs open and close times")),
+                _ => return Err(hours_error("an open day needs open and close times")),
             }
         }
     }
     Ok(())
+}
+
+/// Minutes since midnight of an already-validated "HH:MM".
+fn minutes(s: &str) -> u32 {
+    let (h, m) = s.split_once(':').unwrap_or(("0", "0"));
+    h.parse::<u32>().unwrap_or(0) * 60 + m.parse::<u32>().unwrap_or(0)
+}
+
+/// The stored logo as a `data:` URL for the header/login (roadmap 2.1b).
+/// A missing or unreadable file is "no logo", never an error: the UI falls
+/// back to the clinic's initial.
+pub fn logo_data_url(conn: &Connection) -> Result<Option<String>> {
+    let Some(path) = read(conn, "clinic.logo_path")?.filter(|p| !p.is_empty()) else { return Ok(None) };
+    let mime = match std::path::Path::new(&path).extension().and_then(|e| e.to_str()) {
+        Some("png") => "image/png",
+        Some("jpg") => "image/jpeg",
+        Some("webp") => "image/webp",
+        _ => return Ok(None),
+    };
+    Ok(std::fs::read(&path).ok().map(|bytes| format!("data:{mime};base64,{}", data_encoding::BASE64.encode(&bytes))))
+}
+
+/// Stores a new logo (or removes it) and audits the change. `logo` is the
+/// already-validated extension and bytes (`api::decode_logo`).
+pub fn set_logo(
+    conn: &Connection,
+    actor: &Actor,
+    dir: &std::path::Path,
+    logo: Option<(&str, Vec<u8>)>,
+) -> Result<Option<String>> {
+    let before = read(conn, "clinic.logo_path")?.filter(|p| !p.is_empty());
+    let path = match logo {
+        Some((ext, bytes)) => {
+            std::fs::create_dir_all(dir)?;
+            // A new name per upload: the old file is only removed once the
+            // setting points at the new one.
+            let file = dir.join(format!("logo-{}.{ext}", crate::ids::new_id()));
+            std::fs::write(&file, bytes)?;
+            Some(file.display().to_string())
+        }
+        None => None,
+    };
+    write(conn, "clinic.logo_path", path.as_deref().unwrap_or_default(), actor.user_id.as_deref())?;
+    if let Some(old) = &before {
+        if Some(old) != path.as_ref() {
+            let _ = std::fs::remove_file(old);
+        }
+    }
+    audit::record(
+        conn,
+        actor,
+        "clinic.set_logo",
+        Some("clinic"),
+        None,
+        Some(&json!({ "logo": before.is_some() })),
+        Some(&json!({ "logo": path.is_some() })),
+    )?;
+    logo_data_url(conn)
 }
 
 /// Updates the editable part of the clinic profile. `name`, `default_language`,
@@ -221,9 +285,10 @@ mod tests {
 
     #[test]
     fn color_and_time_validation() {
-        assert!(validate_color("#0e7490").is_ok());
-        assert!(validate_color("0e7490").is_err());
-        assert!(validate_color("#zzzzzz").is_err());
+        assert!(validate_color("color_primary", "#0e7490").is_ok());
+        assert!(validate_color("color_primary", "0e7490").is_err());
+        let e = validate_color("color_accent", "#zzzzzz").unwrap_err();
+        assert_eq!(e.field(), Some("color_accent"));
         assert!(validate_hhmm("08:30").is_ok());
         assert!(validate_hhmm("24:00").is_err());
         assert!(validate_hhmm("8:30").is_ok());

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { LabeledItem } from "../../../shared/ts/contract";
 import { rpc } from "../lib/api";
 import { useI18n } from "../i18n";
+import { Field, Select } from "../ui/Field";
 
 /** Province → District cascading picker (roadmap 2.5), backed by the
  * already-seeded `geo.provinces`/`geo.districts` reference data (1.5). */
@@ -32,31 +33,18 @@ export function GeoPicker({
 
   return (
     <>
-      <label htmlFor="province">{t("wizard.clinicInfo.province")}</label>
-      <select
-        id="province"
-        value={provinceId ?? ""}
-        onChange={(e) => onChange(e.target.value || null, null)}
-        data-testid="setup-province"
-      >
-        <option value="">—</option>
-        {provinces.map((p) => (
-          <option key={p.id} value={p.id}>{p.label}</option>
-        ))}
-      </select>
-      <label htmlFor="district">{t("wizard.clinicInfo.district")}</label>
-      <select
-        id="district"
-        value={districtId ?? ""}
-        disabled={!provinceId}
-        onChange={(e) => onChange(provinceId, e.target.value || null)}
-        data-testid="setup-district"
-      >
-        <option value="">—</option>
-        {districts.map((d) => (
-          <option key={d.id} value={d.id}>{d.label}</option>
-        ))}
-      </select>
+      <Field label={t("wizard.clinicInfo.province")} optional>
+        <Select id="province" value={provinceId ?? ""} onChange={(e) => onChange(e.target.value || null, null)} data-testid="setup-province">
+          <option value="">{t("common.choose")}</option>
+          {provinces.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </Select>
+      </Field>
+      <Field label={t("wizard.clinicInfo.district")} optional hint={!provinceId ? t("hint.districtAfterProvince") : undefined}>
+        <Select id="district" value={districtId ?? ""} disabled={!provinceId} onChange={(e) => onChange(provinceId, e.target.value || null)} data-testid="setup-district">
+          <option value="">{t("common.choose")}</option>
+          {districts.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+        </Select>
+      </Field>
     </>
   );
 }

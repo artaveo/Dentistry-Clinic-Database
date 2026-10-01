@@ -41,6 +41,39 @@ pub struct RpcError {
     pub code: ErrorCode,
     /// Developer-facing detail (English, logged); never shown verbatim to users.
     pub detail: String,
+    /// The request parameter at fault (e.g. `username`, `owner_password`), so
+    /// the UI shows the message under that exact input (OF-002). `None` for
+    /// errors that are not about one field.
+    #[serde(default)]
+    pub field: Option<String>,
+    /// Which rule failed; the UI translates it (`error.rule.<rule>`).
+    #[serde(default)]
+    pub rule: Option<ValidationRule>,
+}
+
+/// Stable, translatable reasons for a `validation` (or field-specific) error.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ValidationRule {
+    Required,
+    UsernameFormat,
+    UsernameTaken,
+    PasswordTooShort,
+    WrongPassword,
+    DisplayNameLength,
+    ClinicNameLength,
+    RoleNotAssignable,
+    OwnerImmutable,
+    ColorFormat,
+    TimeFormat,
+    WorkingHours,
+    SessionTimeoutRange,
+    BackupHourRange,
+    BackupKeepRange,
+    LogoType,
+    LogoSize,
+    RecoveryKey,
+    InvalidParams,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -227,6 +260,23 @@ fn default_color_secondary() -> String {
 }
 fn default_color_accent() -> String {
     "#f59e0b".into()
+}
+
+/// The clinic's own logo for the header, login and splash (roadmap 2.1b).
+/// `data_url` is a `data:image/...;base64,` URL, or `None` when the clinic has
+/// no logo (the UI then shows the name's first letter in the clinic colour).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ClinicLogo {
+    pub data_url: Option<String>,
+}
+
+/// Replaces (or with `logo_base64: None`, removes) the clinic logo.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetLogoParams {
+    #[serde(default)]
+    pub logo_base64: Option<String>,
+    #[serde(default)]
+    pub logo_file_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -446,6 +496,7 @@ macro_rules! api {
 api! {
     "app.status"             => APP_STATUS(Empty) -> AppStatus;
     "app.setup"              => APP_SETUP(SetupParams) -> SetupResult;
+    "app.clinic_logo"        => APP_CLINIC_LOGO(Empty) -> ClinicLogo;
     "auth.login"             => AUTH_LOGIN(LoginParams) -> SessionInfo;
     "auth.recover_owner"     => AUTH_RECOVER_OWNER(RecoverOwnerParams) -> Empty;
     "auth.logout"            => AUTH_LOGOUT(Empty) -> Empty;
@@ -463,6 +514,7 @@ api! {
     "geo.districts"          => GEO_DISTRICTS(DistrictListParams) -> Vec<LabeledItem>;
     "clinic.get"             => CLINIC_GET(Empty) -> ClinicProfile;
     "clinic.update"          => CLINIC_UPDATE(ClinicProfile) -> ClinicProfile;
+    "clinic.set_logo"        => CLINIC_SET_LOGO(SetLogoParams) -> ClinicLogo;
     "settings.get"           => SETTINGS_GET(Empty) -> Settings;
     "settings.update"        => SETTINGS_UPDATE(Settings) -> Settings;
     "backup.create"          => BACKUP_CREATE(Empty) -> BackupInfo;
@@ -471,9 +523,15 @@ api! {
     "system.info"            => SYSTEM_INFO(Empty) -> SystemInfo;
 }
 
-/// Methods callable without a session (status, first-run setup, login, recovery).
-pub const PUBLIC_METHODS: &[&str] =
-    &[methods::APP_STATUS, methods::APP_SETUP, methods::AUTH_LOGIN, methods::AUTH_RECOVER_OWNER];
+/// Methods callable without a session (status, first-run setup, the clinic
+/// logo shown on the login screen, login, recovery).
+pub const PUBLIC_METHODS: &[&str] = &[
+    methods::APP_STATUS,
+    methods::APP_SETUP,
+    methods::APP_CLINIC_LOGO,
+    methods::AUTH_LOGIN,
+    methods::AUTH_RECOVER_OWNER,
+];
 
 /// Generates `shared/ts/contract.ts`.
 pub fn typescript_bindings() -> String {
@@ -488,6 +546,7 @@ pub fn typescript_bindings() -> String {
         RpcRequest,
         RpcResponse,
         RpcError,
+        ValidationRule,
         ErrorCode,
         Empty,
         AppState,
@@ -500,6 +559,8 @@ pub fn typescript_bindings() -> String {
         DayHours,
         ClinicProfile,
         SetupParams,
+        ClinicLogo,
+        SetLogoParams,
         SetupResult,
         LoginParams,
         UserInfo,
@@ -549,7 +610,10 @@ mod tests {
         names.sort();
         names.dedup();
         assert_eq!(names.len(), ALL_METHODS.len());
-        assert_eq!(PUBLIC_METHODS, &["app.status", "app.setup", "auth.login", "auth.recover_owner"]);
+        assert_eq!(
+            PUBLIC_METHODS,
+            &["app.status", "app.setup", "app.clinic_logo", "auth.login", "auth.recover_owner"]
+        );
     }
 
     #[test]
@@ -559,10 +623,17 @@ mod tests {
             serde_json::to_value(ok).unwrap(),
             serde_json::json!({"status": "ok", "result": {"a": 1}})
         );
-        let err = RpcResponse::Error { error: RpcError { code: ErrorCode::Conflict, detail: "x".into() } };
+        let err = RpcResponse::Error {
+            error: RpcError {
+                code: ErrorCode::Validation,
+                detail: "x".into(),
+                field: Some("username".into()),
+                rule: Some(ValidationRule::UsernameFormat),
+            },
+        };
         assert_eq!(
             serde_json::to_value(err).unwrap(),
-            serde_json::json!({"status": "error", "error": {"code": "conflict", "detail": "x"}})
+            serde_json::json!({"status": "error", "error": {"code": "validation", "detail": "x", "field": "username", "rule": "username_format"}})
         );
     }
 }

@@ -1,6 +1,6 @@
 //! Clinic settings stored in the encrypted DB (audited on change).
 
-use artaveo_shared::Settings;
+use artaveo_shared::{Settings, ValidationRule};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
 
@@ -29,13 +29,25 @@ pub fn get(conn: &Connection) -> Result<Settings> {
 
 pub fn update(conn: &Connection, actor: &Actor, new: &Settings) -> Result<Settings> {
     if !(1..=240).contains(&new.session_timeout_minutes) {
-        return Err(CoreError::validation("session timeout must be 1–240 minutes"));
+        return Err(CoreError::invalid(
+            "session_timeout_minutes",
+            ValidationRule::SessionTimeoutRange,
+            "session timeout must be 1–240 minutes",
+        ));
     }
     if new.daily_backup_hour > 23 {
-        return Err(CoreError::validation("backup hour must be 0–23"));
+        return Err(CoreError::invalid(
+            "daily_backup_hour",
+            ValidationRule::BackupHourRange,
+            "backup hour must be 0–23",
+        ));
     }
     if !(1..=365).contains(&new.backup_keep_daily) {
-        return Err(CoreError::validation("backups to keep must be 1–365"));
+        return Err(CoreError::invalid(
+            "backup_keep_daily",
+            ValidationRule::BackupKeepRange,
+            "backups to keep must be 1–365",
+        ));
     }
     let before = get(conn)?;
     let now = now_iso();

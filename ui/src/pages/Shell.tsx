@@ -1,7 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Building2, DatabaseBackup, Info, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Unlock, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { onSessionError, rpc } from "../lib/api";
+import { formatClock, formatDate } from "../lib/dates";
+import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
+import { rememberBrand } from "../lib/color";
 import { LangSwitch } from "./LangSwitch";
 import { SystemInfoPage } from "./SystemInfo";
 import { BackupPage } from "./Backup";
@@ -9,73 +14,118 @@ import { UsersPage } from "./Users";
 import { AuditPage } from "./Audit";
 import { ClinicPage } from "./Clinic";
 import { SettingsPage } from "./Settings";
-import { PasswordPage } from "./Password";
+import { PasswordDialog } from "./Password";
 import { CommandPalette } from "../shell/CommandPalette";
 import type { PaletteItem } from "../shell/CommandPalette";
 import { NotificationBell } from "../shell/NotificationBell";
 import { UserMenu } from "../shell/UserMenu";
+import { Button } from "../ui/Button";
+import { Field, PasswordInput } from "../ui/Field";
+import { ArtaveoMark, Avatar, ClinicMark } from "../ui/Brand";
+import { Notice } from "../ui/Feedback";
 
-type Tab = "system" | "backup" | "users" | "audit" | "clinic" | "settings" | "password";
+type Tab = "clinic" | "users" | "backup" | "audit" | "settings" | "system";
+const ICONS: Record<Tab, LucideIcon> = { clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
 
-export function Shell({ session, clinicName, onSignOut }: { session: SessionInfo; clinicName: string; onSignOut: () => void }) {
-  const { t, err } = useI18n();
+/**
+ * OF-008: UI activity (mouse, keyboard, wheel) is the single source of
+ * "the user is working": it is reported to the Core as a heartbeat at most
+ * every HEARTBEAT_MS, so the Core's idle timer never runs out under a user
+ * who is busy in the UI without sending other requests.
+ */
+const HEARTBEAT_MS = 5_000;
+const POLL_MS = 10_000;
+
+export function Shell({
+  session,
+  clinicName,
+  logo,
+  version,
+  onLogoChange,
+  onSignOut,
+}: {
+  session: SessionInfo;
+  clinicName: string;
+  logo: string | null;
+  version: string;
+  onLogoChange: (l: string | null) => void;
+  onSignOut: () => void;
+}) {
+  const { t } = useI18n();
   const can = (p: string) => session.permissions.includes(p);
-  const tabs: Tab[] = [
-    "system",
-    ...(can("backup.view") ? (["backup"] as Tab[]) : []),
-    ...(can("users.manage") ? (["users"] as Tab[]) : []),
-    ...(can("audit.view") ? (["audit"] as Tab[]) : []),
-    ...(can("settings.manage") ? (["clinic", "settings"] as Tab[]) : []),
-    "password",
-  ];
+  const groups = [
+    { label: t("nav.group.clinic"), tabs: can("settings.manage") ? (["clinic"] as Tab[]) : [] },
+    {
+      label: t("nav.group.admin"),
+      tabs: [
+        ...(can("users.manage") ? (["users"] as Tab[]) : []),
+        ...(can("backup.view") ? (["backup"] as Tab[]) : []),
+        ...(can("audit.view") ? (["audit"] as Tab[]) : []),
+        ...(can("settings.manage") ? (["settings"] as Tab[]) : []),
+      ],
+    },
+    { label: t("nav.group.system"), tabs: ["system"] as Tab[] },
+  ].filter((g) => g.tabs.length);
+  const tabs = groups.flatMap((g) => g.tabs);
+
   const [tab, setTab] = useState<Tab>("system");
-  const [locked, setLocked] = useState(false);
-  const [unlockPw, setUnlockPw] = useState("");
-  const [unlockError, setUnlockError] = useState("");
+  const [locked, setLocked] = useState(session.locked);
+  /** Bumped after every unlock: pages remount and reload, so nothing stale survives the lock (OF-008). */
+  const [generation, setGeneration] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [clinic, setClinic] = useState<ClinicProfile | null>(null);
-  const lastTouch = useRef(0);
+  const lastActivity = useRef(Date.now());
+  const lastReport = useRef(Date.now());
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
 
-  useEffect(() => {
-    rpc("clinic.get", {}).then(setClinic).catch(() => {});
+  const loadClinic = useCallback(() => {
+    rpc("clinic.get", {})
+      .then((c) => {
+        setClinic(c);
+        rememberBrand(c.color_primary, c.color_accent);
+      })
+      .catch(() => {});
   }, []);
+  useEffect(loadClinic, []);
 
-  // Core decides when the session locks; the UI only follows (no bypass).
   useEffect(() => {
     const off = onSessionError((e) => {
       if (e.code === "session_locked") setLocked(true);
       else onSignOut();
     });
-    const poll = window.setInterval(() => {
-      rpc("session.state", {}).then((s) => setLocked(s.locked)).catch(() => {});
-    }, 15000);
     const activity = () => {
-      const now = Date.now();
-      if (!locked && now - lastTouch.current > 30000) {
-        lastTouch.current = now;
-        rpc("session.touch", {}).catch(() => {});
-      }
+      lastActivity.current = Date.now();
     };
-    window.addEventListener("keydown", activity);
-    window.addEventListener("pointerdown", activity);
+    const events = ["pointermove", "pointerdown", "keydown", "wheel"] as const;
+    events.forEach((ev) => window.addEventListener(ev, activity, { passive: true }));
+    const heartbeat = window.setInterval(() => {
+      if (lockedRef.current || lastActivity.current <= lastReport.current) return;
+      lastReport.current = Date.now();
+      rpc("session.touch", {}).catch(() => {});
+    }, HEARTBEAT_MS);
+    const poll = window.setInterval(() => {
+      rpc("session.state", {}).then((s) => s.locked && setLocked(true)).catch(() => {});
+    }, POLL_MS);
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
       off();
+      events.forEach((ev) => window.removeEventListener(ev, activity));
+      window.clearInterval(heartbeat);
       window.clearInterval(poll);
-      window.removeEventListener("keydown", activity);
-      window.removeEventListener("pointerdown", activity);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [locked]);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !lockedRef.current) {
         e.preventDefault();
         setPaletteOpen(true);
       }
@@ -85,78 +135,134 @@ export function Shell({ session, clinicName, onSignOut }: { session: SessionInfo
   }, []);
 
   const lock = () => rpc("session.lock", {}).then(() => setLocked(true)).catch(() => {});
-  const unlock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUnlockError("");
-    try {
-      await rpc("session.unlock", { password: unlockPw });
-      setUnlockPw("");
-      setLocked(false);
-    } catch (x) {
-      setUnlockError(err(x));
-    }
-  };
   const logout = () => rpc("auth.logout", {}).finally(onSignOut);
+  const unlocked = () => {
+    lastActivity.current = lastReport.current = Date.now();
+    setLocked(false);
+    setGeneration((g) => g + 1);
+  };
 
-  const paletteItems: PaletteItem[] = tabs.map((x) => ({ id: x, label: t(`nav.${x}`), onSelect: () => setTab(x) }));
+  const paletteItems: PaletteItem[] = tabs.map((x) => ({ id: x, label: t(`nav.${x}`), icon: ICONS[x], onSelect: () => setTab(x) }));
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="clinic-identity">
-          {/* The uploaded logo file is stored (ADR-12 pattern) but serving it to
-              the UI needs an attachment endpoint that does not exist until
-              Phase 3; the sidebar shows an initial instead until then. */}
-          <span className="clinic-logo-fallback">{(clinicName || "A").slice(0, 1)}</span>
-          <strong data-testid="shell-clinic-name">{clinicName}</strong>
+      <header className="app-header">
+        <div className="clinic-identity" data-testid="clinic-identity">
+          <ClinicMark name={clinicName} logo={logo} />
+          <div className="clinic-text">
+            <span className="clinic-name" data-testid="shell-clinic-name">{clinicName}</span>
+            {clinic && <span className="clinic-sub" data-testid="status-install-mode">{t(`shell.status.installMode.${clinic.install_mode}`)}</span>}
+          </div>
         </div>
-        <nav className="sidebar-nav" role="tablist">
-          {tabs.map((x) => (
-            <button key={x} role="tab" aria-selected={tab === x} aria-current={tab === x ? "page" : undefined} onClick={() => setTab(x)} data-testid={`tab-${x}`}>
-              {t(`nav.${x}`)}
-            </button>
-          ))}
-        </nav>
-        <LangSwitch />
-      </aside>
-      <header className="topbar-v2">
-        <div className="breadcrumbs">{t("app.name")} / {t(`nav.${tab}`)}</div>
-        <div className="status-strip">
-          <span className={`badge ${online ? "ok" : "bad"}`} data-testid="status-online">
+        <button type="button" className="search-trigger" onClick={() => setPaletteOpen(true)} data-testid="command-palette-open" title={t("shell.commandPalette.hint")}>
+          <Search aria-hidden />
+          <span>{t("shell.commandPalette.trigger")}</span>
+          <span className="kbds"><kbd>Ctrl</kbd><kbd>K</kbd></span>
+        </button>
+        <div className="header-end">
+          <span className={`status-pill ${online ? "" : "offline"}`} data-testid="status-online">
+            <span className="dot" aria-hidden />
             {online ? t("shell.status.online") : t("shell.status.offline")}
           </span>
-          {clinic && <span className="badge info" data-testid="status-install-mode">{t(`shell.status.installMode.${clinic.install_mode}`)}</span>}
-          <button type="button" className="ghost" onClick={() => setPaletteOpen(true)} data-testid="command-palette-open" title={t("shell.commandPalette.hint")}>
-            ⌘ <kbd>Ctrl</kbd>+<kbd>K</kbd>
-          </button>
           <NotificationBell />
-          <UserMenu displayName={session.user.display_name} roleLabel={t(`role.${session.user.role}`)} onLock={lock} onLogout={logout} />
+          <UserMenu
+            displayName={session.user.display_name}
+            roleLabel={t(`role.${session.user.role}`)}
+            onPassword={() => setPasswordOpen(true)}
+            onLock={lock}
+            onLogout={logout}
+          />
         </div>
       </header>
-      <main className="shell-main">
-        {tab === "system" && <SystemInfoPage />}
-        {tab === "backup" && <BackupPage canCreate={can("backup.create")} />}
-        {tab === "users" && <UsersPage />}
-        {tab === "audit" && <AuditPage />}
-        {tab === "clinic" && <ClinicPage />}
-        {tab === "settings" && <SettingsPage />}
-        {tab === "password" && <PasswordPage />}
-      </main>
-      {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
-      {locked && (
-        <div className="overlay" data-testid="lock-screen">
-          <form className="card" onSubmit={unlock}>
-            <h1>{t("lock.title")}</h1>
-            <p className="muted">{session.user.display_name} — {t("lock.hint")}</p>
-            <input type="password" autoFocus value={unlockPw} onChange={(e) => setUnlockPw(e.target.value)} data-testid="unlock-password" />
-            {unlockError && <div className="error" role="alert">{unlockError}</div>}
-            <div className="actions">
-              <button className="primary" type="submit" data-testid="unlock">{t("lock.unlock")}</button>
-              <button type="button" onClick={logout}>{t("shell.logout")}</button>
+
+      <aside className="app-sidebar">
+        <nav aria-label={t("shell.navigation")}>
+          {groups.map((g) => (
+            <div className="nav-group" key={g.label}>
+              <span className="t-overline">{g.label}</span>
+              {g.tabs.map((x) => {
+                const Icon = ICONS[x];
+                return (
+                  <button key={x} type="button" className="nav-item" aria-current={tab === x ? "page" : undefined} onClick={() => setTab(x)} data-testid={`tab-${x}`} title={t(`nav.${x}`)}>
+                    <Icon aria-hidden />
+                    <span>{t(`nav.${x}`)}</span>
+                  </button>
+                );
+              })}
             </div>
-          </form>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <LangSwitch />
+          <div className="version">
+            <ArtaveoMark size={16} />
+            <span>Artaveo Dental <bdi className="ltr num">{version}</bdi></span>
+          </div>
         </div>
-      )}
+      </aside>
+
+      <main className="app-main" key={generation}>
+        {tab === "system" && <SystemInfoPage version={version} />}
+        {tab === "backup" && <BackupPage canCreate={can("backup.create")} calendar={clinic?.calendar_system} />}
+        {tab === "users" && <UsersPage currentUserId={session.user.id} />}
+        {tab === "audit" && <AuditPage calendar={clinic?.calendar_system} />}
+        {tab === "clinic" && <ClinicPage logo={logo} onLogoChange={onLogoChange} onSaved={loadClinic} />}
+        {tab === "settings" && <SettingsPage />}
+      </main>
+
+      {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
+      {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
+      {locked && <LockScreen name={session.user.display_name} onUnlocked={unlocked} onLogout={logout} />}
+    </div>
+  );
+}
+
+function LockScreen({ name, onUnlocked, onLogout }: { name: string; onUnlocked: () => void; onLogout: () => void }) {
+  const { t, lang, err } = useI18n();
+  const form = useForm({ password: "" }, { password: v.required });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 10_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const kabul = new Date(now.getTime() + (now.getTimezoneOffset() + 270) * 60_000);
+
+  const unlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!form.validate()) return;
+    setBusy(true);
+    try {
+      await rpc("session.unlock", { password: form.values.password });
+      onUnlocked();
+    } catch (x) {
+      if (!form.serverError(x)) setError(err(x));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="lock-screen" data-testid="lock-screen">
+      <div className="glass-overlay lock-card">
+        <div className="lock-clock num" aria-hidden>{formatClock(kabul.getHours(), kabul.getMinutes(), lang)}</div>
+        <div className="lock-date">{formatDate(now.toISOString(), lang)}</div>
+        <Avatar name={name} size="lg" />
+        <div>
+          <div className="t-title">{name}</div>
+          <div className="muted row" style={{ justifyContent: "center" }}><LockKeyhole size={15} aria-hidden /> {t("lock.title")}</div>
+        </div>
+        <form onSubmit={unlock} noValidate>
+          {error && <Notice tone="danger">{error}</Notice>}
+          <Field label={t("lock.hint")} error={form.error("password") && t(form.error("password")!)}>
+            <PasswordInput large autoFocus value={form.values.password} onChange={(e) => form.set("password", e.target.value)} data-testid="unlock-password" />
+          </Field>
+          <Button type="submit" variant="primary" size="lg" block loading={busy} icon={Unlock} data-testid="unlock">{t("lock.unlock")}</Button>
+          <Button variant="subtle" block onClick={onLogout} data-testid="lock-logout">{t("lock.otherUser")}</Button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -1,142 +1,199 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Building2, CalendarDays, Clock, ImageUp, MapPin, Moon, Monitor, Palette, Phone, Save, Sun, Trash2, User, Users } from "lucide-react";
 import type { CalendarSystem, ClinicMode, ClinicProfile, ThemePreference } from "../../../shared/ts/contract";
-import { rpc } from "../lib/api";
+import { isSessionError, rpc } from "../lib/api";
+import { applyBrand } from "../lib/color";
+import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
 import { GeoPicker } from "../setup/GeoPicker";
+import { HoursEditor, badHours } from "../setup/HoursEditor";
 import { useTheme } from "../theme";
+import { Button } from "../ui/Button";
+import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
+import { OptionCards, Segmented } from "../ui/Controls";
+import { Field, TextInput } from "../ui/Field";
+import { ErrorState, Loading, Notice } from "../ui/Feedback";
+import { ClinicMark } from "../ui/Brand";
+import { useToast } from "../ui/Toast";
+import { ColorSwatches } from "../setup/ColorSwatches";
+import { readLogo } from "../setup/logo";
 
-/** Edits the clinic profile the Setup Wizard collected (roadmap 2.5),
- * reusing the same `clinic.get`/`clinic.update` the wizard's atomic
- * `app.setup` call seeded. */
-export function ClinicPage() {
-  const { t, err } = useI18n();
-  const { setTheme } = useTheme();
+/** Edits the clinic profile the Setup Wizard collected (roadmap 2.5), and the logo (2.1b). */
+export function ClinicPage({ logo, onLogoChange, onSaved }: { logo: string | null; onLogoChange: (l: string | null) => void; onSaved: () => void }) {
+  const { err } = useI18n();
   const [c, setC] = useState<ClinicProfile | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
+  const [error, setError] = useState("");
+  const load = () => rpc("clinic.get", {}).then(setC).catch((e) => !isSessionError(e) && setError(err(e)));
   useEffect(() => {
-    rpc("clinic.get", {}).then(setC).catch((e) => setMsg({ ok: false, text: err(e) }));
+    load();
   }, []);
+  if (error && !c) return <Page><ErrorState message={error} onRetry={load} /></Page>;
+  if (!c) return <Page><Loading /></Page>;
+  return <ClinicForm initial={c} logo={logo} onLogoChange={onLogoChange} onSaved={onSaved} />;
+}
 
-  if (!c) return <div className="muted">{t("common.loading")}</div>;
+function ClinicForm({ initial, logo, onLogoChange, onSaved }: { initial: ClinicProfile; logo: string | null; onLogoChange: (l: string | null) => void; onSaved: () => void }) {
+  const { t, err } = useI18n();
+  const toast = useToast();
+  const { setTheme } = useTheme();
+  const [c, setC] = useState(initial);
+  const form = useForm({ address: initial.address ?? "", phone: initial.phone ?? "" }, { phone: v.phone });
+  const [busy, setBusy] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [hoursError, setHoursError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const savedColors = useRef([initial.color_primary, initial.color_accent] as const);
+
+  // Live preview of the clinic colours; restored if the page is left unsaved.
+  useEffect(() => applyBrand(c.color_primary, c.color_accent), [c.color_primary, c.color_accent]);
+  useEffect(() => () => applyBrand(...savedColors.current), []);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setHoursError("");
+    const okHours = !badHours(c.working_hours);
+    if (!okHours) setHoursError(t("rule.working_hours"));
+    if (!form.validate() || !okHours) return;
+    setBusy(true);
     try {
-      const saved = await rpc("clinic.update", c);
+      const saved = await rpc("clinic.update", { ...c, address: form.values.address.trim() || null, phone: form.values.phone.trim() || null });
       setC(saved);
       setTheme(saved.theme);
-      setMsg({ ok: true, text: t("clinic.saved") });
+      savedColors.current = [saved.color_primary, saved.color_accent];
+      onSaved();
+      toast.success(t("clinic.saved"));
     } catch (x) {
-      setMsg({ ok: false, text: err(x) });
+      const f = (x as { field?: string }).field;
+      if (f === "working_hours") setHoursError(t("rule.working_hours"));
+      else if (!form.serverError(x)) setError(err(x));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickLogo = async (file: File | undefined) => {
+    if (!file) return;
+    setLogoBusy(true);
+    try {
+      const l = await readLogo(file);
+      const r = await rpc("clinic.set_logo", { logo_base64: l.base64, logo_file_name: l.name });
+      onLogoChange(r.data_url);
+      toast.success(t("clinic.logoSaved"));
+    } catch (x) {
+      toast.error(x instanceof Error && x.message.startsWith("rule.") ? t(x.message) : err(x));
+    } finally {
+      setLogoBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+  const removeLogo = async () => {
+    setLogoBusy(true);
+    try {
+      await rpc("clinic.set_logo", { logo_base64: null, logo_file_name: null });
+      onLogoChange(null);
+    } catch (x) {
+      toast.error(err(x));
+    } finally {
+      setLogoBusy(false);
     }
   };
 
   return (
-    <form className="card wide" onSubmit={save}>
-      <h2>{t("clinic.title")}</h2>
-      <GeoPicker
-        provinceId={c.province_id}
-        districtId={c.district_id}
-        onChange={(province_id, district_id) => setC({ ...c, province_id, district_id })}
-      />
-      <label>{t("clinic.address")}</label>
-      <input value={c.address ?? ""} onChange={(e) => setC({ ...c, address: e.target.value })} data-testid="clinic-address" />
-      <label>{t("clinic.phone")}</label>
-      <input className="ltr" value={c.phone ?? ""} onChange={(e) => setC({ ...c, phone: e.target.value })} data-testid="clinic-phone" />
+    <Page testId="page-clinic">
+      <PageHeader title={t("clinic.title")} description={t("clinic.subtitle")} />
+      <form className="stack-lg" onSubmit={save} noValidate>
+        {error && <Notice tone="danger" testId="clinic-message">{error}</Notice>}
 
-      <label>{t("clinic.calendarSystem")}</label>
-      <select value={c.calendar_system} onChange={(e) => setC({ ...c, calendar_system: e.target.value as CalendarSystem })} data-testid="clinic-calendar">
-        <option value="shamsi">{t("wizard.hours.calendar.shamsi")}</option>
-        <option value="gregorian">{t("wizard.hours.calendar.gregorian")}</option>
-      </select>
+        <Card>
+          <CardHeader icon={Building2} title={t("clinic.identity")} description={t("clinic.identityHint")} />
+          <div className="logo-picker">
+            <ClinicMark name={c.name} logo={logo} size="lg" />
+            <div className="logo-text">
+              <span className="t-title">{c.name}</span>
+              <span className="subtle t-caption">{t("clinic.logoHint")}</span>
+            </div>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => pickLogo(e.target.files?.[0])} data-testid="clinic-logo-file" />
+            <Button icon={ImageUp} loading={logoBusy} onClick={() => fileRef.current?.click()}>{logo ? t("clinic.logoChange") : t("clinic.logoUpload")}</Button>
+            {logo && <Button variant="subtle" icon={Trash2} onClick={removeLogo} disabled={logoBusy}>{t("wizard.clinicInfo.logoRemove")}</Button>}
+          </div>
+        </Card>
 
-      <label>{t("clinic.clinicMode")}</label>
-      <select value={c.clinic_mode} onChange={(e) => setC({ ...c, clinic_mode: e.target.value as ClinicMode })} data-testid="clinic-mode">
-        <option value="solo">{t("wizard.clinicType.solo.title")}</option>
-        <option value="multi">{t("wizard.clinicType.multi.title")}</option>
-      </select>
+        <Card>
+          <CardHeader icon={MapPin} title={t("clinic.location")} description={t("clinic.locationHint")} />
+          <div className="grid-2">
+            <GeoPicker provinceId={c.province_id} districtId={c.district_id} onChange={(province_id, district_id) => setC({ ...c, province_id, district_id })} />
+            <Field label={t("clinic.address")} optional className="span-2">
+              <TextInput icon={MapPin} value={form.values.address} onChange={(e) => form.set("address", e.target.value)} data-testid="clinic-address" />
+            </Field>
+            <Field label={t("clinic.phone")} optional hint={t("hint.phone")} error={form.error("phone") && t(form.error("phone")!)}>
+              <TextInput icon={Phone} dir="ltr" inputMode="tel" value={form.values.phone} onChange={(e) => form.set("phone", e.target.value)} data-testid="clinic-phone" />
+            </Field>
+          </div>
+        </Card>
 
-      <label>{t("clinic.theme")}</label>
-      <select value={c.theme} onChange={(e) => setC({ ...c, theme: e.target.value as ThemePreference })} data-testid="clinic-theme">
-        <option value="light">{t("theme.light")}</option>
-        <option value="dark">{t("theme.dark")}</option>
-        <option value="system">{t("theme.system")}</option>
-      </select>
+        <Card>
+          <CardHeader icon={CalendarDays} title={t("clinic.practice")} description={t("clinic.practiceHint")} />
+          <div className="stack">
+            <Field label={t("clinic.calendarSystem")} hint={t("hint.calendar")}>
+              <Segmented<CalendarSystem>
+                value={c.calendar_system}
+                onChange={(calendar_system) => setC({ ...c, calendar_system })}
+                label={t("clinic.calendarSystem")}
+                options={[
+                  { value: "shamsi", label: t("wizard.hours.calendar.shamsi"), testId: "clinic-calendar-shamsi" },
+                  { value: "gregorian", label: t("wizard.hours.calendar.gregorian"), testId: "clinic-calendar-gregorian" },
+                ]}
+              />
+            </Field>
+            <OptionCards<ClinicMode>
+              value={c.clinic_mode}
+              onChange={(clinic_mode) => setC({ ...c, clinic_mode })}
+              label={t("clinic.clinicMode")}
+              columns={2}
+              options={[
+                { value: "solo", title: t("wizard.clinicType.solo.title"), hint: t("wizard.clinicType.solo.hint"), icon: User, testId: "clinic-mode-solo" },
+                { value: "multi", title: t("wizard.clinicType.multi.title"), hint: t("wizard.clinicType.multi.hint"), icon: Users, testId: "clinic-mode-multi" },
+              ]}
+            />
+          </div>
+        </Card>
 
-      <label>{t("clinic.colors")}</label>
-      <div className="swatches">
-        <div className="swatch">
-          <input type="color" value={c.color_primary} onChange={(e) => setC({ ...c, color_primary: e.target.value })} />
+        <Card>
+          <CardHeader icon={Palette} title={t("clinic.appearance")} description={t("clinic.appearanceHint")} />
+          <div className="stack">
+            <Field label={t("clinic.theme")} hint={t("hint.theme")}>
+              <Segmented<ThemePreference>
+                value={c.theme}
+                onChange={(theme) => setC({ ...c, theme })}
+                label={t("clinic.theme")}
+                options={[
+                  { value: "light", label: t("theme.light"), icon: Sun },
+                  { value: "dark", label: t("theme.dark"), icon: Moon },
+                  { value: "system", label: t("theme.system"), icon: Monitor },
+                ]}
+              />
+            </Field>
+            <ColorSwatches
+              primary={c.color_primary}
+              secondary={c.color_secondary}
+              accent={c.color_accent}
+              onChange={(k, val) => setC({ ...c, [k]: val })}
+            />
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader icon={Clock} title={t("clinic.workingHours")} description={t("clinic.workingHoursHint")} />
+          {hoursError && <Notice tone="danger">{hoursError}</Notice>}
+          <HoursEditor hours={c.working_hours} onChange={(working_hours) => { setC({ ...c, working_hours }); setHoursError(""); }} />
+        </Card>
+
+        <div className="row" style={{ justifyContent: "flex-end" }}>
+          <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="clinic-save">{t("common.save")}</Button>
         </div>
-        <div className="swatch">
-          <input type="color" value={c.color_secondary} onChange={(e) => setC({ ...c, color_secondary: e.target.value })} />
-        </div>
-        <div className="swatch">
-          <input type="color" value={c.color_accent} onChange={(e) => setC({ ...c, color_accent: e.target.value })} />
-        </div>
-      </div>
-
-      <label>{t("clinic.workingHours")}</label>
-      <table>
-        <tbody>
-          {c.working_hours.map((h) => (
-            <tr key={h.day}>
-              <td>{t(`wizard.day.${h.day}`)}</td>
-              <td>
-                <label className="row">
-                  <input
-                    type="checkbox"
-                    checked={!h.closed}
-                    onChange={(e) =>
-                      setC({
-                        ...c,
-                        working_hours: c.working_hours.map((d) =>
-                          d.day === h.day
-                            ? e.target.checked
-                              ? { ...d, closed: false, open: "08:00", close: "16:00" }
-                              : { ...d, closed: true, open: null, close: null }
-                            : d,
-                        ),
-                      })
-                    }
-                  />
-                  {t("wizard.hours.open")}
-                </label>
-              </td>
-              {!h.closed && (
-                <>
-                  <td>
-                    <input
-                      className="ltr"
-                      type="time"
-                      value={h.open ?? ""}
-                      onChange={(e) =>
-                        setC({ ...c, working_hours: c.working_hours.map((d) => (d.day === h.day ? { ...d, open: e.target.value } : d)) })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="ltr"
-                      type="time"
-                      value={h.close ?? ""}
-                      onChange={(e) =>
-                        setC({ ...c, working_hours: c.working_hours.map((d) => (d.day === h.day ? { ...d, close: e.target.value } : d)) })
-                      }
-                    />
-                  </td>
-                </>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {msg && <div className={msg.ok ? "success" : "error"} data-testid="clinic-message">{msg.text}</div>}
-      <div className="actions">
-        <button className="primary" type="submit" data-testid="clinic-save">{t("common.save")}</button>
-      </div>
-    </form>
+      </form>
+    </Page>
   );
 }

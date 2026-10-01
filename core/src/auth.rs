@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
-use artaveo_shared::{ErrorCode, RoleInfo, UserInfo};
+use artaveo_shared::{ErrorCode, RoleInfo, UserInfo, ValidationRule};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
 use time::Duration;
@@ -168,9 +168,11 @@ pub fn verify_password(hash: &str, password: &str) -> bool {
 
 pub fn validate_password(password: &str) -> Result<()> {
     if password.chars().count() < MIN_PASSWORD_LEN {
-        return Err(CoreError::validation(format!(
-            "password must be at least {MIN_PASSWORD_LEN} characters"
-        )));
+        return Err(CoreError::invalid(
+            "password",
+            ValidationRule::PasswordTooShort,
+            format!("password must be at least {MIN_PASSWORD_LEN} characters"),
+        ));
     }
     Ok(())
 }
@@ -179,14 +181,22 @@ pub fn validate_username(username: &str) -> Result<()> {
     let ok = (3..=32).contains(&username.len())
         && username.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
     if !ok {
-        return Err(CoreError::validation("username must be 3–32 characters: letters, digits, . _ -"));
+        return Err(CoreError::invalid(
+            "username",
+            ValidationRule::UsernameFormat,
+            "username must be 3–32 characters: letters, digits, . _ -",
+        ));
     }
     Ok(())
 }
 
-fn validate_display_name(name: &str) -> Result<()> {
+pub fn validate_display_name(name: &str) -> Result<()> {
     if name.trim().is_empty() || name.chars().count() > 100 {
-        return Err(CoreError::validation("display name must be 1–100 characters"));
+        return Err(CoreError::invalid(
+            "display_name",
+            ValidationRule::DisplayNameLength,
+            "display name must be 1–100 characters",
+        ));
     }
     Ok(())
 }
@@ -231,7 +241,9 @@ pub fn owner(conn: &Connection) -> Result<UserInfo> {
 
 fn ensure_assignable_role(conn: &Connection, role: &str) -> Result<()> {
     if role == OWNER {
-        return Err(CoreError::validation(
+        return Err(CoreError::invalid(
+            "role",
+            ValidationRule::RoleNotAssignable,
             "the owner role cannot be assigned; a clinic has exactly one owner",
         ));
     }
@@ -241,7 +253,7 @@ fn ensure_assignable_role(conn: &Connection, role: &str) -> Result<()> {
         |r| r.get(0),
     )?;
     if !exists {
-        return Err(CoreError::validation(format!("unknown role {role}")));
+        return Err(CoreError::invalid("role", ValidationRule::RoleNotAssignable, format!("unknown role {role}")));
     }
     Ok(())
 }
@@ -267,7 +279,7 @@ pub fn create_user(conn: &Connection, actor: &Actor, u: NewUser<'_>, allow_owner
         |r| r.get(0),
     )?;
     if taken {
-        return Err(CoreError::api(ErrorCode::Validation, "username already exists"));
+        return Err(CoreError::invalid("username", ValidationRule::UsernameTaken, "username already exists"));
     }
     let id = new_id();
     let now = now_iso();
@@ -303,7 +315,11 @@ pub fn update_user(
     let before = get_user(conn, id)?;
     if before.role == OWNER {
         if role != OWNER || !is_active {
-            return Err(CoreError::validation("the owner cannot be demoted or deactivated"));
+            return Err(CoreError::invalid(
+                "role",
+                ValidationRule::OwnerImmutable,
+                "the owner cannot be demoted or deactivated",
+            ));
         }
     } else {
         ensure_assignable_role(conn, role)?;

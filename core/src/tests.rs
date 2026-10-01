@@ -465,3 +465,150 @@ fn upgrade_from_older_schema_backs_up_migrates_and_audits() {
         std::fs::read_dir(config.backup_dir()).unwrap().map(|e| e.unwrap().file_name()).collect();
     assert!(backups.iter().any(|f| f.to_string_lossy().starts_with("pre-migration-v1-to-v")), "{backups:?}");
 }
+
+impl T {
+    /// The full error (code + field + rule) of a call that must fail.
+    fn err(&self, method: &str, params: Value, token: Option<&str>) -> artaveo_shared::RpcError {
+        match self.core.handle(RpcRequest { method: method.into(), params, token: token.map(Into::into) }) {
+            RpcResponse::Ok { .. } => panic!("{method} unexpectedly succeeded"),
+            RpcResponse::Error { error } => error,
+        }
+    }
+}
+
+fn field_rule(e: &artaveo_shared::RpcError) -> (Option<&str>, Option<String>) {
+    (e.field.as_deref(), e.rule.map(|r| serde_json::to_value(r).unwrap().as_str().unwrap().to_string()))
+}
+
+/// OF-002: every validation error names the exact request field and rule,
+/// so the UI can show it under that input instead of "invalid data".
+#[test]
+fn validation_errors_name_the_field_and_rule() {
+    let t = T::new();
+    let base = json!({"clinic_name": "C", "owner_username": "owner", "owner_display_name": "O",
+                      "owner_password": "owner-pass-1", "language": "fa"});
+    let with = |k: &str, v: Value| {
+        let mut p = base.clone();
+        p[k] = v;
+        p
+    };
+    let e = t.err(m::APP_SETUP, with("owner_username", json!("احمد")), None);
+    assert_eq!(e.code, ErrorCode::Validation);
+    assert_eq!(field_rule(&e), (Some("owner_username"), Some("username_format".into())));
+    let e = t.err(m::APP_SETUP, with("owner_password", json!("short")), None);
+    assert_eq!(field_rule(&e), (Some("owner_password"), Some("password_too_short".into())));
+    let e = t.err(m::APP_SETUP, with("clinic_name", json!("  ")), None);
+    assert_eq!(field_rule(&e), (Some("clinic_name"), Some("clinic_name_length".into())));
+    let e = t.err(m::APP_SETUP, with("owner_display_name", json!("")), None);
+    assert_eq!(field_rule(&e), (Some("owner_display_name"), Some("display_name_length".into())));
+    assert_eq!(t.ok(m::APP_STATUS, json!({}), None)["state"], "needs_setup", "nothing created");
+
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let user = |u: &str, p: &str| json!({"username": u, "display_name": "D", "password": p, "role": "doctor"});
+    let e = t.err(m::USERS_CREATE, user("احمد", "doctor-pass-1"), Some(&owner));
+    assert_eq!(field_rule(&e), (Some("username"), Some("username_format".into())));
+    let e = t.err(m::USERS_CREATE, user("doctor", "1234567"), Some(&owner));
+    assert_eq!(field_rule(&e), (Some("password"), Some("password_too_short".into())));
+    let e = t.err(m::USERS_CREATE, user("Owner", "doctor-pass-1"), Some(&owner));
+    assert_eq!(field_rule(&e), (Some("username"), Some("username_taken".into())));
+
+    let mut s = t.ok(m::SETTINGS_GET, json!({}), Some(&owner));
+    s["daily_backup_hour"] = json!(24);
+    let e = t.err(m::SETTINGS_UPDATE, s, Some(&owner));
+    assert_eq!(field_rule(&e), (Some("daily_backup_hour"), Some("backup_hour_range".into())));
+
+    let e = t.err(
+        m::AUTH_CHANGE_PASSWORD,
+        json!({"current_password": "wrong-pass", "new_password": "new-pass-123"}),
+        Some(&owner),
+    );
+    assert_eq!(e.code, ErrorCode::InvalidCredentials);
+    assert_eq!(field_rule(&e), (Some("current_password"), Some("wrong_password".into())));
+    let e = t.err(
+        m::AUTH_CHANGE_PASSWORD,
+        json!({"current_password": "owner-pass-1", "new_password": "short"}),
+        Some(&owner),
+    );
+    assert_eq!(field_rule(&e), (Some("new_password"), Some("password_too_short".into())));
+
+    let mut c = t.ok(m::CLINIC_GET, json!({}), Some(&owner));
+    c["working_hours"] = json!([{"day": 0, "closed": false, "open": "16:00", "close": "08:00"}]);
+    let e = t.err(m::CLINIC_UPDATE, c, Some(&owner));
+    assert_eq!(field_rule(&e), (Some("working_hours"), Some("working_hours".into())));
+
+    t.ok(m::SESSION_LOCK, json!({}), Some(&owner));
+    let e = t.err(m::SESSION_UNLOCK, json!({"password": "nope"}), Some(&owner));
+    assert_eq!(field_rule(&e), (Some("password"), Some("wrong_password".into())));
+
+    // Login stays deliberately vague: no field, so usernames cannot be probed.
+    let e = t.err(m::AUTH_LOGIN, json!({"username": "owner", "password": "nope"}), None);
+    assert_eq!(field_rule(&e), (None, None));
+}
+
+/// OF-008: activity reported by the UI (`session.touch`) keeps the session
+/// unlocked; after an unlock, the very next request succeeds.
+#[test]
+fn ui_activity_heartbeat_prevents_a_spurious_lock() {
+    let t = T::new();
+    t.setup();
+    let tok = t.login("owner", "owner-pass-1");
+    let mut s = t.ok(m::SETTINGS_GET, json!({}), Some(&tok));
+    s["session_timeout_minutes"] = json!(1);
+    t.ok(m::SETTINGS_UPDATE, s, Some(&tok));
+
+    // A user who keeps working (mouse/keyboard → heartbeat every few seconds)
+    // but sends no other request is never locked, however long they work.
+    for _ in 0..5 {
+        t.core.lock_sessions().age(&tok, Duration::from_secs(50));
+        let st = t.ok(m::SESSION_TOUCH, json!({}), Some(&tok));
+        assert_eq!(st["locked"], false);
+        assert!(st["idle_seconds_left"].as_u64().unwrap() >= 59);
+    }
+    // `session.state` (the UI's poll) is not activity.
+    t.core.lock_sessions().age(&tok, Duration::from_secs(50));
+    t.ok(m::SESSION_STATE, json!({}), Some(&tok));
+    t.core.lock_sessions().age(&tok, Duration::from_secs(15));
+    assert_eq!(t.ok(m::SESSION_STATE, json!({}), Some(&tok))["locked"], true);
+
+    // Requests that were in flight while locked fail with session_locked …
+    assert_eq!(t.call(m::SYSTEM_INFO, json!({}), Some(&tok)), Err(ErrorCode::SessionLocked));
+    // … but after the correct password everything works at once, repeatedly.
+    let st = t.ok(m::SESSION_UNLOCK, json!({"password": "owner-pass-1"}), Some(&tok));
+    assert_eq!(st["locked"], false);
+    for _ in 0..3 {
+        t.ok(m::SYSTEM_INFO, json!({}), Some(&tok));
+        assert_eq!(t.ok(m::SESSION_STATE, json!({}), Some(&tok))["locked"], false);
+    }
+}
+
+/// Roadmap 2.1b / OF-011: the clinic logo is shown in the header and on the
+/// login screen (public), and can be replaced later from Clinic Info.
+#[test]
+fn clinic_logo_is_public_replaceable_and_permissioned() {
+    let t = T::new();
+    assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], Value::Null);
+    t.setup();
+    assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], Value::Null);
+    let owner = t.login("owner", "owner-pass-1");
+    let png = data_encoding::BASE64.encode(b"\x89PNG\r\n\x1a\nfake");
+    let r = t.ok(m::CLINIC_SET_LOGO, json!({"logo_base64": png, "logo_file_name": "Logo.PNG"}), Some(&owner));
+    let url = r["data_url"].as_str().unwrap().to_string();
+    assert!(url.starts_with("data:image/png;base64,"), "{url}");
+    assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], json!(url));
+
+    let e = t.err(m::CLINIC_SET_LOGO, json!({"logo_base64": png, "logo_file_name": "logo.gif"}), Some(&owner));
+    assert_eq!(field_rule(&e), (Some("logo"), Some("logo_type".into())));
+
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "reception", "display_name": "پذیرش", "password": "recep-pass-1", "role": "receptionist"}),
+        Some(&owner),
+    );
+    let rec = t.login("reception", "recep-pass-1");
+    assert_eq!(t.call(m::CLINIC_SET_LOGO, json!({"logo_base64": null}), Some(&rec)), Err(ErrorCode::Forbidden));
+
+    assert_eq!(t.ok(m::CLINIC_SET_LOGO, json!({"logo_base64": null}), Some(&owner))["data_url"], Value::Null);
+    assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], Value::Null);
+    assert!(t.audit_actions(&owner).contains(&"clinic.set_logo".to_string()));
+}
