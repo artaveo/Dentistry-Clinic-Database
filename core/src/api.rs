@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use crate::audit::{self, Actor};
 use crate::auth::{self, perm, NewUser, OWNER};
 use crate::backup;
+use crate::clinic;
 use crate::clock::now_iso;
 use crate::core::Core;
 use crate::db::{self, KeyFiles};
@@ -40,6 +41,28 @@ fn ok<T: Serialize>(v: T) -> Result<Value> {
 
 fn actor(s: &Session) -> Actor {
     Actor::user(&s.user.id, &s.user.username)
+}
+
+const MAX_LOGO_BYTES: usize = 2 * 1024 * 1024;
+
+/// Decodes and sanity-checks a wizard-uploaded logo. Returns the file
+/// extension to store it under (never the client-supplied path) and the
+/// raw bytes, or `None` if no logo was provided.
+fn decode_logo(base64: Option<&str>, file_name: Option<&str>) -> Result<Option<(&'static str, Vec<u8>)>> {
+    let Some(b64) = base64.filter(|s| !s.is_empty()) else { return Ok(None) };
+    let ext = match file_name.and_then(|n| n.rsplit('.').next()).map(|e| e.to_ascii_lowercase()) {
+        Some(e) if e == "png" => "png",
+        Some(e) if e == "jpg" || e == "jpeg" => "jpg",
+        Some(e) if e == "webp" => "webp",
+        _ => return Err(CoreError::validation("logo must be a .png, .jpg or .webp file")),
+    };
+    let bytes = data_encoding::BASE64
+        .decode(b64.as_bytes())
+        .map_err(|e| CoreError::validation(format!("invalid logo data: {e}")))?;
+    if bytes.is_empty() || bytes.len() > MAX_LOGO_BYTES {
+        return Err(CoreError::validation("logo must be 1 byte – 2 MiB"));
+    }
+    Ok(Some((ext, bytes)))
 }
 
 impl Core {
@@ -328,6 +351,12 @@ impl Core {
                     Ok(v)
                 })?)
             }
+            m::CLINIC_GET => ok(self.with_db(|o| clinic::get(&o.conn))?),
+            m::CLINIC_UPDATE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let new: ClinicProfile = params(p)?;
+                ok(self.with_db(|o| clinic::update(&o.conn, &actor(&s), &new))?)
+            }
             m::SETTINGS_GET => ok(self.with_db(|o| settings::get(&o.conn))?),
             m::SETTINGS_UPDATE => {
                 s.require(perm::SETTINGS_MANAGE)?;
@@ -385,6 +414,7 @@ impl Core {
         }
         auth::validate_username(&p.owner_username)?;
         auth::validate_password(&p.owner_password)?;
+        let logo_bytes = decode_logo(p.logo_base64.as_deref(), p.logo_file_name.as_deref())?;
         let mut guard = self.lock_db();
         if guard.is_some() || self.config.db_path().exists() {
             return Err(CoreError::api(ErrorCode::AlreadySetUp, "clinic database already exists"));
@@ -396,6 +426,16 @@ impl Core {
         let result = (|| -> Result<()> {
             let (conn, key) = db::create(&path, self.protector.as_ref(), &recovery)?;
             self.install(conn, key)?;
+            let logo_path = match &logo_bytes {
+                Some((ext, bytes)) => {
+                    let dir = self.config.data_dir.join("branding");
+                    fs::create_dir_all(&dir)?;
+                    let file = dir.join(format!("logo.{ext}"));
+                    fs::write(&file, bytes)?;
+                    Some(file.display().to_string())
+                }
+                None => None,
+            };
             self.with_db(|o| {
                 let tx = o.conn.transaction()?;
                 let now = now_iso();
@@ -408,6 +448,7 @@ impl Core {
                 ] {
                     tx.execute("INSERT INTO db_meta(key, value) VALUES (?1, ?2)", params![k, v])?;
                 }
+                clinic::init_from_setup(&tx, &p, logo_path.as_deref())?;
                 let owner = auth::create_user(
                     &tx,
                     &Actor::system(),

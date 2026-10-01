@@ -24,9 +24,34 @@ export type Language = "fa" | "ps" | "en";
 
 export type AppStatus = { state: AppState, version: string, environment: string, clinic_name: string | null, default_language: Language, };
 
-export type SetupParams = { clinic_name: string, owner_username: string, owner_display_name: string, owner_password: string, language: Language, };
+export type CalendarSystem = "shamsi" | "gregorian";
 
-export type SetupResult = { 
+export type ClinicMode = "solo" | "multi";
+
+export type InstallMode = "single" | "server" | "client";
+
+export type ThemePreference = "light" | "dark" | "system";
+
+export type DayHours = { day: number, closed: boolean,
+/**
+ * "HH:MM", 24-hour.
+ */
+open: string | null, close: string | null, };
+
+export type ClinicProfile = { name: string, default_language: Language, logo_path: string | null, province_id: string | null, district_id: string | null, address: string | null, phone: string | null, calendar_system: CalendarSystem, clinic_mode: ClinicMode, install_mode: InstallMode, theme: ThemePreference, color_primary: string, color_secondary: string, color_accent: string, working_hours: Array<DayHours>,
+/**
+ * Set once, the first time the wizard's Trial step is acknowledged.
+ * No license enforcement yet — the real system is Phase 10.
+ */
+trial_started_at: string | null, };
+
+export type SetupParams = { clinic_name: string, owner_username: string, owner_display_name: string, owner_password: string, language: Language, install_mode: InstallMode, province_id: string | null, district_id: string | null, address: string | null, phone: string | null,
+/**
+ * Base64-encoded logo image (png/jpg/webp), optional.
+ */
+logo_base64: string | null, logo_file_name: string | null, calendar_system: CalendarSystem, clinic_mode: ClinicMode, theme: ThemePreference, color_primary: string, color_secondary: string, color_accent: string, working_hours: Array<DayHours>, trial_acknowledged: boolean, };
+
+export type SetupResult = {
 /**
  * Shown once; the Owner must print or write it down (ADR-04).
  */
@@ -120,6 +145,8 @@ export interface Api {
   "reference.list": { params: ReferenceListParams; result: Array<LabeledItem> };
   "geo.provinces": { params: LanguageParams; result: Array<LabeledItem> };
   "geo.districts": { params: DistrictListParams; result: Array<LabeledItem> };
+  "clinic.get": { params: Empty; result: ClinicProfile };
+  "clinic.update": { params: ClinicProfile; result: ClinicProfile };
   "settings.get": { params: Empty; result: Settings };
   "settings.update": { params: Settings; result: Settings };
   "backup.create": { params: Empty; result: BackupInfo };

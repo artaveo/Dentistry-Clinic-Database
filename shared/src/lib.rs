@@ -102,6 +102,99 @@ pub struct AppStatus {
     pub default_language: Language,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarSystem {
+    Shamsi,
+    Gregorian,
+}
+impl Default for CalendarSystem {
+    fn default() -> Self {
+        CalendarSystem::Shamsi
+    }
+}
+
+/// Roadmap 2.6: a clinic with one doctor gets a simplified UI (doctor picker
+/// hidden, no per-doctor comparisons). Architecture and data are the same
+/// either way; this is only a UI preference, changeable at any time.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ClinicMode {
+    Solo,
+    Multi,
+}
+impl Default for ClinicMode {
+    fn default() -> Self {
+        ClinicMode::Solo
+    }
+}
+
+/// Only `single` is functional in Phase 2; `server`/`client` are stored
+/// preferences the wizard offers but LAN mode itself is Phase 7 (ADR-01/02).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InstallMode {
+    Single,
+    Server,
+    Client,
+}
+impl Default for InstallMode {
+    fn default() -> Self {
+        InstallMode::Single
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemePreference {
+    Light,
+    Dark,
+    System,
+}
+impl Default for ThemePreference {
+    fn default() -> Self {
+        ThemePreference::System
+    }
+}
+
+/// One day of the clinic's working hours. `day`: 0 = Saturday … 6 = Friday
+/// (the Afghan week, ADR-21). Closed days carry `open`/`close` as `None`.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DayHours {
+    pub day: u8,
+    pub closed: bool,
+    /// "HH:MM", 24-hour.
+    pub open: Option<String>,
+    pub close: Option<String>,
+}
+
+/// The clinic's identity and preferences (roadmap 2.5). `name`,
+/// `default_language`, `logo_path` and `install_mode` are set once at Setup;
+/// `clinic.update` leaves them unchanged regardless of what is sent (LAN
+/// server/client conversion is Phase 7, rename/logo change is a later
+/// Settings enhancement).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ClinicProfile {
+    pub name: String,
+    pub default_language: Language,
+    pub logo_path: Option<String>,
+    pub province_id: Option<String>,
+    pub district_id: Option<String>,
+    pub address: Option<String>,
+    pub phone: Option<String>,
+    pub calendar_system: CalendarSystem,
+    pub clinic_mode: ClinicMode,
+    pub install_mode: InstallMode,
+    pub theme: ThemePreference,
+    pub color_primary: String,
+    pub color_secondary: String,
+    pub color_accent: String,
+    pub working_hours: Vec<DayHours>,
+    /// Set once, the first time the wizard's Trial step is acknowledged.
+    /// No license enforcement yet — the real system is Phase 10.
+    pub trial_started_at: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SetupParams {
     pub clinic_name: String,
@@ -109,6 +202,47 @@ pub struct SetupParams {
     pub owner_display_name: String,
     pub owner_password: String,
     pub language: Language,
+    #[serde(default)]
+    pub install_mode: InstallMode,
+    #[serde(default)]
+    pub province_id: Option<String>,
+    #[serde(default)]
+    pub district_id: Option<String>,
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    /// Base64-encoded logo image (png/jpg/webp), optional.
+    #[serde(default)]
+    pub logo_base64: Option<String>,
+    #[serde(default)]
+    pub logo_file_name: Option<String>,
+    #[serde(default)]
+    pub calendar_system: CalendarSystem,
+    #[serde(default)]
+    pub clinic_mode: ClinicMode,
+    #[serde(default)]
+    pub theme: ThemePreference,
+    #[serde(default = "default_color_primary")]
+    pub color_primary: String,
+    #[serde(default = "default_color_secondary")]
+    pub color_secondary: String,
+    #[serde(default = "default_color_accent")]
+    pub color_accent: String,
+    #[serde(default)]
+    pub working_hours: Vec<DayHours>,
+    #[serde(default)]
+    pub trial_acknowledged: bool,
+}
+
+fn default_color_primary() -> String {
+    "#0e7490".into()
+}
+fn default_color_secondary() -> String {
+    "#64748b".into()
+}
+fn default_color_accent() -> String {
+    "#f59e0b".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -343,6 +477,8 @@ api! {
     "reference.list"         => REFERENCE_LIST(ReferenceListParams) -> Vec<LabeledItem>;
     "geo.provinces"          => GEO_PROVINCES(LanguageParams) -> Vec<LabeledItem>;
     "geo.districts"          => GEO_DISTRICTS(DistrictListParams) -> Vec<LabeledItem>;
+    "clinic.get"             => CLINIC_GET(Empty) -> ClinicProfile;
+    "clinic.update"          => CLINIC_UPDATE(ClinicProfile) -> ClinicProfile;
     "settings.get"           => SETTINGS_GET(Empty) -> Settings;
     "settings.update"        => SETTINGS_UPDATE(Settings) -> Settings;
     "backup.create"          => BACKUP_CREATE(Empty) -> BackupInfo;
@@ -373,6 +509,12 @@ pub fn typescript_bindings() -> String {
         AppState,
         Language,
         AppStatus,
+        CalendarSystem,
+        ClinicMode,
+        InstallMode,
+        ThemePreference,
+        DayHours,
+        ClinicProfile,
         SetupParams,
         SetupResult,
         LoginParams,

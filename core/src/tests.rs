@@ -345,6 +345,69 @@ fn backup_retention_keeps_newest() {
 }
 
 #[test]
+fn setup_with_full_wizard_fields_stores_the_clinic_profile() {
+    let t = T::new();
+    let kabul = crate::ids::seed_id("province", "AF-KAB");
+    t.ok(
+        m::APP_SETUP,
+        json!({
+            "clinic_name": "کلینیک کامل", "owner_username": "owner", "owner_display_name": "مالک",
+            "owner_password": "owner-pass-1", "language": "fa",
+            "install_mode": "single", "province_id": kabul, "address": "کابل، سرک سوم",
+            "phone": "0700000000", "calendar_system": "gregorian", "clinic_mode": "solo",
+            "theme": "dark", "color_primary": "#112233", "color_secondary": "#445566",
+            "color_accent": "#778899", "working_hours": [{"day": 0, "closed": false, "open": "08:00", "close": "16:00"}],
+            "trial_acknowledged": true
+        }),
+        None,
+    );
+    let tok = t.login("owner", "owner-pass-1");
+    let c = t.ok(m::CLINIC_GET, json!({}), Some(&tok));
+    assert_eq!(c["name"], "کلینیک کامل");
+    assert_eq!(c["province_id"], kabul);
+    assert_eq!(c["calendar_system"], "gregorian");
+    assert_eq!(c["theme"], "dark");
+    assert_eq!(c["color_primary"], "#112233");
+    assert_eq!(c["working_hours"][0]["open"], "08:00");
+    assert!(c["trial_started_at"].is_string());
+}
+
+#[test]
+fn clinic_get_has_defaults_and_update_is_audited_and_permissioned() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let before = t.ok(m::CLINIC_GET, json!({}), Some(&owner));
+    assert_eq!(before["calendar_system"], "shamsi");
+    assert_eq!(before["clinic_mode"], "solo");
+    assert_eq!(before["theme"], "system");
+    assert_eq!(before["working_hours"], json!([]));
+
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "reception", "display_name": "پذیرش", "password": "recep-pass-1", "role": "receptionist"}),
+        Some(&owner),
+    );
+    let rec = t.login("reception", "recep-pass-1");
+    let mut edited = before.clone();
+    edited["address"] = json!("هرات");
+    edited["theme"] = json!("dark");
+    edited["color_primary"] = json!("#abcdef");
+    assert_eq!(t.call(m::CLINIC_UPDATE, edited.clone(), Some(&rec)), Err(ErrorCode::Forbidden));
+
+    let after = t.ok(m::CLINIC_UPDATE, edited, Some(&owner));
+    assert_eq!(after["address"], "هرات");
+    assert_eq!(after["theme"], "dark");
+    assert_eq!(after["color_primary"], "#abcdef");
+    assert_eq!(after["name"], before["name"], "name is not editable through clinic.update");
+    assert!(t.audit_actions(&owner).contains(&"clinic.update".to_string()));
+
+    let mut bad_color = after.clone();
+    bad_color["color_primary"] = json!("not-a-color");
+    assert_eq!(t.call(m::CLINIC_UPDATE, bad_color, Some(&owner)), Err(ErrorCode::Validation));
+}
+
+#[test]
 fn reopen_persists_and_background_integrity_check_passes() {
     let t = T::new();
     t.setup();
