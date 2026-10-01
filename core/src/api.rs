@@ -43,6 +43,61 @@ fn actor(s: &Session) -> Actor {
     Actor::user(&s.user.id, &s.user.username)
 }
 
+/// Index into `seeds::LANGS` (`["fa", "ps", "en"]`) and `GeoRow::labels`.
+fn lang_index(language: Language) -> usize {
+    match language {
+        Language::Fa => 0,
+        Language::Ps => 1,
+        Language::En => 2,
+    }
+}
+
+/// Serves `geo.provinces`/`geo.districts` straight from the embedded seed
+/// CSVs (no database): used only before Setup (see `call()`). Ids match
+/// `ids::seed_id`, the same ones the database uses once it exists, so a
+/// province/district picked during Setup still resolves after the clinic
+/// database is created and seeded.
+fn geo_from_seeds(method: &str, p: Value) -> Result<Value> {
+    match method {
+        m::GEO_PROVINCES => {
+            let LanguageParams { language } = params(p)?;
+            let idx = lang_index(language);
+            let mut rows = crate::seeds::province_rows()?;
+            rows.sort_by_key(|r| r.sort);
+            let v: Vec<LabeledItem> = rows
+                .into_iter()
+                .map(|r| LabeledItem {
+                    id: province_seed_id(&r.code),
+                    code: r.code,
+                    label: r.labels[idx].clone(),
+                })
+                .collect();
+            ok(v)
+        }
+        m::GEO_DISTRICTS => {
+            let DistrictListParams { province_id, language } = params(p)?;
+            let idx = lang_index(language);
+            let mut rows = crate::seeds::district_rows()?;
+            rows.sort_by_key(|r| r.sort);
+            let v: Vec<LabeledItem> = rows
+                .into_iter()
+                .filter(|r| province_seed_id(r.parent.as_deref().unwrap_or_default()) == province_id)
+                .map(|r| LabeledItem {
+                    id: crate::ids::seed_id("district", &r.code),
+                    code: r.code,
+                    label: r.labels[idx].clone(),
+                })
+                .collect();
+            ok(v)
+        }
+        _ => unreachable!("geo_from_seeds is only called for the two geo methods"),
+    }
+}
+
+fn province_seed_id(code: &str) -> String {
+    crate::ids::seed_id("province", code)
+}
+
 const MAX_LOGO_BYTES: usize = 2 * 1024 * 1024;
 
 /// Decodes and sanity-checks a wizard-uploaded logo. Returns the file
@@ -76,6 +131,13 @@ impl Core {
             return Err(CoreError::api(ErrorCode::UnknownMethod, method.to_string()));
         }
         if !self.is_set_up() {
+            // The Setup Wizard's Clinic Info step needs the province/district
+            // list before the clinic database (which normally serves it)
+            // exists; it is system seed data, not clinic data, so it can be
+            // read straight from the embedded CSVs with no session either.
+            if matches!(method, m::GEO_PROVINCES | m::GEO_DISTRICTS) {
+                return geo_from_seeds(method, p);
+            }
             return Err(CoreError::api(ErrorCode::NotSetUp, "clinic is not set up"));
         }
         let token = token.unwrap_or_default();
