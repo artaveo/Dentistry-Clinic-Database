@@ -21,6 +21,10 @@ Artaveo Dental یک **Windows Desktop Application** برای مدیریت کام
 | مدل License | **هر کلینیک یک License**؛ تعداد کامپیوترهای مجاز بر اساس **پلن** تعیین می‌شود. |
 | حالت پیش‌فرض | **تک‌کامپیوتر**. حالت چندکامپیوتری (LAN) اختیاری است و بدون نیاز به IT راه‌اندازی می‌شود. |
 | محدوده V1 | تمام امکانات این سند جزو V1 هستند. |
+| حریم داده بیماران | **Artaveo هیچ‌وقت داده بیماران را نگهداری نمی‌کند.** Cloud Backup هر کلینیک به فضای ابری **متعلق به خود کلینیک** می‌رود، نه سرور Artaveo. |
+| پلن‌ها | همه امکانات در همه پلن‌ها یکسان است؛ تفاوت فقط در تعداد کامپیوتر. **پایه**: ۱ کامپیوتر، ۳٬۰۰۰ AFN/سال · **استاندارد**: تا ۳ کامپیوتر، ۵٬۰۰۰ AFN/سال · **حرفه‌ای**: تا ۶ کامپیوتر، ۷٬۵۰۰ AFN/سال. Trial رایگان ۳۰ روزه. |
+| نصب و راه‌اندازی | فعلاً به‌صورت حضوری و رایگان توسط Artaveo انجام می‌شود. |
+| انتشار برنامه | از وب‌سایت Artaveo، بدون Code Signing Certificate (هشدار SmartScreen پذیرفته شده است). |
 
 ### تصمیم‌های فنی (Architecture Decision Records)
 
@@ -41,8 +45,8 @@ Artaveo Dental یک **Windows Desktop Application** برای مدیریت کام
 | ADR-13 | PDF و چاپ | تولید PDF و چاپ از طریق **موتور WebView2 (Chromium)** با Page Size سفارشی؛ پرینتر حرارتی با Silent Print یا ESC/POS (نتیجه Spike فاز ۰ تعیین می‌کند). | پشتیبانی کامل RTL و اتصال حروف فارسی/پشتو. |
 | ADR-14 | شماره‌گذاری دندان | پیش‌فرض **FDI** (ISO 3950)؛ Universal و Palmer در تنظیمات. | |
 | ADR-15 | License | فایل License امضاشده با **Ed25519**؛ کلید خصوصی فقط روی سرور مرکزی. | جعل License ممکن نیست. |
-| ADR-16 | سرویس‌های مرکزی | Supabase (Postgres + Edge Functions + Storage) برای License، Activation، Update Metadata و Cloud Backup. | |
-| ADR-17 | Cloud Backup | **End-to-End Encrypted**؛ سرور مرکزی هیچ‌وقت کلید رمزگشایی ندارد. | محرمانگی داده بیماران حتی در برابر فروشنده. |
+| ADR-16 | سرویس‌های مرکزی | Supabase (Postgres + Edge Functions) فقط برای License، Activation، Installation Tracking، Security Events و Update Metadata. **پلن رایگان**. هیچ داده بیمار روی Supabase نیست. | داده هر کلینیک کمتر از چند ده KB؛ پلن رایگان برای ده‌ها هزار کلینیک کافی است. |
+| ADR-17 | Cloud Backup | Backup رمزنگاری‌شده در **پوشه همگام‌سازی فضای ابری خود کلینیک** (Google Drive / OneDrive Desktop) نوشته می‌شود و برنامه همگام‌سازی آن را آپلود می‌کند. | بدون هزینه برای Artaveo، بدون نیاز به API و حساب ابری اختصاصی، صف آفلاین را خود Google Drive/OneDrive مدیریت می‌کند، داده بیماران هرگز به Artaveo نمی‌رسد. |
 
 ### نیازمندی‌های غیرعملکردی (NFR)
 
@@ -107,7 +111,7 @@ Central Services (Supabase)
     ├── License & Activation
     ├── Installation Tracking
     ├── Security Events
-    ├── Encrypted Cloud Backup
+    ├── (بدون داده بیمار — Cloud Backup در فضای ابری خود کلینیک)
     ├── App Update Metadata
     └── Vendor Admin Panel (مدیریت مشتریان و License)
 ```
@@ -146,6 +150,7 @@ Central Services (Supabase)
 | RTL PDF | PDF فارسی/پشتو با متن مختلط انگلیسی و اعداد، با Page Size دلخواه (A6، 80mm) درست تولید می‌شود؟ |
 | Thermal Printing | چاپ مستقیم روی پرینتر حرارتی 58/80mm بدون Dialog ممکن است؟ (WebView2 Silent Print در برابر ESC/POS) |
 | A4 Compact Print | رسید کوچک روی کاغذ A4 در محل قابل‌تنظیم چاپ می‌شود؟ |
+| Small Paper on Normal Printer | چاپ مستقیم روی کاغذ A5/A6 با پرینتر معمولی (Manual Feed)، و چاپ ۲ یا ۴ رسید روی یک A4 با خط برش |
 | Shamsi Calendar | کتابخانه تقویم شمسی برای Date Picker، نمایش و گزارش‌ها |
 | LAN Mode | کشف سرور با mDNS، Pairing، TLS، WebSocket روی یک Router معمولی |
 | WebView2 | نصب خودکار WebView2 در Installer برای سیستم‌هایی که ندارند |
@@ -624,8 +629,32 @@ RC-1405-000002
 Thermal 58mm
 Thermal 80mm
 Compact A6
+Compact A5
 Custom Compact
 ```
+
+اندازه سند همیشه کوچک و استاندارد است، **مستقل از اینکه کلینیک چه پرینتری دارد یا اصلاً پرینتر دارد یا نه**. فرض اصلی: بسیاری از کلینیک‌ها در ابتدا پرینتر حرارتی ندارند.
+
+#### حالت‌های خروجی (Output Profiles)
+
+| وضعیت کلینیک | خروجی |
+|---|---|
+| پرینتر حرارتی 58/80mm | چاپ مستقیم روی رول حرارتی |
+| پرینتر معمولی با کاغذ A4 | رسید در اندازه واقعی خودش روی بخشی از A4 (محل قابل تنظیم) |
+| پرینتر معمولی با کاغذ کوچک A5/A6 | چاپ مستقیم روی کاغذ کوچک از سینی دستی (Manual Feed)؛ اکثر پرینترهای لیزری و جوهرافشان معمولی A5 و بسیاری A6 را پشتیبانی می‌کنند |
+| پرینتر معمولی، چند رسید در یک A4 | چاپ ۲ یا ۴ رسید روی یک برگ A4 با **خط برش (Cut Marks)** برای صرفه‌جویی کاغذ |
+| بدون پرینتر | فقط **PDF** در اندازه واقعی رسید |
+
+* پیش‌فرض برای A4: رسید در **نیمه بالایی** برگ چاپ می‌شود تا نیمه پایینی برای رسید بعدی (با برگرداندن کاغذ) یا برش قابل استفاده باشد.
+* پیش‌نمایش (Print Preview) دقیقاً همان چیزی را نشان می‌دهد که روی کاغذ می‌آید.
+* تست چاپ و تنظیم حاشیه (Calibration) برای پرینترهایی که کمی جابه‌جا چاپ می‌کنند.
+
+#### حالت بدون پرینتر
+
+* ذخیره خودکار PDF هر رسید/سند در پوشه سازمان‌یافته (`Receipts/1405/07/RC-1405-000184.pdf`)
+* دکمه «باز کردن محل فایل» و «کپی فایل» برای ارسال دستی به بیمار (مثلاً از طریق WhatsApp)
+* نمایش رسید روی صفحه برای عکس گرفتن توسط بیمار
+* هر زمان پرینتر اضافه شود، فقط Output Profile تغییر می‌کند
 
 در چاپ با پرینتر A4، رسید روی بخشی کوچک از کاغذ قرار می‌گیرد و فضای خالی بزرگ ایجاد نمی‌کند:
 
@@ -667,7 +696,9 @@ Receipt ≠ A4 Report
 
 ### 6.12 Print Settings
 
-* انتخاب پرینتر پیش‌فرض برای هر نوع سند (رسید → حرارتی، گزارش → A4)
+* انتخاب Output Profile و پرینتر پیش‌فرض برای هر نوع سند (رسید → حرارتی / A4 فشرده / A5 / فقط PDF، گزارش → A4 / فقط PDF)
+* نسخه دکتر (Prescription) نیز همین Profileها را دارد (پیش‌فرض A5)
+* در Setup Wizard پرسیده می‌شود: «پرینتر حرارتی / پرینتر معمولی / بدون پرینتر»
 * در حالت LAN، هر کامپیوتر پرینتر خودش را دارد
 * Branding رسید: لوگو، نام، آدرس، تلفن، متن پایین رسید
 
@@ -884,10 +915,16 @@ Monthly: 3 copies
 
 ### 10.6 Cloud Backup
 
-* End-to-End Encrypted (ADR-17)
-* اگر اینترنت نبود: `Local ✅ · USB ✅/Pending · Cloud Pending`
-* با بازگشت اینترنت: `Pending Queue → Upload (قابل ادامه پس از قطعی) → Verify → Mark Complete`
-* آپلود دیتابیس اولویت دارد؛ آپلود تصاویر اختیاری و با محدودیت پهنای باند قابل تنظیم (مناسب اینترنت کند)
+Cloud Backup به **حساب ابری خود کلینیک** می‌رود، نه سرور Artaveo (ADR-17).
+
+* کلینیک یک بار پوشه همگام‌سازی Google Drive یا OneDrive را انتخاب می‌کند (فضای رایگان Google Drive: 15GB)
+* Backup رمزنگاری‌شده با کلید کلینیک در آن پوشه نوشته می‌شود؛ حتی صاحب حساب ابری بدون Recovery Key نمی‌تواند آن را باز کند
+* اگر اینترنت نبود: `Local ✅ · USB ✅/Pending · Cloud: در پوشه همگام‌سازی، منتظر اینترنت`
+* با بازگشت اینترنت، برنامه Google Drive/OneDrive خودش آپلود را انجام و ادامه می‌دهد
+* برنامه وضعیت همگام‌سازی را تا حد ممکن نمایش می‌دهد و اگر پوشه یا برنامه همگام‌سازی پیدا نشود هشدار می‌دهد
+* دیتابیس همیشه؛ تصاویر اختیاری (برای صرفه‌جویی فضا و اینترنت)
+* Retention جداگانه برای پوشه ابری (پیش‌فرض: ۷ نسخه روزانه + ۴ هفتگی)
+* اتصال مستقیم API به Google Drive/OneDrive در صورت نیاز در نسخه‌های بعدی
 
 ### 10.7 Restore
 
@@ -946,7 +983,8 @@ New Effective Start: 2027-01-01
 * Protected Application Configuration
 * TLS برای License API و LAN
 * **هیچ Secret یا Service-Role Key داخل EXE نیست**؛ EXE فقط Public Key و Publishable Key دارد
-* Signed Application Builds (Code Signing Certificate)
+* امضای Update با کلید رایگان Tauri Updater (اجباری)
+* Code Signing Certificate ویندوز (اختیاری؛ در صورت توجیه مالی بعداً)
 * Secure Migration Process
 
 ### 10.11 Vendor Admin Panel
@@ -957,7 +995,8 @@ New Effective Start: 2027-01-01
 * صدور، تمدید، ابطال و انتقال License
 * تعیین پلن و تعداد کامپیوتر
 * مشاهده Installationها و Security Events
-* وضعیت آخرین Cloud Backup هر کلینیک (بدون دسترسی به محتوا)
+* زمان آخرین Backup موفق هر کلینیک (فقط تاریخ و وضعیت، برای پشتیبانی؛ بدون هیچ داده‌ای از محتوا)
+* Export دوره‌ای دیتابیس License خود Artaveo (پلن رایگان Supabase Backup خودکار ندارد)
 * انتشار نسخه جدید و Update Metadata
 
 **Exit Criteria:** سناریوهای License (Trial، Activation، انقضا، Grace، ابطال، انتقال، دست‌کاری ساعت) و Backup/Restore (Local، USB، Cloud، کامپیوتر جدید) همه تست شده و پاس شده‌اند.
@@ -976,7 +1015,8 @@ Artaveo Dental Setup.exe
 * نصب خودکار WebView2 در صورت نبود
 * Data Preservation (Uninstall داده را پاک نمی‌کند مگر با تأیید صریح)
 * Migration خودکار هنگام Upgrade
-* امضاشده با Code Signing Certificate (برای جلوگیری از هشدار Windows SmartScreen)
+* انتشار از وب‌سایت خود Artaveo
+* بدون Code Signing Certificate، ویندوز هنگام اولین اجرای Installer هشدار SmartScreen نشان می‌دهد (`More info → Run anyway`)؛ راهنمای تصویری این مرحله در وب‌سایت و راهنمای نصب قرار می‌گیرد. گواهی در آینده اختیاری است.
 
 ### 11.2 Automatic Updates
 
@@ -1060,7 +1100,7 @@ License & Security
 Backup
 ✅ Daily Automated Backup
 ✅ Trusted USB Backup
-✅ Encrypted Cloud Backup Queue
+✅ Encrypted Cloud Backup (Clinic-owned Google Drive / OneDrive)
 ✅ Backup Retention
 ✅ Validated Restore
 
@@ -1118,7 +1158,7 @@ Management
 Release
 ✅ Signed Automatic Updates
 ✅ Crash Recovery
-✅ Signed Production Installer
+✅ Production Installer
 ✅ Real-clinic Pilot Passed
 ```
 
@@ -1153,8 +1193,10 @@ Mobile App
 | گم شدن Recovery Key | متوسط | بالا | تأکید در Setup، چاپ اجباری، یادآوری دوره‌ای به Owner |
 | خرابی هارد کامپیوتر سرور | متوسط | بالا | USB + Cloud Backup + هشدار Backup ناموفق |
 | کامپیوترهای ضعیف | بالا | متوسط | حالت کارایی، NFR تست روی سخت‌افزار ضعیف |
-| اینترنت کند برای Cloud Backup | بالا | پایین | آپلود قابل ادامه، اولویت دیتابیس، محدودیت پهنای باند |
-| هزینه/زمان دریافت Code Signing Certificate | متوسط | متوسط | اقدام برای دریافت از فاز ۱۰، نه روزهای آخر |
+| اینترنت کند برای Cloud Backup | بالا | پایین | آپلود توسط Google Drive/OneDrive (قابل ادامه)، تصاویر اختیاری |
+| هشدار SmartScreen / آنتی‌ویروس برای Installer بدون امضا | بالا | پایین | راهنمای نصب، نصب حضوری اولیه، گزارش False Positive به آنتی‌ویروس‌ها؛ گواهی امضا در آینده اختیاری |
+| از دست رفتن دیتابیس License مرکزی (پلن رایگان Supabase Backup خودکار ندارد) | پایین | بالا | Export دوره‌ای از Vendor Panel؛ License محلی امضاشده کلینیک‌ها مستقل از سرور کار می‌کند |
+| غیرفعال شدن پروژه رایگان Supabase به‌علت عدم فعالیت | پایین | پایین | درخواست‌های Verification منظم پروژه را فعال نگه می‌دارد؛ Grace Period آفلاین ۳۰ روزه |
 
 ---
 
