@@ -1,21 +1,51 @@
-/* Phase 1 skeleton styling only — the real Design System is Phase 2. */
+/* Design System (Phase 2): tokens below, components further down. Phase 1's
+   class names (card/row/actions/button.primary/tabs/topbar/…) are kept
+   working as-is so every existing page renders without changes. */
 @font-face { font-family: "Vazirmatn"; font-weight: 400; src: url("/fonts/Vazirmatn-Regular.woff2") format("woff2"); }
 @font-face { font-family: "Vazirmatn"; font-weight: 700; src: url("/fonts/Vazirmatn-Bold.woff2") format("woff2"); }
 @font-face { font-family: "AfghaniSign"; unicode-range: U+060B; src: url("/fonts/noto-sans-arabic-arabic-400-normal.woff2") format("woff2"); }
 
 :root {
-  --bg: #f4f7f8; --surface: #ffffff; --text: #12303a; --muted: #5b7079; --line: #d6e3e7;
-  --accent: #0e7490; --accent-text: #ffffff; --ok: #15803d; --bad: #b91c1c; --warn-bg: #fff7e6;
+  /* Spacing / radius / shadow / motion scale — used by every component below. */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-full: 999px;
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #000 10%, transparent);
+  --shadow-md: 0 4px 16px color-mix(in srgb, #000 14%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #000 18%, transparent);
+  --font-size-sm: 13px; --font-size-md: 15px; --font-size-lg: 18px; --font-size-xl: 22px; --font-size-xxl: 28px;
+  --motion-fast: 120ms ease; --motion-base: 200ms ease;
+  --sidebar-width: 248px;
+}
+
+:root, :root[data-theme="light"] {
+  --bg: #f4f7f8; --surface: #ffffff; --surface-2: #eef3f4; --text: #12303a; --muted: #5b7079; --line: #d6e3e7;
+  --accent: #0e7490; --accent-hover: #0b5d71; --accent-text: #ffffff;
+  --ok: #15803d; --ok-bg: #e9f7ef; --bad: #b91c1c; --bad-bg: #fdecec; --warn: #92400e; --warn-bg: #fff7e6; --info-bg: #eaf4fb;
+  --focus-ring: #0e7490;
   color-scheme: light;
 }
+:root[data-theme="dark"] {
+  --bg: #0f1a1e; --surface: #16252b; --surface-2: #1c2d33; --text: #e3eef1; --muted: #93a9b1; --line: #29404a;
+  --accent: #38bdf8; --accent-hover: #67cdfb; --accent-text: #06232e;
+  --ok: #4ade80; --ok-bg: #123321; --bad: #f87171; --bad-bg: #3a1414; --warn: #fbbf24; --warn-bg: #3a2e12; --info-bg: #12293a;
+  --focus-ring: #67cdfb;
+  color-scheme: dark;
+}
+/* No manual choice yet (first run, or "system"): follow the OS. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1a1e; --surface: #16252b; --text: #e3eef1; --muted: #93a9b1; --line: #29404a;
-    --accent: #38bdf8; --accent-text: #06232e; --ok: #4ade80; --bad: #f87171; --warn-bg: #3a2e12;
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0f1a1e; --surface: #16252b; --surface-2: #1c2d33; --text: #e3eef1; --muted: #93a9b1; --line: #29404a;
+    --accent: #38bdf8; --accent-hover: #67cdfb; --accent-text: #06232e;
+    --ok: #4ade80; --ok-bg: #123321; --bad: #f87171; --bad-bg: #3a1414; --warn: #fbbf24; --warn-bg: #3a2e12; --info-bg: #12293a;
+    --focus-ring: #67cdfb;
     color-scheme: dark;
   }
 }
+/* Performance mode (roadmap 2.1): disables blur/heavy shadows on weak PCs. */
+:root[data-perf="reduced"] { --shadow-md: var(--shadow-sm); --shadow-lg: var(--shadow-sm); }
+
 * { box-sizing: border-box; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 html, body, #root { height: 100%; margin: 0; }
 body { font-family: "AfghaniSign", "Vazirmatn", system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
 button, input, select { font: inherit; }
@@ -52,9 +82,80 @@ dl { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 6px 16
 dt { color: var(--muted); }
 dd { margin: 0; }
 .overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(6px); display: grid; place-items: center; z-index: 10; }
+:root[data-perf="reduced"] .overlay { backdrop-filter: none; background: var(--bg); }
 .print-only { display: none; }
 @media print {
   body * { visibility: hidden; }
   .print-only, .print-only * { visibility: visible; }
   .print-only { display: block; position: absolute; inset: 0; padding: 24mm; color: #000; }
 }
+
+/* ───────────────────────────── button variants, badges, kbd ───────────────────────────── */
+button.ghost { background: transparent; border-color: transparent; }
+button.ghost:hover { background: var(--surface-2); }
+button.danger { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-bg); }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-full); font-size: var(--font-size-sm); background: var(--surface-2); color: var(--muted); }
+.badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.bad { background: var(--bad-bg); color: var(--bad); }
+.badge.info { background: var(--info-bg); color: var(--accent); }
+kbd { font-family: ui-monospace, Consolas, monospace; font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: 1px 6px; background: var(--surface-2); }
+
+/* ───────────────────────────── color swatch picker ───────────────────────────── */
+.swatches { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+.swatch { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
+.swatch input[type="color"] { width: 48px; height: 48px; padding: 0; border-radius: var(--radius-md); cursor: pointer; }
+
+/* ───────────────────────────── segmented control (install mode, theme, calendar) ───────────────────────────── */
+.segmented { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.segmented button { flex: 1 1 160px; text-align: start; padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-md); }
+.segmented button[aria-pressed="true"] { border-color: var(--accent); background: var(--info-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.segmented button:disabled { opacity: .5; }
+.segmented .option-title { display: block; font-weight: 600; }
+.segmented .option-hint { display: block; color: var(--muted); font-size: var(--font-size-sm); font-weight: 400; }
+
+/* ───────────────────────────── wizard stepper ───────────────────────────── */
+.wizard { display: grid; grid-template-columns: 220px 1fr; gap: var(--sp-6); width: min(880px, 100%); }
+.stepper { display: flex; flex-direction: column; gap: var(--sp-1); }
+.stepper .step { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); color: var(--muted); font-size: var(--font-size-sm); }
+.stepper .step .dot { width: 20px; height: 20px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--surface-2); font-size: 11px; flex: none; }
+.stepper .step.current { color: var(--text); background: var(--surface-2); font-weight: 600; }
+.stepper .step.current .dot { background: var(--accent); color: var(--accent-text); }
+.stepper .step.done .dot { background: var(--ok); color: var(--accent-text); }
+@media (max-width: 720px) {
+  .wizard { grid-template-columns: 1fr; width: min(480px, 100%); }
+  .stepper { flex-direction: row; overflow-x: auto; }
+}
+
+/* ───────────────────────────── application shell v2 ───────────────────────────── */
+.app-shell { display: grid; grid-template-columns: var(--sidebar-width) 1fr; grid-template-rows: auto 1fr; min-height: 100%; grid-template-areas: "sidebar topbar" "sidebar main"; }
+.app-shell .sidebar { grid-area: sidebar; background: var(--surface); border-inline-end: 1px solid var(--line); display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-2); gap: var(--sp-1); }
+.app-shell .clinic-identity { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
+.app-shell .clinic-identity img { width: 32px; height: 32px; border-radius: var(--radius-sm); object-fit: cover; }
+.app-shell .clinic-identity .clinic-logo-fallback { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-weight: 700; }
+.app-shell nav.sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+.app-shell nav.sidebar-nav button { text-align: start; border: none; background: transparent; border-radius: var(--radius-md); padding: var(--sp-2) var(--sp-3); color: var(--text); }
+.app-shell nav.sidebar-nav button:hover { background: var(--surface-2); }
+.app-shell nav.sidebar-nav button[aria-current="page"] { background: var(--accent); color: var(--accent-text); }
+.app-shell .topbar-v2 { grid-area: topbar; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-2) var(--sp-4); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.app-shell .breadcrumbs { font-size: var(--font-size-sm); color: var(--muted); }
+.app-shell .status-strip { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.app-shell main.shell-main { grid-area: main; padding: var(--sp-4) var(--sp-5) var(--sp-6); overflow: auto; }
+@media (max-width: 860px) {
+  .app-shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main"; }
+  .app-shell .sidebar { position: fixed; inset-inline-start: 0; top: 0; bottom: 0; width: var(--sidebar-width); transform: translateX(-100%); transition: transform var(--motion-base); z-index: 20; box-shadow: var(--shadow-lg); }
+  [dir="rtl"] .app-shell .sidebar { transform: translateX(100%); }
+  .app-shell[data-sidebar-open="true"] .sidebar { transform: translateX(0); }
+}
+
+/* ───────────────────────────── dialog / command palette / notifications ───────────────────────────── */
+.dialog-backdrop { position: fixed; inset: 0; background: color-mix(in srgb, #000 35%, transparent); display: grid; place-items: start center; padding-top: 10vh; z-index: 30; }
+.dialog { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: min(560px, 92vw); max-height: 76vh; display: flex; flex-direction: column; }
+.dialog .dialog-header { padding: var(--sp-4); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+.dialog .dialog-body { padding: var(--sp-4); overflow: auto; }
+.command-list { list-style: none; margin: 0; padding: var(--sp-2); }
+.command-list li button { width: 100%; text-align: start; background: transparent; border: none; border-radius: var(--radius-md); padding: var(--sp-2) var(--sp-3); }
+.command-list li button[data-active="true"] { background: var(--surface-2); }
+.popover { position: absolute; top: calc(100% + 8px); inset-inline-end: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-md); min-width: 260px; z-index: 25; padding: var(--sp-3); }
+.icon-button { padding: 6px 8px; position: relative; }
+.icon-button .dot-indicator { position: absolute; top: 2px; inset-inline-end: 2px; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--bad); }
+.empty-state { text-align: center; color: var(--muted); padding: var(--sp-6) var(--sp-4); }
