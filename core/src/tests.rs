@@ -281,6 +281,20 @@ fn reference_and_geo_data_in_three_languages() {
     assert_eq!(kabul_fa["label"], "کابل");
     assert_eq!(kabul_en["label"], "Kabul");
     assert_eq!(kabul_fa["id"], crate::ids::seed_id("province", "AF-KAB"), "same id in every clinic");
+    let districts = |lang: &str| -> Vec<String> {
+        t.ok(m::GEO_DISTRICTS, json!({"province_id": kabul_fa["id"], "language": lang}), Some(&tok))
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|d| d["label"].as_str().unwrap().to_string())
+            .collect()
+    };
+    let fa_d = districts("fa");
+    assert_eq!(fa_d.len(), 15, "Kabul: centre + 14 districts");
+    assert_eq!(fa_d[0], "شهر کابل", "provincial centre first");
+    assert!(fa_d.contains(&"پغمان".to_string()));
+    assert!(districts("ps").contains(&"پغمان".to_string()));
+    assert!(districts("en").contains(&"Paghman".to_string()));
 }
 
 #[test]

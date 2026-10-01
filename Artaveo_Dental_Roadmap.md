@@ -272,7 +272,7 @@ who · what · when · entity · entity_id · old_value · new_value · computer
 **Exit Criteria:** برنامه نصب می‌شود، کاربر Owner ساخته می‌شود، Login کار می‌کند، Migration و Backup محلی کار می‌کند، CI سبز است، Installerهای سه معماری در GitHub Releases منتشر شده‌اند و راهنمای تست دستی آماده است.
 
 > **وضعیت فاز ۱: ✅ تحویل شد — [v0.1.0](https://github.com/artaveo/Dentistry-Clinic-Database/releases/tag/v0.1.0)** (۶ Installer برای x64/x86/ARM64، آنلاین و آفلاین؛ CI روی هر سه معماری نصب و اجرا را تست می‌کند). راهنمای تست دستی: [docs/testing/phase-1-manual-test.md](docs/testing/phase-1-manual-test.md).
-> باز: Seed ولسوالی‌ها نیازمند فهرست رسمی است (ابزار Import آماده؛ [core/seeds/README.md](core/seeds/README.md))؛ متن‌های پشتو نیازمند بازبینی گوینده بومی.
+> ولسوالی‌ها: ۴۰۴ ولسوالی (همراه با ۳۴ مرکز ولایت) از فهرست مالک محصول Seed شد ([core/seeds/README.md](core/seeds/README.md)). باز: بازبینی متن‌های پشتو و چند نام ولسوالی توسط گوینده بومی.
 
 ---
 

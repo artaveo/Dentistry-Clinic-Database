@@ -1,1 +1,405 @@
 province_code,code,sort,fa,ps,en
+AF-KAB,AF-KAB-CENTER,1,شهر کابل,کابل ښار,Kabul City
+AF-KAB,AF-KAB-ISTALIF,2,استالف,استالف,Istalif
+AF-KAB,AF-KAB-BAGRAMI,3,بگرامی,بګرامي,Bagrami
+AF-KAB,AF-KAB-FARZA,4,فرزه,فرزه,Farza
+AF-KAB,AF-KAB-PAGHMAN,5,پغمان,پغمان,Paghman
+AF-KAB,AF-KAB-QARABAGH,6,قره‌باغ,قره باغ,Qarabagh
+AF-KAB,AF-KAB-CHAHAR-ASYAB,7,چهارآسیاب,چهارآسیاب,Chahar Asyab
+AF-KAB,AF-KAB-KALAKAN,8,کلکان,کلکان,Kalakan
+AF-KAB,AF-KAB-KHAK-E-JABBAR,9,خاک‌جبار,خاک جبار,Khak-e Jabbar
+AF-KAB,AF-KAB-GULDARA,10,گلدره,ګلدره,Guldara
+AF-KAB,AF-KAB-MUSAYI,11,موسهی,موسهي,Musayi
+AF-KAB,AF-KAB-DEH-SABZ,12,ده‌سبز,ده سبز,Deh Sabz
+AF-KAB,AF-KAB-SUROBI,13,سروبی,سروبي,Surobi
+AF-KAB,AF-KAB-MIR-BACHA-KOT,14,میربچه‌کوت,میربچه کوټ,Mir Bacha Kot
+AF-KAB,AF-KAB-SHAKAR-DARA,15,شکردره,شکردره,Shakar Dara
+AF-HER,AF-HER-CENTER,1,شهر هرات,هرات ښار,Herat City
+AF-HER,AF-HER-ADRASKAN,2,ادرسکن,ادرسکن,Adraskan
+AF-HER,AF-HER-INJIL,3,انجیل,انجیل,Injil
+AF-HER,AF-HER-OBE,4,اوبه,اوبه,Obe
+AF-HER,AF-HER-PASHTUN-ZARGHUN,5,پشتون‌زرغون,پښتون زرغون,Pashtun Zarghun
+AF-HER,AF-HER-CHISHT-E-SHARIF,6,چشت‌شریف,چشت شریف,Chisht-e Sharif
+AF-HER,AF-HER-ZINDA-JAN,7,زنده‌جان,زنده جان,Zinda Jan
+AF-HER,AF-HER-SHINDAND,8,شیندند (سبزوار),شینډنډ (سبزوار),Shindand (Sabzwar)
+AF-HER,AF-HER-GHORYAN,9,غوریان,غوریان,Ghoryan
+AF-HER,AF-HER-FARSI,10,فارسی,فارسي,Farsi
+AF-HER,AF-HER-KARUKH,11,کرخ,کرخ,Karukh
+AF-HER,AF-HER-KUSHK,12,کشک (رباط سنگی),کشک (رباط سنګي),Kushk (Robat-e Sangi)
+AF-HER,AF-HER-KUSHK-E-KUHNA,13,کشک کهنه,کشک کهنه,Kushk-e Kuhna
+AF-HER,AF-HER-KOHSAN,14,کهسان,کهسان,Kohsan
+AF-HER,AF-HER-GUZARA,15,گذره,ګذره,Guzara
+AF-HER,AF-HER-GULRAN,16,گلران,ګلران,Gulran
+AF-KAN,AF-KAN-CENTER,1,شهر قندهار,کندهار ښار,Kandahar City
+AF-KAN,AF-KAN-ARGHANDAB,2,ارغنداب,ارغنداب,Arghandab
+AF-KAN,AF-KAN-ARGHISTAN,3,ارغستان,ارغستان,Arghistan
+AF-KAN,AF-KAN-DAMAN,4,دامان,دامان,Daman
+AF-KAN,AF-KAN-REGISTAN,5,ریگستان,ریګستان,Registan
+AF-KAN,AF-KAN-ZHARI,6,ژری,ژړۍ,Zhari
+AF-KAN,AF-KAN-SHAH-WALI-KOT,7,شاه‌ولیکوت,شاولیکوټ,Shah Wali Kot
+AF-KAN,AF-KAN-KHAKREZ,8,خاکریز,خاکریز,Khakrez
+AF-KAN,AF-KAN-MARUF,9,معروف,معروف,Maruf
+AF-KAN,AF-KAN-MIYANSHIN,10,میانشین,میانشین,Miyanshin
+AF-KAN,AF-KAN-MAIWAND,11,میوند,میوند,Maiwand
+AF-KAN,AF-KAN-PANJWAYI,12,پنجوایی,پنجوايي,Panjwayi
+AF-KAN,AF-KAN-TAKHTA-PUL,13,تخته‌پل,تخته پل,Takhta Pul
+AF-KAN,AF-KAN-GHORAK,14,غورک,غورک,Ghorak
+AF-KAN,AF-KAN-SPIN-BOLDAK,15,سپین‌بولدک,سپین بولدک,Spin Boldak
+AF-KAN,AF-KAN-NESH,16,نیش,نیش,Nesh
+AF-BAL,AF-BAL-CENTER,1,مزار شریف,مزار شریف,Mazar-e Sharif
+AF-BAL,AF-BAL-BALKH,2,بلخ,بلخ,Balkh
+AF-BAL,AF-BAL-CHARBOLAK,3,چاربولک,چاربولک,Charbolak
+AF-BAL,AF-BAL-CHARKINT,4,چارکنت,چارکنت,Charkint
+AF-BAL,AF-BAL-CHIMTAL,5,چمتال,چمتال,Chimtal
+AF-BAL,AF-BAL-KHULM,6,خلم,خلم,Khulm
+AF-BAL,AF-BAL-DAWLATABAD,7,دولت‌آباد,دولت اباد,Dawlatabad
+AF-BAL,AF-BAL-DEHDADI,8,دهدادی,دهدادي,Dehdadi
+AF-BAL,AF-BAL-ZARI,9,زاری,زاري,Zari
+AF-BAL,AF-BAL-SHORTEPA,10,شورتپه,شورتپه,Shortepa
+AF-BAL,AF-BAL-SHOLGARA,11,شولگره,شولګره,Sholgara
+AF-BAL,AF-BAL-KISHINDIH,12,کشنده,کشنده,Kishindih
+AF-BAL,AF-BAL-KALDAR,13,کلدار,کلدار,Kaldar
+AF-BAL,AF-BAL-MARMUL,14,مارمل,مارمل,Marmul
+AF-BAL,AF-BAL-NAHR-E-SHAHI,15,نهر شاهی,نهر شاهي,Nahr-e Shahi
+AF-NAN,AF-NAN-CENTER,1,جلال‌آباد,جلال اباد,Jalalabad
+AF-NAN,AF-NAN-ACHIN,2,آچین,اچین,Achin
+AF-NAN,AF-NAN-RODAT,3,رودات,رودات,Rodat
+AF-NAN,AF-NAN-BATI-KOT,4,بتی‌کوت,بټي کوټ,Bati Kot
+AF-NAN,AF-NAN-SURKH-ROD,5,سرخ‌رود,سرخ رود,Surkh Rod
+AF-NAN,AF-NAN-BEHSUD,6,بهسود,بهسود,Behsud
+AF-NAN,AF-NAN-SHERZAD,7,شیرزاد,شېرزاد,Sherzad
+AF-NAN,AF-NAN-PACHIR-WA-AGAM,8,پچیرواگام,پچیر او اګام,Pachir wa Agam
+AF-NAN,AF-NAN-GHANI-KHEL,9,غنی‌خیل,غني خېل,Ghani Khel
+AF-NAN,AF-NAN-KAMA,10,کامه,کامه,Kama
+AF-NAN,AF-NAN-KOT,11,کوت,کوټ,Kot
+AF-NAN,AF-NAN-HISARAK,12,حصارک,حصارک,Hisarak
+AF-NAN,AF-NAN-HASKA-MENA,13,هسکه‌مینه,هسکه مېنه,Haska Mena
+AF-NAN,AF-NAN-CHAPARHAR,14,چپرهار,چپرهار,Chaparhar
+AF-NAN,AF-NAN-GOSHTA,15,گوشته,ګوشته,Goshta
+AF-NAN,AF-NAN-KHOGYANI,16,خوگیانی,خوګیاني,Khogyani
+AF-NAN,AF-NAN-DUR-BABA,17,دربابا,دربابا,Dur Baba
+AF-NAN,AF-NAN-LALPUR,18,لعل‌پور,لالپور,Lalpur
+AF-NAN,AF-NAN-DARA-E-NUR,19,دره‌نور,دره نور,Dara-e Nur
+AF-NAN,AF-NAN-MOHMAND-DARA,20,مهمنددره,مومند دره,Mohmand Dara
+AF-NAN,AF-NAN-KHEWA,21,خیوه,خېوه,Khewa
+AF-NAN,AF-NAN-NAZYAN,22,نازیان,نازیان,Nazyan
+AF-NAN,AF-NAN-SPIN-GHAR,23,سپین‌غر,سپین غر,Spin Ghar
+AF-KDZ,AF-KDZ-CENTER,1,شهر کندز,کندز ښار,Kunduz City
+AF-KDZ,AF-KDZ-IMAM-SAHIB,2,امام‌صاحب,امام صاحب,Imam Sahib
+AF-KDZ,AF-KDZ-CHAHAR-DARA,3,چهاردره,چهاردره,Chahar Dara
+AF-KDZ,AF-KDZ-KHANABAD,4,خان‌آباد,خان اباد,Khanabad
+AF-KDZ,AF-KDZ-DASHT-E-ARCHI,5,دشت ارچی,دشت ارچي,Dasht-e Archi
+AF-KDZ,AF-KDZ-ALIABAD,6,علی‌آباد,علي اباد,Aliabad
+AF-KDZ,AF-KDZ-QALA-E-ZAL,7,قلعه زال,قلعه زال,Qala-e Zal
+AF-KDZ,AF-KDZ-GUL-TEPA,8,گل‌تپه,ګل تپه,Gul Tepa
+AF-KDZ,AF-KDZ-KALBAD,9,کلباد,کلباد,Kalbad
+AF-GHA,AF-GHA-CENTER,1,شهر غزنی,غزني ښار,Ghazni City
+AF-GHA,AF-GHA-AB-BAND,2,آب‌بند,اب بند,Ab Band
+AF-GHA,AF-GHA-JAGHATU,3,جغتو,جغتو,Jaghatu
+AF-GHA,AF-GHA-AJRISTAN,4,اجرستان,اجرستان,Ajristan
+AF-GHA,AF-GHA-QARABAGH,5,قره‌باغ,قره باغ,Qarabagh
+AF-GHA,AF-GHA-GIRO,6,گیرو,ګیرو,Giro
+AF-GHA,AF-GHA-ANDAR,7,اندر,اندړ,Andar
+AF-GHA,AF-GHA-GELAN,8,گیلان,ګیلان,Gelan
+AF-GHA,AF-GHA-MALISTAN,9,مالستان,مالستان,Malistan
+AF-GHA,AF-GHA-JAGHORI,10,جاغوری,جاغوري,Jaghori
+AF-GHA,AF-GHA-MUQUR,11,مقر,مقر,Muqur
+AF-GHA,AF-GHA-NAWUR,12,ناور,ناور,Nawur
+AF-GHA,AF-GHA-DEH-YAK,13,ده‌یک,ده یک,Deh Yak
+AF-GHA,AF-GHA-NAWA,14,ناوه,ناوه,Nawa
+AF-GHA,AF-GHA-RASHIDAN,15,رشیدان,رشیدان,Rashidan
+AF-GHA,AF-GHA-WAGHAZ,16,واغز,واغز,Waghaz
+AF-GHA,AF-GHA-ZANA-KHAN,17,زنه‌خان,زنه خان,Zana Khan
+AF-GHA,AF-GHA-KHWAJA-OMARI,18,خواجه‌عمری,خواجه عمري,Khwaja Omari
+AF-GHA,AF-GHA-WALI-MUHAMMAD-SHAHID-KHUGYANI,19,ولی‌محمد شهید خوگیانی,ولي محمد شهید خوګیاني,Wali Muhammad Shahid Khugyani
+AF-BDS,AF-BDS-CENTER,1,فیض‌آباد,فیض اباد,Fayzabad
+AF-BDS,AF-BDS-ARGHANJ-KHWA,2,ارغنج‌خواه,ارغنج خوا,Arghanj Khwa
+AF-BDS,AF-BDS-ARGO,3,ارگو,ارګو,Argo
+AF-BDS,AF-BDS-BAHARAK,4,بهارک,بهارک,Baharak
+AF-BDS,AF-BDS-TAGAB,5,تگاب,تګاب,Tagab
+AF-BDS,AF-BDS-KISHIM,6,کشم,کشم,Kishim
+AF-BDS,AF-BDS-JURM,7,جرم,جرم,Jurm
+AF-BDS,AF-BDS-WAKHAN,8,واخان,واخان,Wakhan
+AF-BDS,AF-BDS-SHIGHNAN,9,شغنان,شغنان,Shighnan
+AF-BDS,AF-BDS-ISHKASHIM,10,اشکاشم,اشکاشم,Ishkashim
+AF-BDS,AF-BDS-ZEBAK,11,زیبک,زیباک,Zebak
+AF-BDS,AF-BDS-KURAN-WA-MUNJAN,12,کران و منجان,کران او منجان,Kuran wa Munjan
+AF-BDS,AF-BDS-YAFTAL-E-PAYIN,13,یفتل پایین,لاندې یفتل,Yaftal-e Payin
+AF-BDS,AF-BDS-RAGHISTAN,14,راغستان,راغستان,Raghistan
+AF-BDS,AF-BDS-YAWAN,15,یوان,یاوان,Yawan
+AF-BDS,AF-BDS-KOHISTAN,16,کوهستان,کوهستان,Kohistan
+AF-BDS,AF-BDS-TISHKAN,17,تیشکان,تیشکان,Tishkan
+AF-BDS,AF-BDS-DARAYIM,18,درایم,درایم,Darayim
+AF-BDS,AF-BDS-KHASH,19,خاش,خاش,Khash
+AF-BDS,AF-BDS-SHUHADA,20,شهدا,شهدا,Shuhada
+AF-BDS,AF-BDS-SHAHRI-BUZURG,21,شهربزرگ,شهر بزرګ,Shahri Buzurg
+AF-BDS,AF-BDS-KHWAHAN,22,خواهان,خواهان,Khwahan
+AF-BDS,AF-BDS-KOF-AB,23,کوف‌آب,کوف اب,Kof Ab
+AF-BDS,AF-BDS-SHIKI,24,شکی,شکي,Shiki
+AF-BDS,AF-BDS-NUSAY,25,نسی,نسي,Nusay
+AF-BDS,AF-BDS-MAIMAY,26,مایمی,مایمي,Maimay
+AF-BDS,AF-BDS-WARDUJ,27,وردوج,وردوج,Warduj
+AF-BDS,AF-BDS-HAMI,28,حامی,حامي,Hami
+AF-BGL,AF-BGL-CENTER,1,پل خمری,پل خمري,Pul-e Khumri
+AF-BGL,AF-BGL-BAGHLAN-E-MARKAZI,2,بغلان مرکزی,مرکزي بغلان,Baghlan-e Markazi
+AF-BGL,AF-BGL-BURKA,3,بورکه,بورکه,Burka
+AF-BGL,AF-BGL-TALA-WA-BARFAK,4,تاله و برفک,تاله او برفک,Tala wa Barfak
+AF-BGL,AF-BGL-JILGA,5,جلگه,جلګه,Jilga
+AF-BGL,AF-BGL-KHINJAN,6,خنجان,خنجان,Khinjan
+AF-BGL,AF-BGL-KHOST-WA-FIRING,7,خوست و فرنگ,خوست او فرنګ,Khost wa Firing
+AF-BGL,AF-BGL-DOSHI,8,دوشی,دوشي,Doshi
+AF-BGL,AF-BGL-DAHANA-E-GHORI,9,دهانه غوری,دهانه غوري,Dahana-e Ghori
+AF-BGL,AF-BGL-DEH-SALAH,10,ده‌صلاح,ده صلاح,Deh Salah
+AF-BGL,AF-BGL-FIRING-WA-GHARU,11,فرنگ و غارو,فرنګ او غارو,Firing wa Gharu
+AF-BGL,AF-BGL-GUZARGAH-E-NUR,12,گذرگاه نور,ګذرګاه نور,Guzargah-e Nur
+AF-BGL,AF-BGL-NAHRIN,13,نهرین,نهرین,Nahrin
+AF-BGL,AF-BGL-PUL-E-HISAR,14,پل حصار,پل حصار,Pul-e Hisar
+AF-FYB,AF-FYB-CENTER,1,میمنه,میمنه,Maymana
+AF-FYB,AF-FYB-ALMAR,2,آلمار,المار,Almar
+AF-FYB,AF-FYB-ANDKHOY,3,اندخوی,اندخوی,Andkhoy
+AF-FYB,AF-FYB-SHIRIN-TAGAB,4,شیرین‌تگاب,شیرین تګاب,Shirin Tagab
+AF-FYB,AF-FYB-QURGHAN,5,قرغان,قرغان,Qurghan
+AF-FYB,AF-FYB-BILCHIRAGH,6,بلچراغ,بلچراغ,Bilchiragh
+AF-FYB,AF-FYB-QARAMQOL,7,قرم‌قل,قرم قل,Qaramqol
+AF-FYB,AF-FYB-PASHTUN-KOT,8,پشتونکوت,پښتون کوټ,Pashtun Kot
+AF-FYB,AF-FYB-QAYSAR,9,قیصار,قیصار,Qaysar
+AF-FYB,AF-FYB-KHAN-E-CHAHAR-BAGH,10,خان‌چهارباغ,خان چهارباغ,Khan-e Chahar Bagh
+AF-FYB,AF-FYB-DAWLATABAD,11,دولت‌آباد,دولت اباد,Dawlatabad
+AF-FYB,AF-FYB-KOHISTAN,12,کوهستان,کوهستان,Kohistan
+AF-FYB,AF-FYB-KHWAJA-SABZ-POSH-E-WALI,13,خواجه سبزپوش ولی,خواجه سبزپوش ولي,Khwaja Sabz Posh-e Wali
+AF-FYB,AF-FYB-GARZIWAN,14,گرزیوان,ګرزیوان,Garziwan
+AF-PAR,AF-PAR-CENTER,1,چاریکار,چاریکار,Charikar
+AF-PAR,AF-PAR-BAGRAM,2,بگرام,بګرام,Bagram
+AF-PAR,AF-PAR-JABAL-SARAJ,3,جبل‌السراج,جبل السراج,Jabal Saraj
+AF-PAR,AF-PAR-SALANG,4,سالنگ,سالنګ,Salang
+AF-PAR,AF-PAR-SURKH-E-PARSA,5,سرخ‌پارسا,سرخ پارسا,Surkh-e Parsa
+AF-PAR,AF-PAR-SAYED-KHEL,6,سیدخیل,سید خېل,Sayed Khel
+AF-PAR,AF-PAR-SHAYKH-ALI,7,شیخ‌علی,شیخ علي,Shaykh Ali
+AF-PAR,AF-PAR-SHINWARI,8,شینواری,شینواري,Shinwari
+AF-PAR,AF-PAR-SIYAHGIRD,9,سیاه‌گرد (غوربند),سیاه ګرد (غوربند),Siyahgird (Ghorband)
+AF-PAR,AF-PAR-KOH-E-SAFI,10,کوه صافی,کوه صافي,Koh-e Safi
+AF-BAM,AF-BAM-CENTER,1,شهر بامیان,بامیان ښار,Bamyan City
+AF-BAM,AF-BAM-KAHMARD,2,کهمرد,کهمرد,Kahmard
+AF-BAM,AF-BAM-PANJAB,3,پنجاب,پنجاب,Panjab
+AF-BAM,AF-BAM-SAYGHAN,4,سیغان,سیغان,Sayghan
+AF-BAM,AF-BAM-SHIBAR,5,شیبر,شیبر,Shibar
+AF-BAM,AF-BAM-WARAS,6,ورس,ورس,Waras
+AF-BAM,AF-BAM-YAKAWLANG-1,7,یکاولنگ نمبر ۱,یکاولنګ لومړی,Yakawlang 1
+AF-BAM,AF-BAM-YAKAWLANG-2,8,یکاولنگ نمبر ۲,یکاولنګ دوهم,Yakawlang 2
+AF-PIA,AF-PIA-CENTER,1,گردیز,ګردېز,Gardez
+AF-PIA,AF-PIA-AHMADABAD,2,احمدآباد,احمد اباد,Ahmadabad
+AF-PIA,AF-PIA-JAJI,3,جاجی (آریوب),جاجي (اریوب),Jaji (Aryub)
+AF-PIA,AF-PIA-JANI-KHEL,4,جانی‌خیل,جاني خېل,Jani Khel
+AF-PIA,AF-PIA-CHAMKANI,5,چم کنی,چمکني,Chamkani
+AF-PIA,AF-PIA-DAND-PATAN,6,دندپتان,ډنډ پټان,Dand Patan
+AF-PIA,AF-PIA-SHWAK,7,شواک,شواک,Shwak
+AF-PIA,AF-PIA-SAMKANI,8,سمکنی,سمکني,Samkani
+AF-PIA,AF-PIA-GERDA-SERAI,9,گرده‌ثیری,ګرده سیري,Gerda Serai
+AF-PIA,AF-PIA-MIRZAKA,10,میرزکه,میرزکه,Mirzaka
+AF-PIA,AF-PIA-LIJA-AHMAD-KHEL,11,لجه‌احمدخیل,لژه احمدخېل,Lija Ahmad Khel
+AF-PIA,AF-PIA-SAYED-KARAM,12,سیدکرم,سید کرم,Sayed Karam
+AF-PIA,AF-PIA-ZADRAN,13,زدران,ځدران,Zadran
+AF-PKA,AF-PKA-CENTER,1,شرنه,شرنه,Sharana
+AF-PKA,AF-PKA-URGUN,2,ارگون,ارګون,Urgun
+AF-PKA,AF-PKA-OMNA,3,اومنه,اومنه,Omna
+AF-PKA,AF-PKA-GOMAL,4,گومل,ګومل,Gomal
+AF-PKA,AF-PKA-BARMAL,5,برمل,برمل,Barmal
+AF-PKA,AF-PKA-GAYAN,6,گیان,ګیان,Gayan
+AF-PKA,AF-PKA-TURWO,7,تروو,تروو,Turwo
+AF-PKA,AF-PKA-MATA-KHAN,8,متاخان,متاخان,Mata Khan
+AF-PKA,AF-PKA-JANI-KHEL,9,جانی‌خیل,جاني خېل,Jani Khel
+AF-PKA,AF-PKA-NAKA,10,نکه,نکه,Naka
+AF-PKA,AF-PKA-WAZA-KHWA,11,وازه‌خواه,وازه خوا,Waza Khwa
+AF-PKA,AF-PKA-DILA-WA-KHUSHAMAND,12,دیله و خوشامند,دیله او خوشامند,Dila wa Khushamand
+AF-PKA,AF-PKA-WOR-MAMAY,13,ورممی,ورمامی,Wor Mamay
+AF-PKA,AF-PKA-ZARGHUN-SHAHR,14,زرغون‌شهر,زرغون ښار,Zarghun Shahr
+AF-PKA,AF-PKA-ZIRUK,15,زیروک,زیروک,Ziruk
+AF-PKA,AF-PKA-YAHYA-KHEL,16,یحیی‌خیل,یحیی خېل,Yahya Khel
+AF-PKA,AF-PKA-SAR-HAWZA,17,سرحوضه,سرحوضه,Sar Hawza
+AF-PKA,AF-PKA-YOSUF-KHEL,18,یوسف‌خیل,یوسف خېل,Yosuf Khel
+AF-PKA,AF-PKA-SAROBI,19,سروبی,سروبي,Sarobi
+AF-KHO,AF-KHO-CENTER,1,خوست (متون),خوست (متون),Khost (Matun)
+AF-KHO,AF-KHO-BAK,2,باک,باک,Bak
+AF-KHO,AF-KHO-TANI,3,تنی,تڼي,Tani
+AF-KHO,AF-KHO-TEREZAYI,4,تیریزایی (علی‌شیر),تېرېزي (علي شېر),Terezayi (Ali Sher)
+AF-KHO,AF-KHO-JAJI-MAIDAN,5,جاجی‌میدان,جاجي مېدان,Jaji Maidan
+AF-KHO,AF-KHO-SPERA,6,سپیره,سپېره,Spera
+AF-KHO,AF-KHO-SHAMAL,7,شمل,شمل,Shamal
+AF-KHO,AF-KHO-SABARI,8,صبری (یعقوبی),صبري (یعقوبي),Sabari (Yaqubi)
+AF-KHO,AF-KHO-QALANDAR,9,قلندر,قلندر,Qalandar
+AF-KHO,AF-KHO-GURBUZ,10,گربز,ګربز,Gurbuz
+AF-KHO,AF-KHO-MANDOZAI,11,مندوزی (اسماعیل‌خیل),منډوزي (اسماعیل خېل),Mandozai (Ismail Khel)
+AF-KHO,AF-KHO-MUSA-KHEL,12,موسی‌خیل,موسی خېل,Musa Khel
+AF-KHO,AF-KHO-NADIR-SHAH-KOT,13,نادرشاه‌کوت,نادرشاه کوټ,Nadir Shah Kot
+AF-TAK,AF-TAK-CENTER,1,تالقان,تالقان,Taloqan
+AF-TAK,AF-TAK-BAHARAK,2,بهارک,بهارک,Baharak
+AF-TAK,AF-TAK-BANGI,3,بنگه,بنګي,Bangi
+AF-TAK,AF-TAK-CHAH-AB,4,چاه‌آب,چاه اب,Chah Ab
+AF-TAK,AF-TAK-CHAL,5,چال,چال,Chal
+AF-TAK,AF-TAK-DASHT-E-QALA,6,دشت قلعه,دشت قلعه,Dasht-e Qala
+AF-TAK,AF-TAK-KHWAJA-BAHAUDDIN,7,خواجه‌بهاوالدین,خواجه بهاوالدین,Khwaja Bahauddin
+AF-TAK,AF-TAK-KHWAJA-GHAR,8,خواجه‌غار,خواجه غار,Khwaja Ghar
+AF-TAK,AF-TAK-FARKHAR,9,فرخار,فرخار,Farkhar
+AF-TAK,AF-TAK-KALAFGAN,10,کلفگان,کلفګان,Kalafgan
+AF-TAK,AF-TAK-NAMAK-AB,11,نمک‌آب,نمک اب,Namak Ab
+AF-TAK,AF-TAK-RUSTAQ,12,رستاق,رستاق,Rustaq
+AF-TAK,AF-TAK-ISHKAMISH,13,اشکمش,اشکمش,Ishkamish
+AF-TAK,AF-TAK-WARSAJ,14,ورسج,ورسج,Warsaj
+AF-TAK,AF-TAK-HAZAR-SUMUCH,15,هزارسمچ,هزارسمچ,Hazar Sumuch
+AF-TAK,AF-TAK-YANGI-QALA,16,ینگی‌قلعه,ینګي قلعه,Yangi Qala
+AF-JOW,AF-JOW-CENTER,1,شبرغان,شبرغان,Sheberghan
+AF-JOW,AF-JOW-AQCHA,2,آقچه,اقچه,Aqcha
+AF-JOW,AF-JOW-KHANIQA,3,خانقاه,خانقاه,Khaniqa
+AF-JOW,AF-JOW-KHAMYAB,4,خم‌آب,خم اب,Khamyab
+AF-JOW,AF-JOW-KHWAJA-DU-KOH,5,خواجه دوکوه,خواجه دوکوه,Khwaja Du Koh
+AF-JOW,AF-JOW-DARZAB,6,درزاب,درزاب,Darzab
+AF-JOW,AF-JOW-FAYZABAD,7,فیض‌آباد,فیض اباد,Fayzabad
+AF-JOW,AF-JOW-QARQIN,8,قرقین,قرقین,Qarqin
+AF-JOW,AF-JOW-QUSH-TEPA,9,قوش‌تپه,قوش تپه,Qush Tepa
+AF-JOW,AF-JOW-MARDYAN,10,مردیان,مردیان,Mardyan
+AF-JOW,AF-JOW-MINGAJIK,11,منگجک,منګجک,Mingajik
+AF-DAY,AF-DAY-CENTER,1,نیلی,نیلي,Nili
+AF-DAY,AF-DAY-ISHTARLAY,2,اشترلی,اشترلي,Ishtarlay
+AF-DAY,AF-DAY-KHADIR,3,خدیر,خدیر,Khadir
+AF-DAY,AF-DAY-SANG-E-TAKHT,4,سنگ‌تخت,سنګ تخت,Sang-e Takht
+AF-DAY,AF-DAY-SHAHRISTAN,5,شهرستان,شهرستان,Shahristan
+AF-DAY,AF-DAY-KAJRAN,6,کجران,کجران,Kajran
+AF-DAY,AF-DAY-KITI,7,کیتی,کیتي,Kiti
+AF-DAY,AF-DAY-MIRAMOR,8,میرامور,میرامور,Miramor
+AF-DAY,AF-DAY-PATU,9,پاتو,پاتو,Patu
+AF-SAR,AF-SAR-CENTER,1,شهر سرپل,سرپل ښار,Sar-e Pol City
+AF-SAR,AF-SAR-BALKHAB,2,بلخاب,بلخاب,Balkhab
+AF-SAR,AF-SAR-SANCHARAK,3,سانچارک,سانچارک,Sancharak
+AF-SAR,AF-SAR-SOZMA-QALA,4,سوزمه‌قلعه,سوزمه قلعه,Sozma Qala
+AF-SAR,AF-SAR-SAYYAD,5,صیاد,صیاد,Sayyad
+AF-SAR,AF-SAR-KOHISTANAT,6,کوهستانات,کوهستانات,Kohistanat
+AF-SAR,AF-SAR-GOSFANDI,7,گوسفندی,ګوسفندي,Gosfandi
+AF-SAM,AF-SAM-CENTER,1,ایبک,ایبک,Aybak
+AF-SAM,AF-SAM-HAZRAT-E-SULTAN,2,حضرت سلطان,حضرت سلطان,Hazrat-e Sultan
+AF-SAM,AF-SAM-KHURAM-WA-SARBAGH,3,خرم و سارباغ,خرم او سارباغ,Khuram wa Sarbagh
+AF-SAM,AF-SAM-DARA-E-SUF-E-BALA,4,دره‌صوف بالا,بره دره صوف,Dara-e Suf-e Bala
+AF-SAM,AF-SAM-DARA-E-SUF-E-PAYIN,5,دره‌صوف پایین,کوزه دره صوف,Dara-e Suf-e Payin
+AF-SAM,AF-SAM-RUY-E-DU-AB,6,روی دوآب,روی دو اب,Ruy-e Du Ab
+AF-SAM,AF-SAM-FEROZ-NAKHCHIR,7,فیروزنخچیر,فیروز نخچیر,Feroz Nakhchir
+AF-GHO,AF-GHO-CENTER,1,فیروزکوه (چغچران),فیروزکوه (چغچران),Firozkoh (Chaghcharan)
+AF-GHO,AF-GHO-PASABAND,2,پسابند,پسابند,Pasaband
+AF-GHO,AF-GHO-TULAK,3,تولک,تولک,Tulak
+AF-GHO,AF-GHO-TAYWARA,4,تیوره,تیوره,Taywara
+AF-GHO,AF-GHO-DAWLAT-YAR,5,دولت‌یار,دولت یار,Dawlat Yar
+AF-GHO,AF-GHO-DU-LAYNA,6,دولینه,دولینه,Du Layna
+AF-GHO,AF-GHO-SAGHAR,7,ساغر,ساغر,Saghar
+AF-GHO,AF-GHO-SHAHRAK,8,شهرک,شهرک,Shahrak
+AF-GHO,AF-GHO-LAL-WA-SARJANGAL,9,لعل و سرجنگل,لعل او سرجنګل,Lal wa Sarjangal
+AF-GHO,AF-GHO-MURGHAB,10,مرغاب,مرغاب,Murghab
+AF-FRA,AF-FRA-CENTER,1,شهر فراه,فراه ښار,Farah City
+AF-FRA,AF-FRA-ANAR-DARA,2,اناردره,انار دره,Anar Dara
+AF-FRA,AF-FRA-BALA-BULUK,3,بالابلوک,بالا بلوک,Bala Buluk
+AF-FRA,AF-FRA-BAKWA,4,بکواه,بکواه,Bakwa
+AF-FRA,AF-FRA-PUR-CHAMAN,5,پرچمن,پرچمن,Pur Chaman
+AF-FRA,AF-FRA-PUSHT-ROD,6,پشت‌رود,پشت رود,Pusht Rod
+AF-FRA,AF-FRA-KHAK-E-SAFED,7,خاک سفید,خاک سفید,Khak-e Safed
+AF-FRA,AF-FRA-QALA-E-KAH,8,قلعه کاه,قلعه کاه,Qala-e Kah
+AF-FRA,AF-FRA-SHIB-KOH,9,شیب‌کوه,شیب کوه,Shib Koh
+AF-FRA,AF-FRA-GULISTAN,10,گلستان,ګلستان,Gulistan
+AF-FRA,AF-FRA-LASH-WA-JUWAYN,11,لاش و جوین,لاش او جوین,Lash wa Juwayn
+AF-KAP,AF-KAP-CENTER,1,محمود راقی,محمود راقي,Mahmud-e Raqi
+AF-KAP,AF-KAP-ALASAY,2,اله‌سای,اله سای,Alasay
+AF-KAP,AF-KAP-TAGAB,3,تگاب,تګاب,Tagab
+AF-KAP,AF-KAP-KOHISTAN-1,4,حصه اول کوهستان,د کوهستان لومړۍ برخه,Kohistan 1
+AF-KAP,AF-KAP-KOHISTAN-2,5,حصه دوم کوهستان,د کوهستان دوهمه برخه,Kohistan 2
+AF-KAP,AF-KAP-KOH-BAND,6,کوه‌بند,کوه بند,Koh Band
+AF-KAP,AF-KAP-NIJRAB,7,نجراب,نجراب,Nijrab
+AF-KNR,AF-KNR-CENTER,1,اسعدآباد,اسعداباد,Asadabad
+AF-KNR,AF-KNR-BAR-KUNAR,2,برکنر,برکونړ,Bar Kunar
+AF-KNR,AF-KNR-KHAS-KUNAR,3,خاص‌کنر,خاص کونړ,Khas Kunar
+AF-KNR,AF-KNR-DANGAM,4,دانگام,ډانګام,Dangam
+AF-KNR,AF-KNR-DARA-E-PECH,5,دره‌پیچ,دره پېچ,Dara-e Pech
+AF-KNR,AF-KNR-CHAPA-DARA,6,چپه‌دره,چپه دره,Chapa Dara
+AF-KNR,AF-KNR-CHAWKAY,7,چوکی,چوکۍ,Chawkay
+AF-KNR,AF-KNR-SARKANI,8,سرکانی,سرکاڼي,Sarkani
+AF-KNR,AF-KNR-MARAWARA,9,مروره,مروره,Marawara
+AF-KNR,AF-KNR-NARI,10,ناری,ناړي,Nari
+AF-KNR,AF-KNR-NARANG,11,نرنگ,نرنګ,Narang
+AF-KNR,AF-KNR-NURGAL,12,نورگل,نورګل,Nurgal
+AF-KNR,AF-KNR-WATAPUR,13,وته‌پور,وټه پور,Watapur
+AF-KNR,AF-KNR-SHALTAN,14,شلتن,شلتن,Shaltan
+AF-LAG,AF-LAG-CENTER,1,مهترلام,مهترلام,Mehtar Lam
+AF-LAG,AF-LAG-DAWLAT-SHAH,2,دولت‌شاه,دولت شاه,Dawlat Shah
+AF-LAG,AF-LAG-QARGHAYI,3,قرغه‌ای,قرغه یي,Qarghayi
+AF-LAG,AF-LAG-ALISHING,4,علیشنگ,علیشنګ,Alishing
+AF-LAG,AF-LAG-ALINGAR,5,علینگار,علینګار,Alingar
+AF-LAG,AF-LAG-BAD-PASH,6,بادپش,بادپښ,Bad Pash
+AF-LOG,AF-LOG-CENTER,1,پل علم,پل علم,Pul-e Alam
+AF-LOG,AF-LOG-BARAKI-BARAK,2,برکی‌برک,برکي برک,Baraki Barak
+AF-LOG,AF-LOG-CHARKH,3,چرخ,چرخ,Charkh
+AF-LOG,AF-LOG-KHARWAR,4,خروار,خروار,Kharwar
+AF-LOG,AF-LOG-KHOSHI,5,خوشی,خوشي,Khoshi
+AF-LOG,AF-LOG-MOHAMMAD-AGHA,6,محمداغه,محمد آغه,Mohammad Agha
+AF-LOG,AF-LOG-AZRA,7,ازره,ازره,Azra
+AF-WAR,AF-WAR-CENTER,1,میدان‌شهر,میدان ښار,Maidan Shahr
+AF-WAR,AF-WAR-JALREZ,2,جلریز,جلریز,Jalrez
+AF-WAR,AF-WAR-JAGHATU,3,جغتو,جغتو,Jaghatu
+AF-WAR,AF-WAR-DAY-MIRDAD,4,دایمیرداد,دایمیرداد,Day Mirdad
+AF-WAR,AF-WAR-SAYDABAD,5,سیدآباد,سید اباد,Saydabad
+AF-WAR,AF-WAR-MARKAZ-E-BEHSUD,6,مرکز بهسود,مرکزي بهسود,Markaz-e Behsud
+AF-WAR,AF-WAR-HISA-E-AWAL-E-BEHSUD,7,حصه اول بهسود,د بهسود لومړۍ برخه,Hisa-e Awal-e Behsud
+AF-WAR,AF-WAR-NIRKH,8,نرخ,نرخ,Nirkh
+AF-WAR,AF-WAR-CHAK-E-WARDAK,9,چک وردک,چک وردګ,Chak-e Wardak
+AF-NUR,AF-NUR-CENTER,1,پارون,پارون,Parun
+AF-NUR,AF-NUR-BARG-E-MATAL,2,برگ متال,برګ متال,Barg-e Matal
+AF-NUR,AF-NUR-DU-AB,3,دوآب,دوآب,Du Ab
+AF-NUR,AF-NUR-KAMDESH,4,کامدیش,کامدېش,Kamdesh
+AF-NUR,AF-NUR-MANDOL,5,مندول,مندول,Mandol
+AF-NUR,AF-NUR-NURGARAM,6,نورگرام,نورګرام,Nurgaram
+AF-NUR,AF-NUR-WAMA,7,واما,واما,Wama
+AF-NUR,AF-NUR-WAYGAL,8,وایگل,وایګل,Waygal
+AF-NIM,AF-NIM-CENTER,1,زرنج,زرنج,Zaranj
+AF-NIM,AF-NIM-CHAKHANSUR,2,چغانسور,چخانسور,Chakhansur
+AF-NIM,AF-NIM-CHAR-BURJAK,3,چهاربرجک,چهاربرجک,Char Burjak
+AF-NIM,AF-NIM-KHASH-ROD,4,خاش‌رود,خاشرود,Khash Rod
+AF-NIM,AF-NIM-KANG,5,کنگ,کنګ,Kang
+AF-HEL,AF-HEL-CENTER,1,لشکرگاه,لښکرګاه,Lashkar Gah
+AF-HEL,AF-HEL-BAGHRAN,2,بغران,بغران,Baghran
+AF-HEL,AF-HEL-DISHU,3,دیشو,دیشو,Dishu
+AF-HEL,AF-HEL-REG-E-KHAN-NISHIN,4,ریگ خان‌نشین,ریګ خانشین,Reg-e Khan Nishin
+AF-HEL,AF-HEL-SANGIN,5,سنگین,سنګین,Sangin
+AF-HEL,AF-HEL-KAJAKI,6,کجکی,کجکي,Kajaki
+AF-HEL,AF-HEL-GERESHK,7,گرشک (نهر سراج),ګرشک (نهر سراج),Gereshk (Nahr-e Saraj)
+AF-HEL,AF-HEL-NAWA-E-BARAKZAYI,8,ناوه بارکزی,ناوه بارکزي,Nawa-e Barakzayi
+AF-HEL,AF-HEL-NAD-ALI,9,نادعلی,نادعلي,Nad Ali
+AF-HEL,AF-HEL-MARJA,10,مارجه,مارجه,Marja
+AF-HEL,AF-HEL-MUSA-QALA,11,موسی‌قلعه,موسی کلا,Musa Qala
+AF-HEL,AF-HEL-WASHIR,12,واشیر,واشیر,Washir
+AF-HEL,AF-HEL-GARMSIR,13,گرمسیر,ګرمسیر,Garmsir
+AF-URU,AF-URU-CENTER,1,ترین‌کوت,ترینکوټ,Tarin Kot
+AF-URU,AF-URU-CHORA,2,چوره,چوره,Chora
+AF-URU,AF-URU-KHAS-URUZGAN,3,خاص‌ارزگان,خاص ارزګان,Khas Uruzgan
+AF-URU,AF-URU-DEH-RAWUD,4,دهراوود,دهراوود,Deh Rawud
+AF-URU,AF-URU-SHAHIDI-HASSAS,5,شهید حساس,شهید حساس,Shahidi Hassas
+AF-URU,AF-URU-GIZAB,6,گیزاب,ګیزاب,Gizab
+AF-ZAB,AF-ZAB-CENTER,1,قلات,قلات,Qalat
+AF-ZAB,AF-ZAB-ARGHANDAB,2,ارغنداب,ارغنداب,Arghandab
+AF-ZAB,AF-ZAB-SHAHJOY,3,شاه‌جوی,شاه جوی,Shahjoy
+AF-ZAB,AF-ZAB-SHAMULZAYI,4,شملزائی,شمولزي,Shamulzayi
+AF-ZAB,AF-ZAB-SHINKAY,5,شینکی,شینکی,Shinkay
+AF-ZAB,AF-ZAB-ATGHAR,6,اتغر,اتغر,Atghar
+AF-ZAB,AF-ZAB-NOW-BAHAR,7,نوبهار,نوبهار,Now Bahar
+AF-ZAB,AF-ZAB-MIZAN,8,میزان,میزان,Mizan
+AF-ZAB,AF-ZAB-DAYCHOPAN,9,دایچوپان,دایچوپان,Daychopan
+AF-ZAB,AF-ZAB-TARNAK-WA-JALDAK,10,ترنگ و جلدک,ترنک او جلدک,Tarnak wa Jaldak
+AF-PAN,AF-PAN-CENTER,1,بازارک,بازارک,Bazarak
+AF-PAN,AF-PAN-ANABA,2,عنابه,عنابه,Anaba
+AF-PAN,AF-PAN-PARYAN,3,پریان,پریان,Paryan
+AF-PAN,AF-PAN-KHENJ,4,خنج,خنج,Khenj
+AF-PAN,AF-PAN-DARA,5,دره,دره,Dara
+AF-PAN,AF-PAN-ROKHA,6,روخه,رخه,Rokha
+AF-PAN,AF-PAN-SHUTUL,7,شتل,شتل,Shutul
+AF-PAN,AF-PAN-ABSHAR,8,آبشار,ابشار,Abshar
+AF-BDG,AF-BDG-CENTER,1,قلعه نو,قلعه نو,Qala-e Naw
+AF-BDG,AF-BDG-AB-KAMARI,2,آب‌کمری,اب کمري,Ab Kamari
+AF-BDG,AF-BDG-MUQUR,3,مقر,مقر,Muqur
+AF-BDG,AF-BDG-QADIS,4,قادس,قادس,Qadis
+AF-BDG,AF-BDG-BALA-MURGHAB,5,بالامرغاب,بالا مرغاب,Bala Murghab
+AF-BDG,AF-BDG-JAWAND,6,جوند,جوند,Jawand
+AF-BDG,AF-BDG-GHORMACH,7,غورماچ,غورماچ,Ghormach
+AF-BDG,AF-BDG-SANG-E-ATESH,8,سنگ‌اتش,سنګ اتش,Sang-e Atesh

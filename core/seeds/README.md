@@ -8,21 +8,26 @@ the same province/district/reference item has the same ID in every clinic.
 | File | Content | Status |
 |---|---|---|
 | `reference.csv` | gender, blood_group, marital_status, payment_method — fa/ps/en | complete |
-| `provinces.csv` | 34 provinces, ISO 3166-2:AF codes — fa/ps/en | complete; Pashto spellings need native-speaker review |
-| `districts.csv` | districts per province — fa/ps/en | **header only** — needs an authoritative source (see below) |
+| `provinces.csv` | 34 provinces, ISO 3166-2:AF codes — fa/ps/en | complete; Dari spellings confirmed by the product owner; Pashto needs native-speaker review |
+| `districts.csv` | 404 districts incl. 34 provincial centres (`AF-XXX-CENTER`, listed first) — fa/ps/en | Dari from the product owner's list; Pashto and English transliterated, **need native-speaker review** |
 
 ## Districts
 
-District names must come from an authoritative list (OCHA COD-AB
-`afg_admbnda_adm2` or the NSIA administrative list), not be typed from memory:
-~400 names × 3 languages is too error-prone. The importer is ready:
+Dari names come from the product owner's list (compiled from Wikipedia's
+district category, AAN's district map, geo-ref.net and others). Codes are
+`<province>-<SLUG>` from the English name, so they stay stable when the list
+is reordered. Normalisations applied to the Dari text:
 
-```
-province_code,code,sort,fa,ps,en
-AF-KAB,AF-KAB-01,1,<دری>,<پښتو>,<English>
-```
+* hyphens inside names → ZWNJ (`ده-سبز` → `ده‌سبز`), izafe marks removed (`دشتِ‌ارچی` → `دشت ارچی`, `قلعهٔ‌زال` → `قلعه زال`)
+* `یکاولنگ (نمبر ۱ و نمبر ۲)` split into two districts
+* a district identical to its provincial centre merged with it (Daykundi: نیلی, Kunar: اسدآباد/اسعدآباد)
 
-Rules enforced at build/start: `province_code` must exist in `provinces.csv`,
-`code` unique, all three labels non-empty. Add the rows and the next start
-syncs them into existing clinic databases (`cargo test -p artaveo-core seeds`
-validates the file).
+Names to confirm (not in the usual district lists, or a known district seems
+missing): Badakhshan `حامی` and missing Yamgan; Paktya `سمکنی` next to
+`چم کنی` and missing Zurmat / Laja Mangal; Takhar missing Darqad; Ghor missing
+Charsada; Helmand missing Nawzad. Editing the CSV and restarting the app is
+enough — the seed sync upserts by code and IDs never change.
+
+Rules enforced by `cargo test -p artaveo-core seeds`: known province codes,
+unique codes, three non-empty labels, one centre per province, Persian ی/ک in
+Dari.

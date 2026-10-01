@@ -191,6 +191,15 @@ mod tests {
         let provinces = province_rows().unwrap();
         assert_eq!(provinces.len(), 34, "Afghanistan has 34 provinces");
         assert!(provinces.iter().all(|p| p.code.starts_with("AF-") && p.code.len() == 6));
-        district_rows().unwrap();
+        let districts = district_rows().unwrap();
+        assert_eq!(districts.len(), 404);
+        for p in &provinces {
+            let centre = format!("{}-CENTER", p.code);
+            assert!(districts.iter().any(|d| d.code == centre), "{} has no provincial centre", p.code);
+        }
+        // Dari labels use Persian ی/ک, never Arabic ي/ك (search and sorting depend on it).
+        for d in &districts {
+            assert!(!d.labels[0].contains(['ي', 'ك']), "{}: {}", d.code, d.labels[0]);
+        }
     }
 }
