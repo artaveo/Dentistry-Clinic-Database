@@ -22,3 +22,8 @@ spikes/tauri-shell/gen/
 Thumbs.db
 .vscode/
 .idea/
+
+# Python packages / wheels (tooling downloads, never committed)
+*.whl
+__pycache__/
+.venv/
