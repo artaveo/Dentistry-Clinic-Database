@@ -26,7 +26,9 @@ async function login(user: string, pass: string) {
 }
 
 async function openUserMenu() {
+  if (await page.getByTestId("user-menu").isVisible()) return;
   await page.getByTestId("current-user").click();
+  await expect(page.getByTestId("user-menu")).toBeVisible();
 }
 
 test("setup wizard: welcome through clinic info", async () => {

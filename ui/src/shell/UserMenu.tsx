@@ -39,8 +39,24 @@ export function UserMenu({
             <option value="reduced">{t("shell.perf.reduced")}</option>
           </select>
           <div className="actions">
-            <button onClick={onLock} data-testid="lock">{t("shell.lock")}</button>
-            <button onClick={onLogout} data-testid="logout">{t("shell.logout")}</button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onLock();
+              }}
+              data-testid="lock"
+            >
+              {t("shell.lock")}
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onLogout();
+              }}
+              data-testid="logout"
+            >
+              {t("shell.logout")}
+            </button>
           </div>
         </div>
       )}
