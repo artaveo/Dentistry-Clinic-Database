@@ -260,7 +260,16 @@ who · what · when · entity · entity_id · old_value · new_value · computer
 
 از همین فاز، Backup روزانه محلی و دستی فعال است تا هیچ داده آزمایشی/واقعی بدون Backup نماند. (نسخه کامل در فاز ۱۰)
 
-**Exit Criteria:** برنامه نصب می‌شود، کاربر Owner ساخته می‌شود، Login کار می‌کند، Migration و Backup محلی کار می‌کند، CI سبز است.
+### 1.8 تحویل برای تست دستی مالک محصول
+
+در پایان فاز ۱ (و هر فاز بعدی که خروجی قابل نصب دارد):
+
+* انتشار Installerها در **GitHub Releases** (نه فقط Artifact) با نام‌های واضح:
+  `ArtaveoDental-Setup-x64.exe` · `ArtaveoDental-Setup-x86.exe` · `ArtaveoDental-Setup-arm64.exe` و نسخه‌های `-offline` آن‌ها
+* فایل `docs/testing/phase-1-manual-test.md` به **فارسی ساده و غیرفنی**: کدام فایل را روی کدام کامپیوتر نصب کن، دقیقاً چه دکمه‌ای بزن، چه چیزی باید ببینی، و جدول ثبت نتیجه (قبول/رد + عکس صفحه)
+* صفحه **«درباره برنامه / System Info»** که نسخه، نوع پردازنده (x64/x86/ARM64)، وضعیت رمزنگاری دیتابیس و آخرین Backup را نشان دهد تا مالک محصول بدون ابزار فنی بتواند نتیجه را ببیند
+
+**Exit Criteria:** برنامه نصب می‌شود، کاربر Owner ساخته می‌شود، Login کار می‌کند، Migration و Backup محلی کار می‌کند، CI سبز است، Installerهای سه معماری در GitHub Releases منتشر شده‌اند و راهنمای تست دستی آماده است.
 
 ---
 
