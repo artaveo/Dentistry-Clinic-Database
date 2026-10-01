@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>N-up receipts on A4</title>
+<link rel="stylesheet" href="receipt.css">
+<style>
+  /* 2-up: two A5-landscape halves (210×148.5). 4-up: four A6 quarters (105×148.5).
+     Each receipt keeps its real A6 size; the sheet is only a carrier. */
+  @page { size: A4; margin: 0; }
+  body.sheet { position: relative; width: 210mm; height: 297mm; overflow: hidden; }
+  .cell { position: absolute; display: flex; align-items: flex-start; justify-content: center; padding-top: 6mm; overflow: hidden; }
+  /* Cut marks: dashed guide on every internal edge + solid ticks at the
+     sheet border, so the line can be found even if the guide is faint. */
+  .cut { position: absolute; border-color: #555; border-style: dashed; border-width: 0; }
+  .cut.h { left: 0; right: 0; border-top-width: 0.25mm; }
+  .cut.v { top: 0; bottom: 0; border-left-width: 0.25mm; }
+  .tick { position: absolute; background: #000; }
+  .tick.h { width: 6mm; height: 0.35mm; }
+  .tick.v { width: 0.35mm; height: 6mm; }
+  #toolbar { position: fixed; bottom: 0; inset-inline: 0; padding: 8px; background: #eef6f8; font: 13px system-ui, sans-serif; direction: ltr; }
+  #toolbar[hidden] { display: none; }
+  @media print { #toolbar { display: none; } }
+</style>
+</head>
+<body class="sheet">
+<div id="toolbar" hidden><select id="printer"></select> <button id="silent">Silent print A4</button> <a href="index.html">back</a> <span id="status"></span></div>
+<script type="module">
+import { renderReceipt, PAPERS } from "./receipt.js";
+
+const q = new URLSearchParams(location.search);
+const lang = q.get("lang") || "fa";
+const layout = Number(q.get("layout") || 2);
+document.documentElement.lang = lang;
+document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
+
+const W = 210, H = 297;
+const [cols, rows] = layout === 4 ? [2, 2] : [1, 2];
+const cw = W / cols, ch = H / rows;
+const mm = (v) => `${v}mm`;
+const put = (cls, style) => {
+  const d = document.createElement("div");
+  d.className = cls;
+  Object.assign(d.style, style);
+  document.body.appendChild(d);
+  return d;
+};
+
+for (let r = 0; r < rows; r++) {
+  for (let c = 0; c < cols; c++) {
+    const n = r * cols + c;
+    // Fill order follows reading direction: first receipt top-right in RTL.
+    const pc = lang === "en" ? c : cols - 1 - c;
+    const cell = put("cell", { left: mm(pc * cw), top: mm(r * ch), width: mm(cw), height: mm(ch) });
+    cell.dataset.cell = n;
+    const rc = document.createElement("div");
+    rc.className = "receipt";
+    rc.style.setProperty("--w", PAPERS.a6.width);
+    rc.style.setProperty("--fs", layout === 4 ? "9.5pt" : PAPERS.a6.fontSize);
+    cell.appendChild(rc);
+    renderReceipt(rc, { lang, number: `RC-1405-${String(184 + n).padStart(6, "0")}`, patientNo: `P-${String(120 + n).padStart(6, "0")}` });
+  }
+}
+for (let r = 1; r < rows; r++) {
+  put("cut h", { top: mm(r * ch) });
+  put("tick h", { top: mm(r * ch), left: 0 });
+  put("tick h", { top: mm(r * ch), right: 0 });
+}
+for (let c = 1; c < cols; c++) {
+  put("cut v", { left: mm(c * cw) });
+  put("tick v", { left: mm(c * cw), top: 0 });
+  put("tick v", { left: mm(c * cw), bottom: 0 });
+}
+
+await document.fonts.ready;
+document.body.dataset.ready = "1";
+
+if (window.__TAURI__) {
+  const { invoke } = window.__TAURI__.core;
+  document.getElementById("toolbar").hidden = false;
+  const sel = document.getElementById("printer");
+  for (const p of await invoke("list_printers")) sel.add(new Option(p, p));
+  document.getElementById("silent").onclick = () =>
+    invoke("silent_print", { opts: { printer: sel.value, widthMm: 210, heightMm: 297, marginMm: 0 } })
+      .then(() => (document.getElementById("status").textContent = "queued"), (e) => (document.getElementById("status").textContent = String(e)));
+}
+</script>
+</body>
+</html>

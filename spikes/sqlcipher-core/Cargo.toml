@@ -1,0 +1,19 @@
+[package]
+name = "sqlcipher-core"
+description = "Spike: Rust Core + SQLCipher (WAL, FK, STRICT, migrations, backup, recovery)"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+key-protect = { path = "../key-protect" }
+thiserror.workspace = true
+sha2.workspace = true
+hex.workspace = true
+# Vendored OpenSSL keeps the Windows build self-contained (no system OpenSSL DLLs).
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+uuid = { version = "1", features = ["v7"] }
+
+[dev-dependencies]
+tempfile = "3"

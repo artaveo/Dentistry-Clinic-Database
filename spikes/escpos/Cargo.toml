@@ -1,0 +1,20 @@
+[package]
+name = "escpos"
+description = "Spike: thermal receipt printing via ESC/POS raster + Windows spooler helpers (RAW jobs, printer paper/tray capabilities)"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+png = "0.17"
+serde.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Printing",
+    "Win32_Storage_Xps",
+] }

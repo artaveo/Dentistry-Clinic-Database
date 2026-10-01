@@ -1,0 +1,24 @@
+/* Shared by receipt.html (one receipt) and sheet.html (N-up on A4). */
+@font-face { font-family: "Vazirmatn"; font-weight: 400; src: url("fonts/Vazirmatn-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Vazirmatn"; font-weight: 700; src: url("fonts/Vazirmatn-Bold.woff2") format("woff2"); }
+/* Vazirmatn has no Afghani sign (U+060B ؋); pull just that glyph from Noto Sans Arabic. */
+@font-face { font-family: "AfghaniSign"; font-weight: 400; unicode-range: U+060B; src: url("fonts/noto-sans-arabic-arabic-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "AfghaniSign"; font-weight: 700; unicode-range: U+060B; src: url("fonts/noto-sans-arabic-arabic-700-normal.woff2") format("woff2"); }
+:root { --w: 72mm; --fs: 9.5pt; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+body { font-family: "AfghaniSign", "Vazirmatn", sans-serif; font-size: var(--fs); line-height: 1.45; }
+.receipt { width: var(--w); font-size: var(--fs); padding: 2mm 1.5mm; }
+/* A4-compact: the receipt sits at a configurable position on an A4 sheet. */
+body.a4 { position: relative; width: 210mm; height: 297mm; overflow: hidden; }
+body.a4 .receipt { position: absolute; top: var(--top); right: var(--right); border: 0.2mm dashed #888; }
+h1 { font-size: 1.35em; margin: 0; text-align: center; }
+.sub { text-align: center; font-size: .85em; }
+hr { border: 0; border-top: 0.3mm dashed #000; margin: 1.5mm 0; }
+.row { display: flex; justify-content: space-between; gap: 2mm; }
+.ltr { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: .4mm 0; vertical-align: top; }
+td.amt { text-align: end; white-space: nowrap; padding-inline-start: 2mm; }
+.total { font-weight: 700; font-size: 1.15em; }
+.foot { text-align: center; font-size: .8em; margin-top: 2mm; }

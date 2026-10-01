@@ -1,0 +1,26 @@
+[package]
+name = "lan-mode"
+description = "Spike: LAN server discovery (mDNS), 6-digit pairing (SPAKE2), pinned TLS, WebSocket RPC + push"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+rand.workspace = true
+hmac = "0.12"
+anyhow = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
+# `ring` instead of the default aws-lc-rs: no cmake/NASM needed on Windows builders.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "logging", "tls12"] }
+rcgen = { version = "0.13", default-features = false, features = ["ring", "pem"] }
+spake2 = "0.4"
+mdns-sd = "0.11"

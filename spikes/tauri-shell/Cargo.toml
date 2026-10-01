@@ -1,0 +1,36 @@
+[package]
+name = "tauri-shell"
+description = "Spike: Tauri 2 shell hosting the Rust Core (SQLCipher+DPAPI), WebView2 bootstrap and silent printing"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "artaveo-spike"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+base64 = "0.22"
+shamsi = { path = "../shamsi" }
+escpos = { path = "../escpos" }
+key-protect = { path = "../key-protect" }
+sqlcipher-core = { path = "../sqlcipher-core", optional = true }
+
+[features]
+default = ["db"]
+# Lets the shell be type-checked for Windows from a Linux box without a
+# C cross-toolchain (SQLCipher/OpenSSL are C). Real builds keep it on.
+db = ["dep:sqlcipher-core"]
+
+[target.'cfg(windows)'.dependencies]
+# Must match the webview2-com version used by the wry release Tauri pulls in.
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation"] }
+windows-core = "0.62"

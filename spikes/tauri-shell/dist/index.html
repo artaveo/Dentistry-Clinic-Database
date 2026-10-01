@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Artaveo Dental — Phase 0 spike</title>
+<style>
+  body { font: 14px/1.5 system-ui, "Segoe UI", sans-serif; margin: 24px; color: #12303a; background: #f7fafb; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  section { background: #fff; border: 1px solid #d6e3e7; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  pre { background: #f0f4f5; padding: 8px; border-radius: 6px; white-space: pre-wrap; direction: ltr; }
+  a { margin-inline-end: 12px; }
+</style>
+</head>
+<body>
+<h1>Artaveo Dental — Phase 0 technical spikes</h1>
+
+<section>
+  <h2>1. Rust Core + SQLCipher + DPAPI</h2>
+  <button id="db">Run database self-test</button>
+  <pre id="db-out">–</pre>
+</section>
+
+<section>
+  <h2>5. Shamsi calendar (Rust Core)</h2>
+  <button id="sh">Convert today</button>
+  <pre id="sh-out">–</pre>
+</section>
+
+<section>
+  <h2>2/3/4. Receipts &amp; printing</h2>
+  <a href="receipt.html?paper=80&lang=fa">80 mm · دری</a>
+  <a href="receipt.html?paper=80&lang=ps">80 mm · پښتو</a>
+  <a href="receipt.html?paper=58&lang=ps">58 mm · پښتو</a>
+  <a href="receipt.html?paper=a6&lang=fa">A6 · دری</a>
+  <a href="receipt.html?paper=a4&lang=fa&top=12&right=12">A4 compact (top-right)</a>
+  <a href="receipt.html?paper=80&lang=en">80 mm · English</a>
+  <br>Small paper on a normal printer:
+  <a href="receipt.html?paper=a5&lang=fa">A5 · دری</a>
+  <a href="receipt.html?paper=a6&lang=ps">A6 · پښتو</a>
+  <a href="sheet.html?layout=2&lang=fa">2 on A4 + cut marks</a>
+  <a href="sheet.html?layout=4&lang=ps">4 on A4 + cut marks</a>
+  <br><button id="caps">Check A5/A6 + manual tray for each printer</button>
+  <pre id="caps-out">–</pre>
+</section>
+
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const show = (id, v) => (document.getElementById(id).textContent = typeof v === "string" ? v : JSON.stringify(v, null, 2));
+  document.getElementById("db").onclick = () => invoke("db_selftest").then((r) => show("db-out", r), (e) => show("db-out", "ERROR: " + e));
+  document.getElementById("caps").onclick = async () => {
+    const out = {};
+    for (const p of await invoke("list_printers")) out[p] = await invoke("printer_capabilities", { printer: p }).then((c) => ({ smallPaper: c.smallPaper, manualFeed: c.manualFeed?.name ?? null }), String);
+    show("caps-out", out);
+  };
+  document.getElementById("sh").onclick = () => {
+    const d = new Date();
+    invoke("shamsi_date", { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() }).then((r) => show("sh-out", r), (e) => show("sh-out", "ERROR: " + e));
+  };
+</script>
+</body>
+</html>

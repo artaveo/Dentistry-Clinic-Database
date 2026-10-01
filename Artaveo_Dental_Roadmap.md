@@ -32,8 +32,8 @@ Artaveo Dental یک **Windows Desktop Application** برای مدیریت کام
 |---|---|---|---|
 | ADR-01 | محل Business Logic | تمام منطق برنامه و دسترسی به دیتابیس در **Rust Core** (داخل Tauri). React فقط UI است و از طریق Command/API با Core حرف می‌زند. | امنیت (دور زدن Permission/Audit ممکن نیست) + امکان حالت شبکه با همان کد. |
 | ADR-02 | لایه انتقال | یک **API Contract** واحد برای Core. در حالت تک‌کامپیوتر از Tauri IPC، در حالت شبکه از HTTPS/WebSocket روی LAN استفاده می‌شود. | یک کد، دو حالت اجرا. |
-| ADR-03 | دیتابیس | SQLite با **SQLCipher** (رمزنگاری کامل فایل)، WAL، Foreign Keys، جداول STRICT. | امنیت داده پزشکی در صورت سرقت کامپیوتر. |
-| ADR-04 | نگهداری کلید رمز | کلید دیتابیس با **Windows DPAPI** محافظت می‌شود + یک **Recovery Key** که هنگام نصب برای Owner چاپ/ذخیره می‌شود. | بدون Recovery Key، Restore روی کامپیوتر جدید غیرممکن است. |
+| ADR-03 | دیتابیس | SQLite با **SQLCipher** (رمزنگاری کامل فایل)، WAL، Foreign Keys، جداول STRICT. کلید خام ۲۵۶ بیتی؛ Integrity Check کامل در پس‌زمینه، نه در Startup ([جزئیات فاز ۰](docs/adr/ADR-03-database.md)). | امنیت داده پزشکی در صورت سرقت کامپیوتر. |
+| ADR-04 | نگهداری کلید رمز | کلید دیتابیس با **Windows DPAPI** (Machine Scope) محافظت می‌شود + یک **Recovery Key** که هنگام نصب برای Owner چاپ/ذخیره می‌شود؛ نسخه Wrap‌شده با Recovery Key همراه هر Backup ([جزئیات فاز ۰](docs/adr/ADR-04-key-storage.md)). | بدون Recovery Key، Restore روی کامپیوتر جدید غیرممکن است. |
 | ADR-05 | شناسه‌ها | **UUIDv7** به‌عنوان Primary Key + شماره‌های انسانی جدا (مثل `P-000123`). | سازگار با Sync و Cloud در آینده، قابل مرتب‌سازی زمانی. |
 | ADR-06 | پول | مبالغ به‌صورت **INTEGER** (کوچک‌ترین واحد، ×100) ذخیره می‌شوند؛ هرگز REAL/Float. | جلوگیری از خطای گرد کردن. |
 | ADR-07 | زمان | ذخیره به **UTC** (ISO-8601)؛ نمایش با Timezone کلینیک (پیش‌فرض `Asia/Kabul`, +04:30). | |
@@ -42,11 +42,16 @@ Artaveo Dental یک **Windows Desktop Application** برای مدیریت کام
 | ADR-10 | حذف داده | **Soft Delete** برای تمام داده‌های بالینی و مالی. Hard Delete فقط برای داده‌های موقت. | Audit و الزامات پزشکی. |
 | ADR-11 | اسناد مالی | فاکتور و رسید پس از صدور **غیرقابل ویرایش** هستند. اصلاح فقط از طریق **Void** یا **Credit Note** با ثبت دلیل. | یکپارچگی مالی. |
 | ADR-12 | فایل‌های پیوست | فایل‌ها (X-Ray، عکس، اسکن) در **پوشه داده برنامه** با نام مبتنی بر Hash (SHA-256)؛ Metadata در دیتابیس؛ Thumbnail خودکار؛ فایل‌ها نیز رمزنگاری می‌شوند. | دیتابیس سبک می‌ماند، Backup افزایشی ممکن می‌شود. |
-| ADR-13 | PDF و چاپ | تولید PDF و چاپ از طریق **موتور WebView2 (Chromium)** با Page Size سفارشی؛ پرینتر حرارتی با Silent Print یا ESC/POS (نتیجه Spike فاز ۰ تعیین می‌کند). | پشتیبانی کامل RTL و اتصال حروف فارسی/پشتو. |
+| ADR-13 | PDF و چاپ | تولید PDF و چاپ از طریق **موتور WebView2 (Chromium)** با Page Size سفارشی و یک قالب HTML مشترک؛ PDF همیشه در اندازه واقعی سند. پرینتر حرارتی: **ESC/POS Raster** (روش اصلی) و WebView2 Silent Print (پشتیبان). A5/A6 با Page Size واقعی (سینی توسط درایور)، N-up با چیدمان خودمان و خط برش — قطعی‌شده در فاز ۰ ([جزئیات](docs/adr/ADR-13-pdf-printing.md)). | پشتیبانی کامل RTL و اتصال حروف فارسی/پشتو. |
 | ADR-14 | شماره‌گذاری دندان | پیش‌فرض **FDI** (ISO 3950)؛ Universal و Palmer در تنظیمات. | |
 | ADR-15 | License | فایل License امضاشده با **Ed25519**؛ کلید خصوصی فقط روی سرور مرکزی. | جعل License ممکن نیست. |
 | ADR-16 | سرویس‌های مرکزی | Supabase (Postgres + Edge Functions) فقط برای License، Activation، Installation Tracking، Security Events و Update Metadata. **پلن رایگان**. هیچ داده بیمار روی Supabase نیست. | داده هر کلینیک کمتر از چند ده KB؛ پلن رایگان برای ده‌ها هزار کلینیک کافی است. |
 | ADR-17 | Cloud Backup | Backup رمزنگاری‌شده در **پوشه همگام‌سازی فضای ابری خود کلینیک** (Google Drive / OneDrive Desktop) نوشته می‌شود و برنامه همگام‌سازی آن را آپلود می‌کند. | بدون هزینه برای Artaveo، بدون نیاز به API و حساب ابری اختصاصی، صف آفلاین را خود Google Drive/OneDrive مدیریت می‌کند، داده بیماران هرگز به Artaveo نمی‌رسد. |
+| ADR-18 | امنیت حالت شبکه | Pairing با کد ۶ رقمی از طریق **SPAKE2** + TLS با گواهی Pin‌شده + token برای هر دستگاه ([جزئیات](docs/adr/ADR-18-lan-security.md)). | کد کوتاه بدون امکان Brute-force آفلاین یا MITM. |
+| ADR-19 | فونت‌ها | **Vazirmatn** + Noto Sans Arabic فقط برای ؋؛ همه فونت‌ها همراه برنامه ([جزئیات](docs/adr/ADR-19-fonts.md)). | خروجی یکسان روی همه کامپیوترها. |
+| ADR-20 | توزیع WebView2 | Installer استاندارد (`embedBootstrapper`) + Installer آفلاین (`offlineInstaller`)، هر دو از وب‌سایت Artaveo ([جزئیات](docs/adr/ADR-20-webview2.md)). | کلینیک‌های بدون اینترنت. |
+| ADR-21 | تقویم شمسی | Core: ماژول Rust خودمان؛ UI: `@internationalized/date`؛ نام ماه‌های افغانی از جدول خودمان ([جزئیات](docs/adr/ADR-21-calendar.md)). | UI و Core هیچ‌وقت اختلاف تاریخ ندارند. |
+| ADR-22 | هویت USB | Marker امضاشده (HMAC) روی دستگاه + Serial سخت‌افزاری معتبر؛ تشخیص با BusType ([جزئیات](docs/adr/ADR-22-usb-identity.md)). | Drive Letter و Volume Serial پایدار نیستند. |
 
 ### نیازمندی‌های غیرعملکردی (NFR)
 
@@ -163,6 +168,8 @@ Central Services (Supabase)
 * Repository اولیه با ساختار پوشه‌ها
 
 **Exit Criteria:** همه Spikeها نتیجه قطعی دارند و هیچ ریسک فنی «نامعلوم» در جدول ریسک باقی نمانده.
+
+> **وضعیت فاز ۰: ✅ انجام شد.** گزارش‌ها: [docs/spikes](docs/spikes/README.md) · ADRهای به‌روز: [docs/adr](docs/adr/README.md) · جدول ریسک فنی: [docs/risk-register.md](docs/risk-register.md) · تأیید روی سخت‌افزار فیزیکی: [چک‌لیست](docs/spikes/hardware-checklist.md)
 
 ---
 

@@ -1,0 +1,9 @@
+[package]
+name = "shamsi"
+description = "Spike: Solar Hijri (Afghan) calendar + digit normalisation for the Rust Core (ADR-08, ADR-09)"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]

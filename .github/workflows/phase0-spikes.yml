@@ -1,0 +1,103 @@
+name: Phase 0 spikes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: Linux — portable spikes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spikes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: spikes
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - name: mDNS discovery on the runner's network
+        run: cargo test -p lan-mode --test lan -- --ignored
+        continue-on-error: true # multicast is not guaranteed on hosted runners
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: spikes/print-lab/package-lock.json
+      - name: RTL PDF + thermal raster + Shamsi cross-check (Chrome)
+        working-directory: spikes/print-lab
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          npm ci
+          npm run all
+      - name: Thermal PNG → ESC/POS
+        run: |
+          for j in "80mm-fa 80" "80mm-ps 80" "58mm-ps 58"; do
+            set -- $j
+            cargo run -q -p escpos --example png2escpos -- print-lab/out/receipt-$1.png print-lab/out/receipt-$1.escpos.bin $2 --preview print-lab/out/receipt-$1.1bit.png
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: print-lab-linux
+          path: spikes/print-lab/out/
+
+  windows:
+    name: Windows — SQLCipher/DPAPI, Tauri + WebView2 installer, Edge printing
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: spikes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: spikes
+      - name: Tests (real DPAPI, vendored OpenSSL + SQLCipher on MSVC)
+        run: cargo test
+      - name: Clippy incl. Windows-only code and the Tauri shell
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Windows printers visible to the RAW spooler
+        run: cargo run -q -p escpos --example png2escpos -- --list
+      - name: Paper sizes / trays reported by drivers (A5/A6, manual feed)
+        run: cargo run -q -p escpos --example printer_caps
+      - name: USB volumes (runner has none; proves the API calls succeed)
+        run: cargo run -q -p usb-identity --example usb_probe -- --once
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: spikes/print-lab/package-lock.json
+      - name: RTL PDF with Microsoft Edge (same engine family as WebView2)
+        working-directory: spikes/print-lab
+        run: |
+          npm ci
+          npm run render
+          npm run verify
+      - name: Build NSIS installers (online bootstrapper + offline WebView2)
+        working-directory: spikes/tauri-shell
+        shell: bash
+        run: |
+          npx --yes @tauri-apps/cli@^2 build
+          mkdir -p ../print-lab/out/installers
+          cp ../target/release/bundle/nsis/*.exe ../print-lab/out/installers/
+          npx --yes @tauri-apps/cli@^2 build --config tauri.offline.conf.json
+          for f in ../target/release/bundle/nsis/*.exe; do cp "$f" "../print-lab/out/installers/offline-$(basename "$f")"; done
+          ls -la ../print-lab/out/installers
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase0-windows
+          path: spikes/print-lab/out/

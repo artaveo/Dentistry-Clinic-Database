@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Receipt spike</title>
+<link rel="stylesheet" href="receipt.css">
+<style>
+  #toolbar { position: fixed; bottom: 0; inset-inline: 0; padding: 8px; background: #eef6f8; font: 13px system-ui, sans-serif; display: flex; gap: 6px; flex-wrap: wrap; direction: ltr; }
+  #toolbar[hidden] { display: none; }
+  @media print { #toolbar { display: none; } }
+</style>
+</head>
+<body>
+<div class="receipt" id="r"></div>
+<!-- Only inside the Tauri spike app: exercises both silent print paths. -->
+<div id="toolbar" hidden>
+  <select id="printer"></select>
+  <button id="thermal">ESC/POS raster → printer</button>
+  <button id="silent">WebView2 silent print (page size)</button>
+  <button id="pdf">Save PDF (WebView2 PrintToPdf)</button>
+  <a href="index.html">back</a>
+  <span id="status"></span>
+</div>
+<script type="module">
+import { renderReceipt, PAPERS } from "./receipt.js";
+
+const q = new URLSearchParams(location.search);
+const lang = q.get("lang") || "fa";
+const digits = q.get("digits") || (lang === "en" ? "latn" : "arabext");
+const paper = q.get("paper") || "80";
+
+document.documentElement.lang = lang;
+document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
+document.documentElement.style.setProperty("--w", PAPERS[paper].width);
+document.documentElement.style.setProperty("--fs", PAPERS[paper].fontSize);
+if (paper === "a4") {
+  document.body.classList.add("a4");
+  document.documentElement.style.setProperty("--top", (q.get("top") || "12") + "mm");
+  document.documentElement.style.setProperty("--right", (q.get("right") || "12") + "mm");
+}
+renderReceipt(document.getElementById("r"), { lang, digits });
+document.fonts.ready.then(() => { document.body.dataset.ready = "1"; });
+
+if (window.__TAURI__) {
+  const { invoke } = window.__TAURI__.core;
+  const status = (t) => (document.getElementById("status").textContent = t);
+  const bar = document.getElementById("toolbar");
+  bar.hidden = false;
+  const sel = document.getElementById("printer");
+  for (const p of await invoke("list_printers")) sel.add(new Option(p, p));
+  const dots = paper === "58" ? 384 : 576;
+  document.getElementById("thermal").onclick = async () => {
+    const { rasterizeElement, blobToBase64 } = await import("./raster.js");
+    const { png } = await rasterizeElement(document.getElementById("r"), dots);
+    const bytes = await invoke("print_escpos_png", { pngBase64: await blobToBase64(png), printer: sel.value, paperMm: Number(paper === "58" ? 58 : 80) });
+    status(`sent ${bytes} bytes`);
+  };
+  const pageOpts = () => {
+    const pageMm = PAPERS[paper].pageMm;
+    // Roll paper: page height = content height, so no blank paper is fed.
+    const h = pageMm[1] || Math.ceil(document.getElementById("r").getBoundingClientRect().height * 25.4 / 96) + 8;
+    return { printer: sel.value, widthMm: pageMm[0], heightMm: h, marginMm: paper === "a4" ? 0 : 4 };
+  };
+  document.getElementById("silent").onclick = async () => {
+    try {
+      await invoke("silent_print", { opts: pageOpts() });
+      status("print job queued");
+    } catch (e) { status(String(e)); }
+  };
+  document.getElementById("pdf").onclick = async () => {
+    try {
+      const dir = await window.__TAURI__.path.documentDir();
+      const path = await window.__TAURI__.path.join(dir, `artaveo-receipt-${paper}-${lang}.pdf`);
+      await invoke("save_pdf", { opts: pageOpts(), path });
+      status(`saved ${path}`);
+    } catch (e) { status(String(e)); }
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "artaveo-print-lab",
+  "private": true,
+  "type": "module",
+  "description": "Phase 0 spikes: RTL PDF (A6/80mm/58mm/A4-compact), thermal raster PNG, Shamsi library evaluation",
+  "scripts": {
+    "render": "node scripts/render.mjs",
+    "verify": "node scripts/verify.mjs",
+    "shamsi": "node scripts/shamsi-crosscheck.mjs",
+    "all": "npm run render && npm run verify && npm run shamsi"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans-arabic": "^5.3.0",
+    "@internationalized/date": "^3.12.4",
+    "date-fns-jalali": "^4.1.0-0",
+    "jalaali-js": "^2.0.1",
+    "pdfjs-dist": "^5.4.0",
+    "playwright-core": "~1.56.0",
+    "vazirmatn": "^33.0.3"
+  }
+}

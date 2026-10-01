@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Spike window may call the spike commands only",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
