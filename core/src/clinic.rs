@@ -34,9 +34,8 @@ fn meta(conn: &Connection, key: &str) -> Result<Option<String>> {
 /// (a freshly migrated database that predates this module, or a field the
 /// wizard left blank).
 pub fn get(conn: &Connection) -> Result<ClinicProfile> {
-    let working_hours: Vec<DayHours> = read(conn, "clinic.working_hours")?
-        .and_then(|v| serde_json::from_str(&v).ok())
-        .unwrap_or_default();
+    let working_hours: Vec<DayHours> =
+        read(conn, "clinic.working_hours")?.and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default();
     Ok(ClinicProfile {
         name: meta(conn, "clinic_name")?.unwrap_or_default(),
         default_language: match meta(conn, "default_language")?.as_deref() {
@@ -76,9 +75,7 @@ pub fn get(conn: &Connection) -> Result<ClinicProfile> {
 }
 
 fn validate_color(c: &str) -> Result<()> {
-    let ok = c.len() == 7
-        && c.starts_with('#')
-        && c.chars().skip(1).all(|ch| ch.is_ascii_hexdigit());
+    let ok = c.len() == 7 && c.starts_with('#') && c.chars().skip(1).all(|ch| ch.is_ascii_hexdigit());
     if !ok {
         return Err(CoreError::validation(format!("`{c}` is not a #rrggbb color")));
     }
@@ -133,9 +130,9 @@ pub fn update(conn: &Connection, actor: &Actor, new: &ClinicProfile) -> Result<C
         ("clinic.district_id", new.district_id.clone().unwrap_or_default()),
         ("clinic.address", new.address.clone().unwrap_or_default()),
         ("clinic.phone", new.phone.clone().unwrap_or_default()),
-        ("clinic.calendar_system", calendar_code(new.calendar_system).into()),
-        ("clinic.clinic_mode", clinic_mode_code(new.clinic_mode).into()),
-        ("clinic.theme", theme_code(new.theme).into()),
+        ("clinic.calendar_system", calendar_code(new.calendar_system).to_string()),
+        ("clinic.clinic_mode", clinic_mode_code(new.clinic_mode).to_string()),
+        ("clinic.theme", theme_code(new.theme).to_string()),
         ("clinic.color_primary", new.color_primary.clone()),
         ("clinic.color_secondary", new.color_secondary.clone()),
         ("clinic.color_accent", new.color_accent.clone()),
@@ -185,7 +182,11 @@ pub fn theme_code(c: ThemePreference) -> &'static str {
 
 /// Writes everything the Setup Wizard collected, in the same transaction as
 /// clinic/owner creation (called from `api::setup`). `conn` is a transaction.
-pub fn init_from_setup(conn: &Connection, p: &artaveo_shared::SetupParams, logo_path: Option<&str>) -> Result<()> {
+pub fn init_from_setup(
+    conn: &Connection,
+    p: &artaveo_shared::SetupParams,
+    logo_path: Option<&str>,
+) -> Result<()> {
     let now = now_iso();
     for (k, v) in [
         ("clinic.install_mode", install_mode_code(p.install_mode).to_string()),
@@ -201,10 +202,7 @@ pub fn init_from_setup(conn: &Connection, p: &artaveo_shared::SetupParams, logo_
         ("clinic.color_secondary", p.color_secondary.clone()),
         ("clinic.color_accent", p.color_accent.clone()),
         ("clinic.working_hours", serde_json::to_string(&p.working_hours)?),
-        (
-            "clinic.trial_started_at",
-            if p.trial_acknowledged { now.clone() } else { String::new() },
-        ),
+        ("clinic.trial_started_at", if p.trial_acknowledged { now.clone() } else { String::new() }),
     ] {
         if v.is_empty() {
             continue;
