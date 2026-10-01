@@ -2,7 +2,15 @@
 //! clinic time zone (Afghanistan, UTC+04:30, no DST).
 
 use time::format_description::well_known::Rfc3339;
-use time::{macros::offset, OffsetDateTime, UtcOffset};
+use time::format_description::FormatItem;
+use time::macros::{format_description, offset};
+use time::{OffsetDateTime, UtcOffset};
+
+/// Fixed width (always 3 fraction digits), so stored timestamps sort
+/// correctly as text. RFC3339 formatting would drop trailing zeros
+/// (`.120` → `.12`, `.000` → nothing) and break `ORDER BY` on them.
+const ISO_MILLIS: &[FormatItem<'static>] =
+    format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z");
 
 pub const CLINIC_OFFSET: UtcOffset = offset!(+4:30);
 
@@ -12,9 +20,7 @@ pub fn now() -> OffsetDateTime {
 
 /// `2026-10-01T08:30:00.123Z`
 pub fn iso(t: OffsetDateTime) -> String {
-    let t = t.to_offset(UtcOffset::UTC);
-    let t = t.replace_nanosecond(t.millisecond() as u32 * 1_000_000).unwrap();
-    t.format(&Rfc3339).expect("RFC3339 formatting of a UTC time cannot fail")
+    t.to_offset(UtcOffset::UTC).format(ISO_MILLIS).expect("formatting a UTC time cannot fail")
 }
 
 pub fn now_iso() -> String {
@@ -29,11 +35,23 @@ pub fn parse(s: &str) -> Option<OffsetDateTime> {
 mod tests {
     use super::*;
 
+    use time::macros::datetime;
+
     #[test]
-    fn iso_is_utc_millis_and_sortable() {
-        let a = now_iso();
-        assert!(a.ends_with('Z'));
-        assert_eq!(a.len(), "2026-10-01T08:30:00.123Z".len());
-        assert_eq!(iso(parse(&a).unwrap()), a);
+    fn iso_is_fixed_width_utc_millis_and_sortable() {
+        for (t, want) in [
+            (datetime!(2026-10-01 08:30:00.123 UTC), "2026-10-01T08:30:00.123Z"),
+            (datetime!(2026-10-01 08:30:00.120 UTC), "2026-10-01T08:30:00.120Z"),
+            (datetime!(2026-10-01 08:30:00 UTC), "2026-10-01T08:30:00.000Z"),
+            (datetime!(2026-10-01 13:00:00.999_9 +04:30), "2026-10-01T08:30:00.999Z"),
+        ] {
+            assert_eq!(iso(t), want);
+            assert_eq!(iso(parse(want).unwrap()), want);
+        }
+        // Text order == time order, even across a whole second.
+        let a = iso(datetime!(2026-10-01 08:30:00 UTC));
+        let b = iso(datetime!(2026-10-01 08:30:00.1 UTC));
+        assert!(a < b);
+        assert_eq!(now_iso().len(), 24);
     }
 }
