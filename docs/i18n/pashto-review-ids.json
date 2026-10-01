@@ -1,0 +1,2696 @@
+{
+ "UI-001": {
+  "kind": "ui",
+  "key": "app.name"
+ },
+ "UI-002": {
+  "kind": "ui",
+  "key": "common.save"
+ },
+ "UI-003": {
+  "kind": "ui",
+  "key": "common.cancel"
+ },
+ "UI-004": {
+  "kind": "ui",
+  "key": "common.loading"
+ },
+ "UI-005": {
+  "kind": "ui",
+  "key": "common.yes"
+ },
+ "UI-006": {
+  "kind": "ui",
+  "key": "common.no"
+ },
+ "UI-007": {
+  "kind": "ui",
+  "key": "common.saved"
+ },
+ "UI-008": {
+  "kind": "ui",
+  "key": "setup.title"
+ },
+ "UI-009": {
+  "kind": "ui",
+  "key": "setup.intro"
+ },
+ "UI-010": {
+  "kind": "ui",
+  "key": "setup.language"
+ },
+ "UI-011": {
+  "kind": "ui",
+  "key": "setup.clinicName"
+ },
+ "UI-012": {
+  "kind": "ui",
+  "key": "setup.owner"
+ },
+ "UI-013": {
+  "kind": "ui",
+  "key": "setup.next"
+ },
+ "UI-014": {
+  "kind": "ui",
+  "key": "setup.back"
+ },
+ "UI-015": {
+  "kind": "ui",
+  "key": "setup.create"
+ },
+ "UI-016": {
+  "kind": "ui",
+  "key": "setup.creating"
+ },
+ "UI-017": {
+  "kind": "ui",
+  "key": "wizard.step.welcome"
+ },
+ "UI-018": {
+  "kind": "ui",
+  "key": "wizard.step.language"
+ },
+ "UI-019": {
+  "kind": "ui",
+  "key": "wizard.step.install_mode"
+ },
+ "UI-020": {
+  "kind": "ui",
+  "key": "wizard.step.clinic_info"
+ },
+ "UI-021": {
+  "kind": "ui",
+  "key": "wizard.step.hours"
+ },
+ "UI-022": {
+  "kind": "ui",
+  "key": "wizard.step.clinic_type"
+ },
+ "UI-023": {
+  "kind": "ui",
+  "key": "wizard.step.branding"
+ },
+ "UI-024": {
+  "kind": "ui",
+  "key": "wizard.step.trial"
+ },
+ "UI-025": {
+  "kind": "ui",
+  "key": "wizard.step.backup"
+ },
+ "UI-026": {
+  "kind": "ui",
+  "key": "wizard.step.owner"
+ },
+ "UI-027": {
+  "kind": "ui",
+  "key": "wizard.welcome.title"
+ },
+ "UI-028": {
+  "kind": "ui",
+  "key": "wizard.welcome.body"
+ },
+ "UI-029": {
+  "kind": "ui",
+  "key": "wizard.welcome.start"
+ },
+ "UI-030": {
+  "kind": "ui",
+  "key": "wizard.installMode.title"
+ },
+ "UI-031": {
+  "kind": "ui",
+  "key": "wizard.installMode.single.title"
+ },
+ "UI-032": {
+  "kind": "ui",
+  "key": "wizard.installMode.single.hint"
+ },
+ "UI-033": {
+  "kind": "ui",
+  "key": "wizard.installMode.server.title"
+ },
+ "UI-034": {
+  "kind": "ui",
+  "key": "wizard.installMode.server.hint"
+ },
+ "UI-035": {
+  "kind": "ui",
+  "key": "wizard.installMode.client.title"
+ },
+ "UI-036": {
+  "kind": "ui",
+  "key": "wizard.installMode.client.hint"
+ },
+ "UI-037": {
+  "kind": "ui",
+  "key": "wizard.installMode.comingSoon"
+ },
+ "UI-038": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.title"
+ },
+ "UI-039": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.logo"
+ },
+ "UI-040": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.logoRemove"
+ },
+ "UI-041": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.province"
+ },
+ "UI-042": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.district"
+ },
+ "UI-043": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.address"
+ },
+ "UI-044": {
+  "kind": "ui",
+  "key": "wizard.clinicInfo.phone"
+ },
+ "UI-045": {
+  "kind": "ui",
+  "key": "wizard.hours.title"
+ },
+ "UI-046": {
+  "kind": "ui",
+  "key": "wizard.hours.calendar"
+ },
+ "UI-047": {
+  "kind": "ui",
+  "key": "wizard.hours.calendar.shamsi"
+ },
+ "UI-048": {
+  "kind": "ui",
+  "key": "wizard.hours.calendar.gregorian"
+ },
+ "UI-049": {
+  "kind": "ui",
+  "key": "wizard.hours.workingHours"
+ },
+ "UI-050": {
+  "kind": "ui",
+  "key": "wizard.hours.open"
+ },
+ "UI-051": {
+  "kind": "ui",
+  "key": "wizard.day.0"
+ },
+ "UI-052": {
+  "kind": "ui",
+  "key": "wizard.day.1"
+ },
+ "UI-053": {
+  "kind": "ui",
+  "key": "wizard.day.2"
+ },
+ "UI-054": {
+  "kind": "ui",
+  "key": "wizard.day.3"
+ },
+ "UI-055": {
+  "kind": "ui",
+  "key": "wizard.day.4"
+ },
+ "UI-056": {
+  "kind": "ui",
+  "key": "wizard.day.5"
+ },
+ "UI-057": {
+  "kind": "ui",
+  "key": "wizard.day.6"
+ },
+ "UI-058": {
+  "kind": "ui",
+  "key": "wizard.clinicType.title"
+ },
+ "UI-059": {
+  "kind": "ui",
+  "key": "wizard.clinicType.solo.title"
+ },
+ "UI-060": {
+  "kind": "ui",
+  "key": "wizard.clinicType.solo.hint"
+ },
+ "UI-061": {
+  "kind": "ui",
+  "key": "wizard.clinicType.multi.title"
+ },
+ "UI-062": {
+  "kind": "ui",
+  "key": "wizard.clinicType.multi.hint"
+ },
+ "UI-063": {
+  "kind": "ui",
+  "key": "wizard.branding.title"
+ },
+ "UI-064": {
+  "kind": "ui",
+  "key": "wizard.branding.theme"
+ },
+ "UI-065": {
+  "kind": "ui",
+  "key": "wizard.branding.preview"
+ },
+ "UI-066": {
+  "kind": "ui",
+  "key": "wizard.branding.colorPrimary"
+ },
+ "UI-067": {
+  "kind": "ui",
+  "key": "wizard.branding.colorSecondary"
+ },
+ "UI-068": {
+  "kind": "ui",
+  "key": "wizard.branding.colorAccent"
+ },
+ "UI-069": {
+  "kind": "ui",
+  "key": "theme.light"
+ },
+ "UI-070": {
+  "kind": "ui",
+  "key": "theme.dark"
+ },
+ "UI-071": {
+  "kind": "ui",
+  "key": "theme.system"
+ },
+ "UI-072": {
+  "kind": "ui",
+  "key": "wizard.trial.title"
+ },
+ "UI-073": {
+  "kind": "ui",
+  "key": "wizard.trial.body"
+ },
+ "UI-074": {
+  "kind": "ui",
+  "key": "wizard.trial.ack"
+ },
+ "UI-075": {
+  "kind": "ui",
+  "key": "wizard.backup.title"
+ },
+ "UI-076": {
+  "kind": "ui",
+  "key": "wizard.backup.body"
+ },
+ "UI-077": {
+  "kind": "ui",
+  "key": "recovery.title"
+ },
+ "UI-078": {
+  "kind": "ui",
+  "key": "recovery.warning"
+ },
+ "UI-079": {
+  "kind": "ui",
+  "key": "recovery.print"
+ },
+ "UI-080": {
+  "kind": "ui",
+  "key": "recovery.confirm"
+ },
+ "UI-081": {
+  "kind": "ui",
+  "key": "recovery.continue"
+ },
+ "UI-082": {
+  "kind": "ui",
+  "key": "recovery.sheetTitle"
+ },
+ "UI-083": {
+  "kind": "ui",
+  "key": "recovery.sheetClinic"
+ },
+ "UI-084": {
+  "kind": "ui",
+  "key": "recovery.sheetDate"
+ },
+ "UI-085": {
+  "kind": "ui",
+  "key": "login.title"
+ },
+ "UI-086": {
+  "kind": "ui",
+  "key": "login.username"
+ },
+ "UI-087": {
+  "kind": "ui",
+  "key": "login.password"
+ },
+ "UI-088": {
+  "kind": "ui",
+  "key": "login.passwordRepeat"
+ },
+ "UI-089": {
+  "kind": "ui",
+  "key": "login.displayName"
+ },
+ "UI-090": {
+  "kind": "ui",
+  "key": "login.submit"
+ },
+ "UI-091": {
+  "kind": "ui",
+  "key": "login.forgot"
+ },
+ "UI-092": {
+  "kind": "ui",
+  "key": "recover.title"
+ },
+ "UI-093": {
+  "kind": "ui",
+  "key": "recover.key"
+ },
+ "UI-094": {
+  "kind": "ui",
+  "key": "recover.newPassword"
+ },
+ "UI-095": {
+  "kind": "ui",
+  "key": "recover.submit"
+ },
+ "UI-096": {
+  "kind": "ui",
+  "key": "recover.done"
+ },
+ "UI-097": {
+  "kind": "ui",
+  "key": "recover.back"
+ },
+ "UI-098": {
+  "kind": "ui",
+  "key": "shell.lock"
+ },
+ "UI-099": {
+  "kind": "ui",
+  "key": "shell.logout"
+ },
+ "UI-100": {
+  "kind": "ui",
+  "key": "nav.system"
+ },
+ "UI-101": {
+  "kind": "ui",
+  "key": "nav.backup"
+ },
+ "UI-102": {
+  "kind": "ui",
+  "key": "nav.users"
+ },
+ "UI-103": {
+  "kind": "ui",
+  "key": "nav.audit"
+ },
+ "UI-104": {
+  "kind": "ui",
+  "key": "nav.clinic"
+ },
+ "UI-105": {
+  "kind": "ui",
+  "key": "nav.settings"
+ },
+ "UI-106": {
+  "kind": "ui",
+  "key": "nav.password"
+ },
+ "UI-107": {
+  "kind": "ui",
+  "key": "shell.sidebar.toggle"
+ },
+ "UI-108": {
+  "kind": "ui",
+  "key": "shell.commandPalette.placeholder"
+ },
+ "UI-109": {
+  "kind": "ui",
+  "key": "shell.commandPalette.empty"
+ },
+ "UI-110": {
+  "kind": "ui",
+  "key": "shell.commandPalette.hint"
+ },
+ "UI-111": {
+  "kind": "ui",
+  "key": "shell.notifications.title"
+ },
+ "UI-112": {
+  "kind": "ui",
+  "key": "shell.notifications.empty"
+ },
+ "UI-113": {
+  "kind": "ui",
+  "key": "shell.status.online"
+ },
+ "UI-114": {
+  "kind": "ui",
+  "key": "shell.status.offline"
+ },
+ "UI-115": {
+  "kind": "ui",
+  "key": "shell.status.installMode.single"
+ },
+ "UI-116": {
+  "kind": "ui",
+  "key": "shell.status.installMode.server"
+ },
+ "UI-117": {
+  "kind": "ui",
+  "key": "shell.status.installMode.client"
+ },
+ "UI-118": {
+  "kind": "ui",
+  "key": "shell.appearance"
+ },
+ "UI-119": {
+  "kind": "ui",
+  "key": "shell.perf.label"
+ },
+ "UI-120": {
+  "kind": "ui",
+  "key": "shell.perf.full"
+ },
+ "UI-121": {
+  "kind": "ui",
+  "key": "shell.perf.reduced"
+ },
+ "UI-122": {
+  "kind": "ui",
+  "key": "clinic.title"
+ },
+ "UI-123": {
+  "kind": "ui",
+  "key": "clinic.saved"
+ },
+ "UI-124": {
+  "kind": "ui",
+  "key": "clinic.address"
+ },
+ "UI-125": {
+  "kind": "ui",
+  "key": "clinic.phone"
+ },
+ "UI-126": {
+  "kind": "ui",
+  "key": "clinic.calendarSystem"
+ },
+ "UI-127": {
+  "kind": "ui",
+  "key": "clinic.clinicMode"
+ },
+ "UI-128": {
+  "kind": "ui",
+  "key": "clinic.theme"
+ },
+ "UI-129": {
+  "kind": "ui",
+  "key": "clinic.colors"
+ },
+ "UI-130": {
+  "kind": "ui",
+  "key": "clinic.workingHours"
+ },
+ "UI-131": {
+  "kind": "ui",
+  "key": "lock.title"
+ },
+ "UI-132": {
+  "kind": "ui",
+  "key": "lock.hint"
+ },
+ "UI-133": {
+  "kind": "ui",
+  "key": "lock.unlock"
+ },
+ "UI-134": {
+  "kind": "ui",
+  "key": "system.title"
+ },
+ "UI-135": {
+  "kind": "ui",
+  "key": "system.version"
+ },
+ "UI-136": {
+  "kind": "ui",
+  "key": "system.commit"
+ },
+ "UI-137": {
+  "kind": "ui",
+  "key": "system.buildArch"
+ },
+ "UI-138": {
+  "kind": "ui",
+  "key": "system.machineArch"
+ },
+ "UI-139": {
+  "kind": "ui",
+  "key": "system.emulated"
+ },
+ "UI-140": {
+  "kind": "ui",
+  "key": "system.os"
+ },
+ "UI-141": {
+  "kind": "ui",
+  "key": "system.computer"
+ },
+ "UI-142": {
+  "kind": "ui",
+  "key": "system.environment"
+ },
+ "UI-143": {
+  "kind": "ui",
+  "key": "system.encryption"
+ },
+ "UI-144": {
+  "kind": "ui",
+  "key": "system.encrypted"
+ },
+ "UI-145": {
+  "kind": "ui",
+  "key": "system.notEncrypted"
+ },
+ "UI-146": {
+  "kind": "ui",
+  "key": "system.keyProtection"
+ },
+ "UI-147": {
+  "kind": "ui",
+  "key": "system.key.windows_dpapi_machine"
+ },
+ "UI-148": {
+  "kind": "ui",
+  "key": "system.key.insecure_dev_file"
+ },
+ "UI-149": {
+  "kind": "ui",
+  "key": "system.schema"
+ },
+ "UI-150": {
+  "kind": "ui",
+  "key": "system.dbSize"
+ },
+ "UI-151": {
+  "kind": "ui",
+  "key": "system.integrity"
+ },
+ "UI-152": {
+  "kind": "ui",
+  "key": "system.integrity.pending"
+ },
+ "UI-153": {
+  "kind": "ui",
+  "key": "system.integrity.running"
+ },
+ "UI-154": {
+  "kind": "ui",
+  "key": "system.integrity.ok"
+ },
+ "UI-155": {
+  "kind": "ui",
+  "key": "system.integrity.failed"
+ },
+ "UI-156": {
+  "kind": "ui",
+  "key": "system.lastBackup"
+ },
+ "UI-157": {
+  "kind": "ui",
+  "key": "system.noBackup"
+ },
+ "UI-158": {
+  "kind": "ui",
+  "key": "system.dataDir"
+ },
+ "UI-159": {
+  "kind": "ui",
+  "key": "backup.title"
+ },
+ "UI-160": {
+  "kind": "ui",
+  "key": "backup.hint"
+ },
+ "UI-161": {
+  "kind": "ui",
+  "key": "backup.now"
+ },
+ "UI-162": {
+  "kind": "ui",
+  "key": "backup.running"
+ },
+ "UI-163": {
+  "kind": "ui",
+  "key": "backup.done"
+ },
+ "UI-164": {
+  "kind": "ui",
+  "key": "backup.file"
+ },
+ "UI-165": {
+  "kind": "ui",
+  "key": "backup.date"
+ },
+ "UI-166": {
+  "kind": "ui",
+  "key": "backup.size"
+ },
+ "UI-167": {
+  "kind": "ui",
+  "key": "backup.kind"
+ },
+ "UI-168": {
+  "kind": "ui",
+  "key": "backup.kind.manual"
+ },
+ "UI-169": {
+  "kind": "ui",
+  "key": "backup.kind.daily"
+ },
+ "UI-170": {
+  "kind": "ui",
+  "key": "backup.kind.pre_migration"
+ },
+ "UI-171": {
+  "kind": "ui",
+  "key": "backup.verified"
+ },
+ "UI-172": {
+  "kind": "ui",
+  "key": "users.title"
+ },
+ "UI-173": {
+  "kind": "ui",
+  "key": "users.add"
+ },
+ "UI-174": {
+  "kind": "ui",
+  "key": "users.role"
+ },
+ "UI-175": {
+  "kind": "ui",
+  "key": "users.active"
+ },
+ "UI-176": {
+  "kind": "ui",
+  "key": "users.edit"
+ },
+ "UI-177": {
+  "kind": "ui",
+  "key": "users.created"
+ },
+ "UI-178": {
+  "kind": "ui",
+  "key": "role.owner"
+ },
+ "UI-179": {
+  "kind": "ui",
+  "key": "role.administrator"
+ },
+ "UI-180": {
+  "kind": "ui",
+  "key": "role.receptionist"
+ },
+ "UI-181": {
+  "kind": "ui",
+  "key": "role.doctor"
+ },
+ "UI-182": {
+  "kind": "ui",
+  "key": "role.accountant"
+ },
+ "UI-183": {
+  "kind": "ui",
+  "key": "role.assistant"
+ },
+ "UI-184": {
+  "kind": "ui",
+  "key": "audit.title"
+ },
+ "UI-185": {
+  "kind": "ui",
+  "key": "audit.when"
+ },
+ "UI-186": {
+  "kind": "ui",
+  "key": "audit.who"
+ },
+ "UI-187": {
+  "kind": "ui",
+  "key": "audit.action"
+ },
+ "UI-188": {
+  "kind": "ui",
+  "key": "audit.entity"
+ },
+ "UI-189": {
+  "kind": "ui",
+  "key": "audit.computer"
+ },
+ "UI-190": {
+  "kind": "ui",
+  "key": "audit.more"
+ },
+ "UI-191": {
+  "kind": "ui",
+  "key": "settings.title"
+ },
+ "UI-192": {
+  "kind": "ui",
+  "key": "settings.timeout"
+ },
+ "UI-193": {
+  "kind": "ui",
+  "key": "settings.backupHour"
+ },
+ "UI-194": {
+  "kind": "ui",
+  "key": "settings.keep"
+ },
+ "UI-195": {
+  "kind": "ui",
+  "key": "password.title"
+ },
+ "UI-196": {
+  "kind": "ui",
+  "key": "password.current"
+ },
+ "UI-197": {
+  "kind": "ui",
+  "key": "password.new"
+ },
+ "UI-198": {
+  "kind": "ui",
+  "key": "password.changed"
+ },
+ "UI-199": {
+  "kind": "ui",
+  "key": "error.mismatch"
+ },
+ "UI-200": {
+  "kind": "ui",
+  "key": "error.not_set_up"
+ },
+ "UI-201": {
+  "kind": "ui",
+  "key": "error.already_set_up"
+ },
+ "UI-202": {
+  "kind": "ui",
+  "key": "error.unauthenticated"
+ },
+ "UI-203": {
+  "kind": "ui",
+  "key": "error.session_expired"
+ },
+ "UI-204": {
+  "kind": "ui",
+  "key": "error.session_locked"
+ },
+ "UI-205": {
+  "kind": "ui",
+  "key": "error.forbidden"
+ },
+ "UI-206": {
+  "kind": "ui",
+  "key": "error.invalid_credentials"
+ },
+ "UI-207": {
+  "kind": "ui",
+  "key": "error.account_locked"
+ },
+ "UI-208": {
+  "kind": "ui",
+  "key": "error.recovery_key_invalid"
+ },
+ "UI-209": {
+  "kind": "ui",
+  "key": "error.validation"
+ },
+ "UI-210": {
+  "kind": "ui",
+  "key": "error.conflict"
+ },
+ "UI-211": {
+  "kind": "ui",
+  "key": "error.not_found"
+ },
+ "UI-212": {
+  "kind": "ui",
+  "key": "error.unknown_method"
+ },
+ "UI-213": {
+  "kind": "ui",
+  "key": "error.internal"
+ },
+ "RF-001": {
+  "kind": "reference",
+  "type": "gender",
+  "code": "male"
+ },
+ "RF-002": {
+  "kind": "reference",
+  "type": "gender",
+  "code": "female"
+ },
+ "RF-003": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "a_pos"
+ },
+ "RF-004": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "a_neg"
+ },
+ "RF-005": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "b_pos"
+ },
+ "RF-006": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "b_neg"
+ },
+ "RF-007": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "ab_pos"
+ },
+ "RF-008": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "ab_neg"
+ },
+ "RF-009": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "o_pos"
+ },
+ "RF-010": {
+  "kind": "reference",
+  "type": "blood_group",
+  "code": "o_neg"
+ },
+ "RF-011": {
+  "kind": "reference",
+  "type": "marital_status",
+  "code": "single"
+ },
+ "RF-012": {
+  "kind": "reference",
+  "type": "marital_status",
+  "code": "married"
+ },
+ "RF-013": {
+  "kind": "reference",
+  "type": "marital_status",
+  "code": "widowed"
+ },
+ "RF-014": {
+  "kind": "reference",
+  "type": "marital_status",
+  "code": "divorced"
+ },
+ "RF-015": {
+  "kind": "reference",
+  "type": "payment_method",
+  "code": "cash"
+ },
+ "RF-016": {
+  "kind": "reference",
+  "type": "payment_method",
+  "code": "card"
+ },
+ "RF-017": {
+  "kind": "reference",
+  "type": "payment_method",
+  "code": "bank_transfer"
+ },
+ "RF-018": {
+  "kind": "reference",
+  "type": "payment_method",
+  "code": "mobile_money"
+ },
+ "PR-001": {
+  "kind": "province",
+  "code": "AF-BDS"
+ },
+ "PR-002": {
+  "kind": "province",
+  "code": "AF-BDG"
+ },
+ "PR-003": {
+  "kind": "province",
+  "code": "AF-BGL"
+ },
+ "PR-004": {
+  "kind": "province",
+  "code": "AF-BAL"
+ },
+ "PR-005": {
+  "kind": "province",
+  "code": "AF-BAM"
+ },
+ "PR-006": {
+  "kind": "province",
+  "code": "AF-DAY"
+ },
+ "PR-007": {
+  "kind": "province",
+  "code": "AF-FRA"
+ },
+ "PR-008": {
+  "kind": "province",
+  "code": "AF-FYB"
+ },
+ "PR-009": {
+  "kind": "province",
+  "code": "AF-GHA"
+ },
+ "PR-010": {
+  "kind": "province",
+  "code": "AF-GHO"
+ },
+ "PR-011": {
+  "kind": "province",
+  "code": "AF-HEL"
+ },
+ "PR-012": {
+  "kind": "province",
+  "code": "AF-HER"
+ },
+ "PR-013": {
+  "kind": "province",
+  "code": "AF-JOW"
+ },
+ "PR-014": {
+  "kind": "province",
+  "code": "AF-KAB"
+ },
+ "PR-015": {
+  "kind": "province",
+  "code": "AF-KAN"
+ },
+ "PR-016": {
+  "kind": "province",
+  "code": "AF-KAP"
+ },
+ "PR-017": {
+  "kind": "province",
+  "code": "AF-KHO"
+ },
+ "PR-018": {
+  "kind": "province",
+  "code": "AF-KNR"
+ },
+ "PR-019": {
+  "kind": "province",
+  "code": "AF-KDZ"
+ },
+ "PR-020": {
+  "kind": "province",
+  "code": "AF-LAG"
+ },
+ "PR-021": {
+  "kind": "province",
+  "code": "AF-LOG"
+ },
+ "PR-022": {
+  "kind": "province",
+  "code": "AF-NAN"
+ },
+ "PR-023": {
+  "kind": "province",
+  "code": "AF-NIM"
+ },
+ "PR-024": {
+  "kind": "province",
+  "code": "AF-NUR"
+ },
+ "PR-025": {
+  "kind": "province",
+  "code": "AF-PIA"
+ },
+ "PR-026": {
+  "kind": "province",
+  "code": "AF-PKA"
+ },
+ "PR-027": {
+  "kind": "province",
+  "code": "AF-PAN"
+ },
+ "PR-028": {
+  "kind": "province",
+  "code": "AF-PAR"
+ },
+ "PR-029": {
+  "kind": "province",
+  "code": "AF-SAM"
+ },
+ "PR-030": {
+  "kind": "province",
+  "code": "AF-SAR"
+ },
+ "PR-031": {
+  "kind": "province",
+  "code": "AF-TAK"
+ },
+ "PR-032": {
+  "kind": "province",
+  "code": "AF-URU"
+ },
+ "PR-033": {
+  "kind": "province",
+  "code": "AF-WAR"
+ },
+ "PR-034": {
+  "kind": "province",
+  "code": "AF-ZAB"
+ },
+ "DS-001": {
+  "kind": "district",
+  "code": "AF-KAB-CENTER"
+ },
+ "DS-002": {
+  "kind": "district",
+  "code": "AF-KAB-ISTALIF"
+ },
+ "DS-003": {
+  "kind": "district",
+  "code": "AF-KAB-BAGRAMI"
+ },
+ "DS-004": {
+  "kind": "district",
+  "code": "AF-KAB-FARZA"
+ },
+ "DS-005": {
+  "kind": "district",
+  "code": "AF-KAB-PAGHMAN"
+ },
+ "DS-006": {
+  "kind": "district",
+  "code": "AF-KAB-QARABAGH"
+ },
+ "DS-007": {
+  "kind": "district",
+  "code": "AF-KAB-CHAHAR-ASYAB"
+ },
+ "DS-008": {
+  "kind": "district",
+  "code": "AF-KAB-KALAKAN"
+ },
+ "DS-009": {
+  "kind": "district",
+  "code": "AF-KAB-KHAK-E-JABBAR"
+ },
+ "DS-010": {
+  "kind": "district",
+  "code": "AF-KAB-GULDARA"
+ },
+ "DS-011": {
+  "kind": "district",
+  "code": "AF-KAB-MUSAYI"
+ },
+ "DS-012": {
+  "kind": "district",
+  "code": "AF-KAB-DEH-SABZ"
+ },
+ "DS-013": {
+  "kind": "district",
+  "code": "AF-KAB-SUROBI"
+ },
+ "DS-014": {
+  "kind": "district",
+  "code": "AF-KAB-MIR-BACHA-KOT"
+ },
+ "DS-015": {
+  "kind": "district",
+  "code": "AF-KAB-SHAKAR-DARA"
+ },
+ "DS-016": {
+  "kind": "district",
+  "code": "AF-HER-CENTER"
+ },
+ "DS-017": {
+  "kind": "district",
+  "code": "AF-HER-ADRASKAN"
+ },
+ "DS-018": {
+  "kind": "district",
+  "code": "AF-HER-INJIL"
+ },
+ "DS-019": {
+  "kind": "district",
+  "code": "AF-HER-OBE"
+ },
+ "DS-020": {
+  "kind": "district",
+  "code": "AF-HER-PASHTUN-ZARGHUN"
+ },
+ "DS-021": {
+  "kind": "district",
+  "code": "AF-HER-CHISHT-E-SHARIF"
+ },
+ "DS-022": {
+  "kind": "district",
+  "code": "AF-HER-ZINDA-JAN"
+ },
+ "DS-023": {
+  "kind": "district",
+  "code": "AF-HER-SHINDAND"
+ },
+ "DS-024": {
+  "kind": "district",
+  "code": "AF-HER-GHORYAN"
+ },
+ "DS-025": {
+  "kind": "district",
+  "code": "AF-HER-FARSI"
+ },
+ "DS-026": {
+  "kind": "district",
+  "code": "AF-HER-KARUKH"
+ },
+ "DS-027": {
+  "kind": "district",
+  "code": "AF-HER-KUSHK"
+ },
+ "DS-028": {
+  "kind": "district",
+  "code": "AF-HER-KUSHK-E-KUHNA"
+ },
+ "DS-029": {
+  "kind": "district",
+  "code": "AF-HER-KOHSAN"
+ },
+ "DS-030": {
+  "kind": "district",
+  "code": "AF-HER-GUZARA"
+ },
+ "DS-031": {
+  "kind": "district",
+  "code": "AF-HER-GULRAN"
+ },
+ "DS-032": {
+  "kind": "district",
+  "code": "AF-KAN-CENTER"
+ },
+ "DS-033": {
+  "kind": "district",
+  "code": "AF-KAN-ARGHANDAB"
+ },
+ "DS-034": {
+  "kind": "district",
+  "code": "AF-KAN-ARGHISTAN"
+ },
+ "DS-035": {
+  "kind": "district",
+  "code": "AF-KAN-DAMAN"
+ },
+ "DS-036": {
+  "kind": "district",
+  "code": "AF-KAN-REGISTAN"
+ },
+ "DS-037": {
+  "kind": "district",
+  "code": "AF-KAN-ZHARI"
+ },
+ "DS-038": {
+  "kind": "district",
+  "code": "AF-KAN-SHAH-WALI-KOT"
+ },
+ "DS-039": {
+  "kind": "district",
+  "code": "AF-KAN-KHAKREZ"
+ },
+ "DS-040": {
+  "kind": "district",
+  "code": "AF-KAN-MARUF"
+ },
+ "DS-041": {
+  "kind": "district",
+  "code": "AF-KAN-MIYANSHIN"
+ },
+ "DS-042": {
+  "kind": "district",
+  "code": "AF-KAN-MAIWAND"
+ },
+ "DS-043": {
+  "kind": "district",
+  "code": "AF-KAN-PANJWAYI"
+ },
+ "DS-044": {
+  "kind": "district",
+  "code": "AF-KAN-TAKHTA-PUL"
+ },
+ "DS-045": {
+  "kind": "district",
+  "code": "AF-KAN-GHORAK"
+ },
+ "DS-046": {
+  "kind": "district",
+  "code": "AF-KAN-SPIN-BOLDAK"
+ },
+ "DS-047": {
+  "kind": "district",
+  "code": "AF-KAN-NESH"
+ },
+ "DS-048": {
+  "kind": "district",
+  "code": "AF-BAL-CENTER"
+ },
+ "DS-049": {
+  "kind": "district",
+  "code": "AF-BAL-BALKH"
+ },
+ "DS-050": {
+  "kind": "district",
+  "code": "AF-BAL-CHARBOLAK"
+ },
+ "DS-051": {
+  "kind": "district",
+  "code": "AF-BAL-CHARKINT"
+ },
+ "DS-052": {
+  "kind": "district",
+  "code": "AF-BAL-CHIMTAL"
+ },
+ "DS-053": {
+  "kind": "district",
+  "code": "AF-BAL-KHULM"
+ },
+ "DS-054": {
+  "kind": "district",
+  "code": "AF-BAL-DAWLATABAD"
+ },
+ "DS-055": {
+  "kind": "district",
+  "code": "AF-BAL-DEHDADI"
+ },
+ "DS-056": {
+  "kind": "district",
+  "code": "AF-BAL-ZARI"
+ },
+ "DS-057": {
+  "kind": "district",
+  "code": "AF-BAL-SHORTEPA"
+ },
+ "DS-058": {
+  "kind": "district",
+  "code": "AF-BAL-SHOLGARA"
+ },
+ "DS-059": {
+  "kind": "district",
+  "code": "AF-BAL-KISHINDIH"
+ },
+ "DS-060": {
+  "kind": "district",
+  "code": "AF-BAL-KALDAR"
+ },
+ "DS-061": {
+  "kind": "district",
+  "code": "AF-BAL-MARMUL"
+ },
+ "DS-062": {
+  "kind": "district",
+  "code": "AF-BAL-NAHR-E-SHAHI"
+ },
+ "DS-063": {
+  "kind": "district",
+  "code": "AF-NAN-CENTER"
+ },
+ "DS-064": {
+  "kind": "district",
+  "code": "AF-NAN-ACHIN"
+ },
+ "DS-065": {
+  "kind": "district",
+  "code": "AF-NAN-RODAT"
+ },
+ "DS-066": {
+  "kind": "district",
+  "code": "AF-NAN-BATI-KOT"
+ },
+ "DS-067": {
+  "kind": "district",
+  "code": "AF-NAN-SURKH-ROD"
+ },
+ "DS-068": {
+  "kind": "district",
+  "code": "AF-NAN-BEHSUD"
+ },
+ "DS-069": {
+  "kind": "district",
+  "code": "AF-NAN-SHERZAD"
+ },
+ "DS-070": {
+  "kind": "district",
+  "code": "AF-NAN-PACHIR-WA-AGAM"
+ },
+ "DS-071": {
+  "kind": "district",
+  "code": "AF-NAN-GHANI-KHEL"
+ },
+ "DS-072": {
+  "kind": "district",
+  "code": "AF-NAN-KAMA"
+ },
+ "DS-073": {
+  "kind": "district",
+  "code": "AF-NAN-KOT"
+ },
+ "DS-074": {
+  "kind": "district",
+  "code": "AF-NAN-HISARAK"
+ },
+ "DS-075": {
+  "kind": "district",
+  "code": "AF-NAN-HASKA-MENA"
+ },
+ "DS-076": {
+  "kind": "district",
+  "code": "AF-NAN-CHAPARHAR"
+ },
+ "DS-077": {
+  "kind": "district",
+  "code": "AF-NAN-GOSHTA"
+ },
+ "DS-078": {
+  "kind": "district",
+  "code": "AF-NAN-KHOGYANI"
+ },
+ "DS-079": {
+  "kind": "district",
+  "code": "AF-NAN-DUR-BABA"
+ },
+ "DS-080": {
+  "kind": "district",
+  "code": "AF-NAN-LALPUR"
+ },
+ "DS-081": {
+  "kind": "district",
+  "code": "AF-NAN-DARA-E-NUR"
+ },
+ "DS-082": {
+  "kind": "district",
+  "code": "AF-NAN-MOHMAND-DARA"
+ },
+ "DS-083": {
+  "kind": "district",
+  "code": "AF-NAN-KHEWA"
+ },
+ "DS-084": {
+  "kind": "district",
+  "code": "AF-NAN-NAZYAN"
+ },
+ "DS-085": {
+  "kind": "district",
+  "code": "AF-NAN-SPIN-GHAR"
+ },
+ "DS-086": {
+  "kind": "district",
+  "code": "AF-KDZ-CENTER"
+ },
+ "DS-087": {
+  "kind": "district",
+  "code": "AF-KDZ-IMAM-SAHIB"
+ },
+ "DS-088": {
+  "kind": "district",
+  "code": "AF-KDZ-CHAHAR-DARA"
+ },
+ "DS-089": {
+  "kind": "district",
+  "code": "AF-KDZ-KHANABAD"
+ },
+ "DS-090": {
+  "kind": "district",
+  "code": "AF-KDZ-DASHT-E-ARCHI"
+ },
+ "DS-091": {
+  "kind": "district",
+  "code": "AF-KDZ-ALIABAD"
+ },
+ "DS-092": {
+  "kind": "district",
+  "code": "AF-KDZ-QALA-E-ZAL"
+ },
+ "DS-093": {
+  "kind": "district",
+  "code": "AF-KDZ-GUL-TEPA"
+ },
+ "DS-094": {
+  "kind": "district",
+  "code": "AF-KDZ-KALBAD"
+ },
+ "DS-095": {
+  "kind": "district",
+  "code": "AF-GHA-CENTER"
+ },
+ "DS-096": {
+  "kind": "district",
+  "code": "AF-GHA-AB-BAND"
+ },
+ "DS-097": {
+  "kind": "district",
+  "code": "AF-GHA-JAGHATU"
+ },
+ "DS-098": {
+  "kind": "district",
+  "code": "AF-GHA-AJRISTAN"
+ },
+ "DS-099": {
+  "kind": "district",
+  "code": "AF-GHA-QARABAGH"
+ },
+ "DS-100": {
+  "kind": "district",
+  "code": "AF-GHA-GIRO"
+ },
+ "DS-101": {
+  "kind": "district",
+  "code": "AF-GHA-ANDAR"
+ },
+ "DS-102": {
+  "kind": "district",
+  "code": "AF-GHA-GELAN"
+ },
+ "DS-103": {
+  "kind": "district",
+  "code": "AF-GHA-MALISTAN"
+ },
+ "DS-104": {
+  "kind": "district",
+  "code": "AF-GHA-JAGHORI"
+ },
+ "DS-105": {
+  "kind": "district",
+  "code": "AF-GHA-MUQUR"
+ },
+ "DS-106": {
+  "kind": "district",
+  "code": "AF-GHA-NAWUR"
+ },
+ "DS-107": {
+  "kind": "district",
+  "code": "AF-GHA-DEH-YAK"
+ },
+ "DS-108": {
+  "kind": "district",
+  "code": "AF-GHA-NAWA"
+ },
+ "DS-109": {
+  "kind": "district",
+  "code": "AF-GHA-RASHIDAN"
+ },
+ "DS-110": {
+  "kind": "district",
+  "code": "AF-GHA-WAGHAZ"
+ },
+ "DS-111": {
+  "kind": "district",
+  "code": "AF-GHA-ZANA-KHAN"
+ },
+ "DS-112": {
+  "kind": "district",
+  "code": "AF-GHA-KHWAJA-OMARI"
+ },
+ "DS-113": {
+  "kind": "district",
+  "code": "AF-GHA-WALI-MUHAMMAD-SHAHID-KHUGYANI"
+ },
+ "DS-114": {
+  "kind": "district",
+  "code": "AF-BDS-CENTER"
+ },
+ "DS-115": {
+  "kind": "district",
+  "code": "AF-BDS-ARGHANJ-KHWA"
+ },
+ "DS-116": {
+  "kind": "district",
+  "code": "AF-BDS-ARGO"
+ },
+ "DS-117": {
+  "kind": "district",
+  "code": "AF-BDS-BAHARAK"
+ },
+ "DS-118": {
+  "kind": "district",
+  "code": "AF-BDS-TAGAB"
+ },
+ "DS-119": {
+  "kind": "district",
+  "code": "AF-BDS-KISHIM"
+ },
+ "DS-120": {
+  "kind": "district",
+  "code": "AF-BDS-JURM"
+ },
+ "DS-121": {
+  "kind": "district",
+  "code": "AF-BDS-WAKHAN"
+ },
+ "DS-122": {
+  "kind": "district",
+  "code": "AF-BDS-SHIGHNAN"
+ },
+ "DS-123": {
+  "kind": "district",
+  "code": "AF-BDS-ISHKASHIM"
+ },
+ "DS-124": {
+  "kind": "district",
+  "code": "AF-BDS-ZEBAK"
+ },
+ "DS-125": {
+  "kind": "district",
+  "code": "AF-BDS-KURAN-WA-MUNJAN"
+ },
+ "DS-126": {
+  "kind": "district",
+  "code": "AF-BDS-YAFTAL-E-PAYIN"
+ },
+ "DS-127": {
+  "kind": "district",
+  "code": "AF-BDS-RAGHISTAN"
+ },
+ "DS-128": {
+  "kind": "district",
+  "code": "AF-BDS-YAWAN"
+ },
+ "DS-129": {
+  "kind": "district",
+  "code": "AF-BDS-KOHISTAN"
+ },
+ "DS-130": {
+  "kind": "district",
+  "code": "AF-BDS-TISHKAN"
+ },
+ "DS-131": {
+  "kind": "district",
+  "code": "AF-BDS-DARAYIM"
+ },
+ "DS-132": {
+  "kind": "district",
+  "code": "AF-BDS-KHASH"
+ },
+ "DS-133": {
+  "kind": "district",
+  "code": "AF-BDS-SHUHADA"
+ },
+ "DS-134": {
+  "kind": "district",
+  "code": "AF-BDS-SHAHRI-BUZURG"
+ },
+ "DS-135": {
+  "kind": "district",
+  "code": "AF-BDS-KHWAHAN"
+ },
+ "DS-136": {
+  "kind": "district",
+  "code": "AF-BDS-KOF-AB"
+ },
+ "DS-137": {
+  "kind": "district",
+  "code": "AF-BDS-SHIKI"
+ },
+ "DS-138": {
+  "kind": "district",
+  "code": "AF-BDS-NUSAY"
+ },
+ "DS-139": {
+  "kind": "district",
+  "code": "AF-BDS-MAIMAY"
+ },
+ "DS-140": {
+  "kind": "district",
+  "code": "AF-BDS-WARDUJ"
+ },
+ "DS-141": {
+  "kind": "district",
+  "code": "AF-BDS-HAMI"
+ },
+ "DS-142": {
+  "kind": "district",
+  "code": "AF-BGL-CENTER"
+ },
+ "DS-143": {
+  "kind": "district",
+  "code": "AF-BGL-BAGHLAN-E-MARKAZI"
+ },
+ "DS-144": {
+  "kind": "district",
+  "code": "AF-BGL-BURKA"
+ },
+ "DS-145": {
+  "kind": "district",
+  "code": "AF-BGL-TALA-WA-BARFAK"
+ },
+ "DS-146": {
+  "kind": "district",
+  "code": "AF-BGL-JILGA"
+ },
+ "DS-147": {
+  "kind": "district",
+  "code": "AF-BGL-KHINJAN"
+ },
+ "DS-148": {
+  "kind": "district",
+  "code": "AF-BGL-KHOST-WA-FIRING"
+ },
+ "DS-149": {
+  "kind": "district",
+  "code": "AF-BGL-DOSHI"
+ },
+ "DS-150": {
+  "kind": "district",
+  "code": "AF-BGL-DAHANA-E-GHORI"
+ },
+ "DS-151": {
+  "kind": "district",
+  "code": "AF-BGL-DEH-SALAH"
+ },
+ "DS-152": {
+  "kind": "district",
+  "code": "AF-BGL-FIRING-WA-GHARU"
+ },
+ "DS-153": {
+  "kind": "district",
+  "code": "AF-BGL-GUZARGAH-E-NUR"
+ },
+ "DS-154": {
+  "kind": "district",
+  "code": "AF-BGL-NAHRIN"
+ },
+ "DS-155": {
+  "kind": "district",
+  "code": "AF-BGL-PUL-E-HISAR"
+ },
+ "DS-156": {
+  "kind": "district",
+  "code": "AF-FYB-CENTER"
+ },
+ "DS-157": {
+  "kind": "district",
+  "code": "AF-FYB-ALMAR"
+ },
+ "DS-158": {
+  "kind": "district",
+  "code": "AF-FYB-ANDKHOY"
+ },
+ "DS-159": {
+  "kind": "district",
+  "code": "AF-FYB-SHIRIN-TAGAB"
+ },
+ "DS-160": {
+  "kind": "district",
+  "code": "AF-FYB-QURGHAN"
+ },
+ "DS-161": {
+  "kind": "district",
+  "code": "AF-FYB-BILCHIRAGH"
+ },
+ "DS-162": {
+  "kind": "district",
+  "code": "AF-FYB-QARAMQOL"
+ },
+ "DS-163": {
+  "kind": "district",
+  "code": "AF-FYB-PASHTUN-KOT"
+ },
+ "DS-164": {
+  "kind": "district",
+  "code": "AF-FYB-QAYSAR"
+ },
+ "DS-165": {
+  "kind": "district",
+  "code": "AF-FYB-KHAN-E-CHAHAR-BAGH"
+ },
+ "DS-166": {
+  "kind": "district",
+  "code": "AF-FYB-DAWLATABAD"
+ },
+ "DS-167": {
+  "kind": "district",
+  "code": "AF-FYB-KOHISTAN"
+ },
+ "DS-168": {
+  "kind": "district",
+  "code": "AF-FYB-KHWAJA-SABZ-POSH-E-WALI"
+ },
+ "DS-169": {
+  "kind": "district",
+  "code": "AF-FYB-GARZIWAN"
+ },
+ "DS-170": {
+  "kind": "district",
+  "code": "AF-PAR-CENTER"
+ },
+ "DS-171": {
+  "kind": "district",
+  "code": "AF-PAR-BAGRAM"
+ },
+ "DS-172": {
+  "kind": "district",
+  "code": "AF-PAR-JABAL-SARAJ"
+ },
+ "DS-173": {
+  "kind": "district",
+  "code": "AF-PAR-SALANG"
+ },
+ "DS-174": {
+  "kind": "district",
+  "code": "AF-PAR-SURKH-E-PARSA"
+ },
+ "DS-175": {
+  "kind": "district",
+  "code": "AF-PAR-SAYED-KHEL"
+ },
+ "DS-176": {
+  "kind": "district",
+  "code": "AF-PAR-SHAYKH-ALI"
+ },
+ "DS-177": {
+  "kind": "district",
+  "code": "AF-PAR-SHINWARI"
+ },
+ "DS-178": {
+  "kind": "district",
+  "code": "AF-PAR-SIYAHGIRD"
+ },
+ "DS-179": {
+  "kind": "district",
+  "code": "AF-PAR-KOH-E-SAFI"
+ },
+ "DS-180": {
+  "kind": "district",
+  "code": "AF-BAM-CENTER"
+ },
+ "DS-181": {
+  "kind": "district",
+  "code": "AF-BAM-KAHMARD"
+ },
+ "DS-182": {
+  "kind": "district",
+  "code": "AF-BAM-PANJAB"
+ },
+ "DS-183": {
+  "kind": "district",
+  "code": "AF-BAM-SAYGHAN"
+ },
+ "DS-184": {
+  "kind": "district",
+  "code": "AF-BAM-SHIBAR"
+ },
+ "DS-185": {
+  "kind": "district",
+  "code": "AF-BAM-WARAS"
+ },
+ "DS-186": {
+  "kind": "district",
+  "code": "AF-BAM-YAKAWLANG-1"
+ },
+ "DS-187": {
+  "kind": "district",
+  "code": "AF-BAM-YAKAWLANG-2"
+ },
+ "DS-188": {
+  "kind": "district",
+  "code": "AF-PIA-CENTER"
+ },
+ "DS-189": {
+  "kind": "district",
+  "code": "AF-PIA-AHMADABAD"
+ },
+ "DS-190": {
+  "kind": "district",
+  "code": "AF-PIA-JAJI"
+ },
+ "DS-191": {
+  "kind": "district",
+  "code": "AF-PIA-JANI-KHEL"
+ },
+ "DS-192": {
+  "kind": "district",
+  "code": "AF-PIA-CHAMKANI"
+ },
+ "DS-193": {
+  "kind": "district",
+  "code": "AF-PIA-DAND-PATAN"
+ },
+ "DS-194": {
+  "kind": "district",
+  "code": "AF-PIA-SHWAK"
+ },
+ "DS-195": {
+  "kind": "district",
+  "code": "AF-PIA-SAMKANI"
+ },
+ "DS-196": {
+  "kind": "district",
+  "code": "AF-PIA-GERDA-SERAI"
+ },
+ "DS-197": {
+  "kind": "district",
+  "code": "AF-PIA-MIRZAKA"
+ },
+ "DS-198": {
+  "kind": "district",
+  "code": "AF-PIA-LIJA-AHMAD-KHEL"
+ },
+ "DS-199": {
+  "kind": "district",
+  "code": "AF-PIA-SAYED-KARAM"
+ },
+ "DS-200": {
+  "kind": "district",
+  "code": "AF-PIA-ZADRAN"
+ },
+ "DS-201": {
+  "kind": "district",
+  "code": "AF-PKA-CENTER"
+ },
+ "DS-202": {
+  "kind": "district",
+  "code": "AF-PKA-URGUN"
+ },
+ "DS-203": {
+  "kind": "district",
+  "code": "AF-PKA-OMNA"
+ },
+ "DS-204": {
+  "kind": "district",
+  "code": "AF-PKA-GOMAL"
+ },
+ "DS-205": {
+  "kind": "district",
+  "code": "AF-PKA-BARMAL"
+ },
+ "DS-206": {
+  "kind": "district",
+  "code": "AF-PKA-GAYAN"
+ },
+ "DS-207": {
+  "kind": "district",
+  "code": "AF-PKA-TURWO"
+ },
+ "DS-208": {
+  "kind": "district",
+  "code": "AF-PKA-MATA-KHAN"
+ },
+ "DS-209": {
+  "kind": "district",
+  "code": "AF-PKA-JANI-KHEL"
+ },
+ "DS-210": {
+  "kind": "district",
+  "code": "AF-PKA-NAKA"
+ },
+ "DS-211": {
+  "kind": "district",
+  "code": "AF-PKA-WAZA-KHWA"
+ },
+ "DS-212": {
+  "kind": "district",
+  "code": "AF-PKA-DILA-WA-KHUSHAMAND"
+ },
+ "DS-213": {
+  "kind": "district",
+  "code": "AF-PKA-WOR-MAMAY"
+ },
+ "DS-214": {
+  "kind": "district",
+  "code": "AF-PKA-ZARGHUN-SHAHR"
+ },
+ "DS-215": {
+  "kind": "district",
+  "code": "AF-PKA-ZIRUK"
+ },
+ "DS-216": {
+  "kind": "district",
+  "code": "AF-PKA-YAHYA-KHEL"
+ },
+ "DS-217": {
+  "kind": "district",
+  "code": "AF-PKA-SAR-HAWZA"
+ },
+ "DS-218": {
+  "kind": "district",
+  "code": "AF-PKA-YOSUF-KHEL"
+ },
+ "DS-219": {
+  "kind": "district",
+  "code": "AF-PKA-SAROBI"
+ },
+ "DS-220": {
+  "kind": "district",
+  "code": "AF-KHO-CENTER"
+ },
+ "DS-221": {
+  "kind": "district",
+  "code": "AF-KHO-BAK"
+ },
+ "DS-222": {
+  "kind": "district",
+  "code": "AF-KHO-TANI"
+ },
+ "DS-223": {
+  "kind": "district",
+  "code": "AF-KHO-TEREZAYI"
+ },
+ "DS-224": {
+  "kind": "district",
+  "code": "AF-KHO-JAJI-MAIDAN"
+ },
+ "DS-225": {
+  "kind": "district",
+  "code": "AF-KHO-SPERA"
+ },
+ "DS-226": {
+  "kind": "district",
+  "code": "AF-KHO-SHAMAL"
+ },
+ "DS-227": {
+  "kind": "district",
+  "code": "AF-KHO-SABARI"
+ },
+ "DS-228": {
+  "kind": "district",
+  "code": "AF-KHO-QALANDAR"
+ },
+ "DS-229": {
+  "kind": "district",
+  "code": "AF-KHO-GURBUZ"
+ },
+ "DS-230": {
+  "kind": "district",
+  "code": "AF-KHO-MANDOZAI"
+ },
+ "DS-231": {
+  "kind": "district",
+  "code": "AF-KHO-MUSA-KHEL"
+ },
+ "DS-232": {
+  "kind": "district",
+  "code": "AF-KHO-NADIR-SHAH-KOT"
+ },
+ "DS-233": {
+  "kind": "district",
+  "code": "AF-TAK-CENTER"
+ },
+ "DS-234": {
+  "kind": "district",
+  "code": "AF-TAK-BAHARAK"
+ },
+ "DS-235": {
+  "kind": "district",
+  "code": "AF-TAK-BANGI"
+ },
+ "DS-236": {
+  "kind": "district",
+  "code": "AF-TAK-CHAH-AB"
+ },
+ "DS-237": {
+  "kind": "district",
+  "code": "AF-TAK-CHAL"
+ },
+ "DS-238": {
+  "kind": "district",
+  "code": "AF-TAK-DASHT-E-QALA"
+ },
+ "DS-239": {
+  "kind": "district",
+  "code": "AF-TAK-KHWAJA-BAHAUDDIN"
+ },
+ "DS-240": {
+  "kind": "district",
+  "code": "AF-TAK-KHWAJA-GHAR"
+ },
+ "DS-241": {
+  "kind": "district",
+  "code": "AF-TAK-FARKHAR"
+ },
+ "DS-242": {
+  "kind": "district",
+  "code": "AF-TAK-KALAFGAN"
+ },
+ "DS-243": {
+  "kind": "district",
+  "code": "AF-TAK-NAMAK-AB"
+ },
+ "DS-244": {
+  "kind": "district",
+  "code": "AF-TAK-RUSTAQ"
+ },
+ "DS-245": {
+  "kind": "district",
+  "code": "AF-TAK-ISHKAMISH"
+ },
+ "DS-246": {
+  "kind": "district",
+  "code": "AF-TAK-WARSAJ"
+ },
+ "DS-247": {
+  "kind": "district",
+  "code": "AF-TAK-HAZAR-SUMUCH"
+ },
+ "DS-248": {
+  "kind": "district",
+  "code": "AF-TAK-YANGI-QALA"
+ },
+ "DS-249": {
+  "kind": "district",
+  "code": "AF-JOW-CENTER"
+ },
+ "DS-250": {
+  "kind": "district",
+  "code": "AF-JOW-AQCHA"
+ },
+ "DS-251": {
+  "kind": "district",
+  "code": "AF-JOW-KHANIQA"
+ },
+ "DS-252": {
+  "kind": "district",
+  "code": "AF-JOW-KHAMYAB"
+ },
+ "DS-253": {
+  "kind": "district",
+  "code": "AF-JOW-KHWAJA-DU-KOH"
+ },
+ "DS-254": {
+  "kind": "district",
+  "code": "AF-JOW-DARZAB"
+ },
+ "DS-255": {
+  "kind": "district",
+  "code": "AF-JOW-FAYZABAD"
+ },
+ "DS-256": {
+  "kind": "district",
+  "code": "AF-JOW-QARQIN"
+ },
+ "DS-257": {
+  "kind": "district",
+  "code": "AF-JOW-QUSH-TEPA"
+ },
+ "DS-258": {
+  "kind": "district",
+  "code": "AF-JOW-MARDYAN"
+ },
+ "DS-259": {
+  "kind": "district",
+  "code": "AF-JOW-MINGAJIK"
+ },
+ "DS-260": {
+  "kind": "district",
+  "code": "AF-DAY-CENTER"
+ },
+ "DS-261": {
+  "kind": "district",
+  "code": "AF-DAY-ISHTARLAY"
+ },
+ "DS-262": {
+  "kind": "district",
+  "code": "AF-DAY-KHADIR"
+ },
+ "DS-263": {
+  "kind": "district",
+  "code": "AF-DAY-SANG-E-TAKHT"
+ },
+ "DS-264": {
+  "kind": "district",
+  "code": "AF-DAY-SHAHRISTAN"
+ },
+ "DS-265": {
+  "kind": "district",
+  "code": "AF-DAY-KAJRAN"
+ },
+ "DS-266": {
+  "kind": "district",
+  "code": "AF-DAY-KITI"
+ },
+ "DS-267": {
+  "kind": "district",
+  "code": "AF-DAY-MIRAMOR"
+ },
+ "DS-268": {
+  "kind": "district",
+  "code": "AF-DAY-PATU"
+ },
+ "DS-269": {
+  "kind": "district",
+  "code": "AF-SAR-CENTER"
+ },
+ "DS-270": {
+  "kind": "district",
+  "code": "AF-SAR-BALKHAB"
+ },
+ "DS-271": {
+  "kind": "district",
+  "code": "AF-SAR-SANCHARAK"
+ },
+ "DS-272": {
+  "kind": "district",
+  "code": "AF-SAR-SOZMA-QALA"
+ },
+ "DS-273": {
+  "kind": "district",
+  "code": "AF-SAR-SAYYAD"
+ },
+ "DS-274": {
+  "kind": "district",
+  "code": "AF-SAR-KOHISTANAT"
+ },
+ "DS-275": {
+  "kind": "district",
+  "code": "AF-SAR-GOSFANDI"
+ },
+ "DS-276": {
+  "kind": "district",
+  "code": "AF-SAM-CENTER"
+ },
+ "DS-277": {
+  "kind": "district",
+  "code": "AF-SAM-HAZRAT-E-SULTAN"
+ },
+ "DS-278": {
+  "kind": "district",
+  "code": "AF-SAM-KHURAM-WA-SARBAGH"
+ },
+ "DS-279": {
+  "kind": "district",
+  "code": "AF-SAM-DARA-E-SUF-E-BALA"
+ },
+ "DS-280": {
+  "kind": "district",
+  "code": "AF-SAM-DARA-E-SUF-E-PAYIN"
+ },
+ "DS-281": {
+  "kind": "district",
+  "code": "AF-SAM-RUY-E-DU-AB"
+ },
+ "DS-282": {
+  "kind": "district",
+  "code": "AF-SAM-FEROZ-NAKHCHIR"
+ },
+ "DS-283": {
+  "kind": "district",
+  "code": "AF-GHO-CENTER"
+ },
+ "DS-284": {
+  "kind": "district",
+  "code": "AF-GHO-PASABAND"
+ },
+ "DS-285": {
+  "kind": "district",
+  "code": "AF-GHO-TULAK"
+ },
+ "DS-286": {
+  "kind": "district",
+  "code": "AF-GHO-TAYWARA"
+ },
+ "DS-287": {
+  "kind": "district",
+  "code": "AF-GHO-DAWLAT-YAR"
+ },
+ "DS-288": {
+  "kind": "district",
+  "code": "AF-GHO-DU-LAYNA"
+ },
+ "DS-289": {
+  "kind": "district",
+  "code": "AF-GHO-SAGHAR"
+ },
+ "DS-290": {
+  "kind": "district",
+  "code": "AF-GHO-SHAHRAK"
+ },
+ "DS-291": {
+  "kind": "district",
+  "code": "AF-GHO-LAL-WA-SARJANGAL"
+ },
+ "DS-292": {
+  "kind": "district",
+  "code": "AF-GHO-MURGHAB"
+ },
+ "DS-293": {
+  "kind": "district",
+  "code": "AF-FRA-CENTER"
+ },
+ "DS-294": {
+  "kind": "district",
+  "code": "AF-FRA-ANAR-DARA"
+ },
+ "DS-295": {
+  "kind": "district",
+  "code": "AF-FRA-BALA-BULUK"
+ },
+ "DS-296": {
+  "kind": "district",
+  "code": "AF-FRA-BAKWA"
+ },
+ "DS-297": {
+  "kind": "district",
+  "code": "AF-FRA-PUR-CHAMAN"
+ },
+ "DS-298": {
+  "kind": "district",
+  "code": "AF-FRA-PUSHT-ROD"
+ },
+ "DS-299": {
+  "kind": "district",
+  "code": "AF-FRA-KHAK-E-SAFED"
+ },
+ "DS-300": {
+  "kind": "district",
+  "code": "AF-FRA-QALA-E-KAH"
+ },
+ "DS-301": {
+  "kind": "district",
+  "code": "AF-FRA-SHIB-KOH"
+ },
+ "DS-302": {
+  "kind": "district",
+  "code": "AF-FRA-GULISTAN"
+ },
+ "DS-303": {
+  "kind": "district",
+  "code": "AF-FRA-LASH-WA-JUWAYN"
+ },
+ "DS-304": {
+  "kind": "district",
+  "code": "AF-KAP-CENTER"
+ },
+ "DS-305": {
+  "kind": "district",
+  "code": "AF-KAP-ALASAY"
+ },
+ "DS-306": {
+  "kind": "district",
+  "code": "AF-KAP-TAGAB"
+ },
+ "DS-307": {
+  "kind": "district",
+  "code": "AF-KAP-KOHISTAN-1"
+ },
+ "DS-308": {
+  "kind": "district",
+  "code": "AF-KAP-KOHISTAN-2"
+ },
+ "DS-309": {
+  "kind": "district",
+  "code": "AF-KAP-KOH-BAND"
+ },
+ "DS-310": {
+  "kind": "district",
+  "code": "AF-KAP-NIJRAB"
+ },
+ "DS-311": {
+  "kind": "district",
+  "code": "AF-KNR-CENTER"
+ },
+ "DS-312": {
+  "kind": "district",
+  "code": "AF-KNR-BAR-KUNAR"
+ },
+ "DS-313": {
+  "kind": "district",
+  "code": "AF-KNR-KHAS-KUNAR"
+ },
+ "DS-314": {
+  "kind": "district",
+  "code": "AF-KNR-DANGAM"
+ },
+ "DS-315": {
+  "kind": "district",
+  "code": "AF-KNR-DARA-E-PECH"
+ },
+ "DS-316": {
+  "kind": "district",
+  "code": "AF-KNR-CHAPA-DARA"
+ },
+ "DS-317": {
+  "kind": "district",
+  "code": "AF-KNR-CHAWKAY"
+ },
+ "DS-318": {
+  "kind": "district",
+  "code": "AF-KNR-SARKANI"
+ },
+ "DS-319": {
+  "kind": "district",
+  "code": "AF-KNR-MARAWARA"
+ },
+ "DS-320": {
+  "kind": "district",
+  "code": "AF-KNR-NARI"
+ },
+ "DS-321": {
+  "kind": "district",
+  "code": "AF-KNR-NARANG"
+ },
+ "DS-322": {
+  "kind": "district",
+  "code": "AF-KNR-NURGAL"
+ },
+ "DS-323": {
+  "kind": "district",
+  "code": "AF-KNR-WATAPUR"
+ },
+ "DS-324": {
+  "kind": "district",
+  "code": "AF-KNR-SHALTAN"
+ },
+ "DS-325": {
+  "kind": "district",
+  "code": "AF-LAG-CENTER"
+ },
+ "DS-326": {
+  "kind": "district",
+  "code": "AF-LAG-DAWLAT-SHAH"
+ },
+ "DS-327": {
+  "kind": "district",
+  "code": "AF-LAG-QARGHAYI"
+ },
+ "DS-328": {
+  "kind": "district",
+  "code": "AF-LAG-ALISHING"
+ },
+ "DS-329": {
+  "kind": "district",
+  "code": "AF-LAG-ALINGAR"
+ },
+ "DS-330": {
+  "kind": "district",
+  "code": "AF-LAG-BAD-PASH"
+ },
+ "DS-331": {
+  "kind": "district",
+  "code": "AF-LOG-CENTER"
+ },
+ "DS-332": {
+  "kind": "district",
+  "code": "AF-LOG-BARAKI-BARAK"
+ },
+ "DS-333": {
+  "kind": "district",
+  "code": "AF-LOG-CHARKH"
+ },
+ "DS-334": {
+  "kind": "district",
+  "code": "AF-LOG-KHARWAR"
+ },
+ "DS-335": {
+  "kind": "district",
+  "code": "AF-LOG-KHOSHI"
+ },
+ "DS-336": {
+  "kind": "district",
+  "code": "AF-LOG-MOHAMMAD-AGHA"
+ },
+ "DS-337": {
+  "kind": "district",
+  "code": "AF-LOG-AZRA"
+ },
+ "DS-338": {
+  "kind": "district",
+  "code": "AF-WAR-CENTER"
+ },
+ "DS-339": {
+  "kind": "district",
+  "code": "AF-WAR-JALREZ"
+ },
+ "DS-340": {
+  "kind": "district",
+  "code": "AF-WAR-JAGHATU"
+ },
+ "DS-341": {
+  "kind": "district",
+  "code": "AF-WAR-DAY-MIRDAD"
+ },
+ "DS-342": {
+  "kind": "district",
+  "code": "AF-WAR-SAYDABAD"
+ },
+ "DS-343": {
+  "kind": "district",
+  "code": "AF-WAR-MARKAZ-E-BEHSUD"
+ },
+ "DS-344": {
+  "kind": "district",
+  "code": "AF-WAR-HISA-E-AWAL-E-BEHSUD"
+ },
+ "DS-345": {
+  "kind": "district",
+  "code": "AF-WAR-NIRKH"
+ },
+ "DS-346": {
+  "kind": "district",
+  "code": "AF-WAR-CHAK-E-WARDAK"
+ },
+ "DS-347": {
+  "kind": "district",
+  "code": "AF-NUR-CENTER"
+ },
+ "DS-348": {
+  "kind": "district",
+  "code": "AF-NUR-BARG-E-MATAL"
+ },
+ "DS-349": {
+  "kind": "district",
+  "code": "AF-NUR-DU-AB"
+ },
+ "DS-350": {
+  "kind": "district",
+  "code": "AF-NUR-KAMDESH"
+ },
+ "DS-351": {
+  "kind": "district",
+  "code": "AF-NUR-MANDOL"
+ },
+ "DS-352": {
+  "kind": "district",
+  "code": "AF-NUR-NURGARAM"
+ },
+ "DS-353": {
+  "kind": "district",
+  "code": "AF-NUR-WAMA"
+ },
+ "DS-354": {
+  "kind": "district",
+  "code": "AF-NUR-WAYGAL"
+ },
+ "DS-355": {
+  "kind": "district",
+  "code": "AF-NIM-CENTER"
+ },
+ "DS-356": {
+  "kind": "district",
+  "code": "AF-NIM-CHAKHANSUR"
+ },
+ "DS-357": {
+  "kind": "district",
+  "code": "AF-NIM-CHAR-BURJAK"
+ },
+ "DS-358": {
+  "kind": "district",
+  "code": "AF-NIM-KHASH-ROD"
+ },
+ "DS-359": {
+  "kind": "district",
+  "code": "AF-NIM-KANG"
+ },
+ "DS-360": {
+  "kind": "district",
+  "code": "AF-HEL-CENTER"
+ },
+ "DS-361": {
+  "kind": "district",
+  "code": "AF-HEL-BAGHRAN"
+ },
+ "DS-362": {
+  "kind": "district",
+  "code": "AF-HEL-DISHU"
+ },
+ "DS-363": {
+  "kind": "district",
+  "code": "AF-HEL-REG-E-KHAN-NISHIN"
+ },
+ "DS-364": {
+  "kind": "district",
+  "code": "AF-HEL-SANGIN"
+ },
+ "DS-365": {
+  "kind": "district",
+  "code": "AF-HEL-KAJAKI"
+ },
+ "DS-366": {
+  "kind": "district",
+  "code": "AF-HEL-GERESHK"
+ },
+ "DS-367": {
+  "kind": "district",
+  "code": "AF-HEL-NAWA-E-BARAKZAYI"
+ },
+ "DS-368": {
+  "kind": "district",
+  "code": "AF-HEL-NAD-ALI"
+ },
+ "DS-369": {
+  "kind": "district",
+  "code": "AF-HEL-MARJA"
+ },
+ "DS-370": {
+  "kind": "district",
+  "code": "AF-HEL-MUSA-QALA"
+ },
+ "DS-371": {
+  "kind": "district",
+  "code": "AF-HEL-WASHIR"
+ },
+ "DS-372": {
+  "kind": "district",
+  "code": "AF-HEL-GARMSIR"
+ },
+ "DS-373": {
+  "kind": "district",
+  "code": "AF-URU-CENTER"
+ },
+ "DS-374": {
+  "kind": "district",
+  "code": "AF-URU-CHORA"
+ },
+ "DS-375": {
+  "kind": "district",
+  "code": "AF-URU-KHAS-URUZGAN"
+ },
+ "DS-376": {
+  "kind": "district",
+  "code": "AF-URU-DEH-RAWUD"
+ },
+ "DS-377": {
+  "kind": "district",
+  "code": "AF-URU-SHAHIDI-HASSAS"
+ },
+ "DS-378": {
+  "kind": "district",
+  "code": "AF-URU-GIZAB"
+ },
+ "DS-379": {
+  "kind": "district",
+  "code": "AF-ZAB-CENTER"
+ },
+ "DS-380": {
+  "kind": "district",
+  "code": "AF-ZAB-ARGHANDAB"
+ },
+ "DS-381": {
+  "kind": "district",
+  "code": "AF-ZAB-SHAHJOY"
+ },
+ "DS-382": {
+  "kind": "district",
+  "code": "AF-ZAB-SHAMULZAYI"
+ },
+ "DS-383": {
+  "kind": "district",
+  "code": "AF-ZAB-SHINKAY"
+ },
+ "DS-384": {
+  "kind": "district",
+  "code": "AF-ZAB-ATGHAR"
+ },
+ "DS-385": {
+  "kind": "district",
+  "code": "AF-ZAB-NOW-BAHAR"
+ },
+ "DS-386": {
+  "kind": "district",
+  "code": "AF-ZAB-MIZAN"
+ },
+ "DS-387": {
+  "kind": "district",
+  "code": "AF-ZAB-DAYCHOPAN"
+ },
+ "DS-388": {
+  "kind": "district",
+  "code": "AF-ZAB-TARNAK-WA-JALDAK"
+ },
+ "DS-389": {
+  "kind": "district",
+  "code": "AF-PAN-CENTER"
+ },
+ "DS-390": {
+  "kind": "district",
+  "code": "AF-PAN-ANABA"
+ },
+ "DS-391": {
+  "kind": "district",
+  "code": "AF-PAN-PARYAN"
+ },
+ "DS-392": {
+  "kind": "district",
+  "code": "AF-PAN-KHENJ"
+ },
+ "DS-393": {
+  "kind": "district",
+  "code": "AF-PAN-DARA"
+ },
+ "DS-394": {
+  "kind": "district",
+  "code": "AF-PAN-ROKHA"
+ },
+ "DS-395": {
+  "kind": "district",
+  "code": "AF-PAN-SHUTUL"
+ },
+ "DS-396": {
+  "kind": "district",
+  "code": "AF-PAN-ABSHAR"
+ },
+ "DS-397": {
+  "kind": "district",
+  "code": "AF-BDG-CENTER"
+ },
+ "DS-398": {
+  "kind": "district",
+  "code": "AF-BDG-AB-KAMARI"
+ },
+ "DS-399": {
+  "kind": "district",
+  "code": "AF-BDG-MUQUR"
+ },
+ "DS-400": {
+  "kind": "district",
+  "code": "AF-BDG-QADIS"
+ },
+ "DS-401": {
+  "kind": "district",
+  "code": "AF-BDG-BALA-MURGHAB"
+ },
+ "DS-402": {
+  "kind": "district",
+  "code": "AF-BDG-JAWAND"
+ },
+ "DS-403": {
+  "kind": "district",
+  "code": "AF-BDG-GHORMACH"
+ },
+ "DS-404": {
+  "kind": "district",
+  "code": "AF-BDG-SANG-E-ATESH"
+ }
+}
