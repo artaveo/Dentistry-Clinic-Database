@@ -55,6 +55,10 @@ jobs:
   windows:
     name: Windows — SQLCipher/DPAPI, Tauri + WebView2 installer, Edge printing
     runs-on: windows-latest
+    env:
+      # OpenSSL's Configure needs a full Perl. Steps using `shell: bash` would
+      # otherwise pick Git Bash's MSYS perl, which lacks Locale::Maketext::Simple.
+      OPENSSL_SRC_PERL: C:\Strawberry\perl\bin\perl.exe
     defaults:
       run:
         working-directory: spikes
