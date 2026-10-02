@@ -109,11 +109,17 @@ fn decode_logo(base64: Option<&str>, file_name: Option<&str>) -> Result<Option<(
         Some(e) if e == "png" => "png",
         Some(e) if e == "jpg" || e == "jpeg" => "jpg",
         Some(e) if e == "webp" => "webp",
-        _ => return Err(CoreError::invalid("logo", ValidationRule::LogoType, "logo must be a .png, .jpg or .webp file")),
+        _ => {
+            return Err(CoreError::invalid(
+                "logo",
+                ValidationRule::LogoType,
+                "logo must be a .png, .jpg or .webp file",
+            ))
+        }
     };
-    let bytes = data_encoding::BASE64
-        .decode(b64.as_bytes())
-        .map_err(|e| CoreError::invalid("logo", ValidationRule::LogoType, format!("invalid logo data: {e}")))?;
+    let bytes = data_encoding::BASE64.decode(b64.as_bytes()).map_err(|e| {
+        CoreError::invalid("logo", ValidationRule::LogoType, format!("invalid logo data: {e}"))
+    })?;
     if bytes.is_empty() || bytes.len() > MAX_LOGO_BYTES {
         return Err(CoreError::invalid("logo", ValidationRule::LogoSize, "logo must be 1 byte – 2 MiB"));
     }
@@ -499,7 +505,8 @@ impl Core {
             ));
         }
         auth::validate_username(&p.owner_username).map_err(|e| e.rename_field("owner_username"))?;
-        auth::validate_display_name(&p.owner_display_name).map_err(|e| e.rename_field("owner_display_name"))?;
+        auth::validate_display_name(&p.owner_display_name)
+            .map_err(|e| e.rename_field("owner_display_name"))?;
         auth::validate_password(&p.owner_password).map_err(|e| e.rename_field("owner_password"))?;
         let logo_bytes = decode_logo(p.logo_base64.as_deref(), p.logo_file_name.as_deref())?;
         let mut guard = self.lock_db();

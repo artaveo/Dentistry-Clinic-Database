@@ -79,13 +79,19 @@ pub fn get(conn: &Connection) -> Result<ClinicProfile> {
 fn validate_color(field: &str, c: &str) -> Result<()> {
     let ok = c.len() == 7 && c.starts_with('#') && c.chars().skip(1).all(|ch| ch.is_ascii_hexdigit());
     if !ok {
-        return Err(CoreError::invalid(field, ValidationRule::ColorFormat, format!("`{c}` is not a #rrggbb color")));
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::ColorFormat,
+            format!("`{c}` is not a #rrggbb color"),
+        ));
     }
     Ok(())
 }
 
 fn validate_hhmm(s: &str) -> Result<()> {
-    let bad = || CoreError::invalid("working_hours", ValidationRule::TimeFormat, format!("`{s}` is not an HH:MM time"));
+    let bad = || {
+        CoreError::invalid("working_hours", ValidationRule::TimeFormat, format!("`{s}` is not an HH:MM time"))
+    };
     let (h, m) = s.split_once(':').ok_or_else(bad)?;
     let h: u32 = h.parse().map_err(|_| bad())?;
     let m: u32 = m.parse().map_err(|_| bad())?;
@@ -99,7 +105,8 @@ fn validate(p: &ClinicProfile) -> Result<()> {
     validate_color("color_primary", &p.color_primary)?;
     validate_color("color_secondary", &p.color_secondary)?;
     validate_color("color_accent", &p.color_accent)?;
-    let hours_error = |detail: &str| CoreError::invalid("working_hours", ValidationRule::WorkingHours, detail);
+    let hours_error =
+        |detail: &str| CoreError::invalid("working_hours", ValidationRule::WorkingHours, detail);
     if p.working_hours.len() > 7 {
         return Err(hours_error("at most 7 working-hours rows"));
     }
@@ -140,7 +147,9 @@ pub fn logo_data_url(conn: &Connection) -> Result<Option<String>> {
         Some("webp") => "image/webp",
         _ => return Ok(None),
     };
-    Ok(std::fs::read(&path).ok().map(|bytes| format!("data:{mime};base64,{}", data_encoding::BASE64.encode(&bytes))))
+    Ok(std::fs::read(&path)
+        .ok()
+        .map(|bytes| format!("data:{mime};base64,{}", data_encoding::BASE64.encode(&bytes))))
 }
 
 /// Stores a new logo (or removes it) and audits the change. `logo` is the
@@ -164,10 +173,8 @@ pub fn set_logo(
         None => None,
     };
     write(conn, "clinic.logo_path", path.as_deref().unwrap_or_default(), actor.user_id.as_deref())?;
-    if let Some(old) = &before {
-        if Some(old) != path.as_ref() {
-            let _ = std::fs::remove_file(old);
-        }
+    if let Some(old) = before.as_ref().filter(|old| Some(*old) != path.as_ref()) {
+        let _ = std::fs::remove_file(old);
     }
     audit::record(
         conn,

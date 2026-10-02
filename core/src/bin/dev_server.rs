@@ -52,7 +52,7 @@ fn main() {
                 let _ = req.as_reader().read_to_string(&mut body);
                 let out = match serde_json::from_str::<RpcRequest>(&body) {
                     Ok(r) => serde_json::to_string(&core.handle(r)).unwrap(),
-                    Err(e) => serde_json::json!({"status": "error", "error": {"code": "validation", "detail": e.to_string()}}).to_string(),
+                    Err(e) => serde_json::json!({"status": "error", "error": {"code": "validation", "detail": e.to_string(), "field": null, "rule": null}}).to_string(),
                 };
                 Response::from_string(out)
                     .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())

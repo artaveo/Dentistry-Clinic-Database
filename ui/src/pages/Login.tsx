@@ -80,10 +80,10 @@ export function Login({ clinicName, logo, version, onLogin }: { clinicName: stri
           {mode === "login" ? (
             <>
               <Field label={t("login.username")} error={login.error("username") && t(login.error("username")!)}>
-                <TextInput icon={UserRound} large dir="ltr" autoFocus autoComplete="username" value={login.values.username} onChange={(e) => login.set("username", e.target.value)} onBlur={() => login.blur("username")} data-testid="login-username" />
+                <TextInput icon={UserRound} large dir="ltr" autoFocus autoComplete="username" value={login.values.username} onChange={(e) => login.set("username", e.target.value)} data-testid="login-username" />
               </Field>
               <Field label={t("login.password")} error={login.error("password") && t(login.error("password")!)}>
-                <PasswordInput icon={LockKeyhole} large value={login.values.password} onChange={(e) => login.set("password", e.target.value)} onBlur={() => login.blur("password")} data-testid="login-password" />
+                <PasswordInput icon={LockKeyhole} large value={login.values.password} onChange={(e) => login.set("password", e.target.value)} data-testid="login-password" />
               </Field>
             </>
           ) : (

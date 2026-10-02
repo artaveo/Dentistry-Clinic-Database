@@ -24,7 +24,12 @@ async fn rpc(state: tauri::State<'_, Arc<Backend>>, request: RpcRequest) -> Resu
     tauri::async_runtime::spawn_blocking(move || match backend.as_ref() {
         Backend::Ready(core) => core.handle(request),
         Backend::Failed(detail) => RpcResponse::Error {
-            error: RpcError { code: ErrorCode::Internal, detail: format!("startup failed: {detail}") },
+            error: RpcError {
+                code: ErrorCode::Internal,
+                detail: format!("startup failed: {detail}"),
+                field: None,
+                rule: None,
+            },
         },
     })
     .await

@@ -13,7 +13,8 @@ export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,
   workers: 1,
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  // On CI, failures also become GitHub annotations (readable without downloading the report).
+  reporter: [...(process.env.CI ? [["github"] as const] : []), ["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",

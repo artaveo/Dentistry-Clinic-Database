@@ -253,7 +253,11 @@ fn ensure_assignable_role(conn: &Connection, role: &str) -> Result<()> {
         |r| r.get(0),
     )?;
     if !exists {
-        return Err(CoreError::invalid("role", ValidationRule::RoleNotAssignable, format!("unknown role {role}")));
+        return Err(CoreError::invalid(
+            "role",
+            ValidationRule::RoleNotAssignable,
+            format!("unknown role {role}"),
+        ));
     }
     Ok(())
 }

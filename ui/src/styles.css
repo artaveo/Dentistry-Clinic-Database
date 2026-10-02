@@ -299,8 +299,9 @@ a:hover { text-decoration: underline; }
 .control-suffix { flex: none; padding-inline-end: var(--space-3); color: var(--text-3); font-size: 13px; }
 
 /* ───────────── checkbox / switch ───────────── */
-.check { display: inline-flex; align-items: flex-start; gap: var(--space-3); cursor: pointer; user-select: none; line-height: 22px; }
-.check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.check { position: relative; display: inline-flex; align-items: flex-start; gap: var(--space-3); cursor: pointer; user-select: none; line-height: 22px; }
+/* The real input sits exactly over the drawn box, so clicks and tests hit it. */
+.check input { position: absolute; z-index: 1; inset-inline-start: 0; top: 1px; width: 20px; height: 20px; margin: 0; opacity: 0; cursor: pointer; }
 .check .box {
   flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: var(--radius-sm); border: 1.5px solid var(--field-border-hover);
   background: var(--field-bg); display: grid; place-items: center; color: var(--on-accent);
@@ -313,8 +314,8 @@ a:hover { text-decoration: underline; }
 .check:hover .box { border-color: var(--accent-text); }
 .check input:disabled + .box { opacity: .5; }
 
-.switch { display: inline-flex; align-items: center; gap: var(--space-3); cursor: pointer; user-select: none; }
-.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch { position: relative; display: inline-flex; align-items: center; gap: var(--space-3); cursor: pointer; user-select: none; }
+.switch input { position: absolute; z-index: 1; inset-inline-start: 0; top: 50%; translate: 0 -50%; width: 40px; height: 22px; margin: 0; opacity: 0; cursor: pointer; }
 .switch .track { position: relative; width: 40px; height: 22px; border-radius: var(--radius-full); background: var(--fill-pressed); border: 1px solid var(--field-border); transition: background var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease); flex: none; }
 .switch .thumb { position: absolute; top: 2px; inset-inline-start: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: inset-inline-start var(--dur-base) var(--ease); }
 .switch input:checked + .track { background: var(--accent); border-color: var(--accent); }

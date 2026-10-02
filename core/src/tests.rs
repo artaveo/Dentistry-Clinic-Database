@@ -505,7 +505,8 @@ fn validation_errors_name_the_field_and_rule() {
 
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
-    let user = |u: &str, p: &str| json!({"username": u, "display_name": "D", "password": p, "role": "doctor"});
+    let user =
+        |u: &str, p: &str| json!({"username": u, "display_name": "D", "password": p, "role": "doctor"});
     let e = t.err(m::USERS_CREATE, user("احمد", "doctor-pass-1"), Some(&owner));
     assert_eq!(field_rule(&e), (Some("username"), Some("username_format".into())));
     let e = t.err(m::USERS_CREATE, user("doctor", "1234567"), Some(&owner));
@@ -597,7 +598,8 @@ fn clinic_logo_is_public_replaceable_and_permissioned() {
     assert!(url.starts_with("data:image/png;base64,"), "{url}");
     assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], json!(url));
 
-    let e = t.err(m::CLINIC_SET_LOGO, json!({"logo_base64": png, "logo_file_name": "logo.gif"}), Some(&owner));
+    let e =
+        t.err(m::CLINIC_SET_LOGO, json!({"logo_base64": png, "logo_file_name": "logo.gif"}), Some(&owner));
     assert_eq!(field_rule(&e), (Some("logo"), Some("logo_type".into())));
 
     t.ok(
@@ -606,7 +608,10 @@ fn clinic_logo_is_public_replaceable_and_permissioned() {
         Some(&owner),
     );
     let rec = t.login("reception", "recep-pass-1");
-    assert_eq!(t.call(m::CLINIC_SET_LOGO, json!({"logo_base64": null}), Some(&rec)), Err(ErrorCode::Forbidden));
+    assert_eq!(
+        t.call(m::CLINIC_SET_LOGO, json!({"logo_base64": null}), Some(&rec)),
+        Err(ErrorCode::Forbidden)
+    );
 
     assert_eq!(t.ok(m::CLINIC_SET_LOGO, json!({"logo_base64": null}), Some(&owner))["data_url"], Value::Null);
     assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], Value::Null);

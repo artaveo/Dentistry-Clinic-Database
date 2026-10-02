@@ -36,7 +36,12 @@ impl CoreError {
     }
     /// A validation error about one request field, shown under that input (OF-002).
     pub fn invalid(field: &str, rule: ValidationRule, detail: impl Into<String>) -> Self {
-        CoreError::Api { code: ErrorCode::Validation, detail: detail.into(), field: Some(field.into()), rule: Some(rule) }
+        CoreError::Api {
+            code: ErrorCode::Validation,
+            detail: detail.into(),
+            field: Some(field.into()),
+            rule: Some(rule),
+        }
     }
     pub fn forbidden(permission: &str) -> Self {
         Self::api(ErrorCode::Forbidden, format!("missing permission {permission}"))
