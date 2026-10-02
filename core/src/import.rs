@@ -23,8 +23,7 @@ fn split_csv_line(line: &str) -> Vec<String> {
     let mut cur = String::new();
     let mut in_quotes = false;
     let mut chars = line.chars().peekable();
-    loop {
-        let Some(c) = chars.next() else { break };
+    while let Some(c) = chars.next() {
         match c {
             '"' if in_quotes && chars.peek() == Some(&'"') => {
                 cur.push('"');
@@ -49,7 +48,7 @@ fn csv_field(s: &str) -> String {
     }
 }
 
-fn col<'a>(fields: &'a [String], i: usize) -> Option<&'a str> {
+fn col(fields: &[String], i: usize) -> Option<&str> {
     fields.get(i).map(|s| s.trim()).filter(|s| !s.is_empty())
 }
 

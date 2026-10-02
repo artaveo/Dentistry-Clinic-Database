@@ -841,7 +841,7 @@ fn walk_first_file(dir: &std::path::Path) -> Vec<u8> {
     for entry in std::fs::read_dir(dir).unwrap() {
         let entry = entry.unwrap();
         if entry.file_type().unwrap().is_dir() {
-            for f in std::fs::read_dir(entry.path()).unwrap() {
+            if let Some(f) = std::fs::read_dir(entry.path()).unwrap().next() {
                 return std::fs::read(f.unwrap().path()).unwrap();
             }
         }
