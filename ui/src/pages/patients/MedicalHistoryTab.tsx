@@ -9,7 +9,7 @@ import { Field, Textarea } from "../../ui/Field";
 import { ErrorState, Loading, Notice } from "../../ui/Feedback";
 import { useToast } from "../../ui/Toast";
 
-export function MedicalHistoryTab({ patientId, canEdit }: { patientId: string; canEdit: boolean }) {
+export function MedicalHistoryTab({ patientId, canEdit, onSaved }: { patientId: string; canEdit: boolean; onSaved?: () => void }) {
   const { t, err } = useI18n();
   const toast = useToast();
   const [history, setHistory] = useState<MedicalHistoryInfo | null>(null);
@@ -51,6 +51,7 @@ export function MedicalHistoryTab({ patientId, canEdit }: { patientId: string; c
       });
       setHistory(saved);
       toast.success(t("medicalHistory.saved"));
+      onSaved?.();
     } catch (x) {
       setError(err(x));
     } finally {

@@ -45,6 +45,9 @@ export function PatientProfile({ patientId, canEdit, onBack, onEdit }: { patient
   const [error, setError] = useState("");
   const [tab, setTab] = useState<TabId>("overview");
   const [merging, setMerging] = useState(false);
+  // Bumped after every medical-history save so the alert banner (mounted
+  // once, independently) re-fetches instead of showing stale data.
+  const [medicalRefreshKey, setMedicalRefreshKey] = useState(0);
   const genders = useReferenceList("gender");
   const referrals = useReferenceList("referral_source");
 
@@ -89,7 +92,7 @@ export function PatientProfile({ patientId, canEdit, onBack, onEdit }: { patient
       />
       <Button variant="link" onClick={onBack} data-testid="patient-back">{t("patients.back")}</Button>
 
-      <MedicalAlertBanner patientId={patient.id} />
+      <MedicalAlertBanner key={medicalRefreshKey} patientId={patient.id} />
 
       <div className="profile-tabs" role="tablist">
         {TABS.map(({ id, icon: Icon, labelKey, ready }) => (
@@ -135,7 +138,9 @@ export function PatientProfile({ patientId, canEdit, onBack, onEdit }: { patient
           </dl>
         </Card>
       )}
-      {tab === "medical" && <MedicalHistoryTab patientId={patient.id} canEdit={canEdit} />}
+      {tab === "medical" && (
+        <MedicalHistoryTab patientId={patient.id} canEdit={canEdit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
+      )}
       {tab === "documents" && <AttachmentsTab patientId={patient.id} canEdit={canEdit} />}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 
