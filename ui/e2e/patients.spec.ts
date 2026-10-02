@@ -34,7 +34,7 @@ test("create a patient, see the duplicate warning, then open the profile", async
   await page.getByTestId("patient-save").click();
   await expect(toast()).toHaveText("بیمار ثبت شد.");
   await expect(page.getByTestId("page-patient-profile")).toBeVisible();
-  await expect(page.getByText("احمد خان رحیمی")).toBeVisible();
+  await expect(page.getByTestId("page-title")).toHaveText("احمد خان رحیمی");
 
   // A second patient with the same phone triggers the duplicate dialog (3.1).
   await page.getByTestId("patient-back").click();
@@ -46,7 +46,7 @@ test("create a patient, see the duplicate warning, then open the profile", async
   await expect(page.getByTestId("duplicate-dialog")).toContainText("احمد خان رحیمی");
   await page.getByTestId("duplicate-continue").click();
   await expect(page.getByTestId("page-patient-profile")).toBeVisible();
-  await expect(page.getByText("Someone Else")).toBeVisible();
+  await expect(page.getByTestId("page-title")).toHaveText("Someone Else");
 });
 
 test("search finds by partial name, patient number and phone", async () => {
@@ -60,7 +60,7 @@ test("search finds by partial name, patient number and phone", async () => {
 
 test("edit a patient with live validation and optimistic locking", async () => {
   await page.getByTestId("patients-search").fill("احمد خان");
-  await page.getByText("احمد خان رحیمی").click();
+  await page.getByTestId("patient-list").getByText("احمد خان رحیمی").click();
   await page.getByTestId("patient-edit-open").click();
   await page.getByTestId("patient-phone").fill("bad");
   await page.getByTestId("patient-full-name").fill("احمد خان رحیمی ۲");
@@ -69,7 +69,7 @@ test("edit a patient with live validation and optimistic locking", async () => {
   await page.getByTestId("patient-phone").fill("0700111222");
   await page.getByTestId("patient-save").click();
   await expect(toast()).toHaveText("تغییرات ذخیره شد.");
-  await expect(page.getByText("احمد خان رحیمی ۲")).toBeVisible();
+  await expect(page.getByTestId("page-title")).toHaveText("احمد خان رحیمی ۲");
 });
 
 test("medical history: saving allergies/conditions shows the alert banner (3.2/3.3)", async () => {
@@ -142,7 +142,7 @@ test("import: preview reports row errors, commit only adds valid rows", async ()
 
 test("delete removes a patient from the active list", async () => {
   await page.getByTestId("patients-search").fill("وارده شده");
-  await page.getByText("وارده شده").click();
+  await page.getByTestId("patient-list").getByText("وارده شده").click();
   page.once("dialog", (d) => d.accept());
   await page.getByTestId("patient-delete").click();
   await expect(toast()).toHaveText("پرونده بیمار حذف شد.");
