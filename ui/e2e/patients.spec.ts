@@ -12,11 +12,12 @@ const OWNER = { user: "owner", pass: "owner-pass-123" };
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto("/");
-  if (await page.getByTestId("login-username").isVisible().catch(() => false)) {
-    await page.getByTestId("login-username").fill(OWNER.user);
-    await page.getByTestId("login-password").fill(OWNER.pass);
-    await page.getByTestId("login-submit").click();
-  }
+  // A fresh page load always re-shows the splash then the login screen (the
+  // in-memory token from app.spec.ts's session does not survive a reload);
+  // `fill`/`click` auto-wait past the splash, unlike a bare `isVisible()`.
+  await page.getByTestId("login-username").fill(OWNER.user);
+  await page.getByTestId("login-password").fill(OWNER.pass);
+  await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("tab-patients")).toBeVisible();
   await page.getByTestId("tab-patients").click();
 });
