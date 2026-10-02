@@ -25,14 +25,17 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: ui/package-lock.json
-      - name: Show Rust errors as annotations
-        run: echo "::add-matcher::.github/rust-matcher.json"
       - name: Version is consistent (SemVer)
         run: node scripts/check-version.mjs
       - run: cargo fmt --all --check
-      - run: cargo clippy -p artaveo-core -p artaveo-shared --all-targets --features artaveo-core/dev-server -- -D warnings
+      - name: Run cargo clippy -p artaveo-core -p artaveo-shared --all-targets --features artaveo-core/dev-server -- -D warnings
+        run: |
+          set -o pipefail
+          cargo clippy -p artaveo-core -p artaveo-shared --all-targets --features artaveo-core/dev-server --message-format=json -- -D warnings | node .github/scripts/cargo-annotate.mjs
       - name: Unit + integration tests (Core, contract)
-        run: cargo test -p artaveo-core -p artaveo-shared
+        run: |
+          set -o pipefail
+          cargo test -p artaveo-core -p artaveo-shared --message-format=json | node .github/scripts/cargo-annotate.mjs
       - name: TypeScript contract is up to date
         run: |
           if ! git diff --exit-code shared/ts; then
@@ -52,7 +55,8 @@ jobs:
       - name: E2E (Playwright, real Core over the dev transport)
         working-directory: ui
         run: |
-          cargo build -p artaveo-core --features dev-server --bin artaveo-dev-server
+          set -o pipefail
+          cargo build -p artaveo-core --features dev-server --bin artaveo-dev-server --message-format=json | node ../.github/scripts/cargo-annotate.mjs
           npx playwright install --with-deps chromium
           npx playwright test
       - uses: actions/upload-artifact@v4
@@ -101,10 +105,13 @@ jobs:
           if (-not (Test-Path $perl)) { throw "Strawberry Perl not available" }
           & $perl -v | Select-Object -First 2
           "OPENSSL_SRC_PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Show Rust errors as annotations
-        run: echo "::add-matcher::.github/rust-matcher.json"
       - name: Tests on ${{ matrix.arch }} (real DPAPI, SQLCipher, Argon2id)
+        id: core_tests
         run: cargo test -p artaveo-core -p artaveo-shared --target ${{ matrix.target }}
+      - name: Annotate compile errors (core/shared tests, ${{ matrix.arch }})
+        if: failure() && steps.core_tests.outcome == 'failure'
+        continue-on-error: true
+        run: cargo test -p artaveo-core -p artaveo-shared --target ${{ matrix.target }} --message-format=json | node .github/scripts/cargo-annotate.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -117,7 +124,12 @@ jobs:
           npm run build
       - name: Clippy for the Tauri shell
         if: matrix.arch == 'x64'
+        id: app_clippy
         run: cargo clippy -p artaveo-app --target ${{ matrix.target }} -- -D warnings
+      - name: Annotate clippy failures (Tauri shell, ${{ matrix.arch }})
+        if: failure() && steps.app_clippy.outcome == 'failure'
+        continue-on-error: true
+        run: cargo clippy -p artaveo-app --target ${{ matrix.target }} --message-format=json -- -D warnings | node .github/scripts/cargo-annotate.mjs
       - name: Build installers (online + offline WebView2)
         working-directory: app
         shell: bash
