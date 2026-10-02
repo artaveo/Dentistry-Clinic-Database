@@ -374,7 +374,7 @@
   "wizard.backup.encryptedHint": "Every backup is encrypted and verified.",
   "wizard.owner.hint": "The owner can do everything, and only the owner can recover access with the recovery key.",
   "wizard.recovery.done": "Clinic created ✓",
-  "system.supportPhone": "Phone",
+  "system.supportPhone": "Phone & WhatsApp",
   "system.supportEmail": "Email",
   "system.supportWebsite": "Website"
 }

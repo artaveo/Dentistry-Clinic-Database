@@ -52,7 +52,7 @@ export function SystemInfoPage({ version, calendar }: { version: string; calenda
           </div>
           <div className="support" data-testid="support-contact">
             <span className="support-title"><LifeBuoy aria-hidden /> {t("system.support")}</span>
-            <span className="support-item"><Phone aria-hidden /><span className="visually-hidden">{t("system.supportPhone")}: </span><bdi className="ltr num" data-testid="support-phone">{SUPPORT.phone}</bdi></span>
+            <span className="support-item"><Phone aria-hidden /><span className="subtle">{t("system.supportPhone")}:</span><bdi className="ltr num" data-testid="support-phone">{SUPPORT.phone}</bdi></span>
             <span className="support-item"><Mail aria-hidden /><span className="visually-hidden">{t("system.supportEmail")}: </span><bdi className="ltr">{SUPPORT.email}</bdi></span>
             <span className="support-item"><Globe aria-hidden /><span className="visually-hidden">{t("system.supportWebsite")}: </span><bdi className="ltr">{SUPPORT.website}</bdi></span>
           </div>

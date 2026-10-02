@@ -374,7 +374,7 @@
   "wizard.backup.encryptedHint": "هر پشتیبان رمزنگاری و بعد از گرفتن بررسی می‌شود.",
   "wizard.owner.hint": "مالک همه اختیارات را دارد و فقط او می‌تواند با کلید بازیابی رمز را بازیابی کند.",
   "wizard.recovery.done": "کلینیک ساخته شد ✓",
-  "system.supportPhone": "تلفن",
+  "system.supportPhone": "تلفن و واتساپ",
   "system.supportEmail": "ایمیل",
   "system.supportWebsite": "وب‌سایت"
 }

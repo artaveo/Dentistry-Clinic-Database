@@ -374,7 +374,7 @@
   "wizard.backup.encryptedHint": "هر بیک اپ کوډ کېږي او له اخیستو وروسته کتل کېږي.",
   "wizard.owner.hint": "مالک ټول واکونه لري او یوازې هغه کولی شي د بیا راګرځولو کیلي سره پټنوم بیا ترلاسه کړي.",
   "wizard.recovery.done": "کلینیک جوړ شو ✓",
-  "system.supportPhone": "تلیفون",
+  "system.supportPhone": "تلیفون او واټساپ",
   "system.supportEmail": "برېښنالیک",
   "system.supportWebsite": "وېب‌پاڼه"
 }
