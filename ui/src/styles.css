@@ -714,3 +714,7 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 .auth-form-panel .auth-footer { gap: var(--space-2); }
 @media (max-width: 860px) { .auth-split { grid-template-columns: 1fr; } .auth-brand-panel { display: none; } }
 .field > .segmented { align-self: flex-start; }
+.support { display: flex; align-items: center; gap: var(--space-2) var(--space-4); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); font-size: 13px; }
+.support svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
+.support-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-2); }
+.support-item { display: inline-flex; align-items: center; gap: 6px; user-select: text; }

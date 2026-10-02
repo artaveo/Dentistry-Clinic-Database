@@ -269,7 +269,7 @@
   "shell.perf.hint": "برای کامپیوترهای ضعیف: افکت شیشه‌ای و سایه‌های سنگین خاموش می‌شوند.",
   "system.subtitle": "نسخه برنامه، وضعیت امنیت و سلامت اطلاعات این کامپیوتر.",
   "system.tagline": "نرم‌افزار مدیریت کلینیک دندان‌پزشکی — آفلاین، رمزنگاری‌شده و سه‌زبانه.",
-  "system.support": "پشتیبانی: با نماینده Artaveo که برنامه را برای شما نصب کرده تماس بگیرید.",
+  "system.support": "پشتیبانی Artaveo",
   "system.details": "جزئیات فنی",
   "system.detailsHint": "برای پشتیبانی فنی؛ در کار روزمره لازم نیست.",
   "system.emulatedTitle": "نسخه نامناسب برای این کامپیوتر",
@@ -373,5 +373,8 @@
   "wizard.backup.encrypted": "رمزنگاری‌شده",
   "wizard.backup.encryptedHint": "هر پشتیبان رمزنگاری و بعد از گرفتن بررسی می‌شود.",
   "wizard.owner.hint": "مالک همه اختیارات را دارد و فقط او می‌تواند با کلید بازیابی رمز را بازیابی کند.",
-  "wizard.recovery.done": "کلینیک ساخته شد ✓"
+  "wizard.recovery.done": "کلینیک ساخته شد ✓",
+  "system.supportPhone": "تلفن",
+  "system.supportEmail": "ایمیل",
+  "system.supportWebsite": "وب‌سایت"
 }

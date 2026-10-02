@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Cpu, Database, DatabaseBackup, FolderOpen, GitCommitHorizontal, HardDrive, KeyRound, Layers, Monitor, ShieldCheck, ShieldAlert, Activity, Server, LifeBuoy } from "lucide-react";
+import { Cpu, Database, DatabaseBackup, FolderOpen, GitCommitHorizontal, Globe, HardDrive, KeyRound, Layers, LifeBuoy, Mail, Monitor, Phone, ShieldCheck, ShieldAlert, Activity, Server } from "lucide-react";
 import type { CalendarSystem, SystemInfo } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "../lib/api";
 import { digits, formatBytes, formatDateTime } from "../lib/dates";
@@ -7,6 +7,7 @@ import { useI18n } from "../i18n";
 import { Card, CardHeader, Page, PageHeader, Stat } from "../ui/Card";
 import { Badge, ErrorState, Loading, Notice } from "../ui/Feedback";
 import { brandAssets } from "../ui/Brand";
+import { SUPPORT } from "../lib/support";
 
 /** Roadmap 1.8 + 2.1b: Artaveo Dental, version, support, and what the owner
  * needs to verify (CPU build, encryption, integrity, backup) without tools. */
@@ -49,7 +50,12 @@ export function SystemInfoPage({ version, calendar }: { version: string; calenda
             <Badge icon={Cpu}><bdi className="ltr" data-testid="si-build-arch">{info.build_arch}</bdi></Badge>
             <Badge icon={Layers}>{t(`system.env.${info.environment}`)}</Badge>
           </div>
-          <p className="row subtle t-caption" style={{ marginTop: 8 }}><LifeBuoy size={15} aria-hidden /> {t("system.support")}</p>
+          <div className="support" data-testid="support-contact">
+            <span className="support-title"><LifeBuoy aria-hidden /> {t("system.support")}</span>
+            <span className="support-item"><Phone aria-hidden /><span className="visually-hidden">{t("system.supportPhone")}: </span><bdi className="ltr num" data-testid="support-phone">{SUPPORT.phone}</bdi></span>
+            <span className="support-item"><Mail aria-hidden /><span className="visually-hidden">{t("system.supportEmail")}: </span><bdi className="ltr">{SUPPORT.email}</bdi></span>
+            <span className="support-item"><Globe aria-hidden /><span className="visually-hidden">{t("system.supportWebsite")}: </span><bdi className="ltr">{SUPPORT.website}</bdi></span>
+          </div>
         </div>
       </section>
 

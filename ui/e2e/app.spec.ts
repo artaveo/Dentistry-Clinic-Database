@@ -141,6 +141,8 @@ test("About shows version, processor build and an encrypted, healthy database", 
   await expect(page.getByTestId("si-encryption")).toHaveText("رمزنگاری‌شده");
   await expect(page.getByTestId("si-integrity")).toHaveText("سالم", { timeout: 15_000 });
   await expect(page.getByTestId("si-last-backup")).toHaveText("هنوز پشتیبانی گرفته نشده");
+  await expect(page.getByTestId("support-phone")).toHaveText("+93 790 685 832");
+  await expect(page.getByTestId("support-contact")).toContainText("artaveo.dev@gmail.com");
 });
 
 test("manual backup; dates read as one phrase with a 12-hour time (OF-006/007)", async () => {

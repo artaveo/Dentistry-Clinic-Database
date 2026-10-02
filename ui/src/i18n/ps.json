@@ -269,7 +269,7 @@
   "shell.perf.hint": "د کمزورو کمپیوټرونو لپاره: د ښیښې اغېز او درانه سیوري بندېږي.",
   "system.subtitle": "د پروګرام نسخه، د دې کمپیوټر د معلوماتو امنیت او روغتیا.",
   "system.tagline": "د غاښونو د کلینیک د مدیریت پروګرام — آفلاین، کوډ شوی او درې ژبی.",
-  "system.support": "ملاتړ: د Artaveo له هغه استازي سره اړیکه ونیسئ چې پروګرام یې درته نصب کړی.",
+  "system.support": "د Artaveo ملاتړ",
   "system.details": "تخنیکي جزییات",
   "system.detailsHint": "د تخنیکي ملاتړ لپاره؛ په ورځني کار کې اړتیا نشته.",
   "system.emulatedTitle": "د دې کمپیوټر لپاره ناسمه نسخه",
@@ -373,5 +373,8 @@
   "wizard.backup.encrypted": "کوډ شوی",
   "wizard.backup.encryptedHint": "هر بیک اپ کوډ کېږي او له اخیستو وروسته کتل کېږي.",
   "wizard.owner.hint": "مالک ټول واکونه لري او یوازې هغه کولی شي د بیا راګرځولو کیلي سره پټنوم بیا ترلاسه کړي.",
-  "wizard.recovery.done": "کلینیک جوړ شو ✓"
+  "wizard.recovery.done": "کلینیک جوړ شو ✓",
+  "system.supportPhone": "تلیفون",
+  "system.supportEmail": "برېښنالیک",
+  "system.supportWebsite": "وېب‌پاڼه"
 }
