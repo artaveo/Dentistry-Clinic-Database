@@ -324,6 +324,16 @@ pub struct UnlockParams {
     pub password: String,
 }
 
+/// The UI's activity heartbeat (OF-008/OF-012). Only this counts as user
+/// activity for the idle lock; other requests (background refreshes) do not.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TouchParams {
+    /// How long ago the user last moved the mouse, scrolled or typed, so the
+    /// idle timer is exact although heartbeats are sent only every few seconds.
+    #[serde(default)]
+    pub idle_ms: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ChangePasswordParams {
     pub current_password: String,
@@ -502,7 +512,7 @@ api! {
     "auth.logout"            => AUTH_LOGOUT(Empty) -> Empty;
     "auth.change_password"   => AUTH_CHANGE_PASSWORD(ChangePasswordParams) -> Empty;
     "session.state"          => SESSION_STATE(Empty) -> SessionState;
-    "session.touch"          => SESSION_TOUCH(Empty) -> SessionState;
+    "session.touch"          => SESSION_TOUCH(TouchParams) -> SessionState;
     "session.lock"           => SESSION_LOCK(Empty) -> SessionState;
     "session.unlock"         => SESSION_UNLOCK(UnlockParams) -> SessionState;
     "users.list"             => USERS_LIST(Empty) -> Vec<UserInfo>;
@@ -567,6 +577,7 @@ pub fn typescript_bindings() -> String {
         SessionInfo,
         SessionState,
         UnlockParams,
+        TouchParams,
         ChangePasswordParams,
         RecoverOwnerParams,
         CreateUserParams,

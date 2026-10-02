@@ -87,6 +87,13 @@ idle_seconds_left: number, };
 
 export type UnlockParams = { password: string, };
 
+export type TouchParams = { 
+/**
+ * How long ago the user last moved the mouse, scrolled or typed, so the
+ * idle timer is exact although heartbeats are sent only every few seconds.
+ */
+idle_ms: number, };
+
 export type ChangePasswordParams = { current_password: string, new_password: string, };
 
 export type RecoverOwnerParams = { recovery_key: string, new_password: string, };
@@ -152,7 +159,7 @@ export interface Api {
   "auth.logout": { params: Empty; result: Empty };
   "auth.change_password": { params: ChangePasswordParams; result: Empty };
   "session.state": { params: Empty; result: SessionState };
-  "session.touch": { params: Empty; result: SessionState };
+  "session.touch": { params: TouchParams; result: SessionState };
   "session.lock": { params: Empty; result: SessionState };
   "session.unlock": { params: UnlockParams; result: SessionState };
   "users.list": { params: Empty; result: Array<UserInfo> };

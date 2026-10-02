@@ -4,7 +4,7 @@
 
 use std::fs;
 use std::sync::atomic::Ordering;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use artaveo_shared::{methods as m, *};
 use rusqlite::{params, OptionalExtension};
@@ -151,16 +151,16 @@ impl Core {
         self.call_private(method, p, &token, session)
     }
 
-    /// Resolves the session, applies idle-lock and records activity.
+    /// Resolves the session and applies the idle lock. Requests are *not*
+    /// activity: background refreshes would otherwise keep an unattended
+    /// screen unlocked (OF-012). Only `session.touch` (real mouse/keyboard
+    /// input reported by the UI), login and unlock reset the idle timer.
     fn authorize(&self, token: &str, method: &str) -> Result<Session> {
         let timeout = self.session_timeout();
         let mut store = self.lock_sessions();
         let s = store.get(Some(token).filter(|t| !t.is_empty()), timeout)?;
         if s.locked && !ALLOWED_WHEN_LOCKED.contains(&method) {
             return Err(CoreError::api(ErrorCode::SessionLocked, "screen is locked"));
-        }
-        if !s.locked && method != m::SESSION_STATE {
-            s.last_activity = Instant::now();
         }
         Ok(s.clone())
     }
@@ -290,7 +290,20 @@ impl Core {
                 })?;
                 ok(Empty {})
             }
-            m::SESSION_STATE | m::SESSION_TOUCH => ok(state_of(&s, timeout)),
+            m::SESSION_STATE => ok(state_of(&s, timeout)),
+            m::SESSION_TOUCH => {
+                let TouchParams { idle_ms } = params(p)?;
+                let mut store = self.lock_sessions();
+                let live = store.get(Some(token), timeout)?;
+                // The user was last active `idle_ms` ago (never later than now,
+                // never earlier than what the Core already knows).
+                let idle = Duration::from_millis(idle_ms.into()).min(timeout);
+                let at = Instant::now().checked_sub(idle).unwrap_or_else(Instant::now);
+                if !live.locked && at > live.last_activity {
+                    live.last_activity = at;
+                }
+                ok(state_of(live, timeout))
+            }
             m::SESSION_LOCK => {
                 let mut store = self.lock_sessions();
                 let live = store.get(Some(token), timeout)?;

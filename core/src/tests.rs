@@ -617,3 +617,38 @@ fn clinic_logo_is_public_replaceable_and_permissioned() {
     assert_eq!(t.ok(m::APP_CLINIC_LOGO, json!({}), None)["data_url"], Value::Null);
     assert!(t.audit_actions(&owner).contains(&"clinic.set_logo".to_string()));
 }
+
+/// OF-012: the idle lock follows real user input only. Background requests
+/// (About refreshes every 5 s) must not keep an unattended screen unlocked,
+/// a new timeout applies at once, and `idle_ms` makes the timer exact.
+#[test]
+fn idle_lock_is_exact_and_ignores_background_requests() {
+    let t = T::new();
+    t.setup();
+    let tok = t.login("owner", "owner-pass-1");
+    let mut s = t.ok(m::SETTINGS_GET, json!({}), Some(&tok));
+    s["session_timeout_minutes"] = json!(1);
+    t.ok(m::SETTINGS_UPDATE, s, Some(&tok)); // applies to the running session at once
+
+    // Polls every few seconds for 59 s: still unlocked, but they do not count as activity.
+    for _ in 0..11 {
+        t.core.lock_sessions().age(&tok, Duration::from_secs(5));
+        t.ok(m::SYSTEM_INFO, json!({}), Some(&tok));
+    }
+    t.core.lock_sessions().age(&tok, Duration::from_secs(4));
+    let st = t.ok(m::SESSION_STATE, json!({}), Some(&tok));
+    assert_eq!(st["locked"], false, "59 s idle with a 60 s timeout");
+    assert!(st["idle_seconds_left"].as_u64().unwrap() <= 1);
+    t.core.lock_sessions().age(&tok, Duration::from_secs(1));
+    assert_eq!(t.ok(m::SESSION_STATE, json!({}), Some(&tok))["locked"], true, "locks at 60 s");
+
+    // `idle_ms`: a heartbeat sent 4 s after the last mouse move counts from the move.
+    t.ok(m::SESSION_UNLOCK, json!({"password": "owner-pass-1"}), Some(&tok));
+    t.core.lock_sessions().age(&tok, Duration::from_secs(30));
+    let st = t.ok(m::SESSION_TOUCH, json!({"idle_ms": 4000}), Some(&tok));
+    let left = st["idle_seconds_left"].as_u64().unwrap();
+    assert!((54..=56).contains(&left), "{left}");
+    // A heartbeat never moves the timer backwards.
+    let st = t.ok(m::SESSION_TOUCH, json!({"idle_ms": 50_000}), Some(&tok));
+    assert!(st["idle_seconds_left"].as_u64().unwrap() >= 54);
+}

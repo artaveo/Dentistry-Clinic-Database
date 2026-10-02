@@ -56,6 +56,9 @@ export function onSessionError(fn: (e: ApiError) => void) {
   return () => listeners.delete(fn);
 }
 
+/** Fired after the auto-lock time changes, so the Shell re-checks the lock at once (OF-012). */
+export const SESSION_CHECK_EVENT = "artaveo:session-check";
+
 export function isSessionError(e: unknown): boolean {
   return e instanceof ApiError && (e.code === "session_locked" || e.code === "session_expired" || e.code === "unauthenticated");
 }

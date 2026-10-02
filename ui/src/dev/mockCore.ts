@@ -129,8 +129,7 @@ function session(token: string | null, method: string): Session {
   const timeout = state.settings.session_timeout_minutes * 60_000;
   if (!s.locked && Date.now() - s.last >= timeout) s.locked = true;
   if (s.locked && !["session.state", "session.unlock", "auth.logout"].includes(method)) fail("session_locked", "screen is locked");
-  if (!s.locked && method !== "session.state") s.last = Date.now();
-  return s;
+  return s; // only session.touch / login / unlock are activity (OF-012)
 }
 const stateOf = (s: Session) => ({
   locked: s.locked,
@@ -205,8 +204,12 @@ function call(method: string, p: any, token: string | null): unknown {
       return {};
     }
     case "session.state":
-    case "session.touch":
       return stateOf(s);
+    case "session.touch": {
+      const at = Date.now() - Math.min(p.idle_ms ?? 0, state.settings.session_timeout_minutes * 60_000);
+      if (!s.locked && at > s.last) s.last = at;
+      return stateOf(s);
+    }
     case "session.lock":
       s.locked = true;
       record(s.user, "session.lock", "app_user");

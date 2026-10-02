@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Building2, DatabaseBackup, Info, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Unlock, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
-import { onSessionError, rpc } from "../lib/api";
+import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
 import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
@@ -28,13 +28,15 @@ type Tab = "clinic" | "users" | "backup" | "audit" | "settings" | "system";
 const ICONS: Record<Tab, LucideIcon> = { clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
 
 /**
- * OF-008: UI activity (mouse, keyboard, wheel) is the single source of
- * "the user is working": it is reported to the Core as a heartbeat at most
- * every HEARTBEAT_MS, so the Core's idle timer never runs out under a user
- * who is busy in the UI without sending other requests.
+ * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
+ * "the user is working". It is reported to the Core every HEARTBEAT_MS with
+ * how long ago it happened, so the Core's idle timer is exact; background
+ * requests never count. The UI asks the Core again exactly when the lock is
+ * due (`idle_seconds_left`), so the screen locks on time, not up to a poll later.
  */
-const HEARTBEAT_MS = 5_000;
-const POLL_MS = 10_000;
+const HEARTBEAT_MS = 3_000;
+/** Longest wait between two lock checks (also covers a timeout changed elsewhere). */
+const MAX_CHECK_MS = 15_000;
 
 export function Shell({
   session,
@@ -80,6 +82,7 @@ export function Shell({
   const lastReport = useRef(Date.now());
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
+  const checkNow = useRef<() => void>(() => {});
 
   const loadClinic = useCallback(() => {
     rpc("clinic.get", {})
@@ -101,14 +104,28 @@ export function Shell({
     };
     const events = ["pointermove", "pointerdown", "keydown", "wheel"] as const;
     events.forEach((ev) => window.addEventListener(ev, activity, { passive: true }));
+    let checkTimer = 0;
+    const follow = (st: { locked: boolean; idle_seconds_left: number }) => {
+      window.clearTimeout(checkTimer);
+      if (st.locked) return setLocked(true);
+      const ms = Math.min(Math.max(st.idle_seconds_left * 1000 + 400, 1000), MAX_CHECK_MS);
+      checkTimer = window.setTimeout(check, ms);
+    };
+    const check = () => {
+      if (lockedRef.current) return;
+      rpc("session.state", {}).then(follow).catch(() => {
+        window.clearTimeout(checkTimer);
+        checkTimer = window.setTimeout(check, 5_000);
+      });
+    };
+    checkNow.current = check;
+    check();
     const heartbeat = window.setInterval(() => {
       if (lockedRef.current || lastActivity.current <= lastReport.current) return;
       lastReport.current = Date.now();
-      rpc("session.touch", {}).catch(() => {});
+      rpc("session.touch", { idle_ms: Math.max(0, Date.now() - lastActivity.current) }).then(follow).catch(() => {});
     }, HEARTBEAT_MS);
-    const poll = window.setInterval(() => {
-      rpc("session.state", {}).then((s) => s.locked && setLocked(true)).catch(() => {});
-    }, POLL_MS);
+    window.addEventListener(SESSION_CHECK_EVENT, check);
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
@@ -117,7 +134,8 @@ export function Shell({
       off();
       events.forEach((ev) => window.removeEventListener(ev, activity));
       window.clearInterval(heartbeat);
-      window.clearInterval(poll);
+      window.clearTimeout(checkTimer);
+      window.removeEventListener(SESSION_CHECK_EVENT, check);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
@@ -138,8 +156,10 @@ export function Shell({
   const logout = () => rpc("auth.logout", {}).finally(onSignOut);
   const unlocked = () => {
     lastActivity.current = lastReport.current = Date.now();
+    lockedRef.current = false;
     setLocked(false);
     setGeneration((g) => g + 1);
+    window.setTimeout(() => checkNow.current(), 0);
   };
 
   const paletteItems: PaletteItem[] = tabs.map((x) => ({ id: x, label: t(`nav.${x}`), icon: ICONS[x], onSelect: () => setTab(x) }));

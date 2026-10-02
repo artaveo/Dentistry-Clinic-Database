@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Archive, DatabaseBackup, Save, ShieldCheck, Timer } from "lucide-react";
 import type { Settings } from "../../../shared/ts/contract";
-import { isSessionError, rpc } from "../lib/api";
+import { SESSION_CHECK_EVENT, isSessionError, rpc } from "../lib/api";
 import { digits, latinDigits } from "../lib/dates";
 import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
@@ -50,6 +50,8 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         backup_keep_daily: Number(latinDigits(form.values.backup_keep_daily)),
       });
       onSaved(saved);
+      // A new auto-lock time applies at once, without signing in again (OF-012).
+      window.dispatchEvent(new Event(SESSION_CHECK_EVENT));
       toast.success(t("common.saved"));
     } catch (x) {
       if (x && (x as { field?: string }).field === "daily_backup_hour") setHourError(t("rule.backup_hour_range"));

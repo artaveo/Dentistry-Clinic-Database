@@ -245,6 +245,29 @@ test("lock screen: a stale «locked» answer never survives unlocking (OF-008)",
   await expect(page.getByTestId("si-version")).toBeVisible();
 });
 
+test("auto-lock: «1 minute» locks 60–65 s after the last input, applied at once (OF-012)", async () => {
+  test.setTimeout(150_000);
+  await page.getByTestId("tab-settings").click();
+  await page.getByTestId("setting-session_timeout_minutes").fill("1");
+  await page.getByTestId("settings-save").click();
+  await expect(toast()).toHaveText("تغییرات ذخیره شد.");
+  // About refreshes itself every 5 s in the background: that must not count as activity.
+  await page.getByTestId("tab-system").click();
+  const lastInput = Date.now();
+  await expect(page.getByTestId("lock-screen")).toBeVisible({ timeout: 90_000 });
+  const seconds = (Date.now() - lastInput) / 1000;
+  expect(seconds).toBeGreaterThanOrEqual(58);
+  expect(seconds).toBeLessThanOrEqual(65);
+  await page.getByTestId("unlock-password").fill(OWNER.pass);
+  await page.getByTestId("unlock").click();
+  await expect(page.getByTestId("lock-screen")).toBeHidden();
+  await page.getByTestId("tab-settings").click();
+  await page.getByTestId("setting-session_timeout_minutes").fill("10");
+  await page.getByTestId("settings-save").click();
+  await expect(toast()).toHaveText("تغییرات ذخیره شد.");
+  await page.getByTestId("tab-system").click();
+});
+
 test("change password validates live in its dialog", async () => {
   await openUserMenu();
   await page.getByTestId("change-password").click();
