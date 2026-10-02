@@ -32,6 +32,11 @@ cargo test -p artaveo-core -p artaveo-shared          # تست‌های Core و 
 cargo run -p artaveo-core --features dev-server --bin artaveo-dev-server -- --data-dir .artaveo-development
 cd ui && npm ci && npm run dev                          # http://localhost:5173
 
+# UI بدون Rust (کامپیوتری که Core را نمی‌سازد): Core شبیه‌سازی‌شده در مرورگر، فقط برای کار UI و اسکرین‌شات
+cd ui && VITE_MOCK=1 npx vite --port 5199                # ?mock=seeded = کلینیک آماده با داده نمونه
+node scripts/design-screens.mjs http://127.0.0.1:5199 ../docs/design/screenshots/<version>   # اسکرین‌شات طراحی
+node scripts/guide-screens.mjs http://127.0.0.1:5199     # عکس‌های راهنمای تست دستی
+
 cd ui && npx playwright test                            # E2E (dev server را خودش اجرا می‌کند؛ قبلش cargo build --features dev-server)
 cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir /tmp/big --audit 100000
 

@@ -4,6 +4,7 @@ import iconSvg from "../assets/brand/icon.svg";
 import lockupLight from "../assets/brand/lockup-compact-light.png";
 import lockupDark from "../assets/brand/lockup-compact-dark.png";
 import master from "../assets/brand/logo-master.png";
+import monoWhite from "../assets/brand/mono-white.svg";
 
 export const brandAssets = { icon: iconSvg, lockupLight, lockupDark, master };
 
@@ -17,8 +18,14 @@ export function ArtaveoLockup({ height = 30 }: { height?: number }) {
   );
 }
 
+/** The flat mark; the official single-colour white version on dark surfaces. */
 export function ArtaveoMark({ size = 18 }: { size?: number }) {
-  return <img src={iconSvg} alt="" width={size} height={size} />;
+  return (
+    <>
+      <img className="only-light" src={iconSvg} alt="" width={size} height={size} />
+      <img className="only-dark" src={monoWhite} alt="" width={size} height={size} />
+    </>
+  );
 }
 
 /** First visible letter of a name (skips spaces/ZWNJ), for avatars and the clinic badge. */

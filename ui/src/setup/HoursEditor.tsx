@@ -21,11 +21,11 @@ export function HoursEditor({ hours, onChange }: { hours: DayHours[]; onChange: 
           <Switch
             checked={!h.closed}
             onChange={(open) => setDay(h.day, open ? { closed: false, open: "08:00", close: "16:00" } : { closed: true, open: null, close: null })}
-            label={h.closed ? t("wizard.hours.closed") : t("wizard.hours.open")}
+            label={<span className="visually-hidden">{t(`wizard.day.${h.day}`)}: {h.closed ? t("wizard.hours.closed") : t("wizard.hours.open")}</span>}
             testId={`day-${h.day}-open`}
           />
           {h.closed ? (
-            <span className="closed">—</span>
+            <span className="closed">{t("wizard.hours.closed")}</span>
           ) : (
             <div className="times">
               <TimePicker12 value={h.open ?? "08:00"} onChange={(v) => setDay(h.day, { open: v })} label={t("wizard.hours.from")} testId={`day-${h.day}-from`} />

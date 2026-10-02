@@ -1,0 +1,80 @@
+// Screenshots for docs/testing/v0.2.1-manual-test.md (Dari, light), taken
+// against the simulated Core: `VITE_MOCK=1 npx vite --port 5199`, then
+//   node scripts/guide-screens.mjs http://127.0.0.1:5199
+import { chromium } from "@playwright/test";
+import fs from "node:fs";
+
+const base = process.argv[2] ?? "http://127.0.0.1:5199";
+const out = "../docs/testing/img/v0.2.1";
+fs.mkdirSync(out, { recursive: true });
+const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: "msedge" });
+const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+await ctx.addInitScript(() => {
+  localStorage.setItem("artaveo.lang", "fa");
+  localStorage.setItem("artaveo.theme", "light");
+  localStorage.setItem("artaveo.perf", "full");
+});
+const p = await ctx.newPage();
+const id = (x) => p.getByTestId(x);
+const shot = async (n) => {
+  await p.waitForTimeout(450);
+  await p.screenshot({ path: `${out}/${n}.png` });
+  console.log(n);
+};
+
+await p.goto(`${base}/?mock=fresh`);
+await id("splash").waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
+await shot("01-welcome");
+await id("wizard-start").click();
+await id("wizard-next").click();
+await id("wizard-next").click();
+await id("setup-clinic").fill("کلینیک دندان‌پزشکی لبخند");
+await id("setup-phone").fill("abc");
+await shot("02-clinic-info-phone-error");
+await id("setup-phone").fill("0700 123 456");
+await id("wizard-next").click();
+await id("working-hours").scrollIntoViewIfNeeded();
+await shot("03-hours-12h");
+for (let i = 0; i < 5; i++) await id("wizard-next").click();
+await id("setup-display").fill("داکتر احمد رحیمی");
+await id("setup-username").fill("احمد");
+await id("setup-password").fill("1234");
+await shot("04-owner-live-validation");
+await id("setup-username").fill("owner");
+await id("setup-password").fill("owner-pass-123");
+await id("setup-repeat").fill("owner-pass-123");
+await id("setup-create").click();
+await id("recovery-key").waitFor();
+await shot("05-recovery-key");
+await id("recovery-confirm").check();
+await id("recovery-continue").click();
+await id("login-username").waitFor();
+await shot("06-login");
+await id("login-username").fill("owner");
+await id("login-password").fill("owner-pass-123");
+await id("login-submit").click();
+await id("tab-system").waitFor();
+await shot("07-shell-about");
+await id("command-palette-open").click();
+await id("command-palette-input").fill("کار");
+await shot("08-command-palette");
+await p.keyboard.press("Escape");
+await id("current-user").click();
+await shot("09-user-menu");
+await p.keyboard.press("Escape");
+await id("tab-users").click();
+await id("add-user-open").click();
+await id("new-display").fill("مریم کریمی");
+await id("new-username").fill("مریم");
+await shot("10-add-user-validation");
+await p.keyboard.press("Escape");
+await id("tab-settings").click();
+await id("page-settings").waitFor();
+await shot("11-settings-12h");
+await id("current-user").click();
+await id("lock").click();
+await id("unlock-password").fill("wrong-pass");
+await id("unlock").click();
+await id("lock-screen").getByRole("alert").waitFor();
+await shot("12-lock-screen");
+await b.close();

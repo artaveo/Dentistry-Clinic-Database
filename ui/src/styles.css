@@ -282,6 +282,8 @@ a:hover { text-decoration: underline; }
   font-size: var(--text-body);
 }
 .control input::placeholder { color: var(--text-3); opacity: .8; }
+/* WebView2/Edge adds its own reveal and clear buttons; ours replace them. */
+.control input::-ms-reveal, .control input::-ms-clear { display: none; }
 .control select { appearance: none; cursor: pointer; padding-inline-end: 36px; }
 .control select option { background: var(--glass-overlay); color: var(--text); }
 .control .control-icon { display: grid; place-items: center; color: var(--text-3); padding-inline-start: var(--space-3); flex: none; }
@@ -496,10 +498,11 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 /* ───────────── time picker (OF-007) ───────────── */
 .timepicker { display: inline-flex; align-items: center; gap: var(--space-2); }
 .timepicker .control { height: 36px; }
-.timepicker select { padding: 0 28px 0 10px; padding-inline-start: 10px; padding-inline-end: 28px; min-width: 64px; font-variant-numeric: tabular-nums; }
+.timepicker { gap: 6px; }
+.timepicker select { padding-inline: 10px 24px; min-width: 56px; font-variant-numeric: tabular-nums; }
 .timepicker .control .chevron { inset-inline-end: 8px; width: 14px; height: 14px; }
 .timepicker .sep { color: var(--text-3); font-weight: 600; }
-.timepicker .segmented button { height: 28px; padding: 0 10px; }
+.timepicker .segmented button { height: 28px; padding: 0 8px; }
 .timepicker .segmented { padding: 2px; }
 
 /* ───────────── color swatches ───────────── */
@@ -514,10 +517,10 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 
 /* ───────────── working hours ───────────── */
 .hours { display: flex; flex-direction: column; }
-.hours-row { display: grid; grid-template-columns: 120px 140px 1fr; align-items: center; gap: var(--space-4); min-height: 56px; border-bottom: 1px solid var(--line); }
+.hours-row { display: grid; grid-template-columns: 96px 52px minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 56px; padding-block: 6px; border-bottom: 1px solid var(--line); }
 .hours-row:last-child { border-bottom: none; }
 .hours-row .day { font-weight: 550; }
-.hours-row .times { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.hours-row .times { display: flex; align-items: center; gap: var(--space-2) var(--space-3); flex-wrap: wrap; }
 .hours-row .times .to { color: var(--text-3); }
 .hours-row .closed { color: var(--text-3); }
 
@@ -620,7 +623,7 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 .step.current { color: var(--text); font-weight: 600; }
 .step.current .step-dot { border-color: var(--accent-text); color: var(--accent-text); box-shadow: 0 0 0 4px var(--accent-soft); }
 .setup-main { display: flex; flex-direction: column; padding: var(--space-8) var(--space-7); overflow: auto; }
-.setup-card { margin: auto; width: min(640px, 100%); border-radius: 20px; padding: var(--space-8); display: flex; flex-direction: column; gap: var(--space-6); box-shadow: var(--glass-highlight), var(--shadow-2); animation: page-in var(--dur-slow) var(--ease); }
+.setup-card { margin: auto; width: min(760px, 100%); border-radius: 20px; padding: var(--space-8); display: flex; flex-direction: column; gap: var(--space-6); box-shadow: var(--glass-highlight), var(--shadow-2); animation: page-in var(--dur-slow) var(--ease); }
 .setup-head { display: flex; flex-direction: column; gap: var(--space-2); }
 .setup-head .step-count { color: var(--accent-text); font-weight: 600; font-size: 13px; }
 .setup-actions { display: flex; align-items: center; gap: var(--space-2); padding-top: var(--space-5); border-top: 1px solid var(--line); }
@@ -698,10 +701,10 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 /* ───────────── login: Artaveo brand panel + clinic sign-in ───────────── */
 .auth-split { min-height: 100%; display: grid; grid-template-columns: minmax(400px, 44%) minmax(0, 1fr); }
 .auth-brand-panel { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-5); padding: var(--space-8);
-  background: radial-gradient(70% 60% at 50% 42%, #15171c 0%, #07080a 70%), #050608; color: #c9ccd3; order: 2; }
+  background: #000; color: #c9ccd3; order: 2; }
 [dir="rtl"] .auth-brand-panel { order: 2; }
 .auth-brand-panel::after { content: ""; position: absolute; inset: 0; background: radial-gradient(40% 30% at 50% 48%, rgba(212, 162, 76, .10), transparent 70%); pointer-events: none; }
-.auth-brand-art { width: min(420px, 80%); height: auto; }
+.auth-brand-art { width: min(440px, 82%); height: auto; /* soft edges so the artwork melts into the panel */ -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); }
 .auth-brand-caption { position: absolute; bottom: var(--space-7); inset-inline: var(--space-7); display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-size: 13px; color: #9aa0ab; }
 .auth-brand-name { color: #e9e3d6; font-weight: 600; letter-spacing: .02em; }
 .auth-form-panel { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: var(--space-9) var(--space-8); order: 1;
@@ -710,3 +713,4 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 .auth-form .auth-clinic { flex-direction: row; align-items: center; gap: var(--space-4); margin-bottom: var(--space-2); }
 .auth-form-panel .auth-footer { gap: var(--space-2); }
 @media (max-width: 860px) { .auth-split { grid-template-columns: 1fr; } .auth-brand-panel { display: none; } }
+.field > .segmented { align-self: flex-start; }

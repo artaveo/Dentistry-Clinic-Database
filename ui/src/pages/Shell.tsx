@@ -196,7 +196,7 @@ export function Shell({
           <LangSwitch />
           <div className="version">
             <ArtaveoMark size={16} />
-            <span>Artaveo Dental <bdi className="ltr num">{version}</bdi></span>
+            <bdi className="ltr">Artaveo Dental {version}</bdi>
           </div>
         </div>
       </aside>
