@@ -7,7 +7,10 @@ import { expect, test, type Page } from "@playwright/test";
 test.describe.configure({ mode: "serial" });
 
 let page: Page;
-const OWNER = { user: "owner", pass: "owner-pass-123" };
+// app.spec.ts's last test recovers the owner's password via the Recovery
+// Key, so by the time this file runs the real password is this one, not
+// the original "owner-pass-123" set up at the very start of that file.
+const OWNER = { user: "owner", pass: "recovered-pass-1" };
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
