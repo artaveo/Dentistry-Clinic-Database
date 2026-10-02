@@ -241,7 +241,8 @@ pub fn check_duplicate(conn: &Connection, full_name: &str, phone: Option<&str>) 
         None => name_phrase,
     };
     let mut stmt = conn.prepare(&format!(
-        "{PATIENT_SELECT} AND id IN (SELECT patient_id FROM patient_fts WHERE patient_fts MATCH ?1)
+        "{PATIENT_SELECT} AND merged_into_id IS NULL
+         AND id IN (SELECT patient_id FROM patient_fts WHERE patient_fts MATCH ?1)
          ORDER BY registration_date DESC LIMIT 5"
     ))?;
     let rows: Vec<PatientInfo> =
@@ -493,7 +494,9 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         params![p.keep_id, now_iso(), actor.user_id, p.merge_id, p.merge_id_version],
     )?;
     expect_one_row(changed, "patient")?;
-    fts_delete(conn, &p.merge_id)?;
+    // Stays searchable (staff may still look the old name up and need to be
+    // redirected to `keep`); only `check_duplicate` excludes merged-away
+    // records, via `merged_into_id IS NULL` below.
     let merge_after = get_patient(conn, &p.merge_id)?;
     audit::record(
         conn,
