@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, DatabaseBackup, Info, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Unlock, Users } from "lucide-react";
+import { Building2, DatabaseBackup, Info, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -11,6 +11,7 @@ import { LangSwitch } from "./LangSwitch";
 import { SystemInfoPage } from "./SystemInfo";
 import { BackupPage } from "./Backup";
 import { UsersPage } from "./Users";
+import { PatientsPage } from "./patients/PatientsPage";
 import { AuditPage } from "./Audit";
 import { ClinicPage } from "./Clinic";
 import { SettingsPage } from "./Settings";
@@ -24,8 +25,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "clinic" | "users" | "backup" | "audit" | "settings" | "system";
-const ICONS: Record<Tab, LucideIcon> = { clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
+type Tab = "patients" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
+const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -56,6 +57,7 @@ export function Shell({
   const { t } = useI18n();
   const can = (p: string) => session.permissions.includes(p);
   const groups = [
+    { label: t("nav.group.patients"), tabs: can("patients.view") ? (["patients"] as Tab[]) : [] },
     { label: t("nav.group.clinic"), tabs: can("settings.manage") ? (["clinic"] as Tab[]) : [] },
     {
       label: t("nav.group.admin"),
@@ -222,6 +224,7 @@ export function Shell({
       </aside>
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
+        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} />}
         {tab === "system" && <SystemInfoPage version={version} />}
         {tab === "backup" && <BackupPage canCreate={can("backup.create")} calendar={clinic?.calendar_system} />}
         {tab === "users" && <UsersPage currentUserId={session.user.id} />}

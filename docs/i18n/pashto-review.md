@@ -4,7 +4,7 @@
 > (`node ui/scripts/export-pashto-review.mjs`). هر بار که متن‌های رابط
 > برنامه تغییر کنند، دوباره ساخته می‌شود. راهنمای بازبینی: [README.md](README.md).
 
-تعداد متن‌ها: 375
+تعداد متن‌ها: 514
 
 | کلید (فقط برای توسعه‌دهنده) | English (مرجع) | دری (مرجع — تأییدشده) | پښتو (نیازمند بازبینی) | یادداشت بازبینی |
 |---|---|---|---|---|
@@ -14,6 +14,7 @@
 | `lang.en` | English | English | English | |
 | `common.save` | Save | ذخیره | ساتل | |
 | `common.cancel` | Cancel | لغو | لغوه | |
+| `common.edit` | Edit | ویرایش | سمون | |
 | `common.loading` | Loading… | در حال بارگذاری… | پورته کېږي… | |
 | `common.saved` | Changes saved. | تغییرات ذخیره شد. | بدلونونه وساتل شول. | |
 | `setup.title` | Clinic setup | راه‌اندازی کلینیک | د کلینیک جوړول | |
@@ -278,7 +279,8 @@
 | `shell.perf.hint` | For slower computers: turns off glass effects and heavy shadows. | برای کامپیوترهای ضعیف: افکت شیشه‌ای و سایه‌های سنگین خاموش می‌شوند. | د کمزورو کمپیوټرونو لپاره: د ښیښې اغېز او درانه سیوري بندېږي. | |
 | `system.subtitle` | App version and the security and health of this computer's data. | نسخه برنامه، وضعیت امنیت و سلامت اطلاعات این کامپیوتر. | د پروګرام نسخه، د دې کمپیوټر د معلوماتو امنیت او روغتیا. | |
 | `system.tagline` | Dental clinic management — offline, encrypted and in three languages. | نرم‌افزار مدیریت کلینیک دندان‌پزشکی — آفلاین، رمزنگاری‌شده و سه‌زبانه. | د غاښونو د کلینیک د مدیریت پروګرام — آفلاین، کوډ شوی او درې ژبی. | |
-| `system.support` | Support: contact the Artaveo representative who installed the app for you. | پشتیبانی: با نماینده Artaveo که برنامه را برای شما نصب کرده تماس بگیرید. | ملاتړ: د Artaveo له هغه استازي سره اړیکه ونیسئ چې پروګرام یې درته نصب کړی. | |
+| `system.byArtaveo` | by Artaveo | ساخته‌شده توسط Artaveo | جوړ شوی د Artaveo لخوا | |
+| `system.support` | Artaveo support | پشتیبانی Artaveo | د Artaveo ملاتړ | |
 | `system.details` | Technical details | جزئیات فنی | تخنیکي جزییات | |
 | `system.detailsHint` | For technical support; not needed for daily work. | برای پشتیبانی فنی؛ در کار روزمره لازم نیست. | د تخنیکي ملاتړ لپاره؛ په ورځني کار کې اړتیا نشته. | |
 | `system.emulatedTitle` | Wrong version for this computer | نسخه نامناسب برای این کامپیوتر | د دې کمپیوټر لپاره ناسمه نسخه | |
@@ -383,3 +385,140 @@
 | `wizard.backup.encryptedHint` | Every backup is encrypted and verified. | هر پشتیبان رمزنگاری و بعد از گرفتن بررسی می‌شود. | هر بیک اپ کوډ کېږي او له اخیستو وروسته کتل کېږي. | |
 | `wizard.owner.hint` | The owner can do everything, and only the owner can recover access with the recovery key. | مالک همه اختیارات را دارد و فقط او می‌تواند با کلید بازیابی رمز را بازیابی کند. | مالک ټول واکونه لري او یوازې هغه کولی شي د بیا راګرځولو کیلي سره پټنوم بیا ترلاسه کړي. | |
 | `wizard.recovery.done` | Clinic created ✓ | کلینیک ساخته شد ✓ | کلینیک جوړ شو ✓ | |
+| `system.supportPhone` | Phone & WhatsApp | تلفن و واتساپ | تلیفون او واټساپ | |
+| `system.supportEmail` | Email | ایمیل | برېښنالیک | |
+| `system.supportWebsite` | Website | وب‌سایت | وېب‌پاڼه | |
+| `nav.patients` | Patients | بیماران | ناروغان | |
+| `nav.group.patients` | Patients | بیماران | ناروغان | |
+| `patients.title` | Patients | بیماران | ناروغان | |
+| `patients.subtitle` | Register, search and manage the clinic's patients | ثبت، جستجو و پرونده پزشکی بیماران کلینیک | د کلینیک د ناروغانو ثبت، لټون او طبي فایل | |
+| `patients.add` | Add patient | افزودن بیمار | ناروغ اضافه کول | |
+| `patients.addHint` | Enter the patient's details; only the full name is required. | اطلاعات بیمار را وارد کنید؛ فقط نام کامل الزامی است. | د ناروغ معلومات ولیکئ؛ یوازې بشپړ نوم اړین دی. | |
+| `patients.editTitle` | Edit patient | ویرایش بیمار | د ناروغ سمون | |
+| `patients.search.placeholder` | Search by name, father's name, patient number or phone… | جستجو بر اساس نام، نام پدر، شماره بیمار یا شماره تماس… | د نوم، د پلار نوم، د ناروغ شمېره یا د اړیکې شمېره په اساس لټون… | |
+| `patients.empty` | No patients registered yet | هنوز بیماری ثبت نشده است | تر اوسه هیڅ ناروغ نه دی ثبت شوی | |
+| `patients.emptySearch` | No patient matches this search | بیماری با این مشخصات پیدا نشد | د دې مشخصاتو سره ناروغ ونه موندل شو | |
+| `patients.column.number` | Patient # | شماره بیمار | د ناروغ شمېره | |
+| `patients.column.name` | Full name | نام کامل | بشپړ نوم | |
+| `patients.column.father` | Father's name | نام پدر | د پلار نوم | |
+| `patients.column.phone` | Phone | شماره تماس | د اړیکې شمېره | |
+| `patients.column.status` | Status | وضعیت | حالت | |
+| `patients.column.registered` | Registered | تاریخ ثبت | د ثبت نېټه | |
+| `patients.status.active` | Active | فعال | فعال | |
+| `patients.status.inactive` | Inactive | غیرفعال | غیرفعال | |
+| `patients.created` | Patient registered. | بیمار ثبت شد. | ناروغ ثبت شو. | |
+| `patients.saved` | Changes saved. | تغییرات ذخیره شد. | بدلونونه وساتل شول. | |
+| `patients.deleted` | Patient record deleted. | پرونده بیمار حذف شد. | د ناروغ فایل ړنګ شو. | |
+| `patients.delete` | Delete patient | حذف بیمار | د ناروغ ړنګول | |
+| `patients.deleteConfirm` | Delete this patient record? This can be traced in the event log. | این پرونده بیمار حذف شود؟ این کار در گزارش رویدادها قابل پیگیری است. | دا د ناروغ فایل ړنګ شي؟ دا کار د پېښو په راپور کې د تعقیب وړ دی. | |
+| `patients.back` | Back to patients | بازگشت به فهرست بیماران | د ناروغانو فهرست ته بیرته | |
+| `patients.import` | Import from file | ورود از فایل | د فایل څخه راوړل | |
+| `patients.export` | Export to Excel/CSV | خروجی اکسل/CSV | د اکسل/CSV وتل | |
+| `patients.merge` | Merge with another patient | ادغام با پرونده دیگر | د بل فایل سره یوځای کول | |
+| `patient.field.fullName` | Full name | نام کامل | بشپړ نوم | |
+| `patient.field.fatherName` | Father's name | نام پدر | د پلار نوم | |
+| `patient.field.phone` | Phone | شماره تماس | د اړیکې شمېره | |
+| `patient.field.secondaryPhone` | Secondary phone | شماره تماس دوم | دویمه اړیکه شمېره | |
+| `patient.field.gender` | Gender | جنسیت | جنس | |
+| `patient.field.dateOfBirth` | Date of birth | تاریخ تولد | د زېږېدو نېټه | |
+| `patient.field.approximateAge` | Approximate age | سن تقریبی | اټکلي عمر | |
+| `patient.field.preferredLanguage` | Preferred language | زبان مورد نظر بیمار | د ناروغ غوره ژبه | |
+| `patient.field.address` | Address | آدرس | پته | |
+| `patient.field.emergencyName` | Emergency contact name | نام تماس اضطراری | د بیړني اړیکې نوم | |
+| `patient.field.emergencyPhone` | Emergency contact phone | شماره تماس اضطراری | د بیړني اړیکې شمېره | |
+| `patient.field.emergencyRelationship` | Relationship | نسبت | خپلوي اړیکه | |
+| `patient.field.referralSource` | How did they hear about the clinic? | چطور با کلینیک آشنا شدید؟ | له کلینیک سره څنګه آشنا شوئ؟ | |
+| `patient.field.notes` | Notes | یادداشت | یادداښت | |
+| `patient.field.registrationDate` | Registration date | تاریخ ثبت‌نام | د نوم لیکنې نېټه | |
+| `patient.field.status` | Status | وضعیت | حالت | |
+| `patient.section.identity` | Identity | اطلاعات هویتی | د پېژندنې معلومات | |
+| `patient.section.contact` | Contact & address | تماس و آدرس | اړیکه او پته | |
+| `patient.section.emergency` | Emergency contact | تماس اضطراری | بیړنۍ اړیکه | |
+| `patient.section.other` | Other information | سایر اطلاعات | نور معلومات | |
+| `patients.duplicate.title` | Possible duplicate patient | احتمال بیمار تکراری | د ناروغ د تکرار شونتیا | |
+| `patients.duplicate.body` | The following patient(s) already have a similar name or phone number: | بیمار(های) زیر با نام یا شماره تماس مشابه قبلاً ثبت شده‌اند: | لاندې ناروغ(ان) د ورته نوم یا اړیکې شمېرې سره دمخه ثبت شوي دي: | |
+| `patients.duplicate.continueAnyway` | Register as a new patient anyway | ثبت به‌عنوان بیمار جدید | د نوي ناروغ په توګه ثبت کول | |
+| `patients.merge.title` | Merge with another patient | ادغام با پرونده دیگر | د بل فایل سره یوځای کول | |
+| `patients.merge.hint` | Search for and select the patient to fold into this record. | بیماری که باید در این پرونده ادغام شود را جستجو و انتخاب کنید. | هغه ناروغ ولټوئ او وټاکئ چې باید په دې فایل کې یوځای شي. | |
+| `patients.merge.search.placeholder` | Search for the surviving patient… | جستجوی بیمار مقصد… | د موخې ناروغ لټون… | |
+| `patients.merge.warning` | This record becomes inactive and folds into the selected one. This can be traced in the event log. | این پرونده غیرفعال و به پرونده انتخاب‌شده منتقل می‌شود. این کار در گزارش رویدادها قابل پیگیری است. | دا فایل به غیرفعال شي او ټاکل شوي فایل ته به لېږدول شي. دا کار د پېښو په راپور کې د تعقیب وړ دی. | |
+| `patients.merge.confirm` | Merge | ادغام | یوځای کول | |
+| `patients.merge.done` | Records merged. | پرونده‌ها ادغام شدند. | فایلونه یوځای شول. | |
+| `patients.tab.overview` | Overview | نمای کلی | عمومي کتنه | |
+| `patients.tab.medicalHistory` | Medical History | سوابق پزشکی | طبي سوابق | |
+| `patients.tab.appointments` | Appointments | نوبت‌ها | وختونه | |
+| `patients.tab.dentalChart` | Dental Chart | چارت دندان | د غاښونو چارت | |
+| `patients.tab.clinicalNotes` | Clinical Notes | یادداشت‌های بالینی | باليني یادداښتونه | |
+| `patients.tab.treatmentPlans` | Treatment Plans | پلان‌های درمانی | د درملنې پلانونه | |
+| `patients.tab.treatments` | Treatments | درمان‌ها | درملنې | |
+| `patients.tab.prescriptions` | Prescriptions | نسخه‌ها | نسخې | |
+| `patients.tab.invoices` | Invoices | فاکتورها | فاکتورونه | |
+| `patients.tab.payments` | Payments | پرداخت‌ها | تادیات | |
+| `patients.tab.documents` | Documents & Images | اسناد و تصاویر | اسناد او انځورونه | |
+| `patients.tab.timeline` | Timeline | جدول زمانی | مهالویش | |
+| `patients.tab.audit` | Audit History | تاریخچه تغییرات | د بدلونونو تاریخچه | |
+| `patients.tab.comingSoon` | Available in a later phase | در فاز بعدی برنامه فعال می‌شود | په راتلونکې مرحله کې به فعال شي | |
+| `medicalHistory.title` | Medical History | سوابق پزشکی | طبي سوابق | |
+| `medicalHistory.subtitle` | Allergies, medications, chronic conditions and dental history | حساسیت، داروها، بیماری‌های مزمن و سوابق دندان‌پزشکی بیمار | د ناروغ حساسیت، درمل، مزمن ناروغۍ او د غاښونو سوابق | |
+| `medicalHistory.allergies` | Allergies | حساسیت‌های دارویی/غذایی | د درملو/خوراکي حساسیتونه | |
+| `medicalHistory.currentMedications` | Current medications | داروهای مصرفی فعلی | اوسني مصرفېدونکي درمل | |
+| `medicalHistory.chronicConditions` | Chronic conditions | بیماری‌های مزمن | مزمنې ناروغۍ | |
+| `medicalHistory.dentalHistory` | Dental history | سوابق دندان‌پزشکی | د غاښونو درملنې سوابق | |
+| `medicalHistory.previousSurgeries` | Previous surgeries | جراحی‌های قبلی | پخوانۍ جراحۍ | |
+| `medicalHistory.notes` | Relevant notes | یادداشت‌های مرتبط | اړونده یادداښتونه | |
+| `medicalHistory.empty` | No medical history recorded for this patient | سابقه پزشکی برای این بیمار ثبت نشده | د دې ناروغ لپاره طبي سوابق نه دي ثبت شوي | |
+| `medicalHistory.saved` | Medical history saved. | سوابق پزشکی ذخیره شد. | طبي سوابق وساتل شول. | |
+| `medicalHistory.alertEmpty` | No medical alert on record | هشدار پزشکی ثبت نشده | طبي خبرداری نه دی ثبت شوی | |
+| `attachments.title` | Documents & Images | اسناد و تصاویر | اسناد او انځورونه | |
+| `attachments.subtitle` | X-rays, photos, scans and documents | تصویر رادیوگرافی، عکس، اسکن و اسناد بیمار | د ناروغ رادیوګرافي انځور، عکس، سکن او اسناد | |
+| `attachments.add` | Add attachment | افزودن پیوست | ضمیمه اضافه کول | |
+| `attachments.empty` | No attachments yet | هنوز پیوستی اضافه نشده | تر اوسه هیڅ ضمیمه نه ده اضافه شوې | |
+| `attachments.kind.xray` | X-ray | رادیوگرافی | رادیوګرافي | |
+| `attachments.kind.photo` | Dental photo | عکس دندان | د غاښونو عکس | |
+| `attachments.kind.document` | Document | سند | سند | |
+| `attachments.kind.scan` | Scan | اسکن | سکن | |
+| `attachments.kind.consent_form` | Consent form | فرم رضایت | د رضایت فورمه | |
+| `attachments.kind.other` | Other | سایر | نور | |
+| `attachments.field.kind` | Type | نوع | ډول | |
+| `attachments.field.file` | File | فایل | فایل | |
+| `attachments.field.tooth` | Related tooth (optional) | دندان مرتبط (اختیاری) | اړونده غاښ (اختیاري) | |
+| `attachments.field.description` | Description | توضیح | تشریح | |
+| `attachments.uploaded` | Attachment added. | پیوست اضافه شد. | ضمیمه اضافه شوه. | |
+| `attachments.delete` | Delete attachment | حذف پیوست | د ضمیمې ړنګول | |
+| `attachments.deleteConfirm` | Delete this attachment? | این پیوست حذف شود؟ | دا ضمیمه ړنګه شي؟ | |
+| `attachments.deleted` | Attachment deleted. | پیوست حذف شد. | ضمیمه ړنګه شوه. | |
+| `attachments.viewer.zoomIn` | Zoom in | بزرگ‌نمایی | لویول | |
+| `attachments.viewer.zoomOut` | Zoom out | کوچک‌نمایی | کوچول | |
+| `attachments.viewer.reset` | Reset view | بازنشانی نما | د کتنې بیا تنظیم | |
+| `attachments.viewer.brightness` | Brightness | روشنایی | روڼتیا | |
+| `attachments.viewer.contrast` | Contrast | کنتراست | تضاد | |
+| `attachments.viewer.download` | Download | دانلود | ډاونلوډ | |
+| `patients.import.title` | Import patients from CSV | ورود بیماران از فایل CSV | د CSV فایل څخه د ناروغانو راوړل | |
+| `patients.import.hint` | The CSV file must have this header row: full_name,father_name,phone,secondary_phone,date_of_birth,address | فایل CSV باید این سرستون‌ها را داشته باشد: full_name,father_name,phone,secondary_phone,date_of_birth,address | د CSV فایل باید دا سرلیکونه ولري: full_name,father_name,phone,secondary_phone,date_of_birth,address | |
+| `patients.import.choose` | Choose CSV file | انتخاب فایل CSV | د CSV فایل ټاکل | |
+| `patients.import.preview` | Preview result | پیش‌نمایش نتیجه | د پایلې مخکتنه | |
+| `patients.import.commit` | Import patients | وارد کردن بیماران | د ناروغانو راوړل | |
+| `patients.import.total` | Total rows | کل سطرها | ټول کرښې | |
+| `patients.import.imported` | Imported | وارد شده | راوړل شوي | |
+| `patients.import.skipped` | Skipped | رد شده | رد شوي | |
+| `patients.import.rowErrors` | Row errors | خطاهای سطرها | د کرښو تېروتنې | |
+| `patients.import.done` | {imported} patients imported successfully. | {imported} بیمار با موفقیت وارد شد. | {imported} ناروغان په بریالیتوب سره راوړل شول. | |
+| `rule.full_name_length` | Full name must be 1-150 characters. | نام کامل باید ۱ تا ۱۵۰ حرف باشد. | بشپړ نوم باید د ۱ تر ۱۵۰ حروفو وي. | |
+| `rule.phone_format` | Phone must have 7-15 digits. | شماره تماس باید ۷ تا ۱۵ رقم باشد. | د اړیکې شمېره باید د ۷ تر ۱۵ عددونو وي. | |
+| `rule.date_format` | Not a valid date (YYYY-MM-DD). | تاریخ معتبر نیست (سال-ماه-روز). | نېټه سمه نه ده (کال-میاشت-ورځ). | |
+| `rule.age_range` | Age must be between 0 and 120. | سن باید بین ۰ تا ۱۲۰ باشد. | عمر باید د ۰ تر ۱۲۰ پورې وي. | |
+| `rule.cannot_merge_self` | A record cannot be merged with itself. | یک پرونده را نمی‌توان با خودش ادغام کرد. | یو فایل د ځان سره نشي یوځای کېدی. | |
+| `rule.attachment_type` | This file type is not supported. | نوع فایل پشتیبانی نمی‌شود. | د فایل ډول نه ملاتړ کېږي. | |
+| `rule.attachment_size` | File must be at most 20 MB. | حجم فایل باید حداکثر ۲۰ مگابایت باشد. | د فایل اندازه باید تر ۲۰ میګابایټو پورې وي. | |
+| `rule.possible_duplicate` | This patient may already be registered. | ممکن است این بیمار قبلاً ثبت شده باشد. | کېدی شي دا ناروغ دمخه ثبت شوی وي. | |
+| `rule.patient_not_found` | Patient not found. | بیمار پیدا نشد. | ناروغ ونه موندل شو. | |
+| `rule.import_file_type` | The file must be a CSV with the correct header. | فایل باید CSV با سرستون درست باشد. | فایل باید د سم سرلیک سره CSV وي. | |
+| `rule.tooth_format` | Not a valid tooth number. | شماره دندان معتبر نیست. | د غاښ شمېره سمه نه ده. | |
+| `audit.act.patient.create` | Patient registered | ثبت بیمار | د ناروغ ثبت | |
+| `audit.act.patient.update` | Patient updated | ویرایش بیمار | د ناروغ سمون | |
+| `audit.act.patient.delete` | Patient deleted | حذف بیمار | د ناروغ ړنګول | |
+| `audit.act.patient.merge` | Patient merged | ادغام پرونده بیمار | د ناروغ فایل یوځای کول | |
+| `audit.act.patient.medical_history_update` | Medical history updated | به‌روزرسانی سوابق پزشکی | د طبي سوابقو نوي کول | |
+| `audit.act.patient.attachment_add` | Attachment added | افزودن پیوست | د ضمیمې اضافه کول | |
+| `audit.act.patient.attachment_delete` | Attachment deleted | حذف پیوست | د ضمیمې ړنګول | |
+| `audit.ent.patient` | Patient | بیمار | ناروغ | |

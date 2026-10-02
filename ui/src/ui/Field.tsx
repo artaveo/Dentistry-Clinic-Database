@@ -1,5 +1,5 @@
 import { cloneElement, forwardRef, isValidElement, useId, useState } from "react";
-import type { InputHTMLAttributes, ReactElement, ReactNode, SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactElement, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, CircleAlert, Eye, EyeOff, Info } from "lucide-react";
 import { useI18n } from "../i18n";
@@ -74,6 +74,16 @@ export const PasswordInput = forwardRef<HTMLInputElement, InputProps>(function P
       <button type="button" className="control-action" onClick={() => setShown((s) => !s)} aria-label={shown ? t("common.hidePassword") : t("common.showPassword")} title={shown ? t("common.hidePassword") : t("common.showPassword")} tabIndex={-1}>
         {shown ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
       </button>
+    </div>
+  );
+});
+
+type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "size"> & { invalid?: boolean };
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ invalid, className, rows = 3, ...rest }, ref) {
+  return (
+    <div className={["control", "control-textarea", className].filter(Boolean).join(" ")} data-invalid={invalid || undefined}>
+      <textarea ref={ref} aria-invalid={invalid || undefined} rows={rows} {...rest} />
     </div>
   );
 });

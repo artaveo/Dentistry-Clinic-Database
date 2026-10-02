@@ -30,7 +30,7 @@ export function AuditPage({ calendar }: { calendar?: CalendarSystem }) {
 
   const more = (offset: number) => {
     setBusy(true);
-    return rpc("audit.list", { limit: PAGE, offset })
+    return rpc("audit.list", { limit: PAGE, offset, entity_id: null })
       .then((r) => {
         setRows((prev) => (offset === 0 || !prev ? r : [...prev, ...r]));
         setDone(r.length < PAGE);

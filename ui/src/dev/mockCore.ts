@@ -5,7 +5,7 @@
 // needs: the same methods, validation rules, field errors and lock rules.
 // `?mock=seeded` starts with a configured clinic and some history.
 import type {
-  AuditEntry, BackupInfo, ClinicProfile, ErrorCode, LabeledItem, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
+  AttachmentInfo, AuditEntry, BackupInfo, ClinicProfile, ErrorCode, LabeledItem, MedicalHistoryInfo, PatientInfo, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
 } from "../../../shared/ts/contract";
 
 type Fail = { code: ErrorCode; detail: string; field?: string; rule?: ValidationRule };
@@ -36,15 +36,40 @@ const DISTRICTS: Record<string, [string, string, string, string][]> = {
 type Session = { user: UserInfo; perms: string[]; last: number; locked: boolean };
 type U = UserInfo & { password: string };
 
-const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage"];
+const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit"];
 const ROLE_PERMS: Record<string, string[]> = {
   owner: ALL_PERMS,
   administrator: ALL_PERMS.filter((p) => p !== "backup.restore"),
-  receptionist: [],
-  doctor: [],
-  accountant: [],
-  assistant: [],
+  receptionist: ["patients.view", "patients.edit"],
+  doctor: ["patients.view", "patients.edit", "clinical.view", "clinical.edit"],
+  accountant: ["patients.view"],
+  assistant: ["patients.view", "clinical.view"],
 };
+
+const REFERENCE: Record<string, [string, string, string, string][]> = {
+  gender: [["male", "مرد", "نارینه", "Male"], ["female", "زن", "ښځینه", "Female"]],
+  referral_source: [
+    ["family_friend", "آشنا یا خانواده", "پیژندګلو یا کورنۍ", "Family or friend"],
+    ["social_media", "شبکه‌های اجتماعی", "ټولنیزې رسنۍ", "Social media"],
+    ["signboard", "تابلوی کلینیک", "د کلینیک بورډ", "Clinic signboard"],
+    ["doctor_referral", "معرفی داکتر", "د ډاکټر معرفي", "Doctor referral"],
+    ["walk_in", "عبوری", "ناڅاپي راتګ", "Walk-in"],
+    ["other", "سایر", "نور", "Other"],
+  ],
+  relationship: [
+    ["spouse", "همسر", "میرمن یا مېړه", "Spouse"],
+    ["parent", "پدر یا مادر", "پلار یا مور", "Parent"],
+    ["child", "فرزند", "اولاد", "Child"],
+    ["sibling", "خواهر یا برادر", "خور یا ورور", "Sibling"],
+    ["relative", "خویشاوند", "خپلوان", "Relative"],
+    ["friend", "دوست", "ملګری", "Friend"],
+    ["other", "سایر", "نور", "Other"],
+  ],
+};
+
+type P = PatientInfo;
+type MH = MedicalHistoryInfo;
+type A = AttachmentInfo & { sha256: string; data_url: string };
 
 const iso = (d = new Date()) => d.toISOString().replace(/\.\d+Z$/, (m) => m.slice(0, 4) + "Z");
 const uuid = () => crypto.randomUUID();
@@ -61,12 +86,16 @@ const state = {
   backups: [] as BackupInfo[],
   audit: [] as AuditEntry[],
   recoveryKey: "",
+  patients: [] as P[],
+  patientSeq: 0,
+  medicalHistory: new Map<string, MH>(),
+  attachments: [] as A[],
 };
 
-function record(user: UserInfo | null, action: string, entity: string | null = null) {
+function record(user: UserInfo | null, action: string, entity: string | null = null, entityId: string | null = null) {
   state.audit.unshift({
     id: state.audit.length + 1, at: iso(), user_id: user?.id ?? null, username: user?.username ?? null, action, entity,
-    entity_id: null, old_value: null, new_value: null, computer: "RECEPTION-PC",
+    entity_id: entityId, old_value: null, new_value: null, computer: "RECEPTION-PC",
   });
 }
 
@@ -78,6 +107,10 @@ function validatePassword(p: string, field = "password") {
 }
 function validateDisplay(d: string, field = "display_name") {
   if (!d.trim() || [...d].length > 100) invalid(field, "display_name_length");
+}
+function checkPhone(ph: string, field: string) {
+  const digits = ph.replace(/\D/g, "").length;
+  if (digits < 7 || digits > 15) invalid(field, "phone_format");
 }
 
 function publicUser(u: U): UserInfo {
@@ -119,6 +152,25 @@ function seed() {
     const u = ui === null ? null : state.users[ui];
     state.audit.unshift({ id: i + 1, at: iso(new Date(Date.now() - (acts.length - i) * 2_700_000)), user_id: u?.id ?? null, username: u?.username ?? "unknown", action, entity, entity_id: null, old_value: null, new_value: null, computer: "RECEPTION-PC" });
   });
+
+  const day2 = 86400_000;
+  const samples: [string, string, string, string | null][] = [
+    ["احمد خان", "کریم داد", "0700123456", "gender/male"],
+    ["زرغونه احمدی", "", "0744567890", "gender/female"],
+    ["نجیب الله رحیمی", "عبدالله", "0788112233", "gender/male"],
+  ];
+  samples.forEach(([full_name, father_name, phone, gender], i) => {
+    state.patientSeq++;
+    const patient: P = {
+      id: uuid(), patient_number: `P-${String(state.patientSeq).padStart(6, "0")}`, full_name, father_name: father_name || null,
+      preferred_language: "fa", gender_id: gender, date_of_birth: null, approximate_age: 25 + i * 8, phone, secondary_phone: null,
+      province_id: "KBL", district_id: "KBL-5", address: "کابل، کارته چهار", emergency_contact_name: null, emergency_contact_phone: null,
+      emergency_contact_relationship_id: null, referral_source_id: "referral_source/family_friend", notes: null,
+      registration_date: iso(new Date(Date.now() - i * day2)).slice(0, 10), status: "active", merged_into_id: null, version: 1,
+    };
+    state.patients.push(patient);
+  });
+  state.medicalHistory.set(state.patients[0].id, { patient_id: state.patients[0].id, allergies: "پنی‌سیلین", current_medications: null, chronic_conditions: "دیابت", dental_history: null, previous_surgeries: null, notes: null, version: 1 });
 }
 
 if (typeof location !== "undefined" && new URLSearchParams(location.search).get("mock") === "seeded") seed();
@@ -140,6 +192,10 @@ const need = (s: Session, perm: string) => (s.perms.includes(perm) ? undefined :
 function geo(list: [string, string, string, string][], lang: string): LabeledItem[] {
   const i = lang === "ps" ? 2 : lang === "en" ? 3 : 1;
   return list.map((r) => ({ id: r[0], code: r[0], label: r[i] }));
+}
+
+function findPatient(id: string): P {
+  return state.patients.find((x) => x.id === id) ?? fail("not_found", "patient");
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -248,8 +304,128 @@ function call(method: string, p: any, token: string | null): unknown {
       record(s.user, "user.update", "app_user");
       return publicUser(u);
     }
-    case "reference.list":
-      return [];
+    case "reference.list": {
+      const i = p.language === "ps" ? 2 : p.language === "en" ? 3 : 1;
+      return (REFERENCE[p.type_code] ?? []).map((r) => ({ id: `${p.type_code}/${r[0]}`, code: r[0], label: r[i] }));
+    }
+    case "patients.list": {
+      const q = (p.query ?? "").trim().toLowerCase();
+      let items = state.patients.filter((x) => !p.status || x.status === p.status);
+      if (q) items = items.filter((x) => [x.full_name, x.father_name, x.patient_number, x.phone, x.secondary_phone].some((f) => f?.toLowerCase().includes(q)));
+      items = [...items].sort((a, b) => b.registration_date.localeCompare(a.registration_date) || b.patient_number.localeCompare(a.patient_number));
+      return { items: items.slice(p.offset, p.offset + p.limit), total: items.length };
+    }
+    case "patients.get":
+      return findPatient(p.patient_id);
+    case "patients.check_duplicate": {
+      const name = p.full_name.trim().toLowerCase();
+      const phone = (p.phone ?? "").replace(/\D/g, "");
+      return state.patients.filter((x) => x.full_name.trim().toLowerCase() === name || (phone && x.phone?.replace(/\D/g, "") === phone));
+    }
+    case "patients.create": {
+      need(s, "patients.edit");
+      if (!p.full_name?.trim()) invalid("full_name", "full_name_length");
+      if (p.phone) checkPhone(p.phone, "phone");
+      if (p.secondary_phone) checkPhone(p.secondary_phone, "secondary_phone");
+      if (!p.allow_duplicate) {
+        const name = p.full_name.trim().toLowerCase();
+        const phone = (p.phone ?? "").replace(/\D/g, "");
+        if (state.patients.some((x) => x.full_name.trim().toLowerCase() === name || (phone && x.phone?.replace(/\D/g, "") === phone))) {
+          invalid("full_name", "possible_duplicate");
+        }
+      }
+      state.patientSeq++;
+      const patient: P = {
+        id: uuid(), patient_number: `P-${String(state.patientSeq).padStart(6, "0")}`, full_name: p.full_name.trim(),
+        father_name: p.father_name || null, preferred_language: p.preferred_language || null, gender_id: p.gender_id || null,
+        date_of_birth: p.date_of_birth || null, approximate_age: p.approximate_age ?? null, phone: p.phone || null,
+        secondary_phone: p.secondary_phone || null, province_id: p.province_id || null, district_id: p.district_id || null,
+        address: p.address || null, emergency_contact_name: p.emergency_contact_name || null, emergency_contact_phone: p.emergency_contact_phone || null,
+        emergency_contact_relationship_id: p.emergency_contact_relationship_id || null, referral_source_id: p.referral_source_id || null,
+        notes: p.notes || null, registration_date: p.registration_date || iso().slice(0, 10), status: "active", merged_into_id: null, version: 1,
+      };
+      state.patients.push(patient);
+      record(s.user, "patient.create", "patient", patient.id);
+      return patient;
+    }
+    case "patients.update": {
+      need(s, "patients.edit");
+      const patient = findPatient(p.id);
+      if (patient.version !== p.version) fail("conflict", "changed");
+      if (!p.full_name?.trim()) invalid("full_name", "full_name_length");
+      if (p.phone) checkPhone(p.phone, "phone");
+      Object.assign(patient, {
+        full_name: p.full_name.trim(), father_name: p.father_name || null, preferred_language: p.preferred_language || null,
+        gender_id: p.gender_id || null, date_of_birth: p.date_of_birth || null, approximate_age: p.approximate_age ?? null,
+        phone: p.phone || null, secondary_phone: p.secondary_phone || null, province_id: p.province_id || null, district_id: p.district_id || null,
+        address: p.address || null, emergency_contact_name: p.emergency_contact_name || null, emergency_contact_phone: p.emergency_contact_phone || null,
+        emergency_contact_relationship_id: p.emergency_contact_relationship_id || null, referral_source_id: p.referral_source_id || null,
+        notes: p.notes || null, status: p.status, version: patient.version + 1,
+      });
+      record(s.user, "patient.update", "patient", patient.id);
+      return patient;
+    }
+    case "patients.delete": {
+      need(s, "patients.edit");
+      state.patients = state.patients.filter((x) => x.id !== p.id);
+      record(s.user, "patient.delete", "patient", p.id);
+      return {};
+    }
+    case "patients.merge": {
+      need(s, "patients.edit");
+      const keep = findPatient(p.keep_id);
+      const merged = findPatient(p.merge_id);
+      if (keep.id === merged.id) invalid("merge_id", "cannot_merge_self");
+      Object.assign(merged, { status: "inactive", merged_into_id: keep.id, version: merged.version + 1 });
+      record(s.user, "patient.merge", "patient", p.merge_id);
+      return keep;
+    }
+    case "patients.export":
+      return { csv_base64: btoa("patient_number,full_name\n"), file_name: "patients.csv" };
+    case "patients.import":
+      return { total: 0, imported: 0, skipped: 0, preview: [], errors: [] };
+    case "medical_history.get": {
+      const h = state.medicalHistory.get(p.patient_id);
+      return h ?? { patient_id: p.patient_id, allergies: null, current_medications: null, chronic_conditions: null, dental_history: null, previous_surgeries: null, notes: null, version: 0 };
+    }
+    case "medical_history.update": {
+      need(s, "clinical.edit");
+      const before = state.medicalHistory.get(p.patient_id);
+      if ((before?.version ?? 0) !== p.version) fail("conflict", "changed");
+      const after: MH = {
+        patient_id: p.patient_id, allergies: p.allergies ?? null, current_medications: p.current_medications ?? null,
+        chronic_conditions: p.chronic_conditions ?? null, dental_history: p.dental_history ?? null,
+        previous_surgeries: p.previous_surgeries ?? null, notes: p.notes ?? null, version: (before?.version ?? 0) + 1,
+      };
+      state.medicalHistory.set(p.patient_id, after);
+      record(s.user, "patient.medical_history_update", "patient", p.patient_id);
+      return after;
+    }
+    case "attachments.list":
+      return state.attachments.filter((a) => a.patient_id === p.patient_id);
+    case "attachments.upload": {
+      need(s, "patients.edit");
+      const mime = /\.(png)$/i.test(p.file_name) ? "image/png" : /\.(jpe?g)$/i.test(p.file_name) ? "image/jpeg" : "application/octet-stream";
+      const a: A = {
+        id: uuid(), patient_id: p.patient_id, kind: p.kind, file_name: p.file_name, mime_type: mime, size_bytes: p.data_base64.length,
+        tooth: p.tooth || null, description: p.description || null, has_thumbnail: false, captured_at: p.captured_at || iso().slice(0, 10),
+        created_at: iso(), version: 1, sha256: uuid(), data_url: `data:${mime};base64,${p.data_base64}`,
+      };
+      state.attachments.push(a);
+      record(s.user, "patient.attachment_add", "patient", p.patient_id);
+      return a;
+    }
+    case "attachments.delete": {
+      need(s, "patients.edit");
+      const target = state.attachments.find((a) => a.id === p.id) ?? fail("not_found", "attachment");
+      state.attachments = state.attachments.filter((a) => a.id !== p.id);
+      record(s.user, "patient.attachment_delete", "patient", target.patient_id);
+      return {};
+    }
+    case "attachments.file": {
+      const a = state.attachments.find((x) => x.id === p.id) ?? fail("not_found", "attachment");
+      return { data_url: a.data_url };
+    }
     case "geo.provinces":
       return geo(PROVINCES, p.language);
     case "geo.districts":
@@ -289,9 +465,11 @@ function call(method: string, p: any, token: string | null): unknown {
     case "backup.list":
       need(s, "backup.view");
       return state.backups;
-    case "audit.list":
-      need(s, "audit.view");
-      return state.audit.slice(p.offset, p.offset + p.limit);
+    case "audit.list": {
+      need(s, p.entity_id ? "patients.view" : "audit.view");
+      const rows = p.entity_id ? state.audit.filter((a) => a.entity_id === p.entity_id) : state.audit;
+      return rows.slice(p.offset, p.offset + p.limit);
+    }
     case "system.info":
       return {
         app_version: VERSION, git_commit: "dev-mock", build_arch: "arm64", machine_arch: "arm64", emulated: false,

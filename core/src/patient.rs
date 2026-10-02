@@ -269,7 +269,7 @@ pub fn get_medical_history(conn: &Connection, patient_id: &str) -> Result<Medica
             },
         )
         .optional()?;
-    Ok(row.unwrap_or(MedicalHistoryInfo {
+    Ok(row.unwrap_or_else(|| MedicalHistoryInfo {
         patient_id: patient_id.to_string(),
         allergies: None,
         current_medications: None,
