@@ -111,7 +111,15 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
           </div>
         )}
       </Card>
-      {importing && <ImportDialog onClose={() => setImporting(false)} onImported={() => load(query)} />}
+      {importing && (
+        <ImportDialog
+          onClose={() => setImporting(false)}
+          onImported={() => {
+            setImporting(false);
+            load(query);
+          }}
+        />
+      )}
     </Page>
   );
 }
