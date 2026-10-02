@@ -85,7 +85,10 @@ test("medical history: saving allergies/conditions shows the alert banner (3.2/3
 test("attachments: upload an image, view it, then delete it (3.5)", async () => {
   await page.getByTestId("patient-tab-documents").click();
   await page.getByTestId("attachment-add-open").click();
-  await page.getByTestId("attachment-file-input").setInputFiles({ name: "xray.png", mimeType: "image/png", buffer: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]) });
+  // A real (if tiny) 1x1 PNG — just the 8-byte magic number isn't a
+  // decodable image, so the viewer's <img> would render at zero size.
+  const PNG_1X1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  await page.getByTestId("attachment-file-input").setInputFiles({ name: "xray.png", mimeType: "image/png", buffer: Buffer.from(PNG_1X1, "base64") });
   await page.getByTestId("attachment-tooth").fill("26");
   await page.getByTestId("attachment-upload-submit").click();
   await expect(toast()).toHaveText("پیوست اضافه شد.");
