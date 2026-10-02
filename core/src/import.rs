@@ -23,7 +23,8 @@ fn split_csv_line(line: &str) -> Vec<String> {
     let mut cur = String::new();
     let mut in_quotes = false;
     let mut chars = line.chars().peekable();
-    while let Some(c) = chars.next() {
+    loop {
+        let Some(c) = chars.next() else { break };
         match c {
             '"' if in_quotes && chars.peek() == Some(&'"') => {
                 cur.push('"');

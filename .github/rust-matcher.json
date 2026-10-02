@@ -4,12 +4,12 @@
       "owner": "rustc",
       "pattern": [
         {
-          "regexp": "^(warning|error)(?:[w+])?: (.*)$",
+          "regexp": "^(warning|error)(?:\\[\\w+\\])?: (.*)$",
           "severity": 1,
           "message": 2
         },
         {
-          "regexp": "^s+--> (.+?):(d+):(d+)$",
+          "regexp": "^\\s+--> (.+?):(\\d+):(\\d+)$",
           "file": 1,
           "line": 2,
           "column": 3
