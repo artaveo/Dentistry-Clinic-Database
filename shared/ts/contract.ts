@@ -122,7 +122,7 @@ export type BackupInfo = { id: string, file_name: string, created_at: string, si
  */
 kind: string, verified: boolean, };
 
-export type AuditListParams = { limit: number, offset: number,
+export type AuditListParams = { limit: number, offset: number, 
 /**
  * Narrows to one record's history (e.g. a patient's Audit History tab, 3.6).
  */
