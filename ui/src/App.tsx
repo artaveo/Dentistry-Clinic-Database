@@ -112,7 +112,7 @@ export function App() {
           {page}
           {splash !== "off" && (
             <div className={`splash ${splash === "fading" && status ? "done" : ""}`} data-testid="splash" aria-hidden>
-              <img src={brandAssets.master} alt="" />
+              <img src={brandAssets.splashDark} alt="" />
               <div className="splash-bar" />
             </div>
           )}

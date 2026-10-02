@@ -19,7 +19,7 @@ import { Button } from "../ui/Button";
 import { Checkbox, OptionCards, Segmented } from "../ui/Controls";
 import { Field, PasswordInput, TextInput } from "../ui/Field";
 import { Badge, Notice } from "../ui/Feedback";
-import { ArtaveoLockup, ClinicMark } from "../ui/Brand";
+import { ClinicMark, DentalLockup } from "../ui/Brand";
 
 type Step = "welcome" | "language" | "install_mode" | "clinic_info" | "hours" | "clinic_type" | "branding" | "trial" | "backup" | "owner" | "recovery";
 const STEPS: Step[] = ["welcome", "language", "install_mode", "clinic_info", "hours", "clinic_type", "branding", "trial", "backup", "owner", "recovery"];
@@ -135,7 +135,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
     <div className="setup">
       <aside className="setup-aside">
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <ArtaveoLockup height={46} />
+          <DentalLockup height={46} />
         </div>
         <nav className="stepper" aria-label={t("setup.title")}>
           {visible.map((s, i) => {

@@ -1,29 +1,62 @@
-// Artaveo appears only on the icon, splash, login and About (roadmap 2.1b,
-// branding/artaveo/README.md); the working UI shows the clinic's identity.
-import iconSvg from "../assets/brand/icon.svg";
-import lockupLight from "../assets/brand/lockup-compact-light.png";
-import lockupDark from "../assets/brand/lockup-compact-dark.png";
-import master from "../assets/brand/logo-master.png";
-import monoWhite from "../assets/brand/mono-white.svg";
+// Brand architecture (roadmap 2.1b): three levels, each in its own place.
+//  1. Clinic   — ClinicMark/Avatar below, everywhere in the working UI.
+//  2. Product  — Artaveo Dental (branding/artaveo-dental/): app icon, sidebar
+//     footer mark, splash screen, login screen, About page.
+//  3. Company  — Artaveo (branding/artaveo/): only the small "by Artaveo"
+//     credit line on the About page.
+import dentalIcon from "../assets/brand-dental/icon.png";
+import dentalLockupLight from "../assets/brand-dental/lockup-light.png";
+import dentalLockupDark from "../assets/brand-dental/lockup-dark.png";
+import dentalMonoWhite from "../assets/brand-dental/mono-white.png";
+import dentalSplashDark from "../assets/brand-dental/splash-dark.png";
+import dentalPrimaryLight from "../assets/brand-dental/primary-stacked-light.png";
+import companyIconSvg from "../assets/brand/icon.svg";
+import companyMonoWhite from "../assets/brand/mono-white.svg";
 
-export const brandAssets = { icon: iconSvg, lockupLight, lockupDark, master };
+export const brandAssets = {
+  icon: dentalIcon,
+  lockupLight: dentalLockupLight,
+  lockupDark: dentalLockupDark,
+  splashLight: dentalPrimaryLight,
+  splashDark: dentalSplashDark,
+};
 
-/** Horizontal mark + ARTAVEO, the right file for the current theme. */
-export function ArtaveoLockup({ height = 30 }: { height?: number }) {
+/** Artaveo Dental horizontal lockup (mark + wordmark), the right file for the current theme. */
+export function DentalLockup({ height = 30 }: { height?: number }) {
   return (
     <>
-      <img className="lockup only-light" src={lockupLight} alt="Artaveo" style={{ height }} />
-      <img className="lockup only-dark" src={lockupDark} alt="Artaveo" style={{ height }} />
+      <img className="lockup only-light" src={dentalLockupLight} alt="Artaveo Dental" style={{ height }} />
+      <img className="lockup only-dark" src={dentalLockupDark} alt="Artaveo Dental" style={{ height }} />
     </>
   );
 }
 
-/** The flat mark; the official single-colour white version on dark surfaces. */
+/** Artaveo Dental flat mark — sidebar footer, small product credits. */
+export function DentalMark({ size = 18 }: { size?: number }) {
+  return (
+    <>
+      <img className="only-light" src={dentalIcon} alt="" width={size} height={size} />
+      <img className="only-dark" src={dentalMonoWhite} alt="" width={size} height={size} />
+    </>
+  );
+}
+
+/** Premium Artaveo Dental mark for the splash screen and About hero (opaque, theme-matched panel). */
+export function DentalPremiumArt({ alt = "", className = "" }: { alt?: string; className?: string }) {
+  return (
+    <>
+      <img className={`only-light ${className}`} src={dentalPrimaryLight} alt={alt} />
+      <img className={`only-dark ${className}`} src={dentalSplashDark} alt={alt} />
+    </>
+  );
+}
+
+/** The Artaveo company mark — "by Artaveo" credit on the About page only. */
 export function ArtaveoMark({ size = 18 }: { size?: number }) {
   return (
     <>
-      <img className="only-light" src={iconSvg} alt="" width={size} height={size} />
-      <img className="only-dark" src={monoWhite} alt="" width={size} height={size} />
+      <img className="only-light" src={companyIconSvg} alt="" width={size} height={size} />
+      <img className="only-dark" src={companyMonoWhite} alt="" width={size} height={size} />
     </>
   );
 }

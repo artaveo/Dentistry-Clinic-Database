@@ -8,7 +8,7 @@ import { LangSwitch } from "./LangSwitch";
 import { Button } from "../ui/Button";
 import { Field, PasswordInput, TextInput } from "../ui/Field";
 import { Notice } from "../ui/Feedback";
-import { ArtaveoLockup, ClinicMark, brandAssets } from "../ui/Brand";
+import { DentalLockup, DentalPremiumArt, ClinicMark } from "../ui/Brand";
 
 /** Login and Owner recovery (roadmap 1.6). Artaveo + the clinic's own identity (2.1b). */
 export function Login({ clinicName, logo, version, onLogin }: { clinicName: string | null; logo: string | null; version: string; onLogin: (s: SessionInfo) => void }) {
@@ -53,7 +53,7 @@ export function Login({ clinicName, logo, version, onLogin }: { clinicName: stri
   return (
     <div className="auth-split">
       <aside className="auth-brand-panel" aria-hidden>
-        <img className="auth-brand-art" src={brandAssets.master} alt="" />
+        <DentalPremiumArt className="auth-brand-art" />
         <div className="auth-brand-caption">
           <span className="auth-brand-name">Artaveo Dental</span>
           <span>{t("system.tagline")}</span>
@@ -104,7 +104,7 @@ export function Login({ clinicName, logo, version, onLogin }: { clinicName: stri
           </Button>
         </form>
         <div className="auth-footer">
-          <ArtaveoLockup height={28} />
+          <DentalLockup height={28} />
           <span>·</span>
           <span>{t("system.version")} <bdi className="ltr num">{version}</bdi></span>
         </div>

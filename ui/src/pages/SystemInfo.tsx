@@ -6,7 +6,7 @@ import { digits, formatBytes, formatDateTime } from "../lib/dates";
 import { useI18n } from "../i18n";
 import { Card, CardHeader, Page, PageHeader, Stat } from "../ui/Card";
 import { Badge, ErrorState, Loading, Notice } from "../ui/Feedback";
-import { brandAssets } from "../ui/Brand";
+import { ArtaveoMark, DentalPremiumArt } from "../ui/Brand";
 import { SUPPORT } from "../lib/support";
 
 /** Roadmap 1.8 + 2.1b: Artaveo Dental, version, support, and what the owner
@@ -41,7 +41,7 @@ export function SystemInfoPage({ version, calendar }: { version: string; calenda
       <PageHeader title={t("nav.system")} description={t("system.subtitle")} />
 
       <section className="glass about-hero">
-        <div className="about-art"><img src={brandAssets.master} alt="Artaveo" /></div>
+        <div className="about-art"><DentalPremiumArt alt="Artaveo Dental" /></div>
         <div className="about-text">
           <h2 className="t-title-lg">Artaveo Dental</h2>
           <p className="muted">{t("system.tagline")}</p>
@@ -100,8 +100,12 @@ export function SystemInfoPage({ version, calendar }: { version: string; calenda
         </dl>
       </Card>
       <p className="subtle t-caption" style={{ textAlign: "center" }}>
-        Artaveo Dental <bdi className="ltr">{version}</bdi> · © Artaveo
+        Artaveo Dental <bdi className="ltr">{version}</bdi>
       </p>
+      <div className="row by-artaveo" style={{ justifyContent: "center", gap: 6 }} data-testid="by-artaveo">
+        <ArtaveoMark size={14} />
+        <span className="subtle t-caption">{t("system.byArtaveo")}</span>
+      </div>
     </Page>
   );
 }

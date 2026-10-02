@@ -21,7 +21,7 @@ import { NotificationBell } from "../shell/NotificationBell";
 import { UserMenu } from "../shell/UserMenu";
 import { Button } from "../ui/Button";
 import { Field, PasswordInput } from "../ui/Field";
-import { ArtaveoMark, Avatar, ClinicMark } from "../ui/Brand";
+import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
 type Tab = "clinic" | "users" | "backup" | "audit" | "settings" | "system";
@@ -166,7 +166,7 @@ export function Shell({
 
   return (
     <div className="app-shell">
-      <header className="app-header">
+      <header className="app-header" inert={locked || undefined} aria-hidden={locked || undefined}>
         <div className="clinic-identity" data-testid="clinic-identity">
           <ClinicMark name={clinicName} logo={logo} />
           <div className="clinic-text">
@@ -195,7 +195,7 @@ export function Shell({
         </div>
       </header>
 
-      <aside className="app-sidebar">
+      <aside className="app-sidebar" inert={locked || undefined} aria-hidden={locked || undefined}>
         <nav aria-label={t("shell.navigation")}>
           {groups.map((g) => (
             <div className="nav-group" key={g.label}>
@@ -215,13 +215,13 @@ export function Shell({
         <div className="sidebar-footer">
           <LangSwitch />
           <div className="version">
-            <ArtaveoMark size={16} />
+            <DentalMark size={16} />
             <bdi className="ltr">Artaveo Dental {version}</bdi>
           </div>
         </div>
       </aside>
 
-      <main className="app-main" key={generation}>
+      <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
         {tab === "system" && <SystemInfoPage version={version} />}
         {tab === "backup" && <BackupPage canCreate={can("backup.create")} calendar={clinic?.calendar_system} />}
         {tab === "users" && <UsersPage currentUserId={session.user.id} />}

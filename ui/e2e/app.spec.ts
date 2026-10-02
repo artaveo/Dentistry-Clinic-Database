@@ -230,6 +230,13 @@ test("lock screen: a stale «locked» answer never survives unlocking (OF-008)",
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByTestId("lock").click();
   await expect(page.getByTestId("lock-screen")).toBeVisible();
+  // OF-015: the content behind the lock must be inert (unreachable by click/keyboard/screen reader).
+  await expect(page.locator(".app-main")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".app-sidebar")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".app-header")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".app-main")).toHaveJSProperty("inert", true);
+  await expect(page.locator(".app-sidebar")).toHaveJSProperty("inert", true);
+  await expect(page.locator(".app-header")).toHaveJSProperty("inert", true);
   // About polls every 5 s: while locked those polls get `session_locked`.
   await page.waitForTimeout(6_000);
   await shot("03-lock-screen");
