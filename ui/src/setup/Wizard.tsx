@@ -135,7 +135,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
     <div className="setup">
       <aside className="setup-aside">
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <ArtaveoLockup height={30} />
+          <ArtaveoLockup height={46} />
         </div>
         <nav className="stepper" aria-label={t("setup.title")}>
           {visible.map((s, i) => {

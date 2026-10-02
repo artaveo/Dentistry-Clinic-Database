@@ -104,7 +104,7 @@ export function Login({ clinicName, logo, version, onLogin }: { clinicName: stri
           </Button>
         </form>
         <div className="auth-footer">
-          <ArtaveoLockup height={18} />
+          <ArtaveoLockup height={28} />
           <span>·</span>
           <span>{t("system.version")} <bdi className="ltr num">{version}</bdi></span>
         </div>
