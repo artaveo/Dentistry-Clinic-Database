@@ -155,12 +155,21 @@ jobs:
           $db = Join-Path $env:ProgramData "ArtaveoDental\clinic.db"
           $hash = (Get-FileHash $db).Hash
           Start-Process (Join-Path "dist" "ArtaveoDental-Setup-${{ matrix.arch }}.exe") -ArgumentList "/S" -Wait
+          function Fail($message) { Write-Host "::error title=OF-009 upgrade (${{ matrix.arch }})::$message"; exit 1 }
           $keys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*", "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*", "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
-          $apps = @(Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Artaveo Dental*" })
+          # The old version's uninstaller may still be finishing when the new
+          # installer exits: give the Programs list up to 2 minutes to settle.
+          for ($i = 0; $i -lt 60; $i++) {
+            $apps = @(Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Artaveo Dental*" })
+            if ($apps.Count -eq 1 -and $apps[0].DisplayVersion -eq $version) { break }
+            Start-Sleep -Seconds 2
+          }
           $apps | Format-Table DisplayName, DisplayVersion, InstallLocation
-          if ($apps.Count -ne 1) { throw "expected exactly one Artaveo Dental in Programs, found $($apps.Count)" }
-          if ($apps[0].DisplayVersion -ne $version) { throw "installed version $($apps[0].DisplayVersion) != $version" }
-          if ((Get-FileHash $db).Hash -ne $hash) { throw "the installer changed the clinic database" }
+          $found = ($apps | ForEach-Object { "$($_.DisplayName) $($_.DisplayVersion)" }) -join "; "
+          if ($apps.Count -ne 1) { Fail "expected exactly one Artaveo Dental in Programs, found $($apps.Count): $found" }
+          if ($apps[0].DisplayVersion -ne $version) { Fail "installed version $($apps[0].DisplayVersion) != $version" }
+          if (-not (Test-Path $db)) { Fail "the clinic database disappeared" }
+          if ((Get-FileHash $db).Hash -ne $hash) { Fail "the installer changed the clinic database" }
           Write-Host "upgrade 0.1.0 -> $version ok: one entry, clinic data untouched"
       - name: Install silently, start the app, check it opened its encrypted-database core
         shell: pwsh
