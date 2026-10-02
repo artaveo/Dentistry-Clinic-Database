@@ -71,6 +71,9 @@ impl Config {
     pub fn log_dir(&self) -> PathBuf {
         self.data_dir.join("logs")
     }
+    pub fn attachments_dir(&self) -> PathBuf {
+        self.data_dir.join("attachments")
+    }
 }
 
 fn production_dir() -> PathBuf {

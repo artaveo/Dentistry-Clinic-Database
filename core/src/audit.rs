@@ -59,13 +59,14 @@ pub fn record(
     Ok(())
 }
 
-/// Newest first.
-pub fn list(conn: &Connection, limit: u32, offset: u32) -> Result<Vec<AuditEntry>> {
+/// Newest first. `entity_id` narrows to one record's history (e.g. a
+/// patient's "Audit History" tab, 3.6); `None` is the global log.
+pub fn list(conn: &Connection, limit: u32, offset: u32, entity_id: Option<&str>) -> Result<Vec<AuditEntry>> {
     let mut stmt = conn.prepare_cached(
         "SELECT id, at, user_id, username, action, entity, entity_id, old_value, new_value, computer
-         FROM audit_log ORDER BY id DESC LIMIT ?1 OFFSET ?2",
+         FROM audit_log WHERE ?3 IS NULL OR entity_id = ?3 ORDER BY id DESC LIMIT ?1 OFFSET ?2",
     )?;
-    let rows = stmt.query_map(params![limit.min(500), offset], |r| {
+    let rows = stmt.query_map(params![limit.min(500), offset, entity_id], |r| {
         Ok(AuditEntry {
             id: r.get(0)?,
             at: r.get(1)?,

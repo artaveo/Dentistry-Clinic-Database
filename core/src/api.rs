@@ -12,6 +12,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::{json, Value};
 
+use crate::attachment;
 use crate::audit::{self, Actor};
 use crate::auth::{self, perm, NewUser, OWNER};
 use crate::backup;
@@ -22,6 +23,7 @@ use crate::db::{self, KeyFiles};
 use crate::error::{CoreError, Result};
 use crate::ids::new_id;
 use crate::keys::RecoveryKey;
+use crate::patient;
 use crate::session::{state_of, Session};
 use crate::settings;
 use crate::sysinfo;
@@ -124,6 +126,33 @@ fn decode_logo(base64: Option<&str>, file_name: Option<&str>) -> Result<Option<(
         return Err(CoreError::invalid("logo", ValidationRule::LogoSize, "logo must be 1 byte – 2 MiB"));
     }
     Ok(Some((ext, bytes)))
+}
+
+/// Decodes an attachment upload's base64 body, checking size up front
+/// (`attachment::store` enforces it again on the actual plaintext).
+fn decode_attachment(base64: &str) -> Result<Vec<u8>> {
+    let bytes = data_encoding::BASE64.decode(base64.as_bytes()).map_err(|e| {
+        CoreError::invalid("data_base64", ValidationRule::AttachmentType, format!("invalid file data: {e}"))
+    })?;
+    if bytes.is_empty() || bytes.len() > attachment::MAX_BYTES {
+        return Err(CoreError::invalid(
+            "data_base64",
+            ValidationRule::AttachmentSize,
+            "file must be 1 byte - 20 MiB",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn guess_mime(file_name: &str) -> &'static str {
+    match file_name.rsplit('.').next().map(|e| e.to_ascii_lowercase()).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("webp") => "image/webp",
+        Some("gif") => "image/gif",
+        Some("pdf") => "application/pdf",
+        _ => "application/octet-stream",
+    }
 }
 
 impl Core {
@@ -484,9 +513,121 @@ impl Core {
                 ok(self.with_db(|o| backup::list(&o.conn))?)
             }
             m::AUDIT_LIST => {
-                s.require(perm::AUDIT_VIEW)?;
-                let AuditListParams { limit, offset } = params(p)?;
-                ok(self.with_db(|o| audit::list(&o.conn, limit, offset))?)
+                let AuditListParams { limit, offset, entity_id } = params(p)?;
+                // Scoped to one record (e.g. a patient's Audit History tab, 3.6): anyone who
+                // can view that record can see its history. The full log needs AUDIT_VIEW.
+                s.require(if entity_id.is_some() { perm::PATIENTS_VIEW } else { perm::AUDIT_VIEW })?;
+                ok(self.with_db(|o| audit::list(&o.conn, limit, offset, entity_id.as_deref()))?)
+            }
+            m::PATIENTS_LIST => {
+                s.require(perm::PATIENTS_VIEW)?;
+                let p: PatientListParams = params(p)?;
+                ok(self.with_db(|o| patient::list_patients(&o.conn, &p))?)
+            }
+            m::PATIENTS_GET => {
+                s.require(perm::PATIENTS_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| patient::get_patient(&o.conn, &patient_id))?)
+            }
+            m::PATIENTS_CREATE => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let p: CreatePatientParams = params(p)?;
+                ok(self.with_db(|o| patient::create_patient(&o.conn, &actor(&s), &p))?)
+            }
+            m::PATIENTS_UPDATE => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let p: UpdatePatientParams = params(p)?;
+                ok(self.with_db(|o| patient::update_patient(&o.conn, &actor(&s), &p))?)
+            }
+            m::PATIENTS_DELETE => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let IdVersionParams { id, version } = params(p)?;
+                self.with_db(|o| patient::delete_patient(&o.conn, &actor(&s), &id, version))?;
+                ok(Empty {})
+            }
+            m::PATIENTS_CHECK_DUPLICATE => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let DuplicateCheckParams { full_name, phone } = params(p)?;
+                ok(self.with_db(|o| patient::check_duplicate(&o.conn, &full_name, phone.as_deref()))?)
+            }
+            m::PATIENTS_MERGE => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let p: MergePatientsParams = params(p)?;
+                ok(self.with_db(|o| patient::merge_patients(&o.conn, &actor(&s), &p))?)
+            }
+            m::PATIENTS_IMPORT => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let p: ImportPatientsParams = params(p)?;
+                ok(self.with_db(|o| crate::import::import_patients(&o.conn, &actor(&s), &p))?)
+            }
+            m::PATIENTS_EXPORT => {
+                s.require(perm::PATIENTS_VIEW)?;
+                ok(self.with_db(|o| crate::import::export_patients(&o.conn))?)
+            }
+            m::MEDICAL_HISTORY_GET => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| patient::get_medical_history(&o.conn, &patient_id))?)
+            }
+            m::MEDICAL_HISTORY_UPDATE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: UpdateMedicalHistoryParams = params(p)?;
+                ok(self.with_db(|o| patient::update_medical_history(&o.conn, &actor(&s), &p))?)
+            }
+            m::ATTACHMENTS_LIST => {
+                s.require(perm::PATIENTS_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| patient::list_attachments(&o.conn, &patient_id))?)
+            }
+            m::ATTACHMENTS_UPLOAD => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let p: UploadAttachmentParams = params(p)?;
+                let bytes = decode_attachment(&p.data_base64)?;
+                let mime = guess_mime(&p.file_name).to_string();
+                let dir = self.config.attachments_dir();
+                let captured_at = p.captured_at.clone().unwrap_or_else(|| now_iso()[..10].to_string());
+                ok(self.with_db(|o| {
+                    let (sha256, size) = attachment::store(&dir, &o.key, &bytes)?;
+                    patient::create_attachment(
+                        &o.conn,
+                        &actor(&s),
+                        &p.patient_id,
+                        p.kind,
+                        &p.file_name,
+                        &mime,
+                        &sha256,
+                        size,
+                        p.tooth.as_deref(),
+                        p.description.as_deref(),
+                        false,
+                        &captured_at,
+                    )
+                })?)
+            }
+            m::ATTACHMENTS_DELETE => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let IdVersionParams { id, version } = params(p)?;
+                ok(self
+                    .with_db(|o| patient::delete_attachment(&o.conn, &actor(&s), &id, version))
+                    .map(|_| Empty {})?)
+            }
+            m::ATTACHMENTS_FILE => {
+                s.require(perm::PATIENTS_VIEW)?;
+                let AttachmentFileParams { id, .. } = params(p)?;
+                let dir = self.config.attachments_dir();
+                let (bytes, mime) = self.with_db(|o| {
+                    let a = patient::get_attachment(&o.conn, &id)?;
+                    let sha256 = o.conn.query_row(
+                        "SELECT sha256 FROM patient_attachment WHERE id = ?1",
+                        [&id],
+                        |r| r.get::<_, String>(0),
+                    )?;
+                    let bytes = attachment::read(&dir, &o.key, &sha256)?;
+                    Ok((bytes, a.mime_type))
+                })?;
+                ok(AttachmentData {
+                    data_url: format!("data:{mime};base64,{}", data_encoding::BASE64.encode(&bytes)),
+                })
             }
             m::SYSTEM_INFO => ok(self.system_info()?),
             _ => Err(CoreError::api(ErrorCode::UnknownMethod, method.to_string())),

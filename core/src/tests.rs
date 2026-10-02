@@ -652,3 +652,243 @@ fn idle_lock_is_exact_and_ignores_background_requests() {
     let st = t.ok(m::SESSION_TOUCH, json!({"idle_ms": 50_000}), Some(&tok));
     assert!(st["idle_seconds_left"].as_u64().unwrap() >= 54);
 }
+
+// ───────────────────────────── patients (Phase 3) ─────────────────────────────
+
+#[test]
+fn patient_crud_search_and_duplicate_detection() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": ""}), Some(&owner)),
+        Err(ErrorCode::Validation)
+    );
+
+    let p1 = t.ok(
+        m::PATIENTS_CREATE,
+        json!({"full_name": "احمد خان", "father_name": "کریم", "phone": "0700123456"}),
+        Some(&owner),
+    );
+    assert_eq!(p1["patient_number"], "P-000001");
+    assert_eq!(p1["status"], "active");
+
+    let p2 = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner));
+    assert_eq!(p2["patient_number"], "P-000002");
+
+    // Search finds by partial name, patient number and phone, ignoring letter/digit-script variants.
+    let found = t.ok(m::PATIENTS_LIST, json!({"query": "احمد"}), Some(&owner));
+    assert_eq!(found["total"], 1);
+    assert_eq!(found["items"][0]["id"], p1["id"]);
+    let found = t.ok(m::PATIENTS_LIST, json!({"query": "علي"}), Some(&owner)); // Arabic yeh, no match expected
+    assert_eq!(found["total"], 0);
+    let found = t.ok(m::PATIENTS_LIST, json!({"query": "P-000002"}), Some(&owner));
+    assert_eq!(found["items"][0]["id"], p2["id"]);
+    let found = t.ok(m::PATIENTS_LIST, json!({"query": "0700123456"}), Some(&owner));
+    assert_eq!(found["items"][0]["id"], p1["id"]);
+    let all = t.ok(m::PATIENTS_LIST, json!({}), Some(&owner));
+    assert_eq!(all["total"], 2);
+
+    // Duplicate detection: same name or same phone.
+    let dups =
+        t.ok(m::PATIENTS_CHECK_DUPLICATE, json!({"full_name": "احمد خان", "phone": null}), Some(&owner));
+    assert_eq!(dups.as_array().unwrap().len(), 1);
+    let dups = t.ok(
+        m::PATIENTS_CHECK_DUPLICATE,
+        json!({"full_name": "someone else", "phone": "0700123456"}),
+        Some(&owner),
+    );
+    assert_eq!(dups.as_array().unwrap().len(), 1);
+
+    // Update with optimistic locking.
+    let mut update = p1.clone();
+    update["full_name"] = json!("احمد خان 2");
+    update["status"] = json!("active");
+    let updated = t.ok(m::PATIENTS_UPDATE, update.clone(), Some(&owner));
+    assert_eq!(updated["full_name"], "احمد خان 2");
+    assert_eq!(updated["version"], 2);
+    assert_eq!(t.call(m::PATIENTS_UPDATE, update, Some(&owner)), Err(ErrorCode::Conflict), "stale version");
+
+    // Soft delete: disappears from the active list, search no longer finds it.
+    t.ok(m::PATIENTS_DELETE, json!({"id": p2["id"], "version": p2["version"]}), Some(&owner));
+    let all = t.ok(m::PATIENTS_LIST, json!({}), Some(&owner));
+    assert_eq!(all["total"], 1);
+    assert_eq!(
+        t.call(m::PATIENTS_GET, json!({"patient_id": p2["id"]}), Some(&owner)),
+        Err(ErrorCode::NotFound)
+    );
+
+    let actions = t.audit_actions(&owner);
+    assert!(actions.contains(&"patient.create".to_string()));
+    assert!(actions.contains(&"patient.update".to_string()));
+    assert!(actions.contains(&"patient.delete".to_string()));
+}
+
+#[test]
+fn patient_merge_folds_the_losing_record() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let keep =
+        t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan", "phone": "0700000001"}), Some(&owner));
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan", "phone": "0700000002"}), Some(&owner)),
+        Err(ErrorCode::Validation),
+        "same name is flagged as a possible duplicate"
+    );
+    let dupe = t.ok(
+        m::PATIENTS_CREATE,
+        json!({"full_name": "Ahmad Khan", "phone": "0700000002", "allow_duplicate": true}),
+        Some(&owner),
+    );
+
+    assert_eq!(
+        t.call(
+            m::PATIENTS_MERGE,
+            json!({"keep_id": keep["id"], "merge_id": keep["id"], "merge_id_version": 1}),
+            Some(&owner)
+        ),
+        Err(ErrorCode::Validation)
+    );
+
+    let kept = t.ok(
+        m::PATIENTS_MERGE,
+        json!({"keep_id": keep["id"], "merge_id": dupe["id"], "merge_id_version": dupe["version"]}),
+        Some(&owner),
+    );
+    assert_eq!(kept["id"], keep["id"]);
+    let merged = t.ok(m::PATIENTS_GET, json!({"patient_id": dupe["id"]}), Some(&owner));
+    assert_eq!(merged["status"], "inactive");
+    assert_eq!(merged["merged_into_id"], keep["id"]);
+    let dups =
+        t.ok(m::PATIENTS_CHECK_DUPLICATE, json!({"full_name": "Ahmad Khan", "phone": null}), Some(&owner));
+    assert_eq!(dups.as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn medical_history_alert_and_optimistic_locking() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let patient = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
+
+    let empty = t.ok(m::MEDICAL_HISTORY_GET, json!({"patient_id": patient["id"]}), Some(&owner));
+    assert_eq!(empty["version"], 0);
+
+    let created = t.ok(
+        m::MEDICAL_HISTORY_UPDATE,
+        json!({"patient_id": patient["id"], "version": 0, "allergies": "Penicillin", "chronic_conditions": "Diabetes"}),
+        Some(&owner),
+    );
+    assert_eq!(created["version"], 1);
+    assert_eq!(created["allergies"], "Penicillin");
+
+    assert_eq!(
+        t.call(
+            m::MEDICAL_HISTORY_UPDATE,
+            json!({"patient_id": patient["id"], "version": 0, "allergies": "x"}),
+            Some(&owner)
+        ),
+        Err(ErrorCode::Conflict)
+    );
+
+    let updated = t.ok(
+        m::MEDICAL_HISTORY_UPDATE,
+        json!({"patient_id": patient["id"], "version": 1, "allergies": "Penicillin, Latex"}),
+        Some(&owner),
+    );
+    assert_eq!(updated["version"], 2);
+
+    let actions = t.audit_actions(&owner);
+    assert_eq!(actions.iter().filter(|a| a.as_str() == "patient.medical_history_update").count(), 2);
+}
+
+#[test]
+fn attachments_are_stored_encrypted_and_scoped_to_their_patient() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let patient = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
+
+    let data_base64 = data_encoding::BASE64.encode(b"fake x-ray bytes");
+    let a = t.ok(
+        m::ATTACHMENTS_UPLOAD,
+        json!({"patient_id": patient["id"], "kind": "xray", "file_name": "molar.png", "data_base64": data_base64, "tooth": "26"}),
+        Some(&owner),
+    );
+    assert_eq!(a["kind"], "xray");
+    assert_eq!(a["mime_type"], "image/png");
+
+    let list = t.ok(m::ATTACHMENTS_LIST, json!({"patient_id": patient["id"]}), Some(&owner));
+    assert_eq!(list.as_array().unwrap().len(), 1);
+
+    let file = t.ok(m::ATTACHMENTS_FILE, json!({"id": a["id"]}), Some(&owner));
+    let url = file["data_url"].as_str().unwrap();
+    assert!(url.starts_with("data:image/png;base64,"));
+
+    let dir = t.core.config().attachments_dir();
+    let on_disk: Vec<u8> = walk_first_file(&dir);
+    let needle = b"fake x-ray";
+    assert!(!on_disk.windows(needle.len()).any(|w| w == needle));
+
+    t.ok(m::ATTACHMENTS_DELETE, json!({"id": a["id"], "version": a["version"]}), Some(&owner));
+    let list = t.ok(m::ATTACHMENTS_LIST, json!({"patient_id": patient["id"]}), Some(&owner));
+    assert_eq!(list.as_array().unwrap().len(), 0);
+}
+
+fn walk_first_file(dir: &std::path::Path) -> Vec<u8> {
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        if entry.file_type().unwrap().is_dir() {
+            for f in std::fs::read_dir(entry.path()).unwrap() {
+                return std::fs::read(f.unwrap().path()).unwrap();
+            }
+        }
+    }
+    panic!("no attachment file found under {dir:?}");
+}
+
+#[test]
+fn import_previews_then_commits_only_valid_rows() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let csv = "full_name,father_name,phone,secondary_phone,date_of_birth,address\nAhmad Khan,Karim,0700123456,,1990-01-01,Kabul\n,Bad Row,123,,,\nZarghuna,,,,,";
+    let csv_base64 = data_encoding::BASE64.encode(csv.as_bytes());
+
+    let preview = t.ok(m::PATIENTS_IMPORT, json!({"csv_base64": csv_base64, "commit": false}), Some(&owner));
+    assert_eq!(preview["total"], 3);
+    assert_eq!(preview["imported"], 0);
+    assert_eq!(preview["skipped"], 1);
+    assert_eq!(t.ok(m::PATIENTS_LIST, json!({}), Some(&owner))["total"], 0);
+
+    let result = t.ok(m::PATIENTS_IMPORT, json!({"csv_base64": csv_base64, "commit": true}), Some(&owner));
+    assert_eq!(result["imported"], 2);
+    assert_eq!(result["skipped"], 1);
+    assert_eq!(t.ok(m::PATIENTS_LIST, json!({}), Some(&owner))["total"], 2);
+
+    let exported = t.ok(m::PATIENTS_EXPORT, json!({}), Some(&owner));
+    let bytes = data_encoding::BASE64.decode(exported["csv_base64"].as_str().unwrap().as_bytes()).unwrap();
+    let text = String::from_utf8(bytes).unwrap();
+    assert!(text.contains("Ahmad Khan"));
+    assert!(text.contains("Zarghuna"));
+}
+
+#[test]
+fn patients_require_permission() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "accountant1", "display_name": "x", "password": "acct-pass-12", "role": "accountant"}),
+        Some(&owner),
+    );
+    let accountant = t.login("accountant1", "acct-pass-12");
+    t.ok(m::PATIENTS_LIST, json!({}), Some(&accountant));
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": "x"}), Some(&accountant)),
+        Err(ErrorCode::Forbidden)
+    );
+}

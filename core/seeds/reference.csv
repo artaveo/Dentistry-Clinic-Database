@@ -17,3 +17,16 @@ payment_method,cash,1,نقد,نغدې,Cash
 payment_method,card,2,کارت بانکی,بانکي کارت,Bank card
 payment_method,bank_transfer,3,انتقال بانکی,بانکي لېږد,Bank transfer
 payment_method,mobile_money,4,پول موبایلی,موبایلي پیسې,Mobile money
+referral_source,family_friend,1,آشنا یا خانواده,پیژندګلو یا کورنۍ,Family or friend
+referral_source,social_media,2,شبکه‌های اجتماعی,ټولنیزې رسنۍ,Social media
+referral_source,signboard,3,تابلوی کلینیک,د کلینیک بورډ,Clinic signboard
+referral_source,doctor_referral,4,معرفی داکتر,د ډاکټر معرفي,Doctor referral
+referral_source,walk_in,5,عبوری,ناڅاپي راتګ,Walk-in
+referral_source,other,6,سایر,نور,Other
+relationship,spouse,1,همسر,میرمن یا مېړه,Spouse
+relationship,parent,2,پدر یا مادر,پلار یا مور,Parent
+relationship,child,3,فرزند,اولاد,Child
+relationship,sibling,4,خواهر یا برادر,خور یا ورور,Sibling
+relationship,relative,5,خویشاوند,خپلوان,Relative
+relationship,friend,6,دوست,ملګری,Friend
+relationship,other,7,سایر,نور,Other

@@ -2,9 +2,10 @@
 //!
 //!   cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir /tmp/big --users 200 --audit 100000
 //!
-//! Creates (or opens) a clinic, then bulk-inserts synthetic users and audit
-//! history and prints timings for the queries the app runs on them. Later
-//! phases extend it (patients: 100 000 in Phase 3). Synthetic data only.
+//! Creates (or opens) a clinic, then bulk-inserts synthetic users, audit
+//! history and (`--patients N`) patients, printing timings for the queries
+//! the app runs on them (Phase 3 NFR: search under 200ms at 100 000 patients).
+//! Synthetic data only.
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -32,6 +33,7 @@ fn main() {
     let dir = PathBuf::from(arg("--data-dir", ".artaveo-seed"));
     let users: usize = arg("--users", "200").parse().unwrap();
     let audits: usize = arg("--audit", "100000").parse().unwrap();
+    let patients: usize = arg("--patients", "0").parse().unwrap();
     let core = Core::open(Config::new(Environment::Test, dir.clone())).expect("open");
 
     if !core.is_set_up() {
@@ -82,4 +84,33 @@ fn main() {
     let t = Instant::now();
     let b = call(&core, m::BACKUP_CREATE, json!({}), Some(&token));
     println!("backup.create ({} bytes, verified): {:?}", b["size_bytes"], t.elapsed());
+
+    if patients > 0 {
+        // Phase 3 NFR: patient search under 200ms with 100 000 patients.
+        let names = ["احمد خان", "زرغونه", "کریم داد", "فاطمه", "نجیب الله", "صدیقه"];
+        let t = Instant::now();
+        for i in 0..patients {
+            call(
+                &core,
+                m::PATIENTS_CREATE,
+                json!({
+                    "full_name": format!("{} {i}", names[i % names.len()]),
+                    "phone": format!("07{:08}", i % 100_000_000),
+                    "allow_duplicate": true
+                }),
+                Some(&token),
+            );
+        }
+        println!("{patients} patients: {:?}", t.elapsed());
+
+        for (label, params) in [
+            ("patients.list first page", json!({"limit": 50, "offset": 0})),
+            ("patients.list search by name", json!({"query": names[0], "limit": 50})),
+            ("patients.list search by phone prefix", json!({"query": "0799999", "limit": 50})),
+        ] {
+            let t = Instant::now();
+            call(&core, m::PATIENTS_LIST, params, Some(&token));
+            println!("{label}: {:?}", t.elapsed());
+        }
+    }
 }

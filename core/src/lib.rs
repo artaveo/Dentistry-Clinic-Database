@@ -3,6 +3,7 @@
 //! (Tauri IPC, LAN, dev HTTP) only call [`Core::handle`].
 
 pub mod api;
+pub mod attachment;
 pub mod audit;
 pub mod auth;
 pub mod backup;
@@ -13,9 +14,11 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod ids;
+pub mod import;
 pub mod keys;
 pub mod logging;
 pub mod normalize;
+pub mod patient;
 pub mod seeds;
 pub mod session;
 pub mod settings;

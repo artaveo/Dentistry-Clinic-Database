@@ -74,6 +74,17 @@ pub enum ValidationRule {
     LogoSize,
     RecoveryKey,
     InvalidParams,
+    FullNameLength,
+    PhoneFormat,
+    PatientNotFound,
+    DateFormat,
+    AgeRange,
+    CannotMergeSelf,
+    AttachmentType,
+    AttachmentSize,
+    ImportFileType,
+    ToothFormat,
+    PossibleDuplicate,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -396,6 +407,287 @@ pub struct LabeledItem {
     pub label: String,
 }
 
+// ───────────────────────────── patients & medical records (Phase 3) ─────────────────────────────
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PatientStatus {
+    #[default]
+    Active,
+    Inactive,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PatientInfo {
+    pub id: String,
+    pub patient_number: String,
+    pub full_name: String,
+    pub father_name: Option<String>,
+    pub preferred_language: Option<Language>,
+    pub gender_id: Option<String>,
+    pub date_of_birth: Option<String>,
+    pub approximate_age: Option<i64>,
+    pub phone: Option<String>,
+    pub secondary_phone: Option<String>,
+    pub province_id: Option<String>,
+    pub district_id: Option<String>,
+    pub address: Option<String>,
+    pub emergency_contact_name: Option<String>,
+    pub emergency_contact_phone: Option<String>,
+    pub emergency_contact_relationship_id: Option<String>,
+    pub referral_source_id: Option<String>,
+    pub notes: Option<String>,
+    pub registration_date: String,
+    pub status: PatientStatus,
+    pub merged_into_id: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct CreatePatientParams {
+    pub full_name: String,
+    #[serde(default)]
+    pub father_name: Option<String>,
+    #[serde(default)]
+    pub preferred_language: Option<Language>,
+    #[serde(default)]
+    pub gender_id: Option<String>,
+    #[serde(default)]
+    pub date_of_birth: Option<String>,
+    #[serde(default)]
+    pub approximate_age: Option<i64>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub secondary_phone: Option<String>,
+    #[serde(default)]
+    pub province_id: Option<String>,
+    #[serde(default)]
+    pub district_id: Option<String>,
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub emergency_contact_name: Option<String>,
+    #[serde(default)]
+    pub emergency_contact_phone: Option<String>,
+    #[serde(default)]
+    pub emergency_contact_relationship_id: Option<String>,
+    #[serde(default)]
+    pub referral_source_id: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub registration_date: Option<String>,
+    #[serde(default)]
+    pub allow_duplicate: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdatePatientParams {
+    pub id: String,
+    pub version: i64,
+    pub full_name: String,
+    #[serde(default)]
+    pub father_name: Option<String>,
+    #[serde(default)]
+    pub preferred_language: Option<Language>,
+    #[serde(default)]
+    pub gender_id: Option<String>,
+    #[serde(default)]
+    pub date_of_birth: Option<String>,
+    #[serde(default)]
+    pub approximate_age: Option<i64>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub secondary_phone: Option<String>,
+    #[serde(default)]
+    pub province_id: Option<String>,
+    #[serde(default)]
+    pub district_id: Option<String>,
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub emergency_contact_name: Option<String>,
+    #[serde(default)]
+    pub emergency_contact_phone: Option<String>,
+    #[serde(default)]
+    pub emergency_contact_relationship_id: Option<String>,
+    #[serde(default)]
+    pub referral_source_id: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    pub status: PatientStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DuplicateCheckParams {
+    pub full_name: String,
+    #[serde(default)]
+    pub phone: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PatientListParams {
+    #[serde(default)]
+    pub query: Option<String>,
+    #[serde(default)]
+    pub status: Option<PatientStatus>,
+    #[serde(default = "default_patient_limit")]
+    pub limit: u32,
+    #[serde(default)]
+    pub offset: u32,
+}
+
+fn default_patient_limit() -> u32 {
+    50
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PatientListResult {
+    pub items: Vec<PatientInfo>,
+    pub total: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PatientIdParams {
+    pub patient_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct MergePatientsParams {
+    pub keep_id: String,
+    pub merge_id: String,
+    pub merge_id_version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct MedicalHistoryInfo {
+    pub patient_id: String,
+    pub allergies: Option<String>,
+    pub current_medications: Option<String>,
+    pub chronic_conditions: Option<String>,
+    pub dental_history: Option<String>,
+    pub previous_surgeries: Option<String>,
+    pub notes: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateMedicalHistoryParams {
+    pub patient_id: String,
+    pub version: i64,
+    #[serde(default)]
+    pub allergies: Option<String>,
+    #[serde(default)]
+    pub current_medications: Option<String>,
+    #[serde(default)]
+    pub chronic_conditions: Option<String>,
+    #[serde(default)]
+    pub dental_history: Option<String>,
+    #[serde(default)]
+    pub previous_surgeries: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentKind {
+    Xray,
+    Photo,
+    Document,
+    Scan,
+    ConsentForm,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AttachmentInfo {
+    pub id: String,
+    pub patient_id: String,
+    pub kind: AttachmentKind,
+    pub file_name: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
+    pub tooth: Option<String>,
+    pub description: Option<String>,
+    pub has_thumbnail: bool,
+    pub captured_at: String,
+    pub created_at: String,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UploadAttachmentParams {
+    pub patient_id: String,
+    pub kind: AttachmentKind,
+    pub file_name: String,
+    pub data_base64: String,
+    #[serde(default)]
+    pub tooth: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub captured_at: Option<String>,
+}
+
+/// Generic id+version for optimistic-locked delete calls (`patients.delete`, `attachments.delete`).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct IdVersionParams {
+    pub id: String,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AttachmentData {
+    pub data_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AttachmentFileParams {
+    pub id: String,
+    #[serde(default)]
+    pub thumbnail: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ImportError {
+    pub row_number: u32,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ImportPreviewRow {
+    pub row_number: u32,
+    pub full_name: String,
+    pub father_name: Option<String>,
+    pub phone: Option<String>,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ImportPatientsParams {
+    pub csv_base64: String,
+    #[serde(default)]
+    pub commit: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ImportPatientsResult {
+    pub total: u32,
+    pub imported: u32,
+    pub skipped: u32,
+    pub preview: Vec<ImportPreviewRow>,
+    pub errors: Vec<ImportError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ExportResult {
+    pub csv_base64: String,
+    pub file_name: String,
+}
+
 // ───────────────────────────── backup / audit / system ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -413,6 +705,9 @@ pub struct BackupInfo {
 pub struct AuditListParams {
     pub limit: u32,
     pub offset: u32,
+    /// Narrows to one record's history (e.g. a patient's Audit History tab, 3.6).
+    #[serde(default)]
+    pub entity_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -527,6 +822,21 @@ api! {
     "clinic.set_logo"        => CLINIC_SET_LOGO(SetLogoParams) -> ClinicLogo;
     "settings.get"           => SETTINGS_GET(Empty) -> Settings;
     "settings.update"        => SETTINGS_UPDATE(Settings) -> Settings;
+    "patients.list"              => PATIENTS_LIST(PatientListParams) -> PatientListResult;
+    "patients.get"               => PATIENTS_GET(PatientIdParams) -> PatientInfo;
+    "patients.create"            => PATIENTS_CREATE(CreatePatientParams) -> PatientInfo;
+    "patients.update"            => PATIENTS_UPDATE(UpdatePatientParams) -> PatientInfo;
+    "patients.delete"            => PATIENTS_DELETE(IdVersionParams) -> Empty;
+    "patients.check_duplicate"   => PATIENTS_CHECK_DUPLICATE(DuplicateCheckParams) -> Vec<PatientInfo>;
+    "patients.merge"             => PATIENTS_MERGE(MergePatientsParams) -> PatientInfo;
+    "patients.import"            => PATIENTS_IMPORT(ImportPatientsParams) -> ImportPatientsResult;
+    "patients.export"            => PATIENTS_EXPORT(Empty) -> ExportResult;
+    "medical_history.get"        => MEDICAL_HISTORY_GET(PatientIdParams) -> MedicalHistoryInfo;
+    "medical_history.update"     => MEDICAL_HISTORY_UPDATE(UpdateMedicalHistoryParams) -> MedicalHistoryInfo;
+    "attachments.list"           => ATTACHMENTS_LIST(PatientIdParams) -> Vec<AttachmentInfo>;
+    "attachments.upload"         => ATTACHMENTS_UPLOAD(UploadAttachmentParams) -> AttachmentInfo;
+    "attachments.delete"         => ATTACHMENTS_DELETE(IdVersionParams) -> Empty;
+    "attachments.file"           => ATTACHMENTS_FILE(AttachmentFileParams) -> AttachmentData;
     "backup.create"          => BACKUP_CREATE(Empty) -> BackupInfo;
     "backup.list"            => BACKUP_LIST(Empty) -> Vec<BackupInfo>;
     "audit.list"             => AUDIT_LIST(AuditListParams) -> Vec<AuditEntry>;
@@ -594,6 +904,28 @@ pub fn typescript_bindings() -> String {
         DatabaseInfo,
         IntegrityInfo,
         SystemInfo,
+        PatientStatus,
+        PatientInfo,
+        CreatePatientParams,
+        UpdatePatientParams,
+        DuplicateCheckParams,
+        PatientListParams,
+        PatientListResult,
+        PatientIdParams,
+        MergePatientsParams,
+        MedicalHistoryInfo,
+        UpdateMedicalHistoryParams,
+        AttachmentKind,
+        AttachmentInfo,
+        UploadAttachmentParams,
+        IdVersionParams,
+        AttachmentData,
+        AttachmentFileParams,
+        ImportError,
+        ImportPreviewRow,
+        ImportPatientsParams,
+        ImportPatientsResult,
+        ExportResult,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

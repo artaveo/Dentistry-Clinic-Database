@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -122,7 +122,11 @@ export type BackupInfo = { id: string, file_name: string, created_at: string, si
  */
 kind: string, verified: boolean, };
 
-export type AuditListParams = { limit: number, offset: number, };
+export type AuditListParams = { limit: number, offset: number,
+/**
+ * Narrows to one record's history (e.g. a patient's Audit History tab, 3.6).
+ */
+entity_id: string | null, };
 
 export type AuditEntry = { id: number, at: string, user_id: string | null, username: string | null, action: string, entity: string | null, entity_id: string | null, old_value: string | null, new_value: string | null, computer: string, };
 
@@ -150,6 +154,50 @@ build_arch: string,
  */
 machine_arch: string, emulated: boolean, os: string, environment: string, computer_name: string, data_dir: string, log_dir: string, database: DatabaseInfo | null, integrity: IntegrityInfo, last_backup: BackupInfo | null, };
 
+export type PatientStatus = "active" | "inactive";
+
+export type PatientInfo = { id: string, patient_number: string, full_name: string, father_name: string | null, preferred_language: Language | null, gender_id: string | null, date_of_birth: string | null, approximate_age: number | null, phone: string | null, secondary_phone: string | null, province_id: string | null, district_id: string | null, address: string | null, emergency_contact_name: string | null, emergency_contact_phone: string | null, emergency_contact_relationship_id: string | null, referral_source_id: string | null, notes: string | null, registration_date: string, status: PatientStatus, merged_into_id: string | null, version: number, };
+
+export type CreatePatientParams = { full_name: string, father_name: string | null, preferred_language: Language | null, gender_id: string | null, date_of_birth: string | null, approximate_age: number | null, phone: string | null, secondary_phone: string | null, province_id: string | null, district_id: string | null, address: string | null, emergency_contact_name: string | null, emergency_contact_phone: string | null, emergency_contact_relationship_id: string | null, referral_source_id: string | null, notes: string | null, registration_date: string | null, allow_duplicate: boolean, };
+
+export type UpdatePatientParams = { id: string, version: number, full_name: string, father_name: string | null, preferred_language: Language | null, gender_id: string | null, date_of_birth: string | null, approximate_age: number | null, phone: string | null, secondary_phone: string | null, province_id: string | null, district_id: string | null, address: string | null, emergency_contact_name: string | null, emergency_contact_phone: string | null, emergency_contact_relationship_id: string | null, referral_source_id: string | null, notes: string | null, status: PatientStatus, };
+
+export type DuplicateCheckParams = { full_name: string, phone: string | null, };
+
+export type PatientListParams = { query: string | null, status: PatientStatus | null, limit: number, offset: number, };
+
+export type PatientListResult = { items: Array<PatientInfo>, total: number, };
+
+export type PatientIdParams = { patient_id: string, };
+
+export type MergePatientsParams = { keep_id: string, merge_id: string, merge_id_version: number, };
+
+export type MedicalHistoryInfo = { patient_id: string, allergies: string | null, current_medications: string | null, chronic_conditions: string | null, dental_history: string | null, previous_surgeries: string | null, notes: string | null, version: number, };
+
+export type UpdateMedicalHistoryParams = { patient_id: string, version: number, allergies: string | null, current_medications: string | null, chronic_conditions: string | null, dental_history: string | null, previous_surgeries: string | null, notes: string | null, };
+
+export type AttachmentKind = "xray" | "photo" | "document" | "scan" | "consent_form" | "other";
+
+export type AttachmentInfo = { id: string, patient_id: string, kind: AttachmentKind, file_name: string, mime_type: string, size_bytes: number, tooth: string | null, description: string | null, has_thumbnail: boolean, captured_at: string, created_at: string, version: number, };
+
+export type UploadAttachmentParams = { patient_id: string, kind: AttachmentKind, file_name: string, data_base64: string, tooth: string | null, description: string | null, captured_at: string | null, };
+
+export type IdVersionParams = { id: string, version: number, };
+
+export type AttachmentData = { data_url: string, };
+
+export type AttachmentFileParams = { id: string, thumbnail: boolean, };
+
+export type ImportError = { row_number: number, message: string, };
+
+export type ImportPreviewRow = { row_number: number, full_name: string, father_name: string | null, phone: string | null, errors: Array<string>, };
+
+export type ImportPatientsParams = { csv_base64: string, commit: boolean, };
+
+export type ImportPatientsResult = { total: number, imported: number, skipped: number, preview: Array<ImportPreviewRow>, errors: Array<ImportError>, };
+
+export type ExportResult = { csv_base64: string, file_name: string, };
+
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
@@ -174,6 +222,21 @@ export interface Api {
   "clinic.set_logo": { params: SetLogoParams; result: ClinicLogo };
   "settings.get": { params: Empty; result: Settings };
   "settings.update": { params: Settings; result: Settings };
+  "patients.list": { params: PatientListParams; result: PatientListResult };
+  "patients.get": { params: PatientIdParams; result: PatientInfo };
+  "patients.create": { params: CreatePatientParams; result: PatientInfo };
+  "patients.update": { params: UpdatePatientParams; result: PatientInfo };
+  "patients.delete": { params: IdVersionParams; result: Empty };
+  "patients.check_duplicate": { params: DuplicateCheckParams; result: Array<PatientInfo> };
+  "patients.merge": { params: MergePatientsParams; result: PatientInfo };
+  "patients.import": { params: ImportPatientsParams; result: ImportPatientsResult };
+  "patients.export": { params: Empty; result: ExportResult };
+  "medical_history.get": { params: PatientIdParams; result: MedicalHistoryInfo };
+  "medical_history.update": { params: UpdateMedicalHistoryParams; result: MedicalHistoryInfo };
+  "attachments.list": { params: PatientIdParams; result: Array<AttachmentInfo> };
+  "attachments.upload": { params: UploadAttachmentParams; result: AttachmentInfo };
+  "attachments.delete": { params: IdVersionParams; result: Empty };
+  "attachments.file": { params: AttachmentFileParams; result: AttachmentData };
   "backup.create": { params: Empty; result: BackupInfo };
   "backup.list": { params: Empty; result: Array<BackupInfo> };
   "audit.list": { params: AuditListParams; result: Array<AuditEntry> };
