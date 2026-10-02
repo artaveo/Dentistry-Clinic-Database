@@ -57,19 +57,19 @@
 | `wizard.hours.calendar.gregorian` | Gregorian | میلادی | میلادي | |
 | `wizard.hours.workingHours` | Clinic working hours | ساعات کاری کلینیک | د کلینیک د کار ساعتونه | |
 | `wizard.hours.open` | Open | باز | خلاص | |
-| `wizard.day.0` | Saturday | شنبه | شنبه | |
-| `wizard.day.1` | Sunday | یکشنبه | یکشنبه | |
-| `wizard.day.2` | Monday | دوشنبه | دوشنبه | |
-| `wizard.day.3` | Tuesday | سه‌شنبه | سه‌شنبه | |
-| `wizard.day.4` | Wednesday | چهارشنبه | چارشنبه | |
-| `wizard.day.5` | Thursday | پنج‌شنبه | پنجشنبه | |
+| `wizard.day.0` | Saturday | شنبه | خالي | |
+| `wizard.day.1` | Sunday | یکشنبه | یونۍ | |
+| `wizard.day.2` | Monday | دوشنبه | دونۍ | |
+| `wizard.day.3` | Tuesday | سه‌شنبه | درېنۍ | |
+| `wizard.day.4` | Wednesday | چهارشنبه | څلورنۍ | |
+| `wizard.day.5` | Thursday | پنج‌شنبه | پنځنۍ | |
 | `wizard.day.6` | Friday | جمعه | جمعه | |
 | `wizard.clinicType.title` | Clinic type | نوع کلینیک | د کلینیک ډول | |
 | `wizard.clinicType.solo.title` | Solo doctor | تک‌دکتر | یو ډاکټر | |
 | `wizard.clinicType.solo.hint` | Only one doctor; forms get simpler and the doctor picker is hidden. | فقط یک دکتر؛ فرم‌ها ساده‌تر می‌شوند و انتخاب دکتر پنهان است. | یوازې یو ډاکټر؛ فورمې ساده کېږي او د ډاکټر ټاکنه پټه وي. | |
 | `wizard.clinicType.multi.title` | Multiple doctors | چند دکتر | څو ډاکتران | |
 | `wizard.clinicType.multi.hint` | Several doctors at the clinic; you can also add more later. | چند دکتر در کلینیک؛ می‌توانید بعداً هم اضافه کنید. | په کلینیک کې څو ډاکتران؛ وروسته هم کولی شئ نور زیات کړئ. | |
-| `wizard.branding.title` | Appearance & colors | ظاهر و رنگ‌ها | ښکلا او رنګونه | |
+| `wizard.branding.title` | Appearance & colors | ظاهر و رنگ‌ها | بڼه او رنګونه | |
 | `wizard.branding.theme` | Display mode | حالت نمایش | د ښودنې ډول | |
 | `wizard.branding.preview` | Clinic colors | رنگ‌های کلینیک | د کلینیک رنګونه | |
 | `wizard.branding.colorPrimary` | Primary color | رنگ اصلی | اصلي رنګ | |
