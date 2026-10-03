@@ -4,12 +4,13 @@
 
 * نقشه راه: [Artaveo_Dental_Roadmap.md](Artaveo_Dental_Roadmap.md)
 * فاز ۰ (Technical Spikes): ✅ — [گزارش‌ها](docs/spikes/README.md) · [ADRها](docs/adr/README.md) · [جدول ریسک](docs/risk-register.md)
+* فاز ۴ (نوبت‌دهی و پذیرش): [راهنمای تست دستی](docs/testing/phase-4-manual-test.md)
 * فاز ۱ (Engineering Foundation): [راهنمای تست دستی](docs/testing/phase-1-manual-test.md) · Installerها در GitHub Releases
 
 ## ساختار
 
 ```text
-core/      Rust Core — تمام منطق، دیتابیس SQLCipher، Migration، Auth (Argon2id)، Permission، Audit، Backup
+core/      Rust Core — تمام منطق، دیتابیس SQLCipher، Migration، Auth (Argon2id)، Permission، Audit، Backup، بیماران، نوبت‌دهی (appointment.rs، scheduling.rs، recall.rs)
   migrations/   SQL نسخه‌دار (هر Migration در Transaction، Backup قبل از اجرا)
   seeds/        داده مرجع و جغرافیا (CSV، سه زبان)
   src/bin/      artaveo-dev-server (HTTP توسعه/E2E) · artaveo-seed (دیتابیس آزمایشی بزرگ)
@@ -39,6 +40,7 @@ node scripts/guide-screens.mjs http://127.0.0.1:5199     # عکس‌های را�
 
 cd ui && npx playwright test                            # E2E (dev server را خودش اجرا می‌کند؛ قبلش cargo build --features dev-server)
 cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir /tmp/big --audit 100000
+cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir /tmp/big100k --patients 100000 --appointments 50000 --enforce   # دروازه کارایی (OF-016)
 
 # برنامه دسکتاپ (ویندوز):
 cd ui && npm run build && cd ../app && ../ui/node_modules/.bin/tauri build --target x86_64-pc-windows-msvc

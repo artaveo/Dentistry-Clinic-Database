@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -75,7 +75,11 @@ recovery_key: string, };
 
 export type LoginParams = { username: string, password: string, };
 
-export type UserInfo = { id: string, username: string, display_name: string, role: string, is_active: boolean, version: number, };
+export type UserInfo = { id: string, username: string, display_name: string, role: string, 
+/**
+ * Name of a clinic-made role; built-in roles have none (the UI translates `role`).
+ */
+role_label: string | null, is_active: boolean, version: number, };
 
 export type SessionInfo = { token: string, user: UserInfo, permissions: Array<string>, timeout_minutes: number, locked: boolean, };
 
@@ -106,7 +110,31 @@ export type UpdateUserParams = { id: string,
  */
 version: number, display_name: string, role: string, is_active: boolean, };
 
-export type RoleInfo = { code: string, permissions: Array<string>, };
+export type RoleInfo = { code: string, 
+/**
+ * The name a clinic gave a custom role; system roles have none (the UI translates their code).
+ */
+label: string | null, is_system: boolean, permissions: Array<string>, 
+/**
+ * Active users currently holding the role.
+ */
+user_count: number, version: number, };
+
+export type PermissionInfo = { code: string, 
+/**
+ * False for permissions only the built-in roles carry (e.g. `backup.restore`, Owner-only).
+ */
+assignable: boolean, };
+
+export type CreateRoleParams = { label: string, permissions: Array<string>, };
+
+export type UpdateRoleParams = { code: string, version: number, label: string, permissions: Array<string>, };
+
+export type DeleteRoleParams = { code: string, version: number, };
+
+export type ResetPasswordParams = { id: string, new_password: string, };
+
+export type UserIdParams = { id: string, };
 
 export type ReferenceListParams = { type_code: string, language: Language, };
 
@@ -188,15 +216,213 @@ export type AttachmentData = { data_url: string, };
 
 export type AttachmentFileParams = { id: string, thumbnail: boolean, };
 
-export type ImportError = { row_number: number, message: string, };
+export type IdParams = { id: string, };
 
-export type ImportPreviewRow = { row_number: number, full_name: string, father_name: string | null, phone: string | null, errors: Array<string>, };
+export type ImportError = { row_number: number, 
+/**
+ * Developer-facing detail (English).
+ */
+message: string, 
+/**
+ * The patient field at fault and the rule it broke; the UI translates `rule.<rule>`.
+ */
+field: ImportField | null, rule: ValidationRule | null, };
 
-export type ImportPatientsParams = { csv_base64: string, commit: boolean, };
+export type ImportPreviewRow = { row_number: number, full_name: string, father_name: string | null, phone: string | null, errors: Array<ImportError>, };
+
+export type ImportPatientsParams = { 
+/**
+ * CSV (UTF-8) or Excel (.xlsx) file, base64.
+ */
+file_base64: string, file_name: string | null, sheet: string | null, 
+/**
+ * File column → patient field. Absent = use the automatic guess.
+ */
+mapping: Array<ColumnMapping> | null, commit: boolean, };
 
 export type ImportPatientsResult = { total: number, imported: number, skipped: number, preview: Array<ImportPreviewRow>, errors: Array<ImportError>, };
 
 export type ExportResult = { csv_base64: string, file_name: string, };
+
+export type ImportField = "full_name" | "father_name" | "phone" | "secondary_phone" | "date_of_birth" | "approximate_age" | "gender" | "province" | "address" | "emergency_contact_name" | "emergency_contact_phone" | "notes" | "registration_date";
+
+export type ColumnMapping = { column: number, field: ImportField, };
+
+export type ImportInspectParams = { file_base64: string, file_name: string, 
+/**
+ * Sheet of an Excel file; the first sheet when absent.
+ */
+sheet: string | null, };
+
+export type ImportInspectResult = { 
+/**
+ * "csv" or "xlsx".
+ */
+file_kind: string, sheets: Array<string>, sheet: string | null, headers: Array<string>, 
+/**
+ * The first rows below the header, for the mapping screen.
+ */
+sample_rows: Array<Array<string>>, total_rows: number, 
+/**
+ * Automatic guess from the header names (Dari, Pashto and English).
+ */
+suggested: Array<ColumnMapping>, };
+
+export type AttachmentThumbnail = { id: string, 
+/**
+ * `data:image/jpeg;base64,…`, or `None` when the file is not an image the Core can shrink.
+ */
+data_url: string | null, };
+
+export type ActiveStatus = "active" | "inactive";
+
+export type ScheduleSlot = { day: number, start: string, end: string, };
+
+export type LeaveInfo = { id: string, doctor_id: string, 
+/**
+ * Clinic-local ISO dates, both ends inclusive.
+ */
+start_date: string, end_date: string, reason: string | null, version: number, };
+
+export type DoctorInfo = { id: string, 
+/**
+ * The login this doctor signs in with, if any.
+ */
+user_id: string | null, username: string | null, full_name: string, specialty: string | null, 
+/**
+ * Calendar colour, `#rrggbb`.
+ */
+color: string, status: ActiveStatus, sort_order: number, 
+/**
+ * Weekly working hours. No intervals at all = no hour restriction.
+ */
+hours: Array<ScheduleSlot>, breaks: Array<ScheduleSlot>, 
+/**
+ * Chairs this doctor may use; empty = any chair.
+ */
+chair_ids: Array<string>, leaves: Array<LeaveInfo>, version: number, };
+
+export type DoctorListParams = { include_inactive: boolean, };
+
+export type CreateDoctorParams = { full_name: string, specialty: string | null, color: string, user_id: string | null, };
+
+export type UpdateDoctorParams = { id: string, version: number, full_name: string, specialty: string | null, color: string, status: ActiveStatus, user_id: string | null, };
+
+export type SetScheduleParams = { doctor_id: string, version: number, hours: Array<ScheduleSlot>, breaks: Array<ScheduleSlot>, chair_ids: Array<string>, };
+
+export type AddLeaveParams = { doctor_id: string, start_date: string, end_date: string, reason: string | null, };
+
+export type LeaveResult = { leave: LeaveInfo, 
+/**
+ * Live appointments of this doctor that fall inside the leave and need rescheduling.
+ */
+affected_appointments: number, };
+
+export type ChairInfo = { id: string, name: string, status: ActiveStatus, sort_order: number, version: number, };
+
+export type ChairListParams = { include_inactive: boolean, };
+
+export type CreateChairParams = { name: string, };
+
+export type UpdateChairParams = { id: string, version: number, name: string, status: ActiveStatus, };
+
+export type AppointmentStatus = "scheduled" | "confirmed" | "checked_in" | "in_treatment" | "completed" | "cancelled" | "no_show" | "rescheduled";
+
+export type AppointmentInfo = { id: string, patient_id: string, patient_number: string, patient_name: string, patient_phone: string | null, doctor_id: string, doctor_name: string, doctor_color: string, chair_id: string | null, chair_name: string | null, 
+/**
+ * Clinic-local date (ISO) and 24-hour "HH:MM" start/end; the UI formats them 12-hour.
+ */
+date: string, start_time: string, end_time: string, 
+/**
+ * The same instants in UTC (ADR-07).
+ */
+start_at: string, end_at: string, reason: string | null, notes: string | null, status: AppointmentStatus, is_walk_in: boolean, 
+/**
+ * Ticket of the day, assigned at check-in.
+ */
+queue_number: number | null, checked_in_at: string | null, treatment_started_at: string | null, completed_at: string | null, cancelled_at: string | null, cancel_reason: string | null, rescheduled_from_id: string | null, rescheduled_to_id: string | null, version: number, };
+
+export type CreateAppointmentParams = { patient_id: string, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, reason: string | null, notes: string | null, 
+/**
+ * Book outside the doctor's hours / during a break / on a leave day anyway.
+ */
+override_schedule: boolean, 
+/**
+ * Booking made from the recall list (4.6): the recall becomes `booked`.
+ */
+recall_id: string | null, };
+
+export type UpdateAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, reason: string | null, notes: string | null, override_schedule: boolean, };
+
+export type RescheduleAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, override_schedule: boolean, };
+
+export type AppointmentListParams = { 
+/**
+ * Clinic-local ISO dates, both ends inclusive. Required unless `patient_id` is given.
+ */
+date_from: string | null, date_to: string | null, doctor_id: string | null, chair_id: string | null, patient_id: string | null, 
+/**
+ * Empty = every status.
+ */
+statuses: Array<AppointmentStatus>, limit: number, offset: number, };
+
+export type AppointmentCountsParams = { date_from: string, date_to: string, doctor_id: string | null, };
+
+export type DayCount = { date: string, 
+/**
+ * Every appointment of the day except cancelled / rescheduled ones.
+ */
+total: number, 
+/**
+ * Not yet finished (scheduled, confirmed, checked-in, in treatment).
+ */
+open: number, };
+
+export type SetAppointmentStatusParams = { id: string, version: number, status: AppointmentStatus, 
+/**
+ * Why it was cancelled (optional).
+ */
+reason: string | null, 
+/**
+ * With `completed`: schedule the patient's next visit / recall in the same step (4.6).
+ */
+follow_up: FollowUpInput | null, };
+
+export type WalkInParams = { patient_id: string, doctor_id: string, chair_id: string | null, reason: string | null, 
+/**
+ * Expected length; default 30 minutes.
+ */
+duration_minutes: number | null, };
+
+export type RecallKind = "checkup" | "cleaning" | "follow_up" | "no_show" | "other";
+
+export type RecallStatus = "pending" | "contacted" | "booked" | "done" | "dismissed";
+
+export type FollowUpInput = { due_date: string, kind: RecallKind, 
+/**
+ * Recurring recall: once its visit is completed, the next one is created this many months later.
+ */
+repeat_months: number | null, note: string | null, };
+
+export type RecallInfo = { id: string, patient_id: string, patient_number: string, patient_name: string, patient_phone: string | null, kind: RecallKind, due_date: string, repeat_months: number | null, note: string | null, status: RecallStatus, appointment_id: string | null, source_appointment_id: string | null, last_contacted_at: string | null, contact_note: string | null, version: number, };
+
+export type CreateRecallParams = { patient_id: string, kind: RecallKind, due_date: string, repeat_months: number | null, note: string | null, };
+
+export type UpdateRecallParams = { id: string, version: number, kind: RecallKind, due_date: string, repeat_months: number | null, note: string | null, };
+
+export type SetRecallStatusParams = { id: string, version: number, status: RecallStatus, note: string | null, };
+
+export type RecallListParams = { patient_id: string | null, 
+/**
+ * Empty = the call list (pending + contacted).
+ */
+statuses: Array<RecallStatus>, 
+/**
+ * Clinic-local ISO dates; `due_until` lets the call list show "due within two weeks".
+ */
+due_from: string | null, due_until: string | null, limit: number, offset: number, };
+
+export type RecallListResult = { items: Array<RecallInfo>, total: number, };
 
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
@@ -213,7 +439,13 @@ export interface Api {
   "users.list": { params: Empty; result: Array<UserInfo> };
   "users.create": { params: CreateUserParams; result: UserInfo };
   "users.update": { params: UpdateUserParams; result: UserInfo };
+  "users.reset_password": { params: ResetPasswordParams; result: UserInfo };
+  "users.unlock": { params: UserIdParams; result: UserInfo };
   "roles.list": { params: Empty; result: Array<RoleInfo> };
+  "roles.create": { params: CreateRoleParams; result: RoleInfo };
+  "roles.update": { params: UpdateRoleParams; result: RoleInfo };
+  "roles.delete": { params: DeleteRoleParams; result: Empty };
+  "permissions.list": { params: Empty; result: Array<PermissionInfo> };
   "reference.list": { params: ReferenceListParams; result: Array<LabeledItem> };
   "geo.provinces": { params: LanguageParams; result: Array<LabeledItem> };
   "geo.districts": { params: DistrictListParams; result: Array<LabeledItem> };
@@ -229,6 +461,7 @@ export interface Api {
   "patients.delete": { params: IdVersionParams; result: Empty };
   "patients.check_duplicate": { params: DuplicateCheckParams; result: Array<PatientInfo> };
   "patients.merge": { params: MergePatientsParams; result: PatientInfo };
+  "patients.import_inspect": { params: ImportInspectParams; result: ImportInspectResult };
   "patients.import": { params: ImportPatientsParams; result: ImportPatientsResult };
   "patients.export": { params: Empty; result: ExportResult };
   "medical_history.get": { params: PatientIdParams; result: MedicalHistoryInfo };
@@ -237,6 +470,28 @@ export interface Api {
   "attachments.upload": { params: UploadAttachmentParams; result: AttachmentInfo };
   "attachments.delete": { params: IdVersionParams; result: Empty };
   "attachments.file": { params: AttachmentFileParams; result: AttachmentData };
+  "attachments.thumbnails": { params: PatientIdParams; result: Array<AttachmentThumbnail> };
+  "doctors.list": { params: DoctorListParams; result: Array<DoctorInfo> };
+  "doctors.create": { params: CreateDoctorParams; result: DoctorInfo };
+  "doctors.update": { params: UpdateDoctorParams; result: DoctorInfo };
+  "doctors.set_schedule": { params: SetScheduleParams; result: DoctorInfo };
+  "doctors.add_leave": { params: AddLeaveParams; result: LeaveResult };
+  "doctors.delete_leave": { params: IdVersionParams; result: Empty };
+  "chairs.list": { params: ChairListParams; result: Array<ChairInfo> };
+  "chairs.create": { params: CreateChairParams; result: ChairInfo };
+  "chairs.update": { params: UpdateChairParams; result: ChairInfo };
+  "appointments.list": { params: AppointmentListParams; result: Array<AppointmentInfo> };
+  "appointments.counts": { params: AppointmentCountsParams; result: Array<DayCount> };
+  "appointments.get": { params: IdParams; result: AppointmentInfo };
+  "appointments.create": { params: CreateAppointmentParams; result: AppointmentInfo };
+  "appointments.update": { params: UpdateAppointmentParams; result: AppointmentInfo };
+  "appointments.reschedule": { params: RescheduleAppointmentParams; result: AppointmentInfo };
+  "appointments.set_status": { params: SetAppointmentStatusParams; result: AppointmentInfo };
+  "appointments.walk_in": { params: WalkInParams; result: AppointmentInfo };
+  "recalls.list": { params: RecallListParams; result: RecallListResult };
+  "recalls.create": { params: CreateRecallParams; result: RecallInfo };
+  "recalls.update": { params: UpdateRecallParams; result: RecallInfo };
+  "recalls.set_status": { params: SetRecallStatusParams; result: RecallInfo };
   "backup.create": { params: Empty; result: BackupInfo };
   "backup.list": { params: Empty; result: Array<BackupInfo> };
   "audit.list": { params: AuditListParams; result: Array<AuditEntry> };

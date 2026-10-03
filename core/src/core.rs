@@ -113,6 +113,28 @@ impl Core {
         f(opened)
     }
 
+    /// Like [`with_db`](Self::with_db), but everything `f` writes is one atomic
+    /// transaction: any error rolls it all back (appointment + recall + audit
+    /// either all happen or none does).
+    pub(crate) fn with_tx<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
+        self.with_db(|o| {
+            let tx = o.conn.transaction()?;
+            let out = f(&tx)?;
+            tx.commit()?;
+            Ok(out)
+        })
+    }
+
+    /// [`with_tx`](Self::with_tx) for work that also needs the data key (attachment files).
+    pub(crate) fn with_tx_keyed<T>(&self, f: impl FnOnce(&Connection, &DataKey) -> Result<T>) -> Result<T> {
+        self.with_db(|o| {
+            let tx = o.conn.transaction()?;
+            let out = f(&tx, &o.key)?;
+            tx.commit()?;
+            Ok(out)
+        })
+    }
+
     pub(crate) fn session_timeout(&self) -> Duration {
         Duration::from_secs(self.timeout_minutes.load(Ordering::Relaxed) as u64 * 60)
     }

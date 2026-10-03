@@ -16,6 +16,11 @@ const GREGORIAN_MONTHS: Record<Language, string[]> = {
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
 };
 
+/** Month name (1–12) in the clinic's calendar and the UI language. */
+export function monthName(calendar: CalendarSystem, month: number, lang: Language): string {
+  return (calendar === "gregorian" ? GREGORIAN_MONTHS : SHAMSI_MONTHS)[lang][month - 1];
+}
+
 /** Morning / afternoon markers (owner decision, ADR-07). */
 export const PERIODS: Record<Language, { am: string; pm: string }> = {
   fa: { am: "ق.ظ", pm: "ب.ظ" },

@@ -198,12 +198,21 @@ pub fn list_patients(conn: &Connection, p: &PatientListParams) -> Result<Patient
                 let rows: Vec<PatientInfo> = stmt
                     .query_map(params![fts_query, status_sql, limit, p.offset], map_patient)?
                     .collect::<rusqlite::Result<_>>()?;
-                let total: u32 = conn.query_row(
-                    "SELECT COUNT(*) FROM patient WHERE deleted_at IS NULL AND (?2 IS NULL OR status = ?2)
-                     AND id IN (SELECT patient_id FROM patient_fts WHERE patient_fts MATCH ?1)",
-                    params![fts_query, status_sql],
-                    |r| r.get(0),
-                )?;
+                // Deleted patients are removed from the index, so without a status filter the
+                // index alone counts the matches (no join with 17 000 patient rows).
+                let total: u32 = match status_sql {
+                    None => conn.query_row(
+                        "SELECT COUNT(*) FROM patient_fts WHERE patient_fts MATCH ?1",
+                        [&fts_query],
+                        |r| r.get(0),
+                    )?,
+                    Some(_) => conn.query_row(
+                        "SELECT COUNT(*) FROM patient WHERE deleted_at IS NULL AND status = ?2
+                         AND id IN (SELECT patient_id FROM patient_fts WHERE patient_fts MATCH ?1)",
+                        params![fts_query, status_sql],
+                        |r| r.get(0),
+                    )?,
+                };
                 (rows, total)
             }
         }
@@ -304,6 +313,17 @@ fn search_text(
     parts.into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
+/// A new patient has no index row yet, so there is nothing to delete. (`patient_id` is an
+/// UNINDEXED FTS column: deleting by it scans the whole index, which made registering patients
+/// quadratic — minutes for 100 000 rows.)
+fn fts_insert(conn: &Connection, patient_id: &str, text: &str) -> Result<()> {
+    conn.execute(
+        "INSERT INTO patient_fts(patient_id, search_text) VALUES (?1, ?2)",
+        params![patient_id, text],
+    )?;
+    Ok(())
+}
+
 fn fts_upsert(conn: &Connection, patient_id: &str, text: &str) -> Result<()> {
     conn.execute("DELETE FROM patient_fts WHERE patient_id = ?1", [patient_id])?;
     conn.execute(
@@ -386,7 +406,7 @@ pub fn create_patient(conn: &Connection, actor: &Actor, p: &CreatePatientParams)
             actor.user_id,
         ],
     )?;
-    fts_upsert(
+    fts_insert(
         conn,
         &id,
         &search_text(
@@ -463,6 +483,23 @@ pub fn update_patient(conn: &Connection, actor: &Actor, p: &UpdatePatientParams)
 
 pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) -> Result<()> {
     let before = get_patient(conn, id)?;
+    // A patient who is still booked or waiting must not vanish from the calendar and the queue.
+    let open: bool = conn.query_row(
+        &format!(
+            "SELECT EXISTS(SELECT 1 FROM appointment WHERE patient_id = ?1 AND deleted_at IS NULL
+                           AND status IN {})",
+            crate::scheduling::LIVE_STATUSES_SQL
+        ),
+        [id],
+        |r| r.get(0),
+    )?;
+    if open {
+        return Err(CoreError::invalid(
+            "id",
+            ValidationRule::PatientHasOpenAppointments,
+            "the patient still has open appointments; cancel them first",
+        ));
+    }
     let changed = conn.execute(
         "UPDATE patient SET deleted_at = ?1, updated_at = ?1, updated_by = ?2, version = version + 1
          WHERE id = ?3 AND version = ?4 AND deleted_at IS NULL",
@@ -470,14 +507,19 @@ pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) 
     )?;
     expect_one_row(changed, "patient")?;
     fts_delete(conn, id)?;
+    // Nobody should keep phoning a patient whose record was removed.
+    conn.execute(
+        "UPDATE recall SET status = 'dismissed', updated_at = ?1, updated_by = ?2, version = version + 1
+         WHERE patient_id = ?3 AND status IN ('pending', 'contacted') AND deleted_at IS NULL",
+        params![now_iso(), actor.user_id, id],
+    )?;
     audit::record(conn, actor, "patient.delete", Some("patient"), Some(id), Some(&json!(before)), None)?;
     Ok(())
 }
 
 /// Folds `merge_id` into `keep_id`: the losing record is marked inactive and
-/// points at the survivor (3.1). Nothing else references `patient_id` yet in
-/// this phase, so there is nothing to re-parent; later phases (appointments,
-/// invoices, …) must do that themselves when they add their own merge step.
+/// points at the survivor (3.1). Appointments and recalls (Phase 4) move to the
+/// survivor; later phases (invoices, …) must add their own re-parenting here.
 pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams) -> Result<PatientInfo> {
     if p.keep_id == p.merge_id {
         return Err(CoreError::invalid(
@@ -494,6 +536,12 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         params![p.keep_id, now_iso(), actor.user_id, p.merge_id, p.merge_id_version],
     )?;
     expect_one_row(changed, "patient")?;
+    let moved_appointments = conn.execute(
+        "UPDATE appointment SET patient_id = ?1 WHERE patient_id = ?2",
+        params![p.keep_id, p.merge_id],
+    )?;
+    let moved_recalls = conn
+        .execute("UPDATE recall SET patient_id = ?1 WHERE patient_id = ?2", params![p.keep_id, p.merge_id])?;
     // Stays searchable (staff may still look the old name up and need to be
     // redirected to `keep`); only `check_duplicate` excludes merged-away
     // records, via `merged_into_id IS NULL` below.
@@ -505,7 +553,12 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         Some("patient"),
         Some(&p.merge_id),
         Some(&json!(merge_before)),
-        Some(&json!({ "merged_after": merge_after, "kept": keep.id })),
+        Some(&json!({
+            "merged_after": merge_after,
+            "kept": keep.id,
+            "moved_appointments": moved_appointments,
+            "moved_recalls": moved_recalls
+        })),
     )?;
     Ok(keep)
 }
@@ -648,7 +701,7 @@ pub fn create_attachment(
     size_bytes: i64,
     tooth: Option<&str>,
     description: Option<&str>,
-    has_thumbnail: bool,
+    thumbnail_sha256: Option<&str>,
     captured_at: &str,
 ) -> Result<AttachmentInfo> {
     // A patient that doesn't exist (or is soft-deleted) cannot receive attachments.
@@ -657,8 +710,8 @@ pub fn create_attachment(
     let now = now_iso();
     conn.execute(
         "INSERT INTO patient_attachment(id, patient_id, kind, file_name, mime_type, sha256, size_bytes, tooth,
-            description, has_thumbnail, captured_at, created_at, created_by, updated_at, updated_by)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?12,?13)",
+            description, has_thumbnail, thumbnail_sha256, captured_at, created_at, created_by, updated_at, updated_by)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?14,?11,?12,?13,?12,?13)",
         params![
             id,
             patient_id,
@@ -669,10 +722,11 @@ pub fn create_attachment(
             size_bytes,
             tooth,
             description,
-            has_thumbnail as i64,
+            thumbnail_sha256.is_some() as i64,
             captured_at,
             now,
             actor.user_id,
+            thumbnail_sha256,
         ],
     )?;
     let info = get_attachment(conn, &id)?;
@@ -686,6 +740,27 @@ pub fn create_attachment(
         Some(&json!(info)),
     )?;
     Ok(info)
+}
+
+/// Content hashes of an attachment's file and (if any) its thumbnail.
+pub fn attachment_hashes(conn: &Connection, id: &str) -> Result<(String, Option<String>)> {
+    conn.query_row(
+        "SELECT sha256, thumbnail_sha256 FROM patient_attachment WHERE id = ?1 AND deleted_at IS NULL",
+        [id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )
+    .optional()?
+    .ok_or_else(|| CoreError::api(artaveo_shared::ErrorCode::NotFound, format!("attachment {id}")))
+}
+
+/// Records a thumbnail made after the fact (files saved before v0.4.0). Not a user edit, so the
+/// row's version and audit trail are left alone.
+pub fn set_attachment_thumbnail(conn: &Connection, id: &str, sha256: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE patient_attachment SET thumbnail_sha256 = ?1, has_thumbnail = 1 WHERE id = ?2",
+        params![sha256, id],
+    )?;
+    Ok(())
 }
 
 pub fn delete_attachment(conn: &Connection, actor: &Actor, id: &str, version: i64) -> Result<AttachmentInfo> {

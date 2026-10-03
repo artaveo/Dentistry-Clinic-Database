@@ -21,6 +21,7 @@ export const v = {
   },
   password: (s: string) => (!s ? "rule.required" : [...s].length < MIN_PASSWORD ? "rule.password_too_short" : null),
   displayName: (s: string) => (!s.trim() ? "rule.required" : [...s].length > 100 ? "rule.display_name_length" : null),
+  fullName: (s: string) => (!s.trim() ? "rule.required" : [...s.trim()].length > 150 ? "rule.full_name_length" : null),
   clinicName: (s: string) => (!s.trim() ? "rule.required" : [...s].length > 120 ? "rule.clinic_name_length" : null),
   /** Optional; when given, a phone number of 7–15 digits (+, spaces and dashes allowed). */
   phone: (s: string) => {

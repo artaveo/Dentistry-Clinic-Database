@@ -45,6 +45,9 @@ jobs:
           fi
       - name: Large seed smoke (users + 100k audit rows, timings)
         run: cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir "$RUNNER_TEMP/seed" --users 50 --audit 100000
+      - name: Performance gate (OF-016) - 100k patients, search under 200 ms, profile under 500 ms
+        # Fails the job when a roadmap NFR is missed; the timings table lands in the run summary.
+        run: cargo run --release -p artaveo-core --bin artaveo-seed -- --data-dir "$RUNNER_TEMP/seed100k" --users 20 --audit 20000 --patients 100000 --appointments 50000 --enforce
       - name: UI — install, translations, unit tests, typecheck, build
         working-directory: ui
         run: |

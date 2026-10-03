@@ -4,7 +4,7 @@ import {
   Activity, CalendarClock, ClipboardList, FileHeart, FileText, Grid3x3, Images, Merge, NotebookPen,
   Pencil, Pill, Receipt, ScrollText, Trash2, Wallet,
 } from "lucide-react";
-import type { PatientInfo } from "../../../../shared/ts/contract";
+import type { ClinicProfile, PatientInfo } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
 import { formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
@@ -18,6 +18,8 @@ import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { AttachmentsTab } from "./AttachmentsTab";
 import { PatientAuditTab } from "./PatientAuditTab";
 import { MergeDialog } from "./MergeDialog";
+import { PatientAppointmentsTab } from "./PatientAppointmentsTab";
+import type { AppointmentPerms } from "./PatientsPage";
 import { useReferenceList } from "./useReferenceList";
 
 type TabId = "overview" | "medical" | "appointments" | "chart" | "notes" | "plans" | "treatments" | "prescriptions" | "invoices" | "payments" | "documents" | "timeline" | "audit";
@@ -38,7 +40,7 @@ const TABS: { id: TabId; icon: LucideIcon; labelKey: string; ready: boolean }[] 
   { id: "audit", icon: ScrollText, labelKey: "patients.tab.audit", ready: true },
 ];
 
-export function PatientProfile({ patientId, canEdit, onBack, onEdit }: { patientId: string; canEdit: boolean; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
+export function PatientProfile({ patientId, canEdit, appointments, clinic, clinicName, onBack, onEdit }: { patientId: string; canEdit: boolean; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const [patient, setPatient] = useState<PatientInfo | null>(null);
@@ -101,10 +103,10 @@ export function PatientProfile({ patientId, canEdit, onBack, onEdit }: { patient
             type="button"
             role="tab"
             aria-selected={tab === id}
-            disabled={!ready}
-            title={ready ? undefined : t("patients.tab.comingSoon")}
+            disabled={!(ready || (id === "appointments" && appointments.view))}
+            title={ready || (id === "appointments" && appointments.view) ? undefined : t("patients.tab.comingSoon")}
             className="profile-tab"
-            onClick={() => ready && setTab(id)}
+            onClick={() => (ready || (id === "appointments" && appointments.view)) && setTab(id)}
             data-testid={`patient-tab-${id}`}
           >
             <Icon aria-hidden />
@@ -141,6 +143,7 @@ export function PatientProfile({ patientId, canEdit, onBack, onEdit }: { patient
       {tab === "medical" && (
         <MedicalHistoryTab patientId={patient.id} canEdit={canEdit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
       )}
+      {tab === "appointments" && <PatientAppointmentsTab patient={patient} perms={appointments} clinic={clinic} clinicName={clinicName} />}
       {tab === "documents" && <AttachmentsTab patientId={patient.id} canEdit={canEdit} />}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 

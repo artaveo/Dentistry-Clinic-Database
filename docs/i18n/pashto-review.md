@@ -4,7 +4,7 @@
 > (`node ui/scripts/export-pashto-review.mjs`). هر بار که متن‌های رابط
 > برنامه تغییر کنند، دوباره ساخته می‌شود. راهنمای بازبینی: [README.md](README.md).
 
-تعداد متن‌ها: 514
+تعداد متن‌ها: 832
 
 | کلید (فقط برای توسعه‌دهنده) | English (مرجع) | دری (مرجع — تأییدشده) | پښتو (نیازمند بازبینی) | یادداشت بازبینی |
 |---|---|---|---|---|
@@ -493,8 +493,8 @@
 | `attachments.viewer.brightness` | Brightness | روشنایی | روڼتیا | |
 | `attachments.viewer.contrast` | Contrast | کنتراست | تضاد | |
 | `attachments.viewer.download` | Download | دانلود | ډاونلوډ | |
-| `patients.import.title` | Import patients from CSV | ورود بیماران از فایل CSV | د CSV فایل څخه د ناروغانو راوړل | |
-| `patients.import.hint` | The CSV file must have this header row: full_name,father_name,phone,secondary_phone,date_of_birth,address | فایل CSV باید این سرستون‌ها را داشته باشد: full_name,father_name,phone,secondary_phone,date_of_birth,address | د CSV فایل باید دا سرلیکونه ولري: full_name,father_name,phone,secondary_phone,date_of_birth,address | |
+| `patients.import.title` | Import patients from Excel or CSV | ورود بیماران از فایل Excel یا CSV | د Excel یا CSV فایل څخه د ناروغانو راوړل | |
+| `patients.import.hint` | Choose an .xlsx or .csv file; columns are recognised automatically and you can correct them. | فایل .xlsx یا .csv را انتخاب کنید؛ ستون‌ها خودکار تشخیص داده می‌شوند و می‌توانید اصلاحشان کنید. | د .xlsx یا .csv فایل وټاکئ؛ ستونونه په اتومات ډول پېژندل کېږي او تاسو یې سمولی شئ. | |
 | `patients.import.choose` | Choose CSV file | انتخاب فایل CSV | د CSV فایل ټاکل | |
 | `patients.import.preview` | Preview result | پیش‌نمایش نتیجه | د پایلې مخکتنه | |
 | `patients.import.commit` | Import patients | وارد کردن بیماران | د ناروغانو راوړل | |
@@ -512,7 +512,7 @@
 | `rule.attachment_size` | File must be at most 20 MB. | حجم فایل باید حداکثر ۲۰ مگابایت باشد. | د فایل اندازه باید تر ۲۰ میګابایټو پورې وي. | |
 | `rule.possible_duplicate` | This patient may already be registered. | ممکن است این بیمار قبلاً ثبت شده باشد. | کېدی شي دا ناروغ دمخه ثبت شوی وي. | |
 | `rule.patient_not_found` | Patient not found. | بیمار پیدا نشد. | ناروغ ونه موندل شو. | |
-| `rule.import_file_type` | The file must be a CSV with the correct header. | فایل باید CSV با سرستون درست باشد. | فایل باید د سم سرلیک سره CSV وي. | |
+| `rule.import_file_type` | Only .xlsx and .csv files are supported (save an old Excel file as .xlsx). | فقط فایل‌های .xlsx و .csv پشتیبانی می‌شوند (فایل قدیمی Excel را به‌صورت .xlsx ذخیره کنید). | یوازې .xlsx او .csv فایلونه منل کېږي (زوړ Excel فایل د .xlsx په توګه خوندي کړئ). | |
 | `rule.tooth_format` | Not a valid tooth number. | شماره دندان معتبر نیست. | د غاښ شمېره سمه نه ده. | |
 | `audit.act.patient.create` | Patient registered | ثبت بیمار | د ناروغ ثبت | |
 | `audit.act.patient.update` | Patient updated | ویرایش بیمار | د ناروغ سمون | |
@@ -522,3 +522,321 @@
 | `audit.act.patient.attachment_add` | Attachment added | افزودن پیوست | د ضمیمې اضافه کول | |
 | `audit.act.patient.attachment_delete` | Attachment deleted | حذف پیوست | د ضمیمې ړنګول | |
 | `audit.ent.patient` | Patient | بیمار | ناروغ | |
+| `nav.appointments` | Appointments | نوبت‌ها | وختونه | |
+| `nav.queue` | Today's queue | صف امروز | د نن ورځې کتار | |
+| `nav.recalls` | Call list | لیست تماس | د اړیکې لیست | |
+| `nav.doctors` | Doctors & chairs | داکتران و چوکی‌ها | ډاکټران او څوکۍ | |
+| `nav.group.reception` | Reception | پذیرش | پذیرش | |
+| `hint.fullName` | The patient's name and surname, up to 150 characters. | نام و تخلص بیمار، حداکثر ۱۵۰ حرف. | د ناروغ نوم او تخلص، تر ۱۵۰ توریو پورې. | |
+| `hint.doctorName` | The name shown in the calendar and appointments, e.g. “Dr. Ahmad”. | نامی که در تقویم و نوبت‌ها دیده می‌شود، مثلاً «داکتر احمد». | هغه نوم چې په کیلنڈر او وختونو کې ښکاري، لکه «ډاکټر احمد». | |
+| `hint.chairName` | The chair or room name or number, e.g. “Chair 1”. Up to 40 characters. | نام یا شماره چوکی یا اتاق، مثلاً «چوکی ۱». حداکثر ۴۰ حرف. | د څوکۍ یا خونې نوم یا شمېره، لکه «څوکۍ ۱». تر ۴۰ توریو پورې. | |
+| `hint.roleName` | The name the clinic gives this role, e.g. “Night reception”. | نامی که کلینیک برای این نقش می‌گذارد، مثلاً «پذیرش شبانه». | هغه نوم چې کلینیک یې دې رول ته ټاکي، لکه «شپنی پذیرش». | |
+| `appt.new` | New appointment | نوبت جدید | نوی وخت | |
+| `appt.newHint` | Choose the patient, doctor and time. A clash with another appointment is refused before saving. | بیمار، داکتر و زمان را انتخاب کنید. تداخل با نوبت دیگر پیش از ثبت جلوگیری می‌شود. | ناروغ، ډاکټر او وخت وټاکئ. له بل وخت سره ټکر مخکې له ثبت مخنیوی کېږي. | |
+| `appt.edit` | Appointment | نوبت | وخت | |
+| `appt.book` | Book appointment | ثبت نوبت | د وخت ثبتول | |
+| `appt.created` | Appointment booked. | نوبت ثبت شد. | وخت ثبت شو. | |
+| `appt.rescheduled` | Appointment moved to the new time. | نوبت به زمان جدید منتقل شد. | وخت نوي مهال ته ولېږدول شو. | |
+| `appt.reschedule` | Reschedule | انتقال به زمان جدید | نوي مهال ته لېږدول | |
+| `appt.patient` | Patient | بیمار | ناروغ | |
+| `appt.patient.hint` | Search by name, patient number or phone. | با نام، شماره بیمار یا شماره تماس جستجو کنید. | د نوم، ناروغ شمېرې یا د اړیکې شمېرې له مخې ولټوئ. | |
+| `appt.patient.change` | Change patient | تغییر بیمار | ناروغ بدلول | |
+| `appt.patient.new` | Register a new patient | ثبت بیمار جدید | نوی ناروغ ثبتول | |
+| `appt.patient.newTitle` | New patient | بیمار جدید | نوی ناروغ | |
+| `appt.patient.create` | Register and select | ثبت و انتخاب بیمار | ثبت او ټاکل | |
+| `appt.patient.createAnyway` | Register as a new patient anyway | به‌هرحال بیمار جدید ثبت شود | بیا هم نوی ناروغ ثبت شي | |
+| `appt.patient.duplicate` | A patient with this name or phone already exists. If it is the same person, select them: | بیماری با همین نام یا شماره تماس ثبت است. اگر همان شخص است، او را انتخاب کنید: | د همدې نوم یا شمېرې ناروغ مخکې ثبت دی. که همدا کس دی، هغه وټاکئ: | |
+| `appt.doctor` | Doctor | داکتر | ډاکټر | |
+| `appt.chair` | Chair | چوکی | څوکۍ | |
+| `appt.date` | Date | تاریخ | نېټه | |
+| `appt.time` | Time | ساعت | وخت | |
+| `appt.start` | Start time | ساعت شروع | د پیل وخت | |
+| `appt.duration` | Length | مدت | موده | |
+| `appt.endsAt` | Ends at | پایان: | پای: | |
+| `appt.reason` | Reason | دلیل مراجعه | د راتګ لامل | |
+| `appt.notes` | Notes | یادداشت | یادښت | |
+| `appt.override.title` | Outside the doctor's schedule | خارج از برنامه کاری داکتر | د ډاکټر له کاري مهال بهر | |
+| `appt.override.hint` | This time does not fit the doctor's hours, break or leave. If you need it on purpose, you can still book it. | این زمان با ساعت کاری، وقت استراحت یا رخصتی داکتر سازگار نیست. اگر عمداً لازم است، می‌توانید به‌هرحال ثبت کنید. | دا وخت د ډاکټر د کاري ساعتونو، آرام یا رخصتۍ سره سمون نه خوري. که قصداً اړتیا وي، بیا هم یې ثبت کولی شئ. | |
+| `appt.override.confirm` | Book anyway | به‌هرحال ثبت شود | بیا هم ثبت شي | |
+| `appt.card.title` | Appointment card | کارت نوبت | د وخت کارت | |
+| `appt.card.print` | Print appointment card | چاپ کارت نوبت | د وخت کارت چاپ | |
+| `appt.card.note` | Please arrive on time | لطفاً در وقت مقرر مراجعه کنید | مهرباني وکړئ په ټاکلي وخت راشئ | |
+| `appt.status.scheduled` | Scheduled | ثبت‌شده | ثبت شوی | |
+| `appt.status.confirmed` | Confirmed | تأیید‌شده | تایید شوی | |
+| `appt.status.checked_in` | Arrived (waiting) | رسیده (در انتظار) | راغلی (په انتظار کې) | |
+| `appt.status.in_treatment` | In treatment | در درمان | په درملنه کې | |
+| `appt.status.completed` | Completed | تمام‌شده | بشپړ شوی | |
+| `appt.status.cancelled` | Cancelled | لغو‌شده | لغوه شوی | |
+| `appt.status.no_show` | No-show | نیامده | نه دی راغلی | |
+| `appt.status.rescheduled` | Rescheduled | منتقل‌شده | لیږدول شوی | |
+| `appt.action.confirmed` | Confirm | تأیید نوبت | وخت تایید | |
+| `appt.action.checked_in` | Patient arrived | بیمار رسید | ناروغ راغی | |
+| `appt.action.in_treatment` | Start treatment | شروع درمان | درملنه پیل | |
+| `appt.action.completed` | Complete visit | تکمیل ویزیت | لیدنه بشپړول | |
+| `appt.action.no_show` | No-show | نیامد | نه دی راغلی | |
+| `appt.action.cancelled` | Cancel | لغو نوبت | وخت لغوه کول | |
+| `appt.done.confirmed` | Appointment confirmed. | نوبت تأیید شد. | وخت تایید شو. | |
+| `appt.done.checked_in` | Patient added to the queue. | بیمار در صف قرار گرفت. | ناروغ په کتار کې ځای شو. | |
+| `appt.done.in_treatment` | Treatment started. | درمان شروع شد. | درملنه پیل شوه. | |
+| `appt.done.completed` | Visit completed. | ویزیت تکمیل شد. | لیدنه بشپړه شوه. | |
+| `appt.done.no_show` | Marked as no-show. | به‌عنوان نیامده ثبت شد. | د نه راتلو په توګه ثبت شو. | |
+| `appt.done.cancelled` | Appointment cancelled. | نوبت لغو شد. | وخت لغوه شو. | |
+| `appt.done.scheduled` | Appointment restored. | نوبت برگردانده شد. | وخت بیرته شو. | |
+| `appt.done.rescheduled` | Appointment moved. | نوبت منتقل شد. | وخت ولېږدول شو. | |
+| `appt.cancel.title` | Cancel appointment | لغو نوبت | د وخت لغوه کول | |
+| `appt.cancel.hint` | The appointment leaves the calendar and its time is free again. | نوبت از تقویم برداشته می‌شود و زمانش برای دیگران آزاد می‌گردد. | وخت له کیلنډر لرې کېږي او مهال یې نورو ته خلاصېږي. | |
+| `appt.no_show.title` | Patient did not come | بیمار نیامد | ناروغ نه دی راغلی | |
+| `appt.no_show.hint` | The appointment is closed and the patient goes to the call list to be phoned again. | نوبت بسته می‌شود و نام بیمار برای تماس مجدد به لیست تماس می‌رود. | وخت تړل کېږي او د ناروغ نوم د بیا اړیکې لپاره د اړیکې لیست ته ځي. | |
+| `appt.cancel.reason` | Reason | دلیل | لامل | |
+| `appt.cancel.reasonHint` | Optional; kept on the appointment record. | اختیاری؛ برای بایگانی در پرونده نوبت ثبت می‌شود. | اختیاري؛ د وخت په پوړ کې ثبتېږي. | |
+| `appt.complete.title` | Complete visit | تکمیل ویزیت | لیدنه بشپړول | |
+| `appt.complete.hint` | If the patient should come back, plan the next visit right here. | اگر بیمار باید دوباره بیاید، همین‌جا پیگیری بعدی را مشخص کنید. | که ناروغ بیا باید راشي، دلته راتلونکې پلټنه وټاکئ. | |
+| `appt.followUp.plan` | Plan a follow-up | پیگیری بعدی برنامه‌ریزی شود | راتلونکې پلټنه ټاکل | |
+| `appt.followUp.presets` | Quick choices | زمان‌های آماده | چمتو مهالونه | |
+| `appt.followUp.week1` | In 1 week | ۱ هفته بعد | ۱ اونۍ وروسته | |
+| `appt.followUp.week2` | In 2 weeks | ۲ هفته بعد | ۲ اونۍ وروسته | |
+| `appt.followUp.month1` | In 1 month | ۱ ماه بعد | ۱ میاشت وروسته | |
+| `appt.followUp.month3` | In 3 months | ۳ ماه بعد | ۳ میاشتې وروسته | |
+| `appt.followUp.month6` | In 6 months | ۶ ماه بعد | ۶ میاشتې وروسته | |
+| `appt.followUp.due` | Follow-up date | تاریخ پیگیری | د پلټنې نېټه | |
+| `appt.followUp.callList` | The patient appears on the “Call list” near that date so reception can phone them. | بیمار نزدیک آن تاریخ در «لیست تماس» دیده می‌شود تا با او تماس گرفته شود. | ناروغ د دې نېټې په نژدې «د اړیکې لیست» کې ښکاري ترڅو ورسره اړیکه ونیول شي. | |
+| `cal.subtitle` | Daily, weekly and monthly appointments; drag an appointment to move it. | نوبت‌های روزانه، هفتگی و ماهانه؛ برای جابه‌جایی، نوبت را بکشید و رها کنید. | ورځني، اونیز او میاشتني وختونه؛ د لېږدولو لپاره وخت راکاږئ او خوشې یې کړئ. | |
+| `cal.today` | Today | امروز | نن | |
+| `cal.prev` | Previous | قبلی | مخکینی | |
+| `cal.next` | Next | بعدی | راتلونکی | |
+| `cal.view` | Calendar view | نمای تقویم | د کیلنډر لید | |
+| `cal.day` | Day | روز | ورځ | |
+| `cal.week` | Week | هفته | اونۍ | |
+| `cal.month` | Month | ماه | میاشت | |
+| `cal.groupBy` | Group columns by | دسته‌بندی ستون‌ها | د ستونونو ډلبندي | |
+| `cal.byDoctor` | By doctor | هر داکتر | هر ډاکټر | |
+| `cal.byChair` | By chair | هر چوکی | هره څوکۍ | |
+| `cal.allDoctors` | All doctors | همه داکتران | ټول ډاکټران | |
+| `cal.noChair` | No chair | بدون چوکی | پرته له څوکۍ | |
+| `cal.showClosed` | Show cancelled | نمایش لغو‌شده‌ها | لغوه شوي ښودل | |
+| `cal.moved` | Appointment moved. | نوبت جابه‌جا شد. | وخت ولېږدول شو. | |
+| `cal.noDoctors` | No doctor yet. Add a doctor first under “Doctors & chairs”. | هنوز داکتری ثبت نشده است. ابتدا از بخش «داکتران و چوکی‌ها» یک داکتر اضافه کنید. | تر اوسه ډاکټر نه دی ثبت شوی. لومړی د «ډاکټران او څوکۍ» برخې څخه یو ډاکټر زیات کړئ. | |
+| `cal.visits` | visits | نوبت | وخت | |
+| `cal.open` | open | باز | پرانیستي | |
+| `queue.subtitle` | Today's patients; refreshes every 10 seconds. | وضعیت بیماران امروز؛ هر ۱۰ ثانیه تازه می‌شود. | د نن ورځې ناروغان؛ هر ۱۰ ثانیې تازه کېږي. | |
+| `queue.expected` | Expected | منتظر آمدن | د راتګ په تمه | |
+| `queue.waiting` | Waiting | در انتظار | په انتظار کې | |
+| `queue.treating` | In treatment | در درمان | په درملنه کې | |
+| `queue.done` | Done | تمام‌شده | بشپړ شوي | |
+| `queue.empty.expected` | No more appointments | نوبت دیگری باقی نیست | بل وخت نشته | |
+| `queue.empty.waiting` | Nobody is waiting | کسی در انتظار نیست | هیڅوک په انتظار کې نه دی | |
+| `queue.empty.treating` | Nobody in treatment | کسی در درمان نیست | هیڅوک په درملنه کې نه دی | |
+| `queue.empty.done` | No finished visits yet | هنوز ویزیتی تمام نشده | لا تر اوسه لیدنه نه ده بشپړه | |
+| `queue.closed` | Cancelled and no-show | لغو‌شده و نیامده | لغوه شوي او نه راغلي | |
+| `queue.ticket` | Queue number | شماره صف | د کتار شمېره | |
+| `queue.walkIn` | Walk-in | بیمار بدون نوبت | پرته له وخته ناروغ | |
+| `queue.walkInBadge` | Walk-in | بدون نوبت | پرته له وخته | |
+| `queue.walkInHint` | The patient joins the waiting queue right now. | بیمار همین حالا وارد صف انتظار می‌شود. | ناروغ همدا اوس د انتظار کتار ته ننوځي. | |
+| `queue.walkInAdd` | Add to queue | افزودن به صف | کتار ته زیاتول | |
+| `queue.walkInAdded` | Added to the queue. Number: | به صف اضافه شد. شماره: | کتار ته زیات شو. شمېره: | |
+| `recall.subtitle` | Patients who should come back and need a phone call. | بیمارانی که باید دوباره بیایند و باید با آن‌ها تماس گرفته شود. | هغه ناروغان چې بیا باید راشي او ورسره باید اړیکه ونیول شي. | |
+| `recall.tabs` | List type | نوع لیست | د لیست ډول | |
+| `recall.tab.call` | To call | نیاز به تماس | اړیکې ته اړتیا | |
+| `recall.tab.booked` | Booked | نوبت گرفته | وخت اخیستی | |
+| `recall.tab.closed` | Closed | بسته‌شده | تړل شوي | |
+| `recall.window` | Time window | بازه | موده | |
+| `recall.window.all` | All | همه | ټول | |
+| `recall.window.overdue` | Overdue | گذشته (دیرشده) | تېر شوي | |
+| `recall.window.7` | Within 7 days | تا ۷ روز آینده | تر ۷ ورځو پورې | |
+| `recall.window.14` | Within 14 days | تا ۱۴ روز آینده | تر ۱۴ ورځو پورې | |
+| `recall.window.30` | Within 30 days | تا ۳۰ روز آینده | تر ۳۰ ورځو پورې | |
+| `recall.add` | Add to call list | افزودن به لیست تماس | د اړیکې لیست ته زیاتول | |
+| `recall.edit` | Edit recall | ویرایش پیگیری | پلټنه سمول | |
+| `recall.addHint` | For example scaling every 6 months, or a check after surgery. | مثلاً جرم‌گیری هر ۶ ماه، یا کنترول بعد از جراحی. | لکه هر ۶ میاشتې درد پاکول، یا له جراحي وروسته کنټرول. | |
+| `recall.kind` | Kind | نوع پیگیری | د پلټنې ډول | |
+| `recall.kind.checkup` | Check-up | معاینه دوره‌ای | دوراني معاینه | |
+| `recall.kind.cleaning` | Scaling & cleaning | جرم‌گیری | د غاښونو پاکول | |
+| `recall.kind.follow_up` | Follow-up | کنترول بعد از درمان | له درملنې وروسته کنټرول | |
+| `recall.kind.no_show` | Missed visit | نیامده | نه دی راغلی | |
+| `recall.kind.other` | Other | سایر | نور | |
+| `recall.due` | Due date | تاریخ مراجعه | د راتګ نېټه | |
+| `recall.repeat` | Repeat every (months) | تکرار هر چند ماه | هر څو میاشتې تکرار | |
+| `recall.repeatHint` | Optional; 1 to 60. After each visit the next one is added to the call list automatically. | اختیاری؛ عدد ۱ تا ۶۰. پس از هر ویزیت، نوبت بعدی خودکار در لیست تماس ثبت می‌شود. | اختیاري؛ ۱ تر ۶۰ شمېره. له هرې لیدنې وروسته راتلونکی په اتومات ډول د اړیکې لیست ته ځي. | |
+| `recall.note` | Note | یادداشت | یادښت | |
+| `recall.every` | every | هر | هر | |
+| `recall.months` | months | ماه | میاشتې | |
+| `recall.lastCall` | Last call | آخرین تماس | وروستۍ اړیکه | |
+| `recall.actions` | Actions | اقدامات | کړنې | |
+| `recall.contacted` | Called | تماس گرفته شد | اړیکه ونیول شوه | |
+| `recall.contactTitle` | Record a call | ثبت تماس | د اړیکې ثبتول | |
+| `recall.contactNote` | Result of the call | نتیجه تماس | د اړیکې پایله | |
+| `recall.contactNoteHint` | For example “will come”, “no answer”, “call again later”. | مثلاً «می‌آید»، «جواب نداد»، «بعداً تماس بگیرید». | لکه «راځي»، «ځواب یې ور نکړ»، «وروسته اړیکه ونیسئ». | |
+| `recall.book` | Book | گرفتن نوبت | وخت اخیستل | |
+| `recall.dismiss` | Not needed | نیازی نیست | اړتیا نشته | |
+| `recall.reopen` | Reopen | بازگرداندن | بیرته پرانیستل | |
+| `recall.overdue` | Overdue | دیرشده | ځنډېدلی | |
+| `recall.days` | days | روز | ورځې | |
+| `recall.dueToday` | Today | امروز | نن | |
+| `recall.showing` | Showing | نمایش | ښودل | |
+| `recall.status.pending` | To call | نیاز به تماس | اړیکې ته اړتیا | |
+| `recall.status.contacted` | Called | تماس گرفته شده | اړیکه نیول شوې | |
+| `recall.status.booked` | Booked | نوبت گرفته | وخت اخیستی | |
+| `recall.status.done` | Done | انجام شد | ترسره شو | |
+| `recall.status.dismissed` | Dismissed | لغو‌شده | لغوه شوی | |
+| `recall.done.pending` | Back on the call list. | به لیست تماس برگشت. | د اړیکې لیست ته ستون شو. | |
+| `recall.done.contacted` | Call recorded. | تماس ثبت شد. | اړیکه ثبت شوه. | |
+| `recall.done.dismissed` | Removed from the call list. | از لیست تماس برداشته شد. | د اړیکې له لیست لرې شو. | |
+| `recall.done.booked` | Booked. | نوبت گرفته شد. | وخت واخیستل شو. | |
+| `recall.done.done` | Done. | انجام شد. | ترسره شو. | |
+| `recall.empty.call` | Nobody left to call | کسی برای تماس باقی نمانده است | د اړیکې لپاره هیڅوک نه دی پاتې | |
+| `recall.empty.booked` | No recall has a booked visit | هیچ پیگیری با نوبت ثبت‌شده‌ای نیست | هیڅ پلټنه د ثبت شوي وخت سره نشته | |
+| `recall.empty.closed` | Nothing closed yet | هنوز مورد بسته‌شده‌ای نیست | تر اوسه تړل شوی مورد نشته | |
+| `patientAppt.empty` | This patient has no appointments yet | این بیمار هنوز نوبتی ندارد | دا ناروغ تر اوسه وخت نه لري | |
+| `patientAppt.recalls` | Follow-ups and recalls | پیگیری و تماس‌های بعدی | راتلونکې پلټنې او اړیکې | |
+| `patientAppt.recallsHint` | Items that are still open or booked. | مواردی که هنوز باز یا دارای نوبت هستند. | هغه مواردې چې لا پرانیستي دي یا وخت لري. | |
+| `patientAppt.noRecalls` | No open recalls | پیگیری بازی وجود ندارد | پرانیستې پلټنې نشته | |
+| `doctors.subtitle` | Doctor profiles, weekly schedules, leave and the clinic's chairs. | پروفایل داکتران، برنامه کاری هفتگی، رخصتی و چوکی‌های کلینیک. | د ډاکټرانو پروفایل، اونیز کاري مهال، رخصتۍ او د کلینیک څوکۍ. | |
+| `doctors.title` | Doctors | داکتران | ډاکټران | |
+| `doctors.hint` | Each doctor has a colour shown in the calendar. | هر داکتر رنگی دارد که در تقویم دیده می‌شود. | هر ډاکټر یو رنګ لري چې په کیلنډر کې ښکاري. | |
+| `doctors.add` | Add doctor | افزودن داکتر | ډاکټر زیاتول | |
+| `doctors.edit` | Edit doctor | ویرایش داکتر | ډاکټر سمول | |
+| `doctors.name` | Doctor name | نام داکتر | د ډاکټر نوم | |
+| `doctors.specialty` | Specialty | تخصص | تخصص | |
+| `doctors.schedule` | Schedule | برنامه کاری | کاري مهال | |
+| `doctors.editSchedule` | Schedule | برنامه کاری | کاري مهال | |
+| `doctors.daysPerWeek` | days a week | روز در هفته | ورځې په اونۍ کې | |
+| `doctors.noHours` | No hour limit | بدون محدودیت ساعت | پرته له ساعت محدودیت | |
+| `doctors.leaves` | Leave | رخصتی‌ها | رخصتۍ | |
+| `doctors.color` | Calendar colour | رنگ در تقویم | په کیلنډر کې رنګ | |
+| `doctors.colorHint` | This doctor's appointments are drawn in this colour. | نوبت‌های این داکتر با همین رنگ نشان داده می‌شوند. | د دې ډاکټر وختونه په همدې رنګ ښودل کېږي. | |
+| `doctors.user` | Login account | حساب کاربری | کارن حساب | |
+| `doctors.userHint` | Optional; link the account if the doctor signs in himself. The clinic owner can be the doctor too. | اختیاری؛ اگر داکتر خودش وارد برنامه می‌شود، حسابش را وصل کنید. مالک کلینیک هم می‌تواند داکتر باشد. | اختیاري؛ که ډاکټر پخپله برنامې ته ننوځي، حساب یې وصل کړئ. د کلینیک مالک هم ډاکټر کېدلی شي. | |
+| `doctors.activeLabel` | Active (offered for appointments) | فعال (در نوبت‌دهی دیده می‌شود) | فعال (په وخت ورکولو کې ښکاري) | |
+| `doctors.empty` | No doctors yet | هنوز داکتری ثبت نشده است | تر اوسه ډاکټر نه دی ثبت شوی | |
+| `doctors.emptyHint` | At least one doctor is needed for appointments. | برای نوبت‌دهی، دست‌کم یک داکتر لازم است. | د وخت ورکولو لپاره لږ تر لږه یو ډاکټر پکار دی. | |
+| `chairs.title` | Chairs & rooms | چوکی‌ها و اتاق‌ها | څوکۍ او خونې | |
+| `chairs.hint` | A chair cannot be booked twice at the same time. | از رزرو هم‌زمان یک چوکی جلوگیری می‌شود. | د یوې څوکۍ همزمان ګمارنه مخنیوی کېږي. | |
+| `chairs.add` | Add chair | افزودن چوکی | څوکۍ زیاتول | |
+| `chairs.edit` | Edit chair | ویرایش چوکی | څوکۍ سمول | |
+| `chairs.name` | Chair name | نام چوکی | د څوکۍ نوم | |
+| `chairs.activeLabel` | Active | فعال | فعال | |
+| `chairs.empty` | No chairs yet | هنوز چوکی‌ای ثبت نشده است | تر اوسه څوکۍ نه ده ثبت شوې | |
+| `chairs.emptyHint` | Chairs are optional; you can book without them. | چوکی اختیاری است؛ بدون آن هم می‌توان نوبت داد. | څوکۍ اختیاري ده؛ پرته له دې هم وخت ورکولی شئ. | |
+| `sched.hint` | Working hours, breaks and the chairs this doctor uses. | ساعت‌های کاری، استراحت و چوکی‌هایی که این داکتر استفاده می‌کند. | کاري ساعتونه، آرام او هغه څوکۍ چې دا ډاکټر یې کاروي. | |
+| `sched.hours` | Weekly working hours | ساعت‌های کاری هفته | د اونۍ کاري ساعتونه | |
+| `sched.hoursHint` | With no hours at all, any time can be booked. A day may have several intervals. | اگر هیچ ساعتی وارد نشود، نوبت در هر ساعتی ثبت می‌شود. می‌توانید برای یک روز چند بازه بگذارید. | که هیڅ ساعت ونه لیکل شي، وخت په هر ساعت ثبتېدی شي. په یوه ورځ کې څو مهالونه ټاکلی شئ. | |
+| `sched.addHours` | Add hours | افزودن بازه | مهال زیاتول | |
+| `sched.breaks` | Breaks | وقت‌های استراحت | د آرام وختونه | |
+| `sched.addBreak` | Add break | افزودن استراحت | آرام زیاتول | |
+| `sched.remove` | Remove | حذف | لرې کول | |
+| `sched.chairs` | Allowed chairs | چوکی‌های مجاز | اجازه شوې څوکۍ | |
+| `sched.chairsHint` | If none is chosen, the doctor may use any chair. | اگر هیچ‌کدام انتخاب نشود، داکتر می‌تواند از همه چوکی‌ها استفاده کند. | که هیڅ یو و نه ټاکل شي، ډاکټر له ټولو څوکیو کار اخیستی شي. | |
+| `sched.leave` | Leave & absence | رخصتی و غیبت | رخصتي او غیابت | |
+| `sched.leaveHint` | Booking for this doctor is closed on these days. | در این روزها نوبت‌گیری برای این داکتر بسته می‌شود. | پدې ورځو کې د دې ډاکټر لپاره وخت اخیستل بند وي. | |
+| `sched.noLeave` | No leave recorded | رخصتی ثبت نشده است | رخصتي نه ده ثبت شوې | |
+| `sched.leaveFrom` | From | از تاریخ | له نېټې | |
+| `sched.leaveTo` | Until (inclusive) | تا تاریخ (شامل) | تر نېټې (ورسره) | |
+| `sched.leaveReason` | Reason | دلیل | لامل | |
+| `sched.addLeave` | Add leave | افزودن رخصتی | رخصتي زیاتول | |
+| `sched.affected` | existing appointments fall in these days and need to be moved or cancelled. | نوبت موجود در این روزها باید منتقل یا لغو شود. | په دې ورځو کې شته وختونه باید ولېږدول یا لغوه شي. | |
+| `roles.title` | Roles & permissions | نقش‌ها و دسترسی‌ها | رولونه او لاسرسي | |
+| `roles.subtitle` | Each role decides what a user can see and do. | هر نقش مشخص می‌کند کاربر کدام بخش‌ها را ببیند و چه کارهایی بکند. | هر رول ټاکي چې کارن کومې برخې وګوري او کوم کارونه وکړي. | |
+| `roles.add` | New role | نقش جدید | نوی رول | |
+| `roles.edit` | Edit role | ویرایش نقش | رول سمول | |
+| `roles.view` | View permissions | مشاهده دسترسی‌ها | لاسرسي کتل | |
+| `roles.name` | Role name | نام نقش | د رول نوم | |
+| `roles.permissions` | Permissions | دسترسی‌ها | لاسرسي | |
+| `roles.users` | Users | کاربران | کارنان | |
+| `roles.builtIn` | built-in | پیش‌فرض | تلواله | |
+| `roles.builtInHint` | Built-in roles cannot be changed; create a new role for another mix. | نقش‌های پیش‌فرض قابل تغییر نیستند؛ برای ترکیب دیگر، نقش جدید بسازید. | تلواله رولونه نه بدلېږي؛ د بل ترکیب لپاره نوی رول جوړ کړئ. | |
+| `roles.hint` | Choose this role's permissions. Changes apply to signed-in users immediately. | دسترسی‌های این نقش را انتخاب کنید. تغییر برای کاربران واردشده فوراً اعمال می‌شود. | د دې رول لاسرسي وټاکئ. بدلون ننوتلو کارنانو ته سمدستي پلی کېږي. | |
+| `roles.delete` | Delete role | حذف نقش | رول ړنګول | |
+| `roles.deleteConfirm` | Delete this role? | این نقش حذف شود؟ | دا رول ړنګ شي؟ | |
+| `roles.deleted` | Role deleted. | نقش حذف شد. | رول ړنګ شو. | |
+| `users.resetPassword` | Reset password | بازنشانی رمز عبور | پټنوم بیا ټاکل | |
+| `users.newPassword` | New password | رمز عبور جدید | نوی پټنوم | |
+| `users.resetHint` | The user can no longer sign in with the old password and must sign in again. Give them the new one. | کاربر با رمز قبلی دیگر وارد نمی‌شود و باید دوباره وارد شود. رمز جدید را به خودش بدهید. | کارن به پخواني پټنوم نور نه ننوځي او باید بیا ننوځي. نوی پټنوم ورته ورکړئ. | |
+| `users.passwordReset` | Password reset. | رمز عبور بازنشانی شد. | پټنوم بیا وټاکل شو. | |
+| `users.unlock` | Clear account lockout | رفع قفل حساب | د حساب قفل پرانیستل | |
+| `users.unlocked` | Account lockout cleared. | قفل حساب برداشته شد. | د حساب قفل پرانیستل شو. | |
+| `perm.group.patients` | Patients | بیماران | ناروغان | |
+| `perm.group.appointments` | Appointments & reception | نوبت و پذیرش | وخت او پذیرش | |
+| `perm.group.clinical` | Clinical | بخش درمانی | درملنیز برخه | |
+| `perm.group.billing` | Billing & reports | مالی و گزارش | مالي او راپور | |
+| `perm.group.inventory` | Inventory | انبار | ګودام | |
+| `perm.group.admin` | Administration | مدیریت | مدیریت | |
+| `perm.patients.view` | View patients | دیدن بیماران | ناروغان لیدل | |
+| `perm.patients.edit` | Register and edit patients | ثبت و ویرایش بیماران | ناروغان ثبتول او سمول | |
+| `perm.appointments.view` | View appointments and queue | دیدن نوبت‌ها و صف | وختونه او کتار لیدل | |
+| `perm.appointments.edit` | Book and change appointments, receive patients | ثبت و تغییر نوبت، پذیرش بیمار | وخت ثبتول او بدلول، ناروغ منل | |
+| `perm.appointments.treat` | Start and finish treatment in the queue | شروع و پایان درمان در صف | په کتار کې درملنه پیلول او پای ته رسول | |
+| `perm.doctors.manage` | Manage doctors, chairs and leave | مدیریت داکتران، چوکی‌ها و رخصتی | د ډاکټرانو، څوکیو او رخصتیو مدیریت | |
+| `perm.clinical.view` | View clinical records | دیدن سوابق درمانی | درملنیز سوابق لیدل | |
+| `perm.clinical.edit` | Record and edit clinical records | ثبت و ویرایش سوابق درمانی | درملنیز سوابق ثبتول او سمول | |
+| `perm.billing.view` | View invoices and payments | دیدن فاکتور و پرداخت | فاکتور او تادیه لیدل | |
+| `perm.billing.edit` | Issue invoices and record payments | صدور فاکتور و ثبت پرداخت | فاکتور صادرول او تادیه ثبتول | |
+| `perm.billing.void` | Void financial documents | ابطال اسناد مالی | مالي اسناد باطلول | |
+| `perm.reports.view` | View reports | دیدن گزارش‌ها | راپورونه لیدل | |
+| `perm.inventory.manage` | Manage inventory | مدیریت انبار | د ګودام مدیریت | |
+| `perm.users.manage` | Manage users and roles | مدیریت کاربران و نقش‌ها | د کارنانو او رولونو مدیریت | |
+| `perm.settings.manage` | Settings and clinic info | تنظیمات و اطلاعات کلینیک | تنظیمات او د کلینیک معلومات | |
+| `perm.audit.view` | View the audit log | دیدن گزارش رویدادها | د پېښو راپور لیدل | |
+| `perm.backup.view` | View backups | دیدن پشتیبان‌ها | بیک اپونه لیدل | |
+| `perm.backup.create` | Create backups | ساخت پشتیبان | بیک اپ جوړول | |
+| `perm.backup.restore` | Restore from a backup (owner only) | بازیابی از پشتیبان (فقط مالک) | له بیک اپ بیرته راګرځول (یوازې مالک) | |
+| `patients.import.sheet` | Sheet | برگه (Sheet) | پاڼه (Sheet) | |
+| `patients.import.mapTitle` | Match the columns | تطبیق ستون‌ها | د ستونونو پر پرتله کول | |
+| `patients.import.mapHint` | Pick a patient field for each file column; leave unneeded ones on “Ignore”. At least one column must be the name. | برای هر ستون فایل، فیلد بیمار را انتخاب کنید. ستونی که لازم نیست را «نادیده بگیر» بگذارید. دست‌کم یک ستون باید «نام» باشد. | د فایل هر ستون لپاره د ناروغ ځای وټاکئ. هغه ستون چې اړتیا نه لري «پرېږده» کړئ. لږ تر لږه یو ستون باید «نوم» وي. | |
+| `patients.import.fileColumn` | File column | ستون فایل | د فایل ستون | |
+| `patients.import.example` | Example | نمونه | بېلګه | |
+| `patients.import.patientField` | Patient field | فیلد بیمار | د ناروغ ځای | |
+| `patients.import.skipColumn` | Ignore | نادیده بگیر | پرېږده | |
+| `patients.import.willImport` | Will import | قابل ورود | د راوړلو وړ | |
+| `import.field.full_name` | Full name | نام و تخلص | نوم او تخلص | |
+| `import.field.father_name` | Father's name | نام پدر | د پلار نوم | |
+| `import.field.phone` | Phone | شماره تماس | د اړیکې شمېره | |
+| `import.field.secondary_phone` | Secondary phone | شماره تماس دوم | دویمه شمېره | |
+| `import.field.date_of_birth` | Date of birth | تاریخ تولد | د زېږېدو نېټه | |
+| `import.field.approximate_age` | Approximate age | سن تقریبی | نژدې عمر | |
+| `import.field.gender` | Gender | جنسیت | جنس | |
+| `import.field.province` | Province | ولایت | ولایت | |
+| `import.field.address` | Address | آدرس | پته | |
+| `import.field.emergency_contact_name` | Emergency contact name | تماس اضطراری — نام | بېړنۍ اړیکه — نوم | |
+| `import.field.emergency_contact_phone` | Emergency contact phone | تماس اضطراری — شماره | بېړنۍ اړیکه — شمېره | |
+| `import.field.notes` | Notes | یادداشت | یادښت | |
+| `import.field.registration_date` | Registration date | تاریخ ثبت | د ثبت نېټه | |
+| `rule.doctor_not_found` | Doctor not found. | این داکتر پیدا نشد. | دا ډاکټر ونه موندل شو. | |
+| `rule.doctor_inactive` | This doctor is inactive. | این داکتر غیرفعال است. | دا ډاکټر غیر فعال دی. | |
+| `rule.chair_not_found` | Chair not found. | این چوکی پیدا نشد. | دا څوکۍ ونه موندل شوه. | |
+| `rule.chair_inactive` | This chair is inactive. | این چوکی غیرفعال است. | دا څوکۍ غیر فعاله ده. | |
+| `rule.chair_not_allowed` | This doctor does not use this chair. | این داکتر از این چوکی استفاده نمی‌کند. | دا ډاکټر دا څوکۍ نه کاروي. | |
+| `rule.chair_name_length` | The chair name must be 1–40 characters. | نام چوکی باید ۱ تا ۴۰ حرف باشد. | د څوکۍ نوم باید ۱ تر ۴۰ توري وي. | |
+| `rule.chair_name_taken` | A chair with this name already exists. | چوکی‌ای با این نام وجود دارد. | د دې نوم سره څوکۍ شته. | |
+| `rule.specialty_length` | The specialty can be at most 100 characters. | تخصص حداکثر ۱۰۰ حرف باشد. | تخصص تر ۱۰۰ توریو پورې وي. | |
+| `rule.user_already_doctor` | This account is linked to another doctor. | این حساب به داکتر دیگری وصل است. | دا حساب بل ډاکټر ته وصل دی. | |
+| `rule.user_not_found` | User not found. | این کاربر پیدا نشد. | دا کارن ونه موندل شو. | |
+| `rule.appointment_not_found` | Appointment not found. | این نوبت پیدا نشد. | دا وخت ونه موندل شو. | |
+| `rule.recall_not_found` | Recall not found. | این مورد پیگیری پیدا نشد. | دا پلټنه ونه موندل شوه. | |
+| `rule.patient_merged` | This record was merged into another; choose the main record. | این پرونده با پرونده دیگری ادغام شده است؛ پرونده اصلی را انتخاب کنید. | دا فایل له بل فایل سره ګډ شوی؛ اصلي فایل وټاکئ. | |
+| `rule.time_range` | The end must be after the start and not past midnight. | ساعت پایان باید بعد از شروع باشد و از نیمه‌شب نگذرد. | د پای وخت باید د پیل وروسته وي او له نیمې شپې تېر نه شي. | |
+| `rule.duration_range` | An appointment lasts 5 minutes to 12 hours. | مدت نوبت باید بین ۵ دقیقه تا ۱۲ ساعت باشد. | د وخت موده باید ۵ دقیقې تر ۱۲ ساعتو وي. | |
+| `rule.doctor_busy` | The doctor already has an appointment at this time. | داکتر در این زمان نوبت دیگری دارد. | ډاکټر پدې وخت بل وخت لري. | |
+| `rule.chair_busy` | The chair is already in use at this time. | این چوکی در این زمان استفاده می‌شود. | دا څوکۍ پدې وخت کارول کېږي. | |
+| `rule.patient_busy` | The patient already has an appointment at this time. | این بیمار در این زمان نوبت دیگری دارد. | دا ناروغ پدې وخت بل وخت لري. | |
+| `rule.outside_working_hours` | This time is outside the doctor's working hours. | این زمان خارج از ساعت کاری داکتر است. | دا وخت د ډاکټر له کاري ساعتونو بهر دی. | |
+| `rule.doctor_on_break` | This time overlaps the doctor's break. | این زمان با استراحت داکتر تداخل دارد. | دا وخت د ډاکټر له آرام سره ټکر لري. | |
+| `rule.doctor_on_leave` | The doctor is on leave on this day. | داکتر در این روز رخصتی است. | ډاکټر پدې ورځ رخصت دی. | |
+| `rule.schedule_overlap` | Intervals of one day must not overlap. | بازه‌های یک روز نباید هم‌پوشانی داشته باشند. | د یوې ورځې مهالونه باید یو بل ونه پوښي. | |
+| `rule.leave_range` | The last day is before the first. | آخرین روز رخصتی قبل از روز اول است. | د رخصتۍ وروستۍ ورځ له لومړۍ مخکې ده. | |
+| `rule.invalid_transition` | This status change is not allowed. | این تغییر وضعیت در جریان کار مجاز نیست. | دا د حالت بدلون په بهیر کې نه منل کېږي. | |
+| `rule.not_editable` | This can no longer be edited. | این مورد دیگر قابل ویرایش نیست. | دا مورد نور د سمون وړ نه دی. | |
+| `rule.repeat_months_range` | The repeat must be 1–60 months. | تکرار باید بین ۱ تا ۶۰ ماه باشد. | تکرار باید ۱ تر ۶۰ میاشتې وي. | |
+| `rule.role_label_length` | The role name must be 1–60 characters. | نام نقش باید ۱ تا ۶۰ حرف باشد. | د رول نوم باید ۱ تر ۶۰ توري وي. | |
+| `rule.role_label_taken` | A role with this name already exists. | نقشی با این نام وجود دارد. | د دې نوم سره رول شته. | |
+| `rule.role_not_found` | Role not found. | این نقش پیدا نشد. | دا رول ونه موندل شو. | |
+| `rule.role_system` | Built-in roles cannot be changed. | نقش‌های پیش‌فرض قابل تغییر نیستند. | تلواله رولونه نه بدلېږي. | |
+| `rule.role_in_use` | Users still have this role. | هنوز کاربرانی این نقش را دارند. | لا هم کارنان دا رول لري. | |
+| `rule.permission_unknown` | This permission is not known. | این دسترسی شناخته‌شده نیست. | دا لاسرسی نه پېژندل کېږي. | |
+| `rule.permission_not_allowed` | This permission is for the owner only. | این دسترسی فقط برای مالک است. | دا لاسرسی یوازې د مالک دی. | |
+| `rule.permissions_empty` | Pick at least one permission. | دست‌کم یک دسترسی انتخاب کنید. | لږ تر لږه یو لاسرسی وټاکئ. | |
+| `rule.self_lockout` | You cannot deactivate your own account. | نمی‌توانید حساب خودتان را غیرفعال کنید. | تاسو خپل حساب غیر فعالولی نشئ. | |
+| `rule.not_today` | Only today's patients can be checked in. | فقط بیماران امروز را می‌توان وارد صف کرد. | یوازې د نن ورځې ناروغان کتار ته ننوتلی شي. | |
+| `rule.patient_has_open_appointments` | This patient still has open appointments; cancel them first. | این بیمار هنوز نوبت باز دارد؛ ابتدا آن‌ها را لغو کنید. | دا ناروغ لا هم پرانیستی وخت لري؛ لومړی یې لغوه کړئ. | |
+| `rule.import_file_read` | The file could not be read; make sure it is a valid .xlsx or .csv. | فایل خوانده نشد؛ مطمئن شوید .xlsx یا .csv سالم است. | فایل ونه لوستل شو؛ ډاډ ترلاسه کړئ چې .xlsx یا .csv سالم دی. | |
+| `rule.import_no_name_column` | One column must be matched to the patient's name. | یک ستون باید به «نام و تخلص» نگاشت شود. | یو ستون باید «نوم او تخلص» ته وټاکل شي. | |
+| `rule.import_column` | Match each field only once, to an existing column. | هر فیلد را فقط یک‌بار و ستون موجود را انتخاب کنید. | هر ځای یوازې یو ځل او شته ستون وټاکئ. | |

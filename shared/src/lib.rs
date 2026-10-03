@@ -85,6 +85,48 @@ pub enum ValidationRule {
     ImportFileType,
     ToothFormat,
     PossibleDuplicate,
+    // Phase 4 — staff, doctors, appointments, recalls
+    DoctorNotFound,
+    DoctorInactive,
+    ChairNotFound,
+    ChairInactive,
+    ChairNotAllowed,
+    ChairNameLength,
+    ChairNameTaken,
+    SpecialtyLength,
+    UserAlreadyDoctor,
+    UserNotFound,
+    AppointmentNotFound,
+    RecallNotFound,
+    PatientMerged,
+    TimeRange,
+    DurationRange,
+    DoctorBusy,
+    ChairBusy,
+    PatientBusy,
+    OutsideWorkingHours,
+    DoctorOnBreak,
+    DoctorOnLeave,
+    ScheduleOverlap,
+    LeaveRange,
+    InvalidTransition,
+    NotEditable,
+    RepeatMonthsRange,
+    RoleLabelLength,
+    RoleLabelTaken,
+    RoleNotFound,
+    RoleSystem,
+    RoleInUse,
+    PermissionUnknown,
+    PermissionNotAllowed,
+    PermissionsEmpty,
+    SelfLockout,
+    NotToday,
+    PatientHasOpenAppointments,
+    // Phase 4 — Excel/CSV import with column mapping
+    ImportFileRead,
+    ImportNoNameColumn,
+    ImportColumn,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -310,6 +352,8 @@ pub struct UserInfo {
     pub username: String,
     pub display_name: String,
     pub role: String,
+    /// Name of a clinic-made role; built-in roles have none (the UI translates `role`).
+    pub role_label: Option<String>,
     pub is_active: bool,
     pub version: i64,
 }
@@ -378,7 +422,53 @@ pub struct UpdateUserParams {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct RoleInfo {
     pub code: String,
+    /// The name a clinic gave a custom role; system roles have none (the UI translates their code).
+    pub label: Option<String>,
+    pub is_system: bool,
     pub permissions: Vec<String>,
+    /// Active users currently holding the role.
+    pub user_count: u32,
+    pub version: i64,
+}
+
+/// A permission code the UI can show in the role editor (4.1).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PermissionInfo {
+    pub code: String,
+    /// False for permissions only the built-in roles carry (e.g. `backup.restore`, Owner-only).
+    pub assignable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateRoleParams {
+    pub label: String,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateRoleParams {
+    pub code: String,
+    pub version: i64,
+    pub label: String,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DeleteRoleParams {
+    pub code: String,
+    pub version: i64,
+}
+
+/// Administrator sets a new password for another user (ends their sessions, clears lockout).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ResetPasswordParams {
+    pub id: String,
+    pub new_password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UserIdParams {
+    pub id: String,
 }
 
 // ───────────────────────────── reference data ─────────────────────────────
@@ -640,6 +730,11 @@ pub struct IdVersionParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct IdParams {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct AttachmentData {
     pub data_url: String,
 }
@@ -654,7 +749,13 @@ pub struct AttachmentFileParams {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ImportError {
     pub row_number: u32,
+    /// Developer-facing detail (English).
     pub message: String,
+    /// The patient field at fault and the rule it broke; the UI translates `rule.<rule>`.
+    #[serde(default)]
+    pub field: Option<ImportField>,
+    #[serde(default)]
+    pub rule: Option<ValidationRule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -663,12 +764,20 @@ pub struct ImportPreviewRow {
     pub full_name: String,
     pub father_name: Option<String>,
     pub phone: Option<String>,
-    pub errors: Vec<String>,
+    pub errors: Vec<ImportError>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ImportPatientsParams {
-    pub csv_base64: String,
+    /// CSV (UTF-8) or Excel (.xlsx) file, base64.
+    pub file_base64: String,
+    #[serde(default)]
+    pub file_name: Option<String>,
+    #[serde(default)]
+    pub sheet: Option<String>,
+    /// File column → patient field. Absent = use the automatic guess.
+    #[serde(default)]
+    pub mapping: Option<Vec<ColumnMapping>>,
     #[serde(default)]
     pub commit: bool,
 }
@@ -686,6 +795,564 @@ pub struct ImportPatientsResult {
 pub struct ExportResult {
     pub csv_base64: String,
     pub file_name: String,
+}
+
+// ───────────────────────────── doctors, chairs, schedules (Phase 4.2) ─────────────────────────────
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ActiveStatus {
+    #[default]
+    Active,
+    Inactive,
+}
+
+/// One interval of a doctor's week. `day`: 0 = Saturday … 6 = Friday (ADR-21).
+/// `start`/`end` are "HH:MM", 24-hour (the UI shows 12-hour, OF-007).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ScheduleSlot {
+    pub day: u8,
+    pub start: String,
+    pub end: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct LeaveInfo {
+    pub id: String,
+    pub doctor_id: String,
+    /// Clinic-local ISO dates, both ends inclusive.
+    pub start_date: String,
+    pub end_date: String,
+    pub reason: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct DoctorInfo {
+    pub id: String,
+    /// The login this doctor signs in with, if any.
+    pub user_id: Option<String>,
+    pub username: Option<String>,
+    pub full_name: String,
+    pub specialty: Option<String>,
+    /// Calendar colour, `#rrggbb`.
+    pub color: String,
+    pub status: ActiveStatus,
+    pub sort_order: i64,
+    /// Weekly working hours. No intervals at all = no hour restriction.
+    pub hours: Vec<ScheduleSlot>,
+    pub breaks: Vec<ScheduleSlot>,
+    /// Chairs this doctor may use; empty = any chair.
+    pub chair_ids: Vec<String>,
+    pub leaves: Vec<LeaveInfo>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct DoctorListParams {
+    #[serde(default)]
+    pub include_inactive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateDoctorParams {
+    pub full_name: String,
+    #[serde(default)]
+    pub specialty: Option<String>,
+    pub color: String,
+    #[serde(default)]
+    pub user_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateDoctorParams {
+    pub id: String,
+    pub version: i64,
+    pub full_name: String,
+    #[serde(default)]
+    pub specialty: Option<String>,
+    pub color: String,
+    pub status: ActiveStatus,
+    #[serde(default)]
+    pub user_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetScheduleParams {
+    pub doctor_id: String,
+    pub version: i64,
+    #[serde(default)]
+    pub hours: Vec<ScheduleSlot>,
+    #[serde(default)]
+    pub breaks: Vec<ScheduleSlot>,
+    #[serde(default)]
+    pub chair_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AddLeaveParams {
+    pub doctor_id: String,
+    pub start_date: String,
+    pub end_date: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct LeaveResult {
+    pub leave: LeaveInfo,
+    /// Live appointments of this doctor that fall inside the leave and need rescheduling.
+    pub affected_appointments: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ChairInfo {
+    pub id: String,
+    pub name: String,
+    pub status: ActiveStatus,
+    pub sort_order: i64,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct ChairListParams {
+    #[serde(default)]
+    pub include_inactive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateChairParams {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateChairParams {
+    pub id: String,
+    pub version: i64,
+    pub name: String,
+    pub status: ActiveStatus,
+}
+
+// ───────────────────────────── appointments & queue (Phase 4.3–4.5) ─────────────────────────────
+
+/// ```text
+/// Scheduled → Confirmed → Checked-in → In Treatment → Completed
+///                     ↘ Cancelled · No-show · Rescheduled
+/// ```
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AppointmentStatus {
+    Scheduled,
+    Confirmed,
+    CheckedIn,
+    InTreatment,
+    Completed,
+    Cancelled,
+    NoShow,
+    Rescheduled,
+}
+
+impl AppointmentStatus {
+    pub fn code(self) -> &'static str {
+        match self {
+            AppointmentStatus::Scheduled => "scheduled",
+            AppointmentStatus::Confirmed => "confirmed",
+            AppointmentStatus::CheckedIn => "checked_in",
+            AppointmentStatus::InTreatment => "in_treatment",
+            AppointmentStatus::Completed => "completed",
+            AppointmentStatus::Cancelled => "cancelled",
+            AppointmentStatus::NoShow => "no_show",
+            AppointmentStatus::Rescheduled => "rescheduled",
+        }
+    }
+
+    pub fn from_code(s: &str) -> Option<Self> {
+        Some(match s {
+            "scheduled" => AppointmentStatus::Scheduled,
+            "confirmed" => AppointmentStatus::Confirmed,
+            "checked_in" => AppointmentStatus::CheckedIn,
+            "in_treatment" => AppointmentStatus::InTreatment,
+            "completed" => AppointmentStatus::Completed,
+            "cancelled" => AppointmentStatus::Cancelled,
+            "no_show" => AppointmentStatus::NoShow,
+            "rescheduled" => AppointmentStatus::Rescheduled,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct AppointmentInfo {
+    pub id: String,
+    pub patient_id: String,
+    pub patient_number: String,
+    pub patient_name: String,
+    pub patient_phone: Option<String>,
+    pub doctor_id: String,
+    pub doctor_name: String,
+    pub doctor_color: String,
+    pub chair_id: Option<String>,
+    pub chair_name: Option<String>,
+    /// Clinic-local date (ISO) and 24-hour "HH:MM" start/end; the UI formats them 12-hour.
+    pub date: String,
+    pub start_time: String,
+    pub end_time: String,
+    /// The same instants in UTC (ADR-07).
+    pub start_at: String,
+    pub end_at: String,
+    pub reason: Option<String>,
+    pub notes: Option<String>,
+    pub status: AppointmentStatus,
+    pub is_walk_in: bool,
+    /// Ticket of the day, assigned at check-in.
+    pub queue_number: Option<i64>,
+    pub checked_in_at: Option<String>,
+    pub treatment_started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub cancelled_at: Option<String>,
+    pub cancel_reason: Option<String>,
+    pub rescheduled_from_id: Option<String>,
+    pub rescheduled_to_id: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateAppointmentParams {
+    pub patient_id: String,
+    pub doctor_id: String,
+    #[serde(default)]
+    pub chair_id: Option<String>,
+    pub date: String,
+    pub start_time: String,
+    pub end_time: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    /// Book outside the doctor's hours / during a break / on a leave day anyway.
+    #[serde(default)]
+    pub override_schedule: bool,
+    /// Booking made from the recall list (4.6): the recall becomes `booked`.
+    #[serde(default)]
+    pub recall_id: Option<String>,
+}
+
+/// Edits an appointment's details and/or moves it (drag & drop uses the same call).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateAppointmentParams {
+    pub id: String,
+    pub version: i64,
+    pub doctor_id: String,
+    #[serde(default)]
+    pub chair_id: Option<String>,
+    pub date: String,
+    pub start_time: String,
+    pub end_time: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub override_schedule: bool,
+}
+
+/// Moves an appointment to a new slot, keeping the old one as `rescheduled` and linked (4.4).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct RescheduleAppointmentParams {
+    pub id: String,
+    pub version: i64,
+    pub doctor_id: String,
+    #[serde(default)]
+    pub chair_id: Option<String>,
+    pub date: String,
+    pub start_time: String,
+    pub end_time: String,
+    #[serde(default)]
+    pub override_schedule: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct AppointmentListParams {
+    /// Clinic-local ISO dates, both ends inclusive. Required unless `patient_id` is given.
+    #[serde(default)]
+    pub date_from: Option<String>,
+    #[serde(default)]
+    pub date_to: Option<String>,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    #[serde(default)]
+    pub chair_id: Option<String>,
+    #[serde(default)]
+    pub patient_id: Option<String>,
+    /// Empty = every status.
+    #[serde(default)]
+    pub statuses: Vec<AppointmentStatus>,
+    #[serde(default = "default_appointment_limit")]
+    pub limit: u32,
+    #[serde(default)]
+    pub offset: u32,
+}
+
+fn default_appointment_limit() -> u32 {
+    500
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AppointmentCountsParams {
+    pub date_from: String,
+    pub date_to: String,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct DayCount {
+    pub date: String,
+    /// Every appointment of the day except cancelled / rescheduled ones.
+    pub total: u32,
+    /// Not yet finished (scheduled, confirmed, checked-in, in treatment).
+    pub open: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetAppointmentStatusParams {
+    pub id: String,
+    pub version: i64,
+    pub status: AppointmentStatus,
+    /// Why it was cancelled (optional).
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// With `completed`: schedule the patient's next visit / recall in the same step (4.6).
+    #[serde(default)]
+    pub follow_up: Option<FollowUpInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct WalkInParams {
+    pub patient_id: String,
+    pub doctor_id: String,
+    #[serde(default)]
+    pub chair_id: Option<String>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// Expected length; default 30 minutes.
+    #[serde(default)]
+    pub duration_minutes: Option<u32>,
+}
+
+// ───────────────────────────── follow-up & recall (Phase 4.6) ─────────────────────────────
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RecallKind {
+    Checkup,
+    Cleaning,
+    FollowUp,
+    NoShow,
+    Other,
+}
+
+impl RecallKind {
+    pub fn code(self) -> &'static str {
+        match self {
+            RecallKind::Checkup => "checkup",
+            RecallKind::Cleaning => "cleaning",
+            RecallKind::FollowUp => "follow_up",
+            RecallKind::NoShow => "no_show",
+            RecallKind::Other => "other",
+        }
+    }
+
+    pub fn from_code(s: &str) -> Option<Self> {
+        Some(match s {
+            "checkup" => RecallKind::Checkup,
+            "cleaning" => RecallKind::Cleaning,
+            "follow_up" => RecallKind::FollowUp,
+            "no_show" => RecallKind::NoShow,
+            "other" => RecallKind::Other,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RecallStatus {
+    /// Needs a phone call.
+    Pending,
+    /// Called, but no visit booked yet.
+    Contacted,
+    Booked,
+    Done,
+    Dismissed,
+}
+
+impl RecallStatus {
+    pub fn code(self) -> &'static str {
+        match self {
+            RecallStatus::Pending => "pending",
+            RecallStatus::Contacted => "contacted",
+            RecallStatus::Booked => "booked",
+            RecallStatus::Done => "done",
+            RecallStatus::Dismissed => "dismissed",
+        }
+    }
+
+    pub fn from_code(s: &str) -> Option<Self> {
+        Some(match s {
+            "pending" => RecallStatus::Pending,
+            "contacted" => RecallStatus::Contacted,
+            "booked" => RecallStatus::Booked,
+            "done" => RecallStatus::Done,
+            "dismissed" => RecallStatus::Dismissed,
+            _ => return None,
+        })
+    }
+}
+
+/// "Come back around `due_date`" — a follow-up or a recurring recall (e.g. scaling every 6 months).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct FollowUpInput {
+    pub due_date: String,
+    pub kind: RecallKind,
+    /// Recurring recall: once its visit is completed, the next one is created this many months later.
+    #[serde(default)]
+    pub repeat_months: Option<i64>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecallInfo {
+    pub id: String,
+    pub patient_id: String,
+    pub patient_number: String,
+    pub patient_name: String,
+    pub patient_phone: Option<String>,
+    pub kind: RecallKind,
+    pub due_date: String,
+    pub repeat_months: Option<i64>,
+    pub note: Option<String>,
+    pub status: RecallStatus,
+    pub appointment_id: Option<String>,
+    pub source_appointment_id: Option<String>,
+    pub last_contacted_at: Option<String>,
+    pub contact_note: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateRecallParams {
+    pub patient_id: String,
+    pub kind: RecallKind,
+    pub due_date: String,
+    #[serde(default)]
+    pub repeat_months: Option<i64>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateRecallParams {
+    pub id: String,
+    pub version: i64,
+    pub kind: RecallKind,
+    pub due_date: String,
+    #[serde(default)]
+    pub repeat_months: Option<i64>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// Manual status moves only: pending ↔ contacted, or dismissed. `booked`/`done` follow the appointments.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetRecallStatusParams {
+    pub id: String,
+    pub version: i64,
+    pub status: RecallStatus,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct RecallListParams {
+    #[serde(default)]
+    pub patient_id: Option<String>,
+    /// Empty = the call list (pending + contacted).
+    #[serde(default)]
+    pub statuses: Vec<RecallStatus>,
+    /// Clinic-local ISO dates; `due_until` lets the call list show "due within two weeks".
+    #[serde(default)]
+    pub due_from: Option<String>,
+    #[serde(default)]
+    pub due_until: Option<String>,
+    #[serde(default = "default_patient_limit")]
+    pub limit: u32,
+    #[serde(default)]
+    pub offset: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct RecallListResult {
+    pub items: Vec<RecallInfo>,
+    pub total: u32,
+}
+
+// ───────────────────────────── import with column mapping (OF-017) ─────────────────────────────
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportField {
+    FullName,
+    FatherName,
+    Phone,
+    SecondaryPhone,
+    DateOfBirth,
+    ApproximateAge,
+    Gender,
+    Province,
+    Address,
+    EmergencyContactName,
+    EmergencyContactPhone,
+    Notes,
+    RegistrationDate,
+}
+
+/// File column (0-based) → patient field.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ColumnMapping {
+    pub column: u32,
+    pub field: ImportField,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ImportInspectParams {
+    pub file_base64: String,
+    pub file_name: String,
+    /// Sheet of an Excel file; the first sheet when absent.
+    #[serde(default)]
+    pub sheet: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ImportInspectResult {
+    /// "csv" or "xlsx".
+    pub file_kind: String,
+    pub sheets: Vec<String>,
+    pub sheet: Option<String>,
+    pub headers: Vec<String>,
+    /// The first rows below the header, for the mapping screen.
+    pub sample_rows: Vec<Vec<String>>,
+    pub total_rows: u32,
+    /// Automatic guess from the header names (Dari, Pashto and English).
+    pub suggested: Vec<ColumnMapping>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AttachmentThumbnail {
+    pub id: String,
+    /// `data:image/jpeg;base64,…`, or `None` when the file is not an image the Core can shrink.
+    pub data_url: Option<String>,
 }
 
 // ───────────────────────────── backup / audit / system ─────────────────────────────
@@ -813,7 +1480,13 @@ api! {
     "users.list"             => USERS_LIST(Empty) -> Vec<UserInfo>;
     "users.create"           => USERS_CREATE(CreateUserParams) -> UserInfo;
     "users.update"           => USERS_UPDATE(UpdateUserParams) -> UserInfo;
+    "users.reset_password"   => USERS_RESET_PASSWORD(ResetPasswordParams) -> UserInfo;
+    "users.unlock"           => USERS_UNLOCK(UserIdParams) -> UserInfo;
     "roles.list"             => ROLES_LIST(Empty) -> Vec<RoleInfo>;
+    "roles.create"           => ROLES_CREATE(CreateRoleParams) -> RoleInfo;
+    "roles.update"           => ROLES_UPDATE(UpdateRoleParams) -> RoleInfo;
+    "roles.delete"           => ROLES_DELETE(DeleteRoleParams) -> Empty;
+    "permissions.list"       => PERMISSIONS_LIST(Empty) -> Vec<PermissionInfo>;
     "reference.list"         => REFERENCE_LIST(ReferenceListParams) -> Vec<LabeledItem>;
     "geo.provinces"          => GEO_PROVINCES(LanguageParams) -> Vec<LabeledItem>;
     "geo.districts"          => GEO_DISTRICTS(DistrictListParams) -> Vec<LabeledItem>;
@@ -829,6 +1502,7 @@ api! {
     "patients.delete"            => PATIENTS_DELETE(IdVersionParams) -> Empty;
     "patients.check_duplicate"   => PATIENTS_CHECK_DUPLICATE(DuplicateCheckParams) -> Vec<PatientInfo>;
     "patients.merge"             => PATIENTS_MERGE(MergePatientsParams) -> PatientInfo;
+    "patients.import_inspect"    => PATIENTS_IMPORT_INSPECT(ImportInspectParams) -> ImportInspectResult;
     "patients.import"            => PATIENTS_IMPORT(ImportPatientsParams) -> ImportPatientsResult;
     "patients.export"            => PATIENTS_EXPORT(Empty) -> ExportResult;
     "medical_history.get"        => MEDICAL_HISTORY_GET(PatientIdParams) -> MedicalHistoryInfo;
@@ -837,6 +1511,28 @@ api! {
     "attachments.upload"         => ATTACHMENTS_UPLOAD(UploadAttachmentParams) -> AttachmentInfo;
     "attachments.delete"         => ATTACHMENTS_DELETE(IdVersionParams) -> Empty;
     "attachments.file"           => ATTACHMENTS_FILE(AttachmentFileParams) -> AttachmentData;
+    "attachments.thumbnails"     => ATTACHMENTS_THUMBNAILS(PatientIdParams) -> Vec<AttachmentThumbnail>;
+    "doctors.list"               => DOCTORS_LIST(DoctorListParams) -> Vec<DoctorInfo>;
+    "doctors.create"             => DOCTORS_CREATE(CreateDoctorParams) -> DoctorInfo;
+    "doctors.update"             => DOCTORS_UPDATE(UpdateDoctorParams) -> DoctorInfo;
+    "doctors.set_schedule"       => DOCTORS_SET_SCHEDULE(SetScheduleParams) -> DoctorInfo;
+    "doctors.add_leave"          => DOCTORS_ADD_LEAVE(AddLeaveParams) -> LeaveResult;
+    "doctors.delete_leave"       => DOCTORS_DELETE_LEAVE(IdVersionParams) -> Empty;
+    "chairs.list"                => CHAIRS_LIST(ChairListParams) -> Vec<ChairInfo>;
+    "chairs.create"              => CHAIRS_CREATE(CreateChairParams) -> ChairInfo;
+    "chairs.update"              => CHAIRS_UPDATE(UpdateChairParams) -> ChairInfo;
+    "appointments.list"          => APPOINTMENTS_LIST(AppointmentListParams) -> Vec<AppointmentInfo>;
+    "appointments.counts"        => APPOINTMENTS_COUNTS(AppointmentCountsParams) -> Vec<DayCount>;
+    "appointments.get"           => APPOINTMENTS_GET(IdParams) -> AppointmentInfo;
+    "appointments.create"        => APPOINTMENTS_CREATE(CreateAppointmentParams) -> AppointmentInfo;
+    "appointments.update"        => APPOINTMENTS_UPDATE(UpdateAppointmentParams) -> AppointmentInfo;
+    "appointments.reschedule"    => APPOINTMENTS_RESCHEDULE(RescheduleAppointmentParams) -> AppointmentInfo;
+    "appointments.set_status"    => APPOINTMENTS_SET_STATUS(SetAppointmentStatusParams) -> AppointmentInfo;
+    "appointments.walk_in"       => APPOINTMENTS_WALK_IN(WalkInParams) -> AppointmentInfo;
+    "recalls.list"               => RECALLS_LIST(RecallListParams) -> RecallListResult;
+    "recalls.create"             => RECALLS_CREATE(CreateRecallParams) -> RecallInfo;
+    "recalls.update"             => RECALLS_UPDATE(UpdateRecallParams) -> RecallInfo;
+    "recalls.set_status"         => RECALLS_SET_STATUS(SetRecallStatusParams) -> RecallInfo;
     "backup.create"          => BACKUP_CREATE(Empty) -> BackupInfo;
     "backup.list"            => BACKUP_LIST(Empty) -> Vec<BackupInfo>;
     "audit.list"             => AUDIT_LIST(AuditListParams) -> Vec<AuditEntry>;
@@ -893,6 +1589,12 @@ pub fn typescript_bindings() -> String {
         CreateUserParams,
         UpdateUserParams,
         RoleInfo,
+        PermissionInfo,
+        CreateRoleParams,
+        UpdateRoleParams,
+        DeleteRoleParams,
+        ResetPasswordParams,
+        UserIdParams,
         ReferenceListParams,
         DistrictListParams,
         LanguageParams,
@@ -921,11 +1623,50 @@ pub fn typescript_bindings() -> String {
         IdVersionParams,
         AttachmentData,
         AttachmentFileParams,
+        IdParams,
         ImportError,
         ImportPreviewRow,
         ImportPatientsParams,
         ImportPatientsResult,
         ExportResult,
+        ImportField,
+        ColumnMapping,
+        ImportInspectParams,
+        ImportInspectResult,
+        AttachmentThumbnail,
+        ActiveStatus,
+        ScheduleSlot,
+        LeaveInfo,
+        DoctorInfo,
+        DoctorListParams,
+        CreateDoctorParams,
+        UpdateDoctorParams,
+        SetScheduleParams,
+        AddLeaveParams,
+        LeaveResult,
+        ChairInfo,
+        ChairListParams,
+        CreateChairParams,
+        UpdateChairParams,
+        AppointmentStatus,
+        AppointmentInfo,
+        CreateAppointmentParams,
+        UpdateAppointmentParams,
+        RescheduleAppointmentParams,
+        AppointmentListParams,
+        AppointmentCountsParams,
+        DayCount,
+        SetAppointmentStatusParams,
+        WalkInParams,
+        RecallKind,
+        RecallStatus,
+        FollowUpInput,
+        RecallInfo,
+        CreateRecallParams,
+        UpdateRecallParams,
+        SetRecallStatusParams,
+        RecallListParams,
+        RecallListResult,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

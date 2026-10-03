@@ -27,6 +27,17 @@ pub fn now_iso() -> String {
     iso(now())
 }
 
+/// The clinic's wall clock right now (ADR-07: stored UTC, shown in clinic time).
+pub fn local_now() -> OffsetDateTime {
+    now().to_offset(CLINIC_OFFSET)
+}
+
+/// Today's date in the clinic time zone, `YYYY-MM-DD`.
+pub fn today_iso() -> String {
+    let d = local_now().date();
+    format!("{:04}-{:02}-{:02}", d.year(), d.month() as u8, d.day())
+}
+
 pub fn parse(s: &str) -> Option<OffsetDateTime> {
     OffsetDateTime::parse(s, &Rfc3339).ok()
 }

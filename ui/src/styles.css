@@ -745,3 +745,114 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 .support svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
 .support-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-2); }
 .support-item { display: inline-flex; align-items: center; gap: 6px; user-select: text; }
+
+/* ───────────── Phase 4: reception (calendar, queue, recalls, doctors) ───────────── */
+.grow { flex: 1; }
+[dir="ltr"] .flip-rtl-btn svg { transform: scaleX(-1); }
+.link-btn { background: none; border: none; padding: 0; color: var(--accent-text); font: inherit; cursor: pointer; text-decoration: underline; }
+.dot-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; vertical-align: middle; }
+.dot-swatch.lg { width: 14px; height: 14px; }
+
+.datefield { display: grid; grid-template-columns: 76px minmax(0, 1fr) 96px; gap: var(--space-2); }
+
+.patient-chip { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--fill-subtle); border: 1px solid var(--line); }
+.patient-chip-text { display: flex; flex-direction: column; min-width: 0; }
+.picker-list { list-style: none; margin: 0; padding: 4px; display: flex; flex-direction: column; gap: 2px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--fill-subtle); max-height: 240px; overflow: auto; }
+.picker-list button { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 0; text-align: start; padding: var(--space-2) var(--space-3); border: none; border-radius: var(--radius-sm); background: transparent; color: inherit; cursor: pointer; }
+.picker-list button:hover, .picker-list button:focus-visible { background: var(--fill-hover); }
+.picker-empty { padding: var(--space-3); }
+.picker-new { padding: var(--space-4); border-radius: var(--radius-md); border: 1px dashed var(--line); }
+
+.cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.cal-title { margin: 0 var(--space-2); }
+
+/* time grid: one hour column + N day/doctor/chair columns */
+.timegrid { --hours-w: 72px; overflow-x: auto; }
+.tg-head, .tg-body { display: grid; grid-template-columns: var(--hours-w) repeat(var(--cols), minmax(150px, 1fr)); min-width: calc(var(--hours-w) + var(--cols) * 150px); }
+.tg-head { position: sticky; top: 0; z-index: 3; background: var(--glass-card); border-bottom: 1px solid var(--line); backdrop-filter: blur(var(--blur-nav)); }
+.tg-colhead { display: flex; align-items: center; justify-content: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-3) var(--space-2); border-inline-start: 1px solid var(--line); text-align: center; }
+.tg-colhead.today { color: var(--accent-text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tg-body { position: relative; }
+.tg-hours { position: relative; }
+.tg-hour { position: absolute; inset-inline: 0; transform: translateY(-50%); text-align: center; font-size: 11.5px; color: var(--text-3); }
+.tg-col { position: relative; border-inline-start: 1px solid var(--line); cursor: cell; }
+.tg-col.drop { background: var(--accent-soft); }
+.tg-line { position: absolute; inset-inline: 0; height: 0; border-top: 1px solid var(--line); pointer-events: none; }
+.tg-now { position: absolute; inset-inline: 0; height: 2px; background: var(--danger, #dc2626); z-index: 2; pointer-events: none; }
+.tg-appt {
+  position: absolute; z-index: 1; display: flex; flex-direction: column; gap: 0; align-items: flex-start; text-align: start; overflow: hidden;
+  padding: 3px 8px; border: none; border-inline-start: 4px solid var(--doc, var(--accent)); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--doc, var(--accent)) 16%, var(--glass-overlay)); color: var(--text); font-size: 12.5px; line-height: 17px; cursor: pointer;
+}
+.tg-appt[draggable="true"] { cursor: grab; }
+.tg-appt:hover { filter: brightness(.97); box-shadow: var(--shadow-1); }
+.tg-appt-time { font-size: 11px; color: var(--text-2); }
+.tg-appt-name { font-weight: 600; }
+.tg-appt-reason { color: var(--text-2); }
+.tg-appt.st-checked_in { outline: 2px solid var(--warning, #f59e0b); }
+.tg-appt.st-in_treatment { outline: 2px solid var(--accent); }
+.tg-appt.st-completed, .tg-appt.st-cancelled, .tg-appt.st-rescheduled { opacity: .6; }
+.tg-appt.st-cancelled .tg-appt-name, .tg-appt.st-rescheduled .tg-appt-name, .tg-appt.st-no_show .tg-appt-name { text-decoration: line-through; }
+
+.monthgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.mg-head { padding: var(--space-3) var(--space-2); text-align: center; font-weight: 600; font-size: 13px; color: var(--text-2); border-bottom: 1px solid var(--line); }
+.mg-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 96px; padding: var(--space-2) var(--space-3); border: none; border-bottom: 1px solid var(--line); border-inline-start: 1px solid var(--line); background: transparent; color: inherit; text-align: start; cursor: pointer; }
+.mg-cell:hover { background: var(--fill-hover); }
+.mg-cell.other { color: var(--text-3); background: var(--fill-subtle); }
+.mg-cell.today .mg-num { background: var(--accent); color: var(--on-accent, #fff); border-radius: var(--radius-full); min-width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0 4px; }
+.mg-num { font-weight: 600; }
+.mg-count { font-size: 12px; color: var(--accent-text); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 1px 6px; }
+
+/* queue */
+.queue-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+.queue-col { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--fill-subtle); border: 1px solid var(--line); min-height: 220px; }
+.queue-head { display: flex; align-items: center; gap: var(--space-2); }
+.queue-head svg { width: 18px; height: 18px; color: var(--text-3); }
+.queue-head .badge { margin-inline-start: auto; }
+.queue-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.queue-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--glass-card); border: 1px solid var(--glass-border); box-shadow: var(--shadow-1); }
+.queue-card-main { display: flex; flex-direction: column; gap: 2px; text-align: start; background: none; border: none; padding: 0; color: inherit; cursor: pointer; }
+.queue-card-top { gap: var(--space-2); }
+.queue-ticket { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 6px; border-radius: var(--radius-full); background: var(--accent); color: var(--on-accent, #fff); font-weight: 700; }
+.queue-actions { gap: var(--space-2); }
+.queue-closed { margin-top: var(--space-4); }
+.queue-closed summary { cursor: pointer; color: var(--text-2); }
+@media (max-width: 1100px) { .queue-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .queue-board { grid-template-columns: 1fr; } }
+
+/* doctors */
+.color-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.color-choice { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.color-choice[aria-checked="true"] { outline: 2px solid var(--text); outline-offset: 2px; }
+.sched { display: flex; flex-direction: column; gap: var(--space-2); }
+.sched-row { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-3); align-items: start; padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+.sched-row .day { font-weight: 600; padding-top: 8px; }
+.sched-slots { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+.sched-slot { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.chip-check { display: inline-flex; align-items: center; gap: var(--space-2); padding: 6px 12px; border-radius: var(--radius-full); border: 1px solid var(--line); background: var(--fill-subtle); cursor: pointer; }
+.chip-check:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.perm-group { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* appointment card (printed, 4.6): only the card is visible on paper */
+.print-card { border: 1px dashed var(--text-3); border-radius: var(--radius-md); padding: var(--space-5); max-width: 420px; }
+.print-card-clinic { font-weight: 700; font-size: 18px; text-align: center; }
+.print-card-title { text-align: center; color: var(--text-2); margin-bottom: var(--space-3); }
+.print-card-foot { margin-top: var(--space-3); text-align: center; color: var(--text-3); font-size: 12px; }
+@media print {
+  body.printing-card * { visibility: hidden !important; }
+  body.printing-card .print-card, body.printing-card .print-card * { visibility: visible !important; }
+  body.printing-card .print-card { position: fixed; inset-block-start: 0; inset-inline-start: 0; width: 100%; max-width: none; border: 1px solid #000; color: #000; background: #fff; }
+}
+
+/* ───────────── Phase 4 design review fixes ───────────── */
+.tg-hour:first-child { transform: none; }
+.tg-appt.short { flex-direction: row; align-items: center; gap: var(--space-2); padding-block: 0; }
+.tg-appt.short .tg-appt-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tg-appt:not(.short) .tg-appt-name { white-space: normal; }
+.queue-card-main { font: inherit; width: 100%; }
+.queue-card-top { flex-wrap: nowrap; width: 100%; }
+.queue-card-top .badge { margin-inline-start: auto; flex: none; }
+.queue-name { flex: 1; min-width: 0; font-weight: 600; }
+.queue-actions:empty { display: none; }
+.cell-actions { white-space: nowrap; width: 1%; }
+.cell-actions .row { flex-wrap: nowrap; }

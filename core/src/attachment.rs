@@ -82,9 +82,56 @@ pub fn read(dir: &Path, data_key: &DataKey, sha256: &str) -> Result<Vec<u8>> {
         .map_err(|_| CoreError::validation("attachment is corrupt or the key is wrong"))
 }
 
+/// Longest side of a thumbnail, in pixels.
+pub const THUMBNAIL_SIDE: u32 = 256;
+/// Refuse to decode images with more pixels than this (a decompression bomb inside a 20 MiB file).
+const MAX_PIXELS: u64 = 120_000_000;
+
+/// A small JPEG of an image attachment (OF-018), or `None` when the bytes are not an image
+/// the Core can read (PDF, scan format, damaged file) — the UI then shows an icon instead.
+pub fn make_thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
+    use image::{ImageFormat, ImageReader};
+    let reader = ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().ok()?;
+    if !matches!(
+        reader.format()?,
+        ImageFormat::Png | ImageFormat::Jpeg | ImageFormat::Gif | ImageFormat::WebP
+    ) {
+        return None;
+    }
+    let (w, h) = reader.into_dimensions().ok()?;
+    if u64::from(w) * u64::from(h) > MAX_PIXELS {
+        return None;
+    }
+    let img = ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().ok()?.decode().ok()?;
+    let small = img.thumbnail(THUMBNAIL_SIDE, THUMBNAIL_SIDE).to_rgb8();
+    let mut out = Vec::new();
+    let enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 80);
+    small.write_with_encoder(enc).ok()?;
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn png(w: u32, h: u32) -> Vec<u8> {
+        let img = image::RgbaImage::from_pixel(w, h, image::Rgba([200, 30, 30, 255]));
+        let mut out = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png).unwrap();
+        out
+    }
+
+    #[test]
+    fn thumbnails_shrink_images_and_skip_everything_else() {
+        let big = png(2000, 1000);
+        let thumb = make_thumbnail(&big).expect("a PNG gets a thumbnail");
+        let t = image::load_from_memory(&thumb).unwrap();
+        assert_eq!((t.width(), t.height()), (256, 128), "longest side 256, aspect kept");
+        assert!(thumb.len() < big.len() / 4);
+        assert!(make_thumbnail(b"%PDF-1.4 not an image").is_none());
+        assert!(make_thumbnail(b"").is_none());
+        assert!(make_thumbnail(&big[..100]).is_none(), "truncated file");
+    }
 
     #[test]
     fn stores_dedupes_and_round_trips() {

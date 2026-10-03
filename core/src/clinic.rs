@@ -76,7 +76,7 @@ pub fn get(conn: &Connection) -> Result<ClinicProfile> {
     })
 }
 
-fn validate_color(field: &str, c: &str) -> Result<()> {
+pub(crate) fn validate_color(field: &str, c: &str) -> Result<()> {
     let ok = c.len() == 7 && c.starts_with('#') && c.chars().skip(1).all(|ch| ch.is_ascii_hexdigit());
     if !ok {
         return Err(CoreError::invalid(

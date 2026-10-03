@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, DatabaseBackup, Info, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Unlock, UserRound, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, DatabaseBackup, Info, ListOrdered, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -13,6 +13,11 @@ import { BackupPage } from "./Backup";
 import { UsersPage } from "./Users";
 import { PatientsPage } from "./patients/PatientsPage";
 import { AuditPage } from "./Audit";
+import { DoctorsPage } from "./Doctors";
+import { CalendarPage } from "./reception/CalendarPage";
+import { QueuePage } from "./reception/QueuePage";
+import { RecallsPage } from "./reception/RecallsPage";
+import { roleText } from "./reception/labels";
 import { ClinicPage } from "./Clinic";
 import { SettingsPage } from "./Settings";
 import { PasswordDialog } from "./Password";
@@ -25,8 +30,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "patients" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
-const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
+type Tab = "patients" | "appointments" | "queue" | "recalls" | "doctors" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
+const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, doctors: Stethoscope, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -58,7 +63,11 @@ export function Shell({
   const can = (p: string) => session.permissions.includes(p);
   const groups = [
     { label: t("nav.group.patients"), tabs: can("patients.view") ? (["patients"] as Tab[]) : [] },
-    { label: t("nav.group.clinic"), tabs: can("settings.manage") ? (["clinic"] as Tab[]) : [] },
+    { label: t("nav.group.reception"), tabs: can("appointments.view") ? (["appointments", "queue", "recalls"] as Tab[]) : [] },
+    {
+      label: t("nav.group.clinic"),
+      tabs: [...(can("doctors.manage") ? (["doctors"] as Tab[]) : []), ...(can("settings.manage") ? (["clinic"] as Tab[]) : [])],
+    },
     {
       label: t("nav.group.admin"),
       tabs: [
@@ -71,6 +80,7 @@ export function Shell({
     { label: t("nav.group.system"), tabs: ["system"] as Tab[] },
   ].filter((g) => g.tabs.length);
   const tabs = groups.flatMap((g) => g.tabs);
+  const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
 
   const [tab, setTab] = useState<Tab>("system");
   const [locked, setLocked] = useState(session.locked);
@@ -189,7 +199,7 @@ export function Shell({
           <NotificationBell />
           <UserMenu
             displayName={session.user.display_name}
-            roleLabel={t(`role.${session.user.role}`)}
+            roleLabel={roleText(t, session.user.role, session.user.role_label)}
             onPassword={() => setPasswordOpen(true)}
             onLock={lock}
             onLogout={logout}
@@ -224,7 +234,11 @@ export function Shell({
       </aside>
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
-        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} />}
+        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
+        {tab === "appointments" && <CalendarPage clinic={clinic} perms={perms} clinicName={clinicName} />}
+        {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
+        {tab === "recalls" && <RecallsPage clinic={clinic} perms={perms} clinicName={clinicName} />}
+        {tab === "doctors" && <DoctorsPage clinic={clinic} />}
         {tab === "system" && <SystemInfoPage version={version} />}
         {tab === "backup" && <BackupPage canCreate={can("backup.create")} calendar={clinic?.calendar_system} />}
         {tab === "users" && <UsersPage currentUserId={session.user.id} />}

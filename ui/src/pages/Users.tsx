@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import { Crown, IdCard, LockKeyhole, Pencil, ShieldCheck, UserPlus, UserRound, Users } from "lucide-react";
-import type { RoleInfo, UserInfo } from "../../../shared/ts/contract";
-import { isSessionError, rpc } from "../lib/api";
+import { Crown, IdCard, KeyRound, LockKeyhole, LockOpen, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UserRound, Users } from "lucide-react";
+import type { PermissionInfo, RoleInfo, UserInfo } from "../../../shared/ts/contract";
+import { ApiError, isSessionError, rpc } from "../lib/api";
 import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
 import { Button, IconButton } from "../ui/Button";
-import { Card, Page, PageHeader } from "../ui/Card";
-import { Switch } from "../ui/Controls";
+import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
+import { Checkbox, Switch } from "../ui/Controls";
 import { Field, PasswordInput, Select, TextInput } from "../ui/Field";
 import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../ui/Feedback";
 import { Dialog } from "../ui/Overlay";
 import { Avatar } from "../ui/Brand";
 import { useToast } from "../ui/Toast";
+import { roleText, ruleText } from "./reception/labels";
 
 export function UsersPage({ currentUserId }: { currentUserId: string }) {
   const { t, err } = useI18n();
@@ -20,12 +21,15 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<UserInfo | null>(null);
+  const [permissions, setPermissions] = useState<PermissionInfo[]>([]);
+  const [roleDialog, setRoleDialog] = useState<{ role?: RoleInfo } | null>(null);
 
   const load = () =>
-    Promise.all([rpc("users.list", {}), rpc("roles.list", {})])
-      .then(([u, r]) => {
+    Promise.all([rpc("users.list", {}), rpc("roles.list", {}), rpc("permissions.list", {})])
+      .then(([u, r, p]) => {
         setUsers(u);
         setRoles(r);
+        setPermissions(p);
         setError("");
       })
       .catch((e) => !isSessionError(e) && setError(err(e)));
@@ -64,7 +68,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                       </div>
                     </td>
                     <td><bdi className="ltr">{u.username}</bdi></td>
-                    <td>{u.role === "owner" ? <Badge tone="accent" icon={Crown}>{t("role.owner")}</Badge> : <Badge>{t(`role.${u.role}`)}</Badge>}</td>
+                    <td>{u.role === "owner" ? <Badge tone="accent" icon={Crown}>{t("role.owner")}</Badge> : <Badge>{roleText(t, u.role, u.role_label)}</Badge>}</td>
                     <td>{u.is_active ? <Badge tone="success" dot>{t("users.active")}</Badge> : <Badge dot>{t("users.inactive")}</Badge>}</td>
                     <td className="cell-actions"><IconButton icon={Pencil} label={t("users.edit")} size="sm" onClick={() => setEditing(u)} data-testid={`edit-user-${u.username}`} /></td>
                   </tr>
@@ -75,6 +79,27 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
           </div>
         )}
       </Card>
+      <Card flush>
+        <CardHeader icon={ShieldCheck} title={t("roles.title")} description={t("roles.subtitle")} actions={<Button icon={Plus} onClick={() => setRoleDialog({})} data-testid="role-add-open">{t("roles.add")}</Button>} />
+        <div className="table-wrap">
+          <table className="table" data-testid="role-list">
+            <thead><tr><th>{t("users.role")}</th><th>{t("roles.permissions")}</th><th>{t("roles.users")}</th><th className="cell-actions"><span className="visually-hidden">{t("users.edit")}</span></th></tr></thead>
+            <tbody>
+              {roles.map((r) => (
+                <tr key={r.code} data-testid={`role-row-${r.code}`}>
+                  <td className="cell-strong">{r.code === "owner" ? t("role.owner") : roleText(t, r.code, r.label)}{r.is_system && <span className="subtle t-caption"> · {t("roles.builtIn")}</span>}</td>
+                  <td>{r.permissions.length}</td>
+                  <td>{r.user_count}</td>
+                  <td className="cell-actions">
+                    {r.is_system ? <IconButton icon={ShieldCheck} label={t("roles.view")} size="sm" onClick={() => setRoleDialog({ role: r })} data-testid={`role-view-${r.code}`} /> : <IconButton icon={Pencil} label={t("users.edit")} size="sm" onClick={() => setRoleDialog({ role: r })} data-testid={`role-edit-${r.label}`} />}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      {roleDialog && <RoleDialog role={roleDialog.role} permissions={permissions} onClose={() => setRoleDialog(null)} onSaved={load} />}
       {creating && <CreateUserDialog roles={assignable} onClose={() => setCreating(false)} onCreated={load} />}
       {editing && <EditUserDialog user={editing} roles={assignable} onClose={() => setEditing(null)} onSaved={load} />}
     </Page>
@@ -135,7 +160,7 @@ function CreateUserDialog({ roles, onClose, onCreated }: { roles: RoleInfo[]; on
         </Field>
         <Field label={t("users.role")} hint={t("hint.role")} error={e("role")}>
           <Select value={form.values.role} onChange={(x) => form.set("role", x.target.value)} data-testid="new-role">
-            {roles.map((r) => <option key={r.code} value={r.code}>{t(`role.${r.code}`)}</option>)}
+            {roles.map((r) => <option key={r.code} value={r.code}>{roleText(t, r.code, r.label)}</option>)}
           </Select>
         </Field>
       </form>
@@ -146,6 +171,15 @@ function CreateUserDialog({ roles, onClose, onCreated }: { roles: RoleInfo[]; on
 function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; roles: RoleInfo[]; onClose: () => void; onSaved: () => void }) {
   const { t, err } = useI18n();
   const toast = useToast();
+  const [resetting, setResetting] = useState(false);
+  const unlock = async () => {
+    try {
+      await rpc("users.unlock", { id: user.id });
+      toast.success(t("users.unlocked"));
+    } catch (x) {
+      if (!isSessionError(x)) toast.error(err(x));
+    }
+  };
   const form = useForm({ display_name: user.display_name, role: user.role }, { display_name: v.displayName });
   const [active, setActive] = useState(user.is_active);
   const [busy, setBusy] = useState(false);
@@ -191,13 +225,151 @@ function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; rol
         </Field>
         <Field label={t("users.role")} error={form.error("role") && t(form.error("role")!)}>
           <Select value={form.values.role} disabled={isOwner} onChange={(x) => form.set("role", x.target.value)} data-testid="edit-role">
-            {isOwner ? <option value="owner">{t("role.owner")}</option> : roles.map((r) => <option key={r.code} value={r.code}>{t(`role.${r.code}`)}</option>)}
+            {isOwner ? <option value="owner">{t("role.owner")}</option> : roles.map((r) => <option key={r.code} value={r.code}>{roleText(t, r.code, r.label)}</option>)}
           </Select>
         </Field>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="row"><ShieldCheck size={18} className="subtle" aria-hidden /> {t("users.activeLabel")}</span>
           <Switch checked={active} disabled={isOwner} onChange={setActive} label={<span className="visually-hidden">{t("users.activeLabel")}</span>} testId="edit-active" />
         </div>
+        <div className="row">
+          <Button icon={KeyRound} onClick={() => setResetting(true)} data-testid="user-reset-open">{t("users.resetPassword")}</Button>
+          <Button icon={LockOpen} onClick={unlock} data-testid="user-unlock">{t("users.unlock")}</Button>
+        </div>
+      </form>
+      {resetting && <ResetPasswordDialog user={user} onClose={() => setResetting(false)} />}
+    </Dialog>
+  );
+}
+
+function ResetPasswordDialog({ user, onClose }: { user: UserInfo; onClose: () => void }) {
+  const { t, err } = useI18n();
+  const toast = useToast();
+  const form = useForm({ new_password: "" }, { new_password: v.password });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    setError("");
+    if (!form.validate()) return;
+    setBusy(true);
+    try {
+      await rpc("users.reset_password", { id: user.id, new_password: form.values.new_password });
+      toast.success(t("users.passwordReset"));
+      onClose();
+    } catch (x) {
+      if (!form.serverError(x)) setError(ruleText(t, x, err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      title={t("users.resetPassword")}
+      description={<span>{user.display_name} · <bdi className="ltr">{user.username}</bdi></span>}
+      onClose={onClose}
+      testId="reset-password-dialog"
+      footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" icon={KeyRound} loading={busy} type="submit" form="reset-password-form" data-testid="reset-password-confirm">{t("users.resetPassword")}</Button></>}
+    >
+      <form id="reset-password-form" className="stack" onSubmit={submit} noValidate>
+        {error && <Notice tone="danger">{error}</Notice>}
+        <Notice tone="info">{t("users.resetHint")}</Notice>
+        <Field label={t("users.newPassword")} hint={t("hint.password")} error={form.error("new_password") && t(form.error("new_password")!)}>
+          <PasswordInput icon={LockKeyhole} autoComplete="new-password" value={form.values.new_password} onChange={(x) => form.set("new_password", x.target.value)} onBlur={() => form.blur("new_password")} data-testid="reset-password-input" />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
+const PERMISSION_GROUPS: { key: string; codes: string[] }[] = [
+  { key: "patients", codes: ["patients.view", "patients.edit"] },
+  { key: "appointments", codes: ["appointments.view", "appointments.edit", "appointments.treat", "doctors.manage"] },
+  { key: "clinical", codes: ["clinical.view", "clinical.edit"] },
+  { key: "billing", codes: ["billing.view", "billing.edit", "billing.void", "reports.view"] },
+  { key: "inventory", codes: ["inventory.manage"] },
+  { key: "admin", codes: ["users.manage", "settings.manage", "audit.view", "backup.view", "backup.create", "backup.restore"] },
+];
+
+/** A clinic's own role: a name and the permissions it grants (4.1). Built-in roles can only be viewed. */
+function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; permissions: PermissionInfo[]; onClose: () => void; onSaved: () => void }) {
+  const { t, err } = useI18n();
+  const toast = useToast();
+  const readOnly = !!role?.is_system;
+  const form = useForm({ label: role?.label ?? "" }, { label: (s) => (!s.trim() ? "rule.required" : [...s.trim()].length > 60 ? "rule.role_label_length" : null) });
+  const [granted, setGranted] = useState<string[]>(role?.permissions ?? []);
+  const [permError, setPermError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const assignable = new Set(permissions.filter((p) => p.assignable).map((p) => p.code));
+
+  const submit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    setError("");
+    setPermError("");
+    if (!form.validate()) return;
+    if (!granted.length) return setPermError(t("rule.permissions_empty"));
+    setBusy(true);
+    try {
+      if (role) await rpc("roles.update", { code: role.code, version: role.version, label: form.values.label.trim(), permissions: granted });
+      else await rpc("roles.create", { label: form.values.label.trim(), permissions: granted });
+      toast.success(t("common.saved"));
+      onSaved();
+      onClose();
+    } catch (x) {
+      if (x instanceof ApiError && x.field === "permissions") setPermError(ruleText(t, x, err));
+      else if (!form.serverError(x)) setError(ruleText(t, x, err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!role || !window.confirm(t("roles.deleteConfirm"))) return;
+    try {
+      await rpc("roles.delete", { code: role.code, version: role.version });
+      toast.success(t("roles.deleted"));
+      onSaved();
+      onClose();
+    } catch (x) {
+      setError(ruleText(t, x, err));
+    }
+  };
+
+  return (
+    <Dialog
+      title={role ? (readOnly ? (role.code === "owner" ? t("role.owner") : roleText(t, role.code, role.label)) : t("roles.edit")) : t("roles.add")}
+      description={readOnly ? t("roles.builtInHint") : t("roles.hint")}
+      onClose={onClose}
+      wide
+      testId="role-dialog"
+      footer={
+        <>
+          {role && !readOnly && <Button variant="danger" icon={Trash2} onClick={remove} data-testid="role-delete">{t("roles.delete")}</Button>}
+          <span className="grow" />
+          <Button onClick={onClose}>{readOnly ? t("common.close") : t("common.cancel")}</Button>
+          {!readOnly && <Button variant="primary" loading={busy} type="submit" form="role-form" data-testid="role-save">{t("common.save")}</Button>}
+        </>
+      }
+    >
+      <form id="role-form" className="stack" onSubmit={submit} noValidate>
+        {error && <Notice tone="danger">{error}</Notice>}
+        {!readOnly && (
+          <Field label={t("roles.name")} hint={t("hint.roleName")} error={form.error("label") && t(form.error("label")!)}>
+            <TextInput value={form.values.label} onChange={(x) => form.set("label", x.target.value)} onBlur={() => form.blur("label")} data-testid="role-name" />
+          </Field>
+        )}
+        {PERMISSION_GROUPS.map((g) => (
+          <fieldset className="perm-group" key={g.key}>
+            <legend className="t-overline">{t(`perm.group.${g.key}`)}</legend>
+            {g.codes.map((code) => (
+              <Checkbox key={code} checked={granted.includes(code)} disabled={readOnly || !assignable.has(code)} onChange={(on) => setGranted((p) => (on ? [...p, code] : p.filter((c) => c !== code)))} testId={`perm-${code}`}>
+                {t(`perm.${code}`)}
+              </Checkbox>
+            ))}
+          </fieldset>
+        ))}
+        {permError && <div className="field-error" role="alert" data-testid="field-error"><span>{permError}</span></div>}
       </form>
     </Dialog>
   );

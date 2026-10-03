@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FileText, Images, Plus, Trash2 } from "lucide-react";
-import type { AttachmentInfo, AttachmentKind } from "../../../../shared/ts/contract";
+import type { AttachmentInfo, AttachmentKind, AttachmentThumbnail } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
 import { formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
@@ -31,12 +31,17 @@ export function AttachmentsTab({ patientId, canEdit }: { patientId: string; canE
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<AttachmentInfo | null>(null);
+  const [thumbs, setThumbs] = useState<Record<string, string | null>>({});
 
   const load = () =>
     rpc("attachments.list", { patient_id: patientId })
       .then((v) => {
         setItems(v);
         setError("");
+        // OF-018: the Core makes the thumbnails; one call returns them all, no full image is decoded here.
+        rpc("attachments.thumbnails", { patient_id: patientId })
+          .then((list: AttachmentThumbnail[]) => setThumbs(Object.fromEntries(list.map((x) => [x.id, x.data_url]))))
+          .catch(() => setThumbs({}));
       })
       .catch((e) => !isSessionError(e) && setError(err(e)));
   useEffect(() => {
@@ -62,7 +67,7 @@ export function AttachmentsTab({ patientId, canEdit }: { patientId: string; canE
         {items?.map((a) => (
           <div key={a.id} className="attachment-card" data-testid={`attachment-${a.id}`}>
             <button type="button" className="attachment-thumb" onClick={() => setViewing(a)} data-testid={`attachment-open-${a.id}`}>
-              {isImage(a.mime_type) ? <AttachmentImage id={a.id} /> : <FileText aria-hidden />}
+              {isImage(a.mime_type) && thumbs[a.id] ? <img src={thumbs[a.id]!} alt="" /> : isImage(a.mime_type) && !(a.id in thumbs) ? <span className="skeleton" style={{ width: "100%", height: "100%" }} /> : <FileText aria-hidden />}
             </button>
             <div className="attachment-meta">
               <span className="cell-strong">{t(KIND_LABEL[a.kind])}</span>
@@ -78,17 +83,4 @@ export function AttachmentsTab({ patientId, canEdit }: { patientId: string; canE
       {viewing && <AttachmentViewer attachment={viewing} onClose={() => setViewing(null)} />}
     </Card>
   );
-}
-
-/** Lazily fetches and shows a small preview; the browser decodes/scales it (ADR-12 known limitation: no server-side thumbnail yet). */
-function AttachmentImage({ id }: { id: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    rpc("attachments.file", { id, thumbnail: true }).then((d) => live && setSrc(d.data_url));
-    return () => {
-      live = false;
-    };
-  }, [id]);
-  return src ? <img src={src} alt="" /> : <span className="skeleton" style={{ width: "100%", height: "100%" }} />;
 }

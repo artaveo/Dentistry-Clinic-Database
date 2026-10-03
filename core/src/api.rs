@@ -27,6 +27,7 @@ use crate::patient;
 use crate::session::{state_of, Session};
 use crate::settings;
 use crate::sysinfo;
+use crate::{appointment, recall, scheduling};
 use crate::{APP_VERSION, GIT_COMMIT};
 
 /// Methods still allowed while the screen is locked.
@@ -423,9 +424,52 @@ impl Core {
                 }
                 ok(user)
             }
+            m::USERS_RESET_PASSWORD => {
+                s.require(perm::USERS_MANAGE)?;
+                let ResetPasswordParams { id, new_password } = params(p)?;
+                let user = self.with_tx(|c| auth::reset_password(c, &actor(&s), &id, &new_password))?;
+                // Whoever knew the old password must sign in again.
+                self.lock_sessions().remove_user(&user.id);
+                ok(user)
+            }
+            m::USERS_UNLOCK => {
+                s.require(perm::USERS_MANAGE)?;
+                let UserIdParams { id } = params(p)?;
+                ok(self.with_tx(|c| auth::unlock_user(c, &actor(&s), &id))?)
+            }
             m::ROLES_LIST => {
                 s.require(perm::USERS_MANAGE)?;
                 ok(self.with_db(|o| auth::list_roles(&o.conn))?)
+            }
+            m::PERMISSIONS_LIST => {
+                s.require(perm::USERS_MANAGE)?;
+                ok(auth::list_permissions())
+            }
+            m::ROLES_CREATE => {
+                s.require(perm::USERS_MANAGE)?;
+                let p: CreateRoleParams = params(p)?;
+                ok(self.with_tx(|c| auth::create_role(c, &actor(&s), &p))?)
+            }
+            m::ROLES_UPDATE => {
+                s.require(perm::USERS_MANAGE)?;
+                let p: UpdateRoleParams = params(p)?;
+                let (role, holders) = self.with_tx(|c| {
+                    let role = auth::update_role(c, &actor(&s), &p)?;
+                    Ok((role, auth::users_with_role(c, &p.code)?))
+                })?;
+                // Signed-in holders get the new permission set at once.
+                let perms: std::collections::HashSet<String> = role.permissions.iter().cloned().collect();
+                let mut store = self.lock_sessions();
+                for u in &holders {
+                    store.refresh_user(u, &perms);
+                }
+                ok(role)
+            }
+            m::ROLES_DELETE => {
+                s.require(perm::USERS_MANAGE)?;
+                let DeleteRoleParams { code, version } = params(p)?;
+                self.with_tx(|c| auth::delete_role(c, &actor(&s), &code, version))?;
+                ok(Empty {})
             }
             m::REFERENCE_LIST => {
                 let ReferenceListParams { type_code, language } = params(p)?;
@@ -586,10 +630,15 @@ impl Core {
                 let mime = guess_mime(&p.file_name).to_string();
                 let dir = self.config.attachments_dir();
                 let captured_at = p.captured_at.clone().unwrap_or_else(|| now_iso()[..10].to_string());
-                ok(self.with_db(|o| {
-                    let (sha256, size) = attachment::store(&dir, &o.key, &bytes)?;
+                ok(self.with_tx_keyed(|c, key| {
+                    let (sha256, size) = attachment::store(&dir, key, &bytes)?;
+                    // OF-018: the thumbnail is made here, once, so lists never decode full images.
+                    let thumb = match attachment::make_thumbnail(&bytes) {
+                        Some(t) => Some(attachment::store(&dir, key, &t)?.0),
+                        None => None,
+                    };
                     patient::create_attachment(
-                        &o.conn,
+                        c,
                         &actor(&s),
                         &p.patient_id,
                         p.kind,
@@ -599,7 +648,7 @@ impl Core {
                         size,
                         p.tooth.as_deref(),
                         p.description.as_deref(),
-                        false,
+                        thumb.as_deref(),
                         &captured_at,
                     )
                 })?)
@@ -613,21 +662,172 @@ impl Core {
             }
             m::ATTACHMENTS_FILE => {
                 s.require(perm::PATIENTS_VIEW)?;
-                let AttachmentFileParams { id, .. } = params(p)?;
+                let AttachmentFileParams { id, thumbnail } = params(p)?;
                 let dir = self.config.attachments_dir();
                 let (bytes, mime) = self.with_db(|o| {
                     let a = patient::get_attachment(&o.conn, &id)?;
-                    let sha256 = o.conn.query_row(
-                        "SELECT sha256 FROM patient_attachment WHERE id = ?1",
-                        [&id],
-                        |r| r.get::<_, String>(0),
-                    )?;
-                    let bytes = attachment::read(&dir, &o.key, &sha256)?;
-                    Ok((bytes, a.mime_type))
+                    let (sha256, thumb) = patient::attachment_hashes(&o.conn, &id)?;
+                    match thumb.filter(|_| thumbnail) {
+                        Some(t) => Ok((attachment::read(&dir, &o.key, &t)?, "image/jpeg".to_string())),
+                        None => Ok((attachment::read(&dir, &o.key, &sha256)?, a.mime_type)),
+                    }
                 })?;
                 ok(AttachmentData {
                     data_url: format!("data:{mime};base64,{}", data_encoding::BASE64.encode(&bytes)),
                 })
+            }
+            m::ATTACHMENTS_THUMBNAILS => {
+                s.require(perm::PATIENTS_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                let dir = self.config.attachments_dir();
+                ok(self.with_tx_keyed(|c, key| {
+                    let mut out = Vec::new();
+                    for a in patient::list_attachments(c, &patient_id)? {
+                        if !a.mime_type.starts_with("image/") {
+                            out.push(AttachmentThumbnail { id: a.id, data_url: None });
+                            continue;
+                        }
+                        let (sha256, thumb) = patient::attachment_hashes(c, &a.id)?;
+                        let thumb = match thumb {
+                            Some(t) => Some(t),
+                            // A file saved before thumbnails existed: make its thumbnail once, now.
+                            None => {
+                                match attachment::make_thumbnail(&attachment::read(&dir, key, &sha256)?) {
+                                    Some(bytes) => {
+                                        let t = attachment::store(&dir, key, &bytes)?.0;
+                                        patient::set_attachment_thumbnail(c, &a.id, &t)?;
+                                        Some(t)
+                                    }
+                                    None => None,
+                                }
+                            }
+                        };
+                        let data_url = match thumb {
+                            Some(t) => Some(format!(
+                                "data:image/jpeg;base64,{}",
+                                data_encoding::BASE64.encode(&attachment::read(&dir, key, &t)?)
+                            )),
+                            None => None,
+                        };
+                        out.push(AttachmentThumbnail { id: a.id, data_url });
+                    }
+                    Ok(out)
+                })?)
+            }
+            m::PATIENTS_IMPORT_INSPECT => {
+                s.require(perm::PATIENTS_EDIT)?;
+                let p: ImportInspectParams = params(p)?;
+                ok(crate::import::inspect_import(&p)?)
+            }
+            m::DOCTORS_LIST => {
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let DoctorListParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| scheduling::list_doctors(&o.conn, include_inactive))?)
+            }
+            m::DOCTORS_CREATE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let p: CreateDoctorParams = params(p)?;
+                ok(self.with_tx(|c| scheduling::create_doctor(c, &actor(&s), &p))?)
+            }
+            m::DOCTORS_UPDATE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let p: UpdateDoctorParams = params(p)?;
+                ok(self.with_tx(|c| scheduling::update_doctor(c, &actor(&s), &p))?)
+            }
+            m::DOCTORS_SET_SCHEDULE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let p: SetScheduleParams = params(p)?;
+                ok(self.with_tx(|c| scheduling::set_schedule(c, &actor(&s), &p))?)
+            }
+            m::DOCTORS_ADD_LEAVE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let p: AddLeaveParams = params(p)?;
+                ok(self.with_tx(|c| scheduling::add_leave(c, &actor(&s), &p))?)
+            }
+            m::DOCTORS_DELETE_LEAVE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let IdVersionParams { id, version } = params(p)?;
+                self.with_tx(|c| scheduling::delete_leave(c, &actor(&s), &id, version))?;
+                ok(Empty {})
+            }
+            m::CHAIRS_LIST => {
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let ChairListParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| scheduling::list_chairs(&o.conn, include_inactive))?)
+            }
+            m::CHAIRS_CREATE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let p: CreateChairParams = params(p)?;
+                ok(self.with_tx(|c| scheduling::create_chair(c, &actor(&s), &p))?)
+            }
+            m::CHAIRS_UPDATE => {
+                s.require(perm::DOCTORS_MANAGE)?;
+                let p: UpdateChairParams = params(p)?;
+                ok(self.with_tx(|c| scheduling::update_chair(c, &actor(&s), &p))?)
+            }
+            m::APPOINTMENTS_LIST => {
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let p: AppointmentListParams = params(p)?;
+                ok(self.with_db(|o| appointment::list_appointments(&o.conn, &p))?)
+            }
+            m::APPOINTMENTS_COUNTS => {
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let p: AppointmentCountsParams = params(p)?;
+                ok(self.with_db(|o| appointment::appointment_counts(&o.conn, &p))?)
+            }
+            m::APPOINTMENTS_GET => {
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| appointment::get_appointment(&o.conn, &id))?)
+            }
+            m::APPOINTMENTS_CREATE => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: CreateAppointmentParams = params(p)?;
+                ok(self.with_tx(|c| appointment::create_appointment(c, &actor(&s), &p))?)
+            }
+            m::APPOINTMENTS_UPDATE => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: UpdateAppointmentParams = params(p)?;
+                ok(self.with_tx(|c| appointment::update_appointment(c, &actor(&s), &p))?)
+            }
+            m::APPOINTMENTS_RESCHEDULE => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: RescheduleAppointmentParams = params(p)?;
+                ok(self.with_tx(|c| appointment::reschedule_appointment(c, &actor(&s), &p))?)
+            }
+            m::APPOINTMENTS_SET_STATUS => {
+                let p: SetAppointmentStatusParams = params(p)?;
+                // Starting and finishing treatment is clinical work (doctor, assistant);
+                // arrival, confirmation, cancellation and no-show are reception work.
+                let treatment =
+                    matches!(p.status, AppointmentStatus::InTreatment | AppointmentStatus::Completed);
+                s.require(if treatment { perm::APPOINTMENTS_TREAT } else { perm::APPOINTMENTS_EDIT })?;
+                ok(self.with_tx(|c| appointment::set_status(c, &actor(&s), &p))?)
+            }
+            m::APPOINTMENTS_WALK_IN => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: WalkInParams = params(p)?;
+                ok(self.with_tx(|c| appointment::walk_in(c, &actor(&s), &p))?)
+            }
+            m::RECALLS_LIST => {
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let p: RecallListParams = params(p)?;
+                ok(self.with_db(|o| recall::list_recalls(&o.conn, &p))?)
+            }
+            m::RECALLS_CREATE => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: CreateRecallParams = params(p)?;
+                ok(self.with_tx(|c| recall::create_recall(c, &actor(&s), &p))?)
+            }
+            m::RECALLS_UPDATE => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: UpdateRecallParams = params(p)?;
+                ok(self.with_tx(|c| recall::update_recall(c, &actor(&s), &p))?)
+            }
+            m::RECALLS_SET_STATUS => {
+                s.require(perm::APPOINTMENTS_EDIT)?;
+                let p: SetRecallStatusParams = params(p)?;
+                ok(self.with_tx(|c| recall::set_recall_status(c, &actor(&s), &p))?)
             }
             m::SYSTEM_INFO => ok(self.system_info()?),
             _ => Err(CoreError::api(ErrorCode::UnknownMethod, method.to_string())),

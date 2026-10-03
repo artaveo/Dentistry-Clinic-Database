@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileDown, FileUp, Search, UserPlus, UserRound, Users } from "lucide-react";
-import type { PatientInfo } from "../../../../shared/ts/contract";
+import type { ClinicProfile, PatientInfo } from "../../../../shared/ts/contract";
+import type { Perms } from "../reception/useScheduling";
 import { isSessionError, rpc } from "../../lib/api";
 import { formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
@@ -13,11 +14,13 @@ import { ImportDialog } from "./ImportDialog";
 
 type View = { kind: "list" } | { kind: "create" } | { kind: "edit"; patient: PatientInfo } | { kind: "profile"; id: string };
 
-export function PatientsPage({ canEdit }: { canEdit: boolean }) {
+export type AppointmentPerms = Perms & { view: boolean };
+
+export function PatientsPage({ canEdit, appointments, clinic, clinicName }: { canEdit: boolean; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string }) {
   const [view, setView] = useState<View>({ kind: "list" });
   if (view.kind === "create") return <PatientForm onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "list" })} />;
   if (view.kind === "edit") return <PatientForm patient={view.patient} onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "profile", id: view.patient.id })} />;
-  if (view.kind === "profile") return <PatientProfile patientId={view.id} canEdit={canEdit} onBack={() => setView({ kind: "list" })} onEdit={(p) => setView({ kind: "edit", patient: p })} />;
+  if (view.kind === "profile") return <PatientProfile patientId={view.id} canEdit={canEdit} appointments={appointments} clinic={clinic} clinicName={clinicName} onBack={() => setView({ kind: "list" })} onEdit={(p) => setView({ kind: "edit", patient: p })} />;
   return <PatientList canEdit={canEdit} onCreate={() => setView({ kind: "create" })} onOpen={(id) => setView({ kind: "profile", id })} />;
 }
 
