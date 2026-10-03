@@ -1618,7 +1618,7 @@ fn custom_roles_permissions_and_account_administration() {
         t.call(m::PATIENTS_CREATE, json!({"full_name": "x"}), Some(&token)),
         Err(ErrorCode::Forbidden)
     );
-    assert_eq!(t.call(m::SETTINGS_GET, json!({}), Some(&token)).is_ok(), true, "reading settings is open");
+    assert!(t.call(m::SETTINGS_GET, json!({}), Some(&token)).is_ok(), "reading settings is open");
     assert_eq!(t.call(m::USERS_LIST, json!({}), Some(&token)), Err(ErrorCode::Forbidden));
     assert_eq!(
         t.ok(m::ROLES_LIST, json!({}), Some(&owner))
