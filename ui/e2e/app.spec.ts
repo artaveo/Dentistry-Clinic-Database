@@ -136,7 +136,7 @@ test("header status and command palette", async () => {
 });
 
 test("About shows version, processor build and an encrypted, healthy database", async () => {
-  await expect(page.getByTestId("si-version")).toHaveText("0.4.0");
+  await expect(page.getByTestId("si-version")).toHaveText("0.4.1");
   await expect(page.getByTestId("si-build-arch")).toHaveText(/^(x64|x86|arm64)$/);
   await expect(page.getByTestId("si-encryption")).toHaveText("رمزنگاری‌شده");
   await expect(page.getByTestId("si-integrity")).toHaveText("سالم", { timeout: 15_000 });

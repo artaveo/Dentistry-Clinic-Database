@@ -115,7 +115,11 @@ fn validate_fields<'a>(f: impl Into<FieldsToValidate<'a>>) -> Result<()> {
 
 const PATIENT_SELECT: &str =
     "SELECT id, patient_number, full_name, father_name, preferred_language, gender_id,
-     date_of_birth, approximate_age, phone, secondary_phone, province_id, district_id, address,
+     date_of_birth,
+     CASE WHEN approximate_birth_year IS NOT NULL
+          THEN CAST(strftime('%Y', 'now', '+4 hours', '+30 minutes') AS INTEGER) - approximate_birth_year
+          ELSE approximate_age END,
+     phone, secondary_phone, province_id, district_id, address,
      emergency_contact_name, emergency_contact_phone, emergency_contact_relationship_id, referral_source_id,
      notes, registration_date, status, merged_into_id, version
      FROM patient WHERE deleted_at IS NULL";
@@ -378,10 +382,10 @@ pub fn create_patient(conn: &Connection, actor: &Actor, p: &CreatePatientParams)
     conn.execute(
         "INSERT INTO patient(
             id, patient_number, full_name, father_name, preferred_language, gender_id, date_of_birth,
-            approximate_age, phone, secondary_phone, province_id, district_id, address,
+            approximate_birth_year, phone, secondary_phone, province_id, district_id, address,
             emergency_contact_name, emergency_contact_phone, emergency_contact_relationship_id,
             referral_source_id, notes, registration_date, status, created_at, created_by, updated_at, updated_by
-         ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,'active',?20,?21,?20,?21)",
+         ) VALUES (?1,?2,?3,?4,?5,?6,?7,CASE WHEN ?7 IS NULL AND ?8 IS NOT NULL THEN CAST(strftime('%Y', 'now', '+4 hours', '+30 minutes') AS INTEGER) - ?8 END,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,'active',?20,?21,?20,?21)",
         params![
             id,
             number,
@@ -428,7 +432,7 @@ pub fn update_patient(conn: &Connection, actor: &Actor, p: &UpdatePatientParams)
     let f = p;
     let changed = conn.execute(
         "UPDATE patient SET full_name=?1, father_name=?2, preferred_language=?3, gender_id=?4, date_of_birth=?5,
-            approximate_age=?6, phone=?7, secondary_phone=?8, province_id=?9, district_id=?10, address=?11,
+            approximate_birth_year=CASE WHEN ?5 IS NULL AND ?6 IS NOT NULL THEN CAST(strftime('%Y', 'now', '+4 hours', '+30 minutes') AS INTEGER) - ?6 END, approximate_age=NULL, phone=?7, secondary_phone=?8, province_id=?9, district_id=?10, address=?11,
             emergency_contact_name=?12, emergency_contact_phone=?13, emergency_contact_relationship_id=?14,
             referral_source_id=?15, notes=?16, status=?17, updated_at=?18, updated_by=?19, version=version+1
          WHERE id=?20 AND version=?21 AND deleted_at IS NULL",

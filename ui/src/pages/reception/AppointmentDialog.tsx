@@ -29,7 +29,7 @@ type Values = { doctor_id: string; chair_id: string; date: string; start_time: s
  * refuses double booking and times outside the doctor's schedule; the exact reason lands under
  * the field it is about, and for a schedule reason reception can book on purpose.
  */
-export function AppointmentDialog({ appointment, defaults, doctors, chairs, calendar, perms, clinicName, solo = false, onClose, onSaved }: {
+export function AppointmentDialog({ appointment, defaults, doctors, chairs, calendar, perms, clinicName, solo = false, onOpenAppointment, onClose, onSaved }: {
   appointment?: AppointmentInfo;
   defaults?: Defaults;
   doctors: DoctorInfo[];
@@ -39,6 +39,8 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   clinicName: string;
   /** Solo Clinic Mode (2.6): the one doctor is chosen automatically and not shown. */
   solo?: boolean;
+  /** Opens another appointment, e.g. the one that clashes with this patient's time (OF-031). */
+  onOpenAppointment?: (a: AppointmentInfo) => void;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -73,6 +75,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   const [busy, setBusy] = useState<"save" | "reschedule" | null>(null);
   const [error, setError] = useState("");
   const [offerOverride, setOfferOverride] = useState<string | null>(null);
+  const [clash, setClash] = useState<AppointmentInfo | null>(null);
   const [card, setCard] = useState(false);
 
   const doctor = doctors.find((d) => d.id === form.values.doctor_id);
@@ -81,10 +84,26 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   const e = (k: keyof Values) => form.error(k) && t(form.error(k)!);
 
   const endTime = fromMinutes(Math.min(1440, toMinutes(form.values.start_time) + Number(form.values.duration)));
+  // OF-034: "transfer" moves the visit to a new time; without a change there is nothing to move.
+  const moved = !!current && (form.values.date !== current.date || form.values.start_time !== current.start_time || form.values.doctor_id !== current.doctor_id || (form.values.chair_id || "") !== (current.chair_id ?? ""));
+
+  // OF-031: the patient already has a visit at that time: name it and link to it.
+  const findClash = async () => {
+    if (!patient) return;
+    const start = toMinutes(form.values.start_time);
+    const end = start + Number(form.values.duration);
+    try {
+      const list = await rpc("appointments.list", { date_from: form.values.date, date_to: form.values.date, doctor_id: null, chair_id: null, patient_id: patient.id, statuses: [], limit: 50, offset: 0 });
+      setClash(list.find((a) => a.id !== current?.id && !(["cancelled", "rescheduled"] as string[]).includes(a.status) && toMinutes(a.start_time) < end && toMinutes(a.end_time) > start) ?? null);
+    } catch {
+      setClash(null);
+    }
+  };
 
   const submit = async (mode: "save" | "reschedule", override = false) => {
     setError("");
     setOfferOverride(null);
+    setClash(null);
     setPatientError("");
     if (!patient) return setPatientError(t("rule.required"));
     if (!form.validate()) return;
@@ -106,7 +125,10 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
       onClose();
     } catch (x) {
       if (isSessionError(x)) return;
-      if (x instanceof ApiError && x.field === "patient_id") setPatientError(x.rule ? t(`rule.${x.rule}`) : err(x));
+      if (x instanceof ApiError && x.field === "patient_id") {
+        setPatientError(x.rule ? t(`rule.${x.rule}`) : err(x));
+        if (x.rule === "patient_busy") void findClash();
+      }
       else if (x instanceof ApiError && x.rule && SCHEDULE_RULES.includes(x.rule)) {
         form.serverError(x, { date: "date", start_time: "start_time" });
         setOfferOverride(mode);
@@ -136,7 +158,10 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
             <span className="grow" />
             <Button onClick={onClose}>{t("common.close")}</Button>
             {current && movable && perms.edit && (
-              <Button icon={CalendarClock} loading={busy === "reschedule"} onClick={() => submit("reschedule")} data-testid="appt-reschedule">{t("appt.reschedule")}</Button>
+              <>
+                {!moved && <span className="subtle t-caption" data-testid="appt-transfer-hint">{t("appt.transfer.pickNew")}</span>}
+                <Button icon={CalendarClock} loading={busy === "reschedule"} disabled={!moved} onClick={() => submit("reschedule")} data-testid="appt-reschedule">{t("appt.reschedule")}</Button>
+              </>
             )}
             {!readOnly && perms.edit && (
               <Button variant="primary" icon={Save} loading={busy === "save"} onClick={() => submit("save")} data-testid="appt-save">{editing ? t("common.save") : t("appt.book")}</Button>
@@ -159,6 +184,12 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
           ) : (
             <PatientPicker value={patient} onChange={setPatient} canCreate={perms.createPatients} error={patientError || null} />
           )}
+          {clash && (
+            <Notice tone="warning" testId="appt-clash">
+              {t("appt.clash.text").replace("{doctor}", clash.doctor_name).replace("{time}", formatTime(clash.start_time, lang))}{" "}
+              {onOpenAppointment && <Button variant="link" onClick={() => onOpenAppointment(clash)} data-testid="appt-clash-open">{t("appt.clash.open")}</Button>}
+            </Notice>
+          )}
           <div className="grid-2">
             {!solo && (
               <Field label={t("appt.doctor")} error={e("doctor_id")}>
@@ -167,12 +198,14 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
                 </Select>
               </Field>
             )}
-            <Field label={t("appt.chair")} optional error={e("chair_id")}>
+            {chairs.length > 1 && (
+            <Field label={t("appt.chair")} optional error={e("chair_id")} hint={t("appt.chair.hint")}>
               <Select value={form.values.chair_id} disabled={!movable || readOnly} onChange={(x) => form.set("chair_id", x.target.value)} data-testid="appt-chair">
-                <option value="">—</option>
+                <option value="">{t("appt.chair.auto")}</option>
                 {chairChoices.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </Field>
+            )}
             <Field label={t("appt.date")} error={e("date")}>
               <DateField value={form.values.date} onChange={(d) => form.set("date", d)} calendar={calendar} label={t("appt.date")} testId="appt-date" disabled={!movable || readOnly} />
             </Field>

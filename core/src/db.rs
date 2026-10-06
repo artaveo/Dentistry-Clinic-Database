@@ -30,6 +30,22 @@ pub static MIGRATIONS: &[Migration] = &[
     Migration { version: 4, name: "backup", sql: include_str!("../migrations/0004_backup.sql") },
     Migration { version: 5, name: "patient", sql: include_str!("../migrations/0005_patient.sql") },
     Migration { version: 6, name: "scheduling", sql: include_str!("../migrations/0006_scheduling.sql") },
+    Migration {
+        version: 7,
+        name: "patient_birth_year",
+        sql: include_str!("../migrations/0007_patient_birth_year.sql"),
+    },
+    Migration { version: 8, name: "form_draft", sql: include_str!("../migrations/0008_form_draft.sql") },
+    Migration {
+        version: 9,
+        name: "role_customized",
+        sql: include_str!("../migrations/0009_role_customized.sql"),
+    },
+    Migration {
+        version: 7,
+        name: "patient_birth_year",
+        sql: include_str!("../migrations/0007_patient_birth_year.sql"),
+    },
 ];
 
 /// Files next to the database.
@@ -191,6 +207,13 @@ pub fn vacuum_into(conn: &Connection, dest: &Path) -> Result<()> {
     }
     conn.execute("VACUUM INTO ?1", [dest.to_string_lossy()])?;
     Ok(())
+}
+
+/// Bytes of the database pages (the main file once checkpointed), without the WAL (OF-024).
+pub fn data_size_bytes(conn: &Connection) -> Result<i64> {
+    let pages: i64 = conn.query_row("PRAGMA page_count", [], |r| r.get(0))?;
+    let page_size: i64 = conn.query_row("PRAGMA page_size", [], |r| r.get(0))?;
+    Ok(pages * page_size)
 }
 
 pub fn cipher_version(conn: &Connection) -> Result<String> {

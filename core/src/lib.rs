@@ -13,6 +13,7 @@ pub mod clinic;
 pub mod clock;
 pub mod config;
 pub mod db;
+pub mod draft;
 pub mod error;
 pub mod ids;
 pub mod import;

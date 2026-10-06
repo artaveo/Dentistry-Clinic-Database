@@ -19,7 +19,7 @@ const fail = (code: ErrorCode, detail: string, field?: string, rule?: Validation
 };
 const invalid = (field: string, rule: ValidationRule, detail = rule) => fail("validation", detail, field, rule);
 
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 const PROVINCES: [string, string, string, string][] = [
   ["KBL", "کابل", "کابل", "Kabul"],
   ["HRT", "هرات", "هرات", "Herat"],
@@ -137,12 +137,12 @@ function seed() {
   state.setUp = true;
   state.clinicName = "کلینیک دندان‌پزشکی لبخند";
   state.clinic = defaultClinic(state.clinicName);
-  const owner: U = { id: uuid(), username: "owner", display_name: "داکتر احمد رحیمی", role: "owner", role_label: null, is_active: true, version: 1, password: "owner-pass-123" };
+  const owner: U = { id: uuid(), username: "owner", display_name: "داکتر احمد رحیمی", role: "owner", role_label: null, is_active: true, version: 1, locked: false, password: "owner-pass-123" };
   state.users = [
     owner,
-    { id: uuid(), username: "reception", display_name: "مریم کریمی", role: "receptionist", role_label: null, is_active: true, version: 1, password: "reception-123" },
-    { id: uuid(), username: "dr.sultani", display_name: "داکتر فرید سلطانی", role: "doctor", role_label: null, is_active: true, version: 1, password: "doctor-pass-1" },
-    { id: uuid(), username: "accounts", display_name: "نجیب الله", role: "accountant", role_label: null, is_active: false, version: 2, password: "accounts-pass" },
+    { id: uuid(), username: "reception", display_name: "مریم کریمی", role: "receptionist", role_label: null, is_active: true, version: 1, locked: false, password: "reception-123" },
+    { id: uuid(), username: "dr.sultani", display_name: "داکتر فرید سلطانی", role: "doctor", role_label: null, is_active: true, version: 1, locked: false, password: "doctor-pass-1" },
+    { id: uuid(), username: "accounts", display_name: "نجیب الله", role: "accountant", role_label: null, is_active: false, version: 2, locked: false, password: "accounts-pass" },
   ];
   const day = 86400_000;
   state.backups = [0, 1, 2].map((i) => ({
@@ -270,7 +270,7 @@ function call(method: string, p: any, token: string | null): unknown {
       state.defaultLanguage = p.language;
       state.clinic = { ...defaultClinic(state.clinicName!), ...p, name: state.clinicName!, default_language: p.language, logo_path: null, trial_started_at: p.trial_acknowledged ? iso() : null };
       if (p.logo_base64) state.logo = `data:image/png;base64,${p.logo_base64}`;
-      const owner: U = { id: uuid(), username: p.owner_username, display_name: p.owner_display_name, role: "owner", role_label: null, is_active: true, version: 1, password: p.owner_password };
+      const owner: U = { id: uuid(), username: p.owner_username, display_name: p.owner_display_name, role: "owner", role_label: null, is_active: true, version: 1, locked: false, password: p.owner_password };
       state.users = [owner];
       record(owner, "app.setup", "db_meta");
       state.recoveryKey = Array.from({ length: 6 }, () => Array.from({ length: 6 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"[Math.floor(Math.random() * 32)]).join("")).join("-");
@@ -337,7 +337,7 @@ function call(method: string, p: any, token: string | null): unknown {
       return state.users.map(publicUser).sort((a, b) => a.username.localeCompare(b.username));
     case "roles.list":
       need(s, "users.manage");
-      return Object.keys(ROLE_PERMS).map((code): RoleInfo => ({ code, label: null, is_system: true, permissions: ROLE_PERMS[code], user_count: state.users.filter((u) => u.role === code && u.is_active).length, version: 1 }));
+      return Object.keys(ROLE_PERMS).map((code): RoleInfo => ({ code, label: null, is_system: true, permissions: ROLE_PERMS[code], user_count: state.users.filter((u) => u.role === code && u.is_active).length, version: 1 , customized: false}));
     case "permissions.list":
       need(s, "users.manage");
       return ALL_PERMS.map((code) => ({ code, assignable: code !== "backup.restore" }));
@@ -357,7 +357,7 @@ function call(method: string, p: any, token: string | null): unknown {
       validateDisplay(p.display_name);
       validatePassword(p.password);
       if (state.users.some((u) => u.username.toLowerCase() === p.username.toLowerCase())) invalid("username", "username_taken");
-      const u: U = { id: uuid(), username: p.username, display_name: p.display_name.trim(), role: p.role, role_label: null, is_active: true, version: 1, password: p.password };
+      const u: U = { id: uuid(), username: p.username, display_name: p.display_name.trim(), role: p.role, role_label: null, is_active: true, version: 1, locked: false, password: p.password };
       state.users.push(u);
       record(s.user, "user.create", "app_user");
       return publicUser(u);
@@ -447,8 +447,13 @@ function call(method: string, p: any, token: string | null): unknown {
       record(s.user, "patient.merge", "patient", p.merge_id);
       return keep;
     }
+    case "drafts.get":
+      return { data_json: null, updated_at: null };
+    case "drafts.save":
+    case "drafts.delete":
+      return {};
     case "patients.export":
-      return { csv_base64: btoa("patient_number,full_name\n"), file_name: "patients.csv" };
+      return { file_path: "C:/Artaveo/exports/patients-mock.xlsx", file_name: "patients-mock.xlsx", rows: 0 };
     case "patients.import":
       return { total: 0, imported: 0, skipped: 0, preview: [], errors: [] };
     case "medical_history.get": {

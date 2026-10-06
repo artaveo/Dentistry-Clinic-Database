@@ -62,6 +62,8 @@ export function useForm<T extends Record<string, string>>(initial: T, checks: Pa
       setServer((s) => ({ ...s, [k]: undefined }));
     },
     blur: (k: keyof T) => setTouched((s) => ({ ...s, [k]: true })),
+    /** How many fields are wrong right now; counted only after a submit, for the summary above the buttons (OF-029). */
+    invalidCount: submitted ? (Object.keys(values) as (keyof T)[]).filter((k) => errorOf(k)).length : 0,
     /** Translation key of the visible error for `k`, if any. */
     error: (k: keyof T): string | null => (submitted || touched[k] ? errorOf(k) : null),
     /** Marks the form submitted; true when every field is valid. */
@@ -85,4 +87,15 @@ export function useForm<T extends Record<string, string>>(initial: T, checks: Pa
       setServer({});
     },
   };
+}
+
+/**
+ * OF-029: after a failed submit the page scrolls to and focuses the first invalid input,
+ * so the user never has to hunt for the red box. Call it after the errors are rendered.
+ */
+export function focusFirstInvalid(root: ParentNode | null): void {
+  const first = root?.querySelector<HTMLElement>('[aria-invalid="true"]');
+  if (!first) return;
+  first.scrollIntoView({ block: "center", behavior: "smooth" });
+  first.focus({ preventScroll: true });
 }

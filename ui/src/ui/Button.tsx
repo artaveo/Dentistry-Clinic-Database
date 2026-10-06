@@ -1,6 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { LoaderCircle } from "lucide-react";
+import { ArrowLeft, LoaderCircle } from "lucide-react";
 
 type Variant = "primary" | "secondary" | "subtle" | "danger" | "link";
 
@@ -35,4 +35,33 @@ export function IconButton({ icon: Icon, label, variant = "subtle", size = "md",
       <Icon aria-hidden />
     </Button>
   );
+}
+
+/**
+ * Back button of an inner page (OF-023): a real button in the top corner with an arrow,
+ * the same on every inner page. Alt+← does the same, unless the user is typing.
+ */
+export function BackButton({ onBack, label, testId }: { onBack: () => void; label: string; testId?: string }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === "ArrowLeft" && !isTyping(e.target)) {
+        e.preventDefault();
+        onBack();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onBack]);
+  return (
+    <div className="back-row">
+      <Button variant="subtle" icon={ArrowLeft} flipIcon className="back-btn" onClick={onBack} aria-keyshortcuts="Alt+ArrowLeft" data-testid={testId}>
+        {label}
+      </Button>
+    </div>
+  );
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 }

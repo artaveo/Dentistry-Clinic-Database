@@ -16,6 +16,9 @@ struct T {
 
 impl T {
     fn new() -> Self {
+        // Booking tests use 09:00 "today": pin the clock to 06:00 clinic time so they are never in the past.
+        let six = crate::clock::local_now().replace_time(time::macros::time!(06:00));
+        crate::clock::pin_booking_clock(six);
         let dir = tempfile::tempdir().unwrap();
         let core = Core::open(Config::new(Environment::Test, dir.path().to_path_buf())).unwrap();
         T { _dir: dir, core }
@@ -1648,14 +1651,29 @@ fn custom_roles_permissions_and_account_administration() {
         Err(ErrorCode::Conflict)
     );
 
-    // Built-in roles are fixed; a role in use cannot be deleted.
+    // OF-028: built-in roles (not the owner) can be changed and put back to their defaults; the owner cannot.
+    let reception = t
+        .ok(m::ROLES_LIST, json!({}), Some(&owner))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["code"] == json!("receptionist"))
+        .unwrap()
+        .clone();
+    let changed = t.ok(m::ROLES_UPDATE, json!({"code": "receptionist", "version": reception["version"], "label": "", "permissions": ["patients.view"]}), Some(&owner));
+    assert_eq!(changed["customized"], json!(true));
+    assert_eq!(changed["permissions"], json!(["patients.view"]));
+    let back =
+        t.ok(m::ROLES_RESET, json!({"code": "receptionist", "version": changed["version"]}), Some(&owner));
+    assert_eq!(back["customized"], json!(false));
+    assert!(back["permissions"].as_array().unwrap().len() > 1, "defaults are back");
     let (_, _, rule) = rule_of(
         &t,
         m::ROLES_UPDATE,
-        json!({"code": "receptionist", "version": 1, "label": "x", "permissions": ["patients.view"]}),
+        json!({"code": "owner", "version": 1, "label": "x", "permissions": ["patients.view"]}),
         &owner,
     );
-    assert_eq!(rule.as_deref(), Some("role_system"));
+    assert_eq!(rule.as_deref(), Some("owner_immutable"));
     let (_, _, rule) =
         rule_of(&t, m::ROLES_DELETE, json!({"code": code, "version": updated["version"]}), &owner);
     assert_eq!(rule.as_deref(), Some("role_in_use"));
@@ -1988,4 +2006,175 @@ fn excel_and_csv_import_with_column_mapping() {
         &owner,
     );
     assert_eq!(rule.as_deref(), Some("import_file_read"));
+}
+
+#[test]
+fn estimated_age_is_kept_as_a_birth_year_and_an_exact_date_wins() {
+    // OF-019: an estimated age is stored as the estimated birth year (so it stays right
+    // as years pass); an exact birth date replaces it and the age is then computed from it.
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+
+    let p = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Age Only", "approximate_age": 28}), Some(&owner));
+    assert_eq!(p["approximate_age"], 28);
+    assert!(p["date_of_birth"].is_null());
+
+    let update = json!({
+        "id": p["id"], "version": p["version"], "status": "active", "full_name": "Age Only",
+        "date_of_birth": "1990-05-20", "approximate_age": null
+    });
+    let exact = t.ok(m::PATIENTS_UPDATE, update, Some(&owner));
+    assert_eq!(exact["date_of_birth"], "1990-05-20");
+    assert!(exact["approximate_age"].is_null(), "an exact date leaves no estimated age behind");
+
+    let back = json!({
+        "id": exact["id"], "version": exact["version"], "status": "active", "full_name": "Age Only",
+        "date_of_birth": null, "approximate_age": 40
+    });
+    let again = t.ok(m::PATIENTS_UPDATE, back, Some(&owner));
+    assert_eq!(again["approximate_age"], 40);
+    assert!(again["date_of_birth"].is_null());
+}
+
+#[test]
+fn export_writes_an_excel_file_that_reads_back_with_text_intact() {
+    // OF-022 / OF-043: the export is a real .xlsx; Persian names and phone numbers
+    // (with their leading zero) come back exactly, as the import reads them.
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    t.ok(m::PATIENTS_CREATE, json!({"full_name": "حسین احمدی", "phone": "0790909090"}), Some(&owner));
+
+    let exp = t.ok(m::PATIENTS_EXPORT, json!({}), Some(&owner));
+    assert_eq!(exp["rows"], 1);
+    let path = exp["file_path"].as_str().unwrap();
+    assert!(path.ends_with(".xlsx") && std::path::Path::new(path).exists(), "the file is written to disk");
+
+    let b64 = |b: &[u8]| data_encoding::BASE64.encode(b);
+    let bytes = std::fs::read(path).unwrap();
+    let info = t.ok(
+        m::PATIENTS_IMPORT_INSPECT,
+        json!({"file_base64": b64(&bytes), "file_name": "export.xlsx"}),
+        Some(&owner),
+    );
+    assert_eq!(info["file_kind"], "xlsx");
+    assert_eq!(info["headers"][1], "نام و تخلص");
+    assert_eq!(info["sample_rows"][0][1], "حسین احمدی");
+    assert_eq!(info["sample_rows"][0][3], "0790909090");
+}
+
+#[test]
+fn excel_without_a_title_row_is_read_as_data_and_can_be_overridden() {
+    // OF-042: `ALI` / `790909090` is a patient, not a title row. The user can still say
+    // "the first row is a title" and the rows then start one line lower.
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let b64 = |b: &[u8]| data_encoding::BASE64.encode(b);
+    let book = xlsx_bytes(&[vec!["ALI", "790909090"], vec!["Karim", "790000001"]]);
+
+    let info = t.ok(
+        m::PATIENTS_IMPORT_INSPECT,
+        json!({"file_base64": b64(&book), "file_name": "no-titles.xlsx"}),
+        Some(&owner),
+    );
+    assert_eq!(info["has_header"], false);
+    assert_eq!(info["headers"][0], "ستون 1");
+    assert_eq!(info["sample_rows"][0][0], "ALI");
+    assert_eq!(info["total_rows"], 2);
+
+    let forced = t.ok(
+        m::PATIENTS_IMPORT_INSPECT,
+        json!({"file_base64": b64(&book), "file_name": "no-titles.xlsx", "has_header": true}),
+        Some(&owner),
+    );
+    assert_eq!(forced["has_header"], true);
+    assert_eq!(forced["total_rows"], 1);
+
+    let mapping = json!([{"column": 0, "field": "full_name"}, {"column": 1, "field": "phone"}]);
+    let r = t.ok(
+        m::PATIENTS_IMPORT,
+        json!({"file_base64": b64(&book), "file_name": "no-titles.xlsx", "mapping": mapping, "commit": true}),
+        Some(&owner),
+    );
+    assert_eq!(r["imported"], 2);
+}
+
+#[test]
+fn bookings_take_a_free_chair_and_refuse_past_times() {
+    // OF-035: with no chair chosen, each booking takes a different free chair.
+    // OF-036: a time that has already passed cannot be booked.
+    let c = clinic4();
+    let day = c.today.clone();
+    let a = c.book(&c.patient, &c.doctor, None, &day, "09:00", "09:30").unwrap();
+    let b = c.book(&c.patient2, &c.doctor2, None, &day, "09:00", "09:30").unwrap();
+    assert_eq!(a["chair_id"], json!(c.chair));
+    assert_eq!(b["chair_id"], json!(c.chair2));
+
+    let (_, field, rule) = rule_of(
+        &c.t,
+        m::APPOINTMENTS_CREATE,
+        json!({"patient_id": c.patient, "doctor_id": c.doctor, "date": day, "start_time": "05:00", "end_time": "05:30"}),
+        &c.owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("start_time"), Some("appointment_in_past")));
+}
+
+#[test]
+fn walk_in_outside_working_hours_needs_confirmation() {
+    // OF-037: a walk-in outside the doctor's hours is refused until reception confirms it, and the
+    // confirmation is audited. The doctor's hours are set to one minute a day, so "now" is always outside.
+    let c = clinic4();
+    let doc =
+        c.t.ok(m::DOCTORS_LIST, json!({}), Some(&c.owner))
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["id"] == json!(c.doctor))
+            .unwrap()
+            .clone();
+    let hours: Vec<Value> = (0..7).map(|d| json!({"day": d, "start": "00:00", "end": "00:01"})).collect();
+    c.t.ok(
+        m::DOCTORS_SET_SCHEDULE,
+        json!({"doctor_id": c.doctor, "version": doc["version"], "hours": hours, "breaks": [], "chair_ids": []}),
+        Some(&c.owner),
+    );
+
+    let walk = json!({"patient_id": c.patient2, "doctor_id": c.doctor, "reason": "pain"});
+    let (_, _, rule) = rule_of(&c.t, m::APPOINTMENTS_WALK_IN, walk.clone(), &c.owner);
+    assert_eq!(rule.as_deref(), Some("outside_working_hours"));
+
+    let mut confirmed = walk;
+    confirmed["override_schedule"] = json!(true);
+    let w = c.t.ok(m::APPOINTMENTS_WALK_IN, confirmed, Some(&c.owner));
+    assert_eq!(w["is_walk_in"], json!(true));
+    assert!(c.audit_has("appointment.walk_in"));
+}
+
+#[test]
+fn form_drafts_are_kept_per_form_and_must_be_objects() {
+    // OF-020 (rule 14): a half-filled form is kept until it is saved or cancelled.
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+
+    let none = t.ok(m::DRAFTS_GET, json!({"form_key": "patient.create"}), Some(&owner));
+    assert!(none["data_json"].is_null());
+
+    let text = "{\"full_name\":\"احمد\"}";
+    t.ok(m::DRAFTS_SAVE, json!({"form_key": "patient.create", "data_json": text}), Some(&owner));
+    let got = t.ok(m::DRAFTS_GET, json!({"form_key": "patient.create"}), Some(&owner));
+    assert_eq!(got["data_json"], text);
+    assert!(got["updated_at"].is_string());
+
+    t.ok(m::DRAFTS_DELETE, json!({"form_key": "patient.create"}), Some(&owner));
+    let gone = t.ok(m::DRAFTS_GET, json!({"form_key": "patient.create"}), Some(&owner));
+    assert!(gone["data_json"].is_null());
+
+    assert_eq!(
+        t.call(m::DRAFTS_SAVE, json!({"form_key": "x", "data_json": "[1,2]"}), Some(&owner)),
+        Err(ErrorCode::Validation),
+        "a draft is a JSON object"
+    );
 }

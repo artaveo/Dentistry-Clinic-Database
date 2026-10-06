@@ -177,7 +177,7 @@ export function Shell({
   const paletteItems: PaletteItem[] = tabs.map((x) => ({ id: x, label: t(`nav.${x}`), icon: ICONS[x], onSelect: () => setTab(x) }));
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-locked={locked || undefined}>
       <header className="app-header" inert={locked || undefined} aria-hidden={locked || undefined}>
         <div className="clinic-identity" data-testid="clinic-identity">
           <ClinicMark name={clinicName} logo={logo} />

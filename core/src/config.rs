@@ -71,6 +71,10 @@ impl Config {
     pub fn log_dir(&self) -> PathBuf {
         self.data_dir.join("logs")
     }
+    /// Excel exports (OF-022): patient lists the user asked for, written here and opened in Explorer.
+    pub fn exports_dir(&self) -> PathBuf {
+        self.data_dir.join("exports")
+    }
     pub fn attachments_dir(&self) -> PathBuf {
         self.data_dir.join("attachments")
     }

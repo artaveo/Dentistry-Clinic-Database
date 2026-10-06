@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Crown, IdCard, KeyRound, LockKeyhole, LockOpen, Pencil, Plus, ShieldCheck, Trash2, UserPlus, UserRound, Users } from "lucide-react";
+import { Crown, IdCard, KeyRound, LockKeyhole, LockOpen, Pencil, Plus, RotateCcw, ShieldCheck, Trash2, UserPlus, UserRound, Users } from "lucide-react";
 import type { PermissionInfo, RoleInfo, UserInfo } from "../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../lib/api";
 import { useForm, v } from "../lib/validation";
@@ -91,7 +91,7 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                   <td>{r.permissions.length}</td>
                   <td>{r.user_count}</td>
                   <td className="cell-actions">
-                    {r.is_system ? <IconButton icon={ShieldCheck} label={t("roles.view")} size="sm" onClick={() => setRoleDialog({ role: r })} data-testid={`role-view-${r.code}`} /> : <IconButton icon={Pencil} label={t("users.edit")} size="sm" onClick={() => setRoleDialog({ role: r })} data-testid={`role-edit-${r.label}`} />}
+                    {r.code === "owner" ? <IconButton icon={ShieldCheck} label={t("roles.view")} size="sm" onClick={() => setRoleDialog({ role: r })} data-testid="role-view-owner" /> : <IconButton icon={Pencil} label={t("users.edit")} size="sm" onClick={() => setRoleDialog({ role: r })} data-testid={r.is_system ? `role-edit-${r.code}` : `role-edit-${r.label}`} />}
                   </td>
                 </tr>
               ))}
@@ -172,10 +172,13 @@ function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; rol
   const { t, err } = useI18n();
   const toast = useToast();
   const [resetting, setResetting] = useState(false);
+  // The version moves after an immediate action (unlock, new password); keep the newest one.
+  const [current, setCurrent] = useState<UserInfo>(user);
   const unlock = async () => {
     try {
-      await rpc("users.unlock", { id: user.id });
+      setCurrent(await rpc("users.unlock", { id: current.id }));
       toast.success(t("users.unlocked"));
+      onSaved();
     } catch (x) {
       if (!isSessionError(x)) toast.error(err(x));
     }
@@ -184,7 +187,7 @@ function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; rol
   const [active, setActive] = useState(user.is_active);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const isOwner = user.role === "owner";
+  const isOwner = current.role === "owner";
 
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -193,7 +196,7 @@ function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; rol
     setBusy(true);
     try {
       // `version` makes a concurrent edit by someone else fail instead of being overwritten.
-      await rpc("users.update", { id: user.id, version: user.version, display_name: form.values.display_name, role: form.values.role, is_active: active });
+      await rpc("users.update", { id: current.id, version: current.version, display_name: form.values.display_name, role: form.values.role, is_active: active });
       toast.success(t("common.saved"));
       onSaved();
       onClose();
@@ -220,6 +223,7 @@ function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; rol
       <form id="edit-user-form" className="stack" onSubmit={submit} noValidate>
         {error && <Notice tone="danger">{error}</Notice>}
         {isOwner && <Notice tone="info">{t("users.ownerFixed")}</Notice>}
+        {current.locked && <Notice tone="warning" testId="user-locked">{t("users.lockedHint")}</Notice>}
         <Field label={t("login.displayName")} error={form.error("display_name") && t(form.error("display_name")!)}>
           <TextInput icon={IdCard} value={form.values.display_name} onChange={(x) => form.set("display_name", x.target.value)} data-testid="edit-display" />
         </Field>
@@ -234,15 +238,15 @@ function EditUserDialog({ user, roles, onClose, onSaved }: { user: UserInfo; rol
         </div>
         <div className="row">
           <Button icon={KeyRound} onClick={() => setResetting(true)} data-testid="user-reset-open">{t("users.resetPassword")}</Button>
-          <Button icon={LockOpen} onClick={unlock} data-testid="user-unlock">{t("users.unlock")}</Button>
+          <Button icon={LockOpen} onClick={unlock} disabled={!current.locked} data-testid="user-unlock">{t("users.unlock")}</Button>
         </div>
       </form>
-      {resetting && <ResetPasswordDialog user={user} onClose={() => setResetting(false)} />}
+      {resetting && <ResetPasswordDialog user={current} onClose={() => setResetting(false)} onDone={(u) => { setCurrent(u); onSaved(); }} />}
     </Dialog>
   );
 }
 
-function ResetPasswordDialog({ user, onClose }: { user: UserInfo; onClose: () => void }) {
+function ResetPasswordDialog({ user, onClose, onDone }: { user: UserInfo; onClose: () => void; onDone: (u: UserInfo) => void }) {
   const { t, err } = useI18n();
   const toast = useToast();
   const form = useForm({ new_password: "" }, { new_password: v.password });
@@ -254,7 +258,7 @@ function ResetPasswordDialog({ user, onClose }: { user: UserInfo; onClose: () =>
     if (!form.validate()) return;
     setBusy(true);
     try {
-      await rpc("users.reset_password", { id: user.id, new_password: form.values.new_password });
+      onDone(await rpc("users.reset_password", { id: user.id, new_password: form.values.new_password }));
       toast.success(t("users.passwordReset"));
       onClose();
     } catch (x) {
@@ -295,8 +299,10 @@ const PERMISSION_GROUPS: { key: string; codes: string[] }[] = [
 function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; permissions: PermissionInfo[]; onClose: () => void; onSaved: () => void }) {
   const { t, err } = useI18n();
   const toast = useToast();
-  const readOnly = !!role?.is_system;
-  const form = useForm({ label: role?.label ?? "" }, { label: (s) => (!s.trim() ? "rule.required" : [...s.trim()].length > 60 ? "rule.role_label_length" : null) });
+  const readOnly = role?.code === "owner";
+  // A built-in role keeps its name; its permissions can be changed (OF-028).
+  const named = !role?.is_system;
+  const form = useForm({ label: role?.label ?? "" }, { label: (s) => (!named ? null : !s.trim() ? "rule.required" : [...s.trim()].length > 60 ? "rule.role_label_length" : null) });
   const [granted, setGranted] = useState<string[]>(role?.permissions ?? []);
   const [permError, setPermError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -324,6 +330,18 @@ function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; 
     }
   };
 
+  const resetDefaults = async () => {
+    if (!role) return;
+    try {
+      await rpc("roles.reset", { code: role.code, version: role.version });
+      toast.success(t("roles.resetDone"));
+      onSaved();
+      onClose();
+    } catch (x) {
+      setError(ruleText(t, x, err));
+    }
+  };
+
   const remove = async () => {
     if (!role || !window.confirm(t("roles.deleteConfirm"))) return;
     try {
@@ -345,7 +363,8 @@ function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; 
       testId="role-dialog"
       footer={
         <>
-          {role && !readOnly && <Button variant="danger" icon={Trash2} onClick={remove} data-testid="role-delete">{t("roles.delete")}</Button>}
+          {role && !readOnly && !role.is_system && <Button variant="danger" icon={Trash2} onClick={remove} data-testid="role-delete">{t("roles.delete")}</Button>}
+          {role?.is_system && role.customized && <Button icon={RotateCcw} onClick={resetDefaults} data-testid="role-reset">{t("roles.resetDefaults")}</Button>}
           <span className="grow" />
           <Button onClick={onClose}>{readOnly ? t("common.close") : t("common.cancel")}</Button>
           {!readOnly && <Button variant="primary" loading={busy} type="submit" form="role-form" data-testid="role-save">{t("common.save")}</Button>}
@@ -354,11 +373,12 @@ function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; 
     >
       <form id="role-form" className="stack" onSubmit={submit} noValidate>
         {error && <Notice tone="danger">{error}</Notice>}
-        {!readOnly && (
+        {!readOnly && named && (
           <Field label={t("roles.name")} hint={t("hint.roleName")} error={form.error("label") && t(form.error("label")!)}>
             <TextInput value={form.values.label} onChange={(x) => form.set("label", x.target.value)} onBlur={() => form.blur("label")} data-testid="role-name" />
           </Field>
         )}
+        {permError && <div className="field-error" role="alert" data-testid="field-error"><span>{permError}</span></div>}
         {PERMISSION_GROUPS.map((g) => (
           <fieldset className="perm-group" key={g.key}>
             <legend className="t-overline">{t(`perm.group.${g.key}`)}</legend>
@@ -369,7 +389,6 @@ function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; 
             ))}
           </fieldset>
         ))}
-        {permError && <div className="field-error" role="alert" data-testid="field-error"><span>{permError}</span></div>}
       </form>
     </Dialog>
   );

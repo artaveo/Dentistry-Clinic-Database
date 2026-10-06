@@ -82,3 +82,10 @@ export async function rpc<M extends Method>(method: M, params: Params<M>): Promi
   }
   throw err;
 }
+
+/** Opens Explorer with an exported file selected (OF-022). The Core only ever hands out paths in its exports folder. */
+export async function revealExport(path: string): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window) || import.meta.env.VITE_MOCK === "1") return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("reveal_export", { path });
+}

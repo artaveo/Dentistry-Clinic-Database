@@ -5,17 +5,21 @@
 //! with precise per-field errors and, on `commit`, creates the valid ones.
 
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::io::Cursor;
+use std::path::Path;
 
 use artaveo_shared::{
-    ColumnMapping, CreatePatientParams, ExportResult, ImportError, ImportField, ImportInspectParams,
-    ImportInspectResult, ImportPatientsParams, ImportPatientsResult, ImportPreviewRow, ValidationRule,
+    ColumnMapping, CreatePatientParams, ErrorCode, ExportResult, ImportError, ImportField,
+    ImportInspectParams, ImportInspectResult, ImportPatientsParams, ImportPatientsResult, ImportPreviewRow,
+    ValidationRule,
 };
 use calamine::{Data, Reader, Xlsx};
 use rusqlite::Connection;
+use serde_json::json;
 use time::{Date, Duration};
 
-use crate::audit::Actor;
+use crate::audit::{self, Actor};
 use crate::calendar::{digits, ShamsiDate};
 use crate::clock::now_iso;
 use crate::error::{CoreError, Result};
@@ -37,6 +41,8 @@ struct Table {
     rows: Vec<Vec<String>>,
     /// Spreadsheet row number of `rows[0]` minus one (an Excel sheet may start below row 1).
     row_offset: u32,
+    /// Index in `rows` of the column-title row; `None` when the file has no titles (OF-042).
+    header_row: Option<usize>,
 }
 
 fn is_blank(row: &[String]) -> bool {
@@ -49,13 +55,20 @@ impl Table {
         self.rows.iter().position(|r| !is_blank(r))
     }
 
-    fn header(&self) -> &[String] {
-        &self.rows[self.header_index().unwrap_or(0)]
+    /// The column titles: the title row, or generic names when the file has none.
+    fn header(&self) -> Vec<String> {
+        match self.header_row {
+            Some(i) => self.rows[i].clone(),
+            None => {
+                let width = self.rows.iter().map(Vec::len).max().unwrap_or(0);
+                (1..=width).map(|n| format!("ستون {n}")).collect()
+            }
+        }
     }
 
     /// `(spreadsheet row number, cells)` of every non-blank row under the header.
     fn data_rows(&self) -> impl Iterator<Item = (u32, &Vec<String>)> {
-        let first = self.header_index().map_or(0, |h| h + 1);
+        let first = self.header_row.map_or(0, |h| h + 1);
         self.rows
             .iter()
             .enumerate()
@@ -105,7 +118,7 @@ fn read_csv(bytes: &[u8]) -> Result<Table> {
         .take(MAX_ROWS + 1)
         .map(|l| split_csv_line(l, delimiter).into_iter().map(|f| f.trim().to_string()).collect())
         .collect();
-    Ok(Table { kind: "csv", sheets: Vec::new(), sheet: None, rows, row_offset: 0 })
+    Ok(Table { kind: "csv", sheets: Vec::new(), sheet: None, rows, row_offset: 0, header_row: None })
 }
 
 /// Excel stores dates as days since 1899-12-30.
@@ -141,10 +154,29 @@ fn read_xlsx(bytes: &[u8], sheet: Option<&str>) -> Result<Table> {
     let rows: Vec<Vec<String>> =
         range.rows().take(MAX_ROWS + 1).map(|r| r.iter().map(cell_text).collect::<Vec<_>>()).collect();
     let row_offset = range.start().map_or(0, |(row, _)| row);
-    Ok(Table { kind: "xlsx", sheets, sheet: Some(chosen), rows, row_offset })
+    Ok(Table { kind: "xlsx", sheets, sheet: Some(chosen), rows, row_offset, header_row: None })
 }
 
-fn read_table(file_base64: &str, file_name: Option<&str>, sheet: Option<&str>) -> Result<Table> {
+/// A phone number as typed or exported: seven or more digits, spaces, dashes or `+` allowed.
+fn is_phone_like(cell: &str) -> bool {
+    let compact: String =
+        digits::to_latin(cell.trim()).chars().filter(|c| !matches!(c, ' ' | '-' | '+')).collect();
+    compact.len() >= 7 && compact.chars().all(|c| c.is_ascii_digit())
+}
+
+/// OF-042: is the first row patient data rather than column titles? Titles name at least one
+/// known field ("نام", "Phone", "شماره تماس"); a row of phone numbers or unknown words is data
+/// (e.g. `ALI`, `790909090`). When unsure the row is read as titles; the user can flip it.
+fn first_row_is_data(row: &[String]) -> bool {
+    suggest_mapping(row).is_empty() && row.iter().any(|c| is_phone_like(c))
+}
+
+fn read_table(
+    file_base64: &str,
+    file_name: Option<&str>,
+    sheet: Option<&str>,
+    has_header: Option<bool>,
+) -> Result<Table> {
     let bytes = data_encoding::BASE64
         .decode(file_base64.as_bytes())
         .map_err(|e| read_error(format!("invalid file data: {e}")))?;
@@ -152,7 +184,7 @@ fn read_table(file_base64: &str, file_name: Option<&str>, sheet: Option<&str>) -
         return Err(read_error("the file is empty"));
     }
     let ext = file_name.and_then(|n| n.rsplit('.').next()).map(str::to_ascii_lowercase);
-    let table = if bytes.starts_with(b"PK") {
+    let mut table = if bytes.starts_with(b"PK") {
         read_xlsx(&bytes, sheet)?
     } else if matches!(ext.as_deref(), Some("xls" | "xlsm" | "xlsb" | "ods"))
         || bytes.starts_with(&[0xD0, 0xCF, 0x11, 0xE0])
@@ -165,9 +197,15 @@ fn read_table(file_base64: &str, file_name: Option<&str>, sheet: Option<&str>) -
     } else {
         read_csv(&bytes)?
     };
-    if table.header_index().is_none() {
+    let Some(first) = table.header_index() else {
         return Err(read_error("the file has no rows"));
-    }
+    };
+    table.header_row = match has_header {
+        Some(true) => Some(first),
+        Some(false) => None,
+        None if first_row_is_data(&table.rows[first]) => None,
+        None => Some(first),
+    };
     Ok(table)
 }
 
@@ -336,8 +374,8 @@ pub fn suggest_mapping(headers: &[String]) -> Vec<ColumnMapping> {
 }
 
 pub fn inspect_import(p: &ImportInspectParams) -> Result<ImportInspectResult> {
-    let table = read_table(&p.file_base64, Some(&p.file_name), p.sheet.as_deref())?;
-    let headers = table.header().to_vec();
+    let table = read_table(&p.file_base64, Some(&p.file_name), p.sheet.as_deref(), p.has_header)?;
+    let headers = table.header();
     Ok(ImportInspectResult {
         file_kind: table.kind.into(),
         sheets: table.sheets.clone(),
@@ -345,6 +383,7 @@ pub fn inspect_import(p: &ImportInspectParams) -> Result<ImportInspectResult> {
         suggested: suggest_mapping(&headers),
         sample_rows: table.data_rows().take(SAMPLE_ROWS).map(|(_, r)| r.clone()).collect(),
         total_rows: table.data_rows().count() as u32,
+        has_header: table.header_row.is_some(),
         headers,
     })
 }
@@ -543,10 +582,10 @@ pub fn import_patients(
     actor: &Actor,
     p: &ImportPatientsParams,
 ) -> Result<ImportPatientsResult> {
-    let table = read_table(&p.file_base64, p.file_name.as_deref(), p.sheet.as_deref())?;
+    let table = read_table(&p.file_base64, p.file_name.as_deref(), p.sheet.as_deref(), p.has_header)?;
     let mapping = match &p.mapping {
         Some(m) => m.clone(),
-        None => suggest_mapping(table.header()),
+        None => suggest_mapping(&table.header()),
     };
     let columns = table.rows.iter().map(Vec::len).max().unwrap_or(0);
     let mut seen_fields = HashSet::new();
@@ -603,15 +642,19 @@ pub fn import_patients(
 
 // ───────────────────────────── export ─────────────────────────────
 
-fn csv_field(s: &str) -> String {
-    if s.contains([',', '"', '\n']) {
-        format!("\"{}\"", s.replace('"', "\"\""))
-    } else {
-        s.to_string()
-    }
+/// Column titles of the export, in Dari. The import guesses them back (round trip), and
+/// they read naturally in Excel. Order matches the row built below.
+const EXPORT_HEADERS: [&str; 8] =
+    ["ID بیمار", "نام و تخلص", "نام پدر", "شماره تماس", "شماره تماس دوم", "تاریخ تولد", "آدرس", "وضعیت"];
+
+fn xlsx_error(e: rust_xlsxwriter::XlsxError) -> CoreError {
+    CoreError::api(ErrorCode::Internal, format!("cannot write the Excel file: {e}"))
 }
 
-pub fn export_patients(conn: &Connection) -> Result<ExportResult> {
+/// OF-022 / OF-043: every active patient as a real Excel workbook (.xlsx) in `exports_dir`.
+/// Every cell is written as text, so a phone number keeps its leading zero and Persian
+/// names display correctly. The Core writes the file; the UI offers to open its folder.
+pub fn export_patients(conn: &Connection, actor: &Actor, exports_dir: &Path) -> Result<ExportResult> {
     let mut stmt = conn.prepare(
         "SELECT patient_number, full_name, father_name, phone, secondary_phone, date_of_birth, address, status
          FROM patient WHERE deleted_at IS NULL ORDER BY patient_number",
@@ -631,18 +674,41 @@ pub fn export_patients(conn: &Connection) -> Result<ExportResult> {
         })?
         .collect::<rusqlite::Result<_>>()?;
 
-    let mut csv = String::from(
-        "patient_number,full_name,father_name,phone,secondary_phone,date_of_birth,address,status\r\n",
-    );
-    for row in rows {
-        csv.push_str(&row.iter().map(|f| csv_field(f)).collect::<Vec<_>>().join(","));
-        csv.push_str("\r\n");
+    let mut book = rust_xlsxwriter::Workbook::new();
+    let sheet = book.add_worksheet();
+    sheet.set_name("بیماران").map_err(xlsx_error)?;
+    let bold = rust_xlsxwriter::Format::new().set_bold();
+    for (col, title) in EXPORT_HEADERS.iter().enumerate() {
+        sheet.write_string_with_format(0, col as u16, *title, &bold).map_err(xlsx_error)?;
     }
-    let date = &now_iso()[..10];
-    Ok(ExportResult {
-        csv_base64: data_encoding::BASE64.encode(csv.as_bytes()),
-        file_name: format!("patients-{date}.csv"),
-    })
+    for (i, row) in rows.iter().enumerate() {
+        for (col, text) in row.iter().enumerate() {
+            sheet.write_string((i + 1) as u32, col as u16, text.as_str()).map_err(xlsx_error)?;
+        }
+    }
+    sheet.set_freeze_panes(1, 0).map_err(xlsx_error)?;
+    for (col, width) in [14.0, 26.0, 22.0, 16.0, 16.0, 14.0, 34.0, 12.0].into_iter().enumerate() {
+        sheet.set_column_width(col as u16, width).map_err(xlsx_error)?;
+    }
+    let bytes = book.save_to_buffer().map_err(xlsx_error)?;
+
+    // `2026-10-06T18-30-45`: a sortable stamp that is also a valid file name on Windows.
+    let stamp: String = now_iso().chars().take(19).map(|c| if c == ':' { '-' } else { c }).collect();
+    let file_name = format!("patients-{stamp}.xlsx");
+    fs::create_dir_all(exports_dir)?;
+    let path = exports_dir.join(&file_name);
+    fs::write(&path, &bytes)?;
+
+    audit::record(
+        conn,
+        actor,
+        "patients.export",
+        Some("patient"),
+        None,
+        None,
+        Some(&json!({ "rows": rows.len(), "file": file_name })),
+    )?;
+    Ok(ExportResult { file_path: path.display().to_string(), file_name, rows: rows.len() as u32 })
 }
 
 #[cfg(test)]
@@ -665,13 +731,6 @@ mod tests {
         assert_eq!(detect_delimiter("name;phone;age"), ';');
         assert_eq!(detect_delimiter("name,phone,age"), ',');
         assert_eq!(detect_delimiter("name\tphone\tage"), '\t');
-    }
-
-    #[test]
-    fn csv_field_quotes_when_needed() {
-        assert_eq!(csv_field("plain"), "plain");
-        assert_eq!(csv_field("a,b"), "\"a,b\"");
-        assert_eq!(csv_field("a\"b"), "\"a\"\"b\"");
     }
 
     #[test]

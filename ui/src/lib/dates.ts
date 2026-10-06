@@ -112,3 +112,19 @@ export function formatBytes(n: number, lang: Language): string {
   const n2 = digits(v.toFixed(i ? 1 : 0), lang);
   return `${lang === "en" ? n2 : n2.replace(".", "٫")} ${units[i]}`;
 }
+
+/**
+ * Whole years between an ISO birth date and `today` (OF-019: when the exact date is
+ * known, the age is computed from it and never typed twice). Null for a bad date.
+ */
+export function ageOn(birthIso: string, today: Date = new Date()): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthIso);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const thisMonth = today.getMonth() + 1;
+  const birthdayPassed = thisMonth > month || (thisMonth === month && today.getDate() >= day);
+  const age = today.getFullYear() - year - (birthdayPassed ? 0 : 1);
+  return age >= 0 && age <= 120 ? age : null;
+}

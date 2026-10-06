@@ -10,6 +10,25 @@ use std::time::Duration;
 use artaveo_core::{Config, Core};
 use artaveo_shared::{ErrorCode, RpcError, RpcRequest, RpcResponse};
 
+/// The folder where the Core writes Excel exports (OF-022).
+struct ExportsDir(std::path::PathBuf);
+
+/// Opens Explorer with an exported file selected. Only files directly inside the exports
+/// folder are accepted, so the window cannot make Explorer open an arbitrary path.
+#[tauri::command]
+fn reveal_export(exports: tauri::State<'_, ExportsDir>, path: String) -> Result<(), String> {
+    let file = std::path::PathBuf::from(&path);
+    let inside = file.parent().is_some_and(|dir| dir == exports.0.as_path());
+    if !inside || !file.is_file() {
+        return Err("only exported files can be shown from here".into());
+    }
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", file.display()))
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 /// The Core, or why it could not start (e.g. the database key is missing on
 /// this computer and the clinic must be restored with its Recovery Key).
 enum Backend {
@@ -39,6 +58,7 @@ async fn rpc(state: tauri::State<'_, Arc<Backend>>, request: RpcRequest) -> Resu
 fn main() {
     let config = Config::from_env();
     let _log_guard = artaveo_core::logging::init(&config.log_dir(), config.environment).ok();
+    let exports_dir = ExportsDir(config.exports_dir());
     tracing::info!(
         version = artaveo_core::APP_VERSION,
         commit = artaveo_core::GIT_COMMIT,
@@ -71,7 +91,8 @@ fn main() {
 
     tauri::Builder::default()
         .manage(Arc::new(backend))
-        .invoke_handler(tauri::generate_handler![rpc])
+        .manage(exports_dir)
+        .invoke_handler(tauri::generate_handler![rpc, reveal_export])
         .run(tauri::generate_context!())
         .expect("error while running Artaveo Dental");
 }

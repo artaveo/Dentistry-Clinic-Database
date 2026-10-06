@@ -10,6 +10,7 @@ import { Checkbox, Segmented } from "../../ui/Controls";
 import { Card, Page, PageHeader } from "../../ui/Card";
 import { Select } from "../../ui/Field";
 import { ErrorState, Loading } from "../../ui/Feedback";
+import { Dialog } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
 import { AppointmentDialog, type Defaults } from "./AppointmentDialog";
 import { layoutLanes } from "./layout";
@@ -35,6 +36,20 @@ function storedView(): View {
   }
 }
 
+/** OF-032: below this window width the week view shows three days (with the same arrows) instead of seven. */
+const NARROW_QUERY = "(max-width: 860px)";
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
 /** Day / week / month calendar (4.3) by doctor or chair, with drag & drop moving. */
 export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProfile | null; perms: Perms; clinicName: string }) {
   const { t, err, lang } = useI18n();
@@ -43,6 +58,9 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
   const { doctors, chairs, error: setupError, reload } = useScheduling();
   const [view, setViewState] = useState<View>(storedView());
   const [anchor, setAnchor] = useState(todayIso());
+  const narrow = useNarrow();
+  const [picking, setPicking] = useState(false);
+  const weekCount = view === "week" && narrow ? 3 : 7;
   const [doctorId, setDoctorId] = useState("");
   const [group, setGroup] = useState<Group>("doctor");
   const [showClosed, setShowClosed] = useState(false);
@@ -67,12 +85,12 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     if (view === "day") return { from: anchor, to: anchor };
     if (view === "week") {
       const d = weekDays(anchor);
-      return { from: d[0], to: d[6] };
+      return { from: d[0], to: weekCount === 3 ? addDays(anchor, 2) : d[6] };
     }
     const m = monthRange(anchor, calendar);
     const w = monthWeeks(anchor, calendar);
     return { from: w[0][0] || m.from, to: w[w.length - 1][6] || m.to };
-  }, [view, anchor, calendar]);
+  }, [view, anchor, calendar, weekCount]);
 
   const load = useCallback(() => {
     const statuses = (showClosed ? [] : (["scheduled", "confirmed", "checked_in", "in_treatment", "completed", "no_show"] as AppointmentStatus[]));
@@ -109,7 +127,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
 
   const columns: Column[] = useMemo(() => {
     if (view === "week") {
-      return weekDays(anchor).map((d) => ({ key: d, date: d, label: t(`wizard.day.${weekdayIndex(d)}`), sub: dayNumber(d, calendar, lang) }));
+      return weekDays(anchor).slice(0, weekCount).map((d) => ({ key: d, date: d, label: t(`wizard.day.${weekdayIndex(d)}`), sub: dayNumber(d, calendar, lang) }));
     }
     if (group === "chair") {
       return [...chairs.map((c) => ({ key: c.id, date: anchor, label: c.name, chairId: c.id as string | null })), { key: "none", date: anchor, label: t("cal.noChair"), chairId: null }];
@@ -117,7 +135,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     // Solo clinic (2.6): one plain column for the day, no doctor header.
     if (solo) return [{ key: "day", date: anchor, label: t(`wizard.day.${weekdayIndex(anchor)}`), sub: dayNumber(anchor, calendar, lang) }];
     return shownDoctors.map((d) => ({ key: d.id, date: anchor, label: d.full_name, sub: d.specialty ?? undefined, color: d.color, doctorId: d.id }));
-  }, [view, group, anchor, chairs, shownDoctors, calendar, lang, t, solo]);
+  }, [view, group, anchor, chairs, shownDoctors, calendar, lang, t, solo, weekCount]);
 
   const inColumn = (a: AppointmentInfo, c: Column) => {
     if (view === "week") return a.date === c.date;
@@ -162,7 +180,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     const m = inCalendar(anchor, calendar);
     return `${monthName(calendar, m.month, lang)} ${digits(m.year, lang)}`;
   })();
-  const step = (n: number) => setAnchor((a) => (view === "month" ? shiftMonth(a, calendar, n) : addDays(a, view === "week" ? 7 * n : n)));
+  const step = (n: number) => setAnchor((a) => (view === "month" ? shiftMonth(a, calendar, n) : addDays(a, view === "week" ? weekCount * n : n)));
   const today = todayIso();
   const hours = Array.from({ length: Math.floor((endMin - startMin) / 60) }, (_, i) => startMin + i * 60);
 
@@ -180,7 +198,10 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
           <IconButton icon={ChevronRight} label={t("cal.prev")} onClick={() => step(-1)} data-testid="cal-prev" className="flip-rtl-btn" />
           <Button onClick={() => setAnchor(today)} data-testid="cal-today">{t("cal.today")}</Button>
           <IconButton icon={ChevronLeft} label={t("cal.next")} onClick={() => step(1)} data-testid="cal-next" className="flip-rtl-btn" />
-          <h2 className="t-title cal-title" data-testid="cal-title">{title}</h2>
+          {/* OF-038: the date opens a calendar to jump straight to any day or month. */}
+          <button type="button" className="cal-title" onClick={() => setPicking(true)} aria-haspopup="dialog" data-testid="cal-title">
+            <span className="t-title">{title}</span>
+          </button>
         </div>
         <div className="row">
           {!solo && (
@@ -203,7 +224,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         ) : !doctors.length ? (
           <div className="empty"><span className="empty-title">{t("cal.noDoctors")}</span></div>
         ) : (
-          <div className="timegrid" data-testid={`cal-grid-${view}`} style={{ ["--cols" as string]: columns.length }}>
+          <div className="timegrid" data-testid={`cal-grid-${view}`} data-view={view} style={{ ["--cols" as string]: columns.length }}>
             <div className="tg-head">
               <div className="tg-corner" />
               {columns.map((c) => (
@@ -281,6 +302,17 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         )}
       </Card>
 
+      {picking && (
+        <Dialog title={title} onClose={() => setPicking(false)} testId="cal-date-picker">
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <IconButton icon={ChevronRight} label={t("cal.prev")} onClick={() => setAnchor((a) => shiftMonth(a, calendar, -1))} className="flip-rtl-btn" />
+            <Button variant="subtle" onClick={() => { setAnchor(today); setPicking(false); }}>{t("cal.today")}</Button>
+            <IconButton icon={ChevronLeft} label={t("cal.next")} onClick={() => setAnchor((a) => shiftMonth(a, calendar, 1))} className="flip-rtl-btn" />
+          </div>
+          <MonthGrid anchor={anchor} calendar={calendar} counts={[]} today={today} onPick={(d) => { setAnchor(d); setView("day"); setPicking(false); }} />
+        </Dialog>
+      )}
+
       {dialog && doctors && (
         <AppointmentDialog
           key={dialog.appt?.id ?? "new"}
@@ -292,6 +324,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
           perms={perms}
           clinicName={clinicName}
           solo={solo}
+          onOpenAppointment={(other) => setDialog({ appt: other })}
           onClose={() => setDialog(null)}
           onSaved={() => { setTick((x) => x + 1); }}
         />

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { FileDown, FileUp, Search, UserPlus, UserRound, Users } from "lucide-react";
-import type { ClinicProfile, PatientInfo } from "../../../../shared/ts/contract";
+import { FileDown, FileUp, FolderOpen, Search, UserPlus, UserRound, Users } from "lucide-react";
+import type { ClinicProfile, ExportResult, PatientInfo } from "../../../../shared/ts/contract";
 import type { Perms } from "../reception/useScheduling";
-import { isSessionError, rpc } from "../../lib/api";
-import { formatDate } from "../../lib/dates";
+import { isSessionError, revealExport, rpc } from "../../lib/api";
+import { digits, formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Card, Page, PageHeader } from "../../ui/Card";
-import { Badge, EmptyState, ErrorState, SkeletonRows } from "../../ui/Feedback";
+import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../../ui/Feedback";
 import { PatientForm } from "./PatientForm";
 import { PatientProfile } from "./PatientProfile";
 import { ImportDialog } from "./ImportDialog";
@@ -30,6 +30,7 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
+  const [exported, setExported] = useState<ExportResult | null>(null);
   const debounce = useRef<number | undefined>(undefined);
 
   const load = (q: string) =>
@@ -50,15 +51,15 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
     debounce.current = window.setTimeout(() => load(q), 200);
   };
 
-  const exportCsv = async () => {
-    const r = await rpc("patients.export", {});
-    const bytes = Uint8Array.from(atob(r.csv_base64), (c) => c.charCodeAt(0));
-    const url = URL.createObjectURL(new Blob([bytes], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = r.file_name;
-    a.click();
-    URL.revokeObjectURL(url);
+  // OF-022: the Core writes a real .xlsx into the exports folder; the user gets a message and a button to open it.
+  const exportPatients = async () => {
+    setError("");
+    setExported(null);
+    try {
+      setExported(await rpc("patients.export", {}));
+    } catch (x) {
+      setError(err(x));
+    }
   };
 
   return (
@@ -70,12 +71,20 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
           canEdit ? (
             <>
               <Button icon={FileUp} onClick={() => setImporting(true)} data-testid="patients-import-open">{t("patients.import")}</Button>
-              <Button icon={FileDown} onClick={exportCsv} data-testid="patients-export">{t("patients.export")}</Button>
+              <Button icon={FileDown} onClick={exportPatients} data-testid="patients-export">{t("patients.export")}</Button>
               <Button variant="primary" icon={UserPlus} onClick={onCreate} data-testid="add-patient-open">{t("patients.add")}</Button>
             </>
           ) : undefined
         }
       />
+      {exported && (
+        <Notice tone="success" testId="export-done">
+          {t("patients.export.done").replace("{name}", exported.file_name).replace("{n}", digits(exported.rows, lang))}{" "}
+          <Button variant="link" icon={FolderOpen} onClick={() => revealExport(exported.file_path).catch((x) => setError(err(x)))} data-testid="export-open-folder">
+            {t("patients.export.openFolder")}
+          </Button>
+        </Notice>
+      )}
       <div className="control" style={{ maxWidth: 420 }}>
         <span className="control-icon"><Search aria-hidden /></span>
         <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={t("patients.search.placeholder")} data-testid="patients-search" />

@@ -18,6 +18,30 @@ pub fn now() -> OffsetDateTime {
     OffsetDateTime::now_utc()
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Tests pin the booking clock (see [`pin_booking_clock`]) so that "09:00 today" is a future slot
+    /// whatever time of day the suite runs.
+    static BOOKING_NOW: std::cell::Cell<Option<OffsetDateTime>> = const { std::cell::Cell::new(None) };
+}
+
+/// The instant a booking must not be earlier than (OF-036), in the same text form as stored times.
+pub fn booking_now_iso() -> String {
+    #[cfg(test)]
+    {
+        if let Some(t) = BOOKING_NOW.with(|c| c.get()) {
+            return iso(t);
+        }
+    }
+    now_iso()
+}
+
+/// Test helper: pins the booking clock of the current test thread.
+#[cfg(test)]
+pub fn pin_booking_clock(t: OffsetDateTime) {
+    BOOKING_NOW.with(|c| c.set(Some(t)));
+}
+
 /// `2026-10-01T08:30:00.123Z`
 pub fn iso(t: OffsetDateTime) -> String {
     t.to_offset(UtcOffset::UTC).format(ISO_MILLIS).expect("formatting a UTC time cannot fail")

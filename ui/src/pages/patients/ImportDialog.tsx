@@ -7,6 +7,7 @@ import { Button } from "../../ui/Button";
 import { Field, Select } from "../../ui/Field";
 import { Badge, Notice } from "../../ui/Feedback";
 import { Dialog } from "../../ui/Overlay";
+import { Switch } from "../../ui/Controls";
 import { useToast } from "../../ui/Toast";
 
 export const IMPORT_FIELDS: ImportField[] = [
@@ -40,11 +41,12 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [error, setError] = useState("");
   const seq = useRef(0);
 
-  const inspect = async (f: { name: string; base64: string }, sheetName?: string) => {
+  // `hasHeader` is the user's choice (OF-042); null lets the Core detect it from the first row.
+  const inspect = async (f: { name: string; base64: string }, sheetName?: string, hasHeader: boolean | null = null) => {
     setError("");
     setPreview(null);
     try {
-      const r = await rpc("patients.import_inspect", { file_base64: f.base64, file_name: f.name, sheet: sheetName ?? null });
+      const r = await rpc("patients.import_inspect", { file_base64: f.base64, file_name: f.name, sheet: sheetName ?? null, has_header: hasHeader });
       setInfo(r);
       setSheet(r.sheet ?? "");
       setMapping(toMapping(r));
@@ -80,7 +82,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     }
     const mine = ++seq.current;
     const id = window.setTimeout(() => {
-      rpc("patients.import", { file_base64: file.base64, file_name: file.name, sheet: sheet || null, mapping: columns(), commit: false })
+      rpc("patients.import", { file_base64: file.base64, file_name: file.name, sheet: sheet || null, mapping: columns(), commit: false, has_header: info.has_header })
         .then((r) => mine === seq.current && setPreview(r))
         .catch((x) => mine === seq.current && !isSessionError(x) && setError(err(x)));
     }, 250);
@@ -92,7 +94,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     setBusy(true);
     setError("");
     try {
-      const r = await rpc("patients.import", { file_base64: file.base64, file_name: file.name, sheet: sheet || null, mapping: columns(), commit: true });
+      const r = await rpc("patients.import", { file_base64: file.base64, file_name: file.name, sheet: sheet || null, mapping: columns(), commit: true, has_header: info?.has_header ?? null });
       toast.success(t("patients.import.done").replace("{imported}", String(r.imported)));
       onImported();
     } catch (x) {
@@ -104,6 +106,21 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
 
   const problem = (e: ImportPatientsResult["errors"][number]) => (e.rule ? t(`rule.${e.rule}`) : e.message);
 
+  // OF-042: when the button is disabled, the reason is written next to it.
+  const blocker = !file
+    ? t("patients.import.blockNoFile")
+    : !info
+      ? null
+      : !hasName
+        ? t("rule.import_no_name_column")
+        : duplicates.length
+          ? t("rule.import_column")
+          : !preview
+            ? t("patients.import.blockChecking")
+            : preview.total - preview.skipped <= 0
+              ? t("patients.import.blockNoValid")
+              : null;
+
   return (
     <Dialog
       title={t("patients.import.title")}
@@ -113,6 +130,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
       wide
       footer={
         <>
+          {blocker && <span className="subtle t-caption import-blocker" data-testid="import-commit-blocker">{blocker}</span>}
           <Button onClick={onClose}>{t("common.cancel")}</Button>
           <Button variant="primary" icon={FileUp} disabled={!preview || preview.total - preview.skipped <= 0} loading={busy} onClick={commit} data-testid="import-commit">{t("patients.import.commit")}</Button>
         </>
@@ -130,6 +148,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
                 </Select>
               </Field>
             )}
+            <Switch checked={info.has_header} onChange={(v) => file && inspect(file, sheet || undefined, v)} label={t("patients.import.firstRowIsTitle")} testId="import-has-header" />
             <Notice tone="info" title={<span className="row"><Sparkles size={16} aria-hidden />{t("patients.import.mapTitle")}</span>}>{t("patients.import.mapHint")}</Notice>
             <div className="table-wrap">
               <table className="table" data-testid="import-mapping">

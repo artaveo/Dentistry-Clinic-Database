@@ -14,7 +14,7 @@ import { useToast } from "../../ui/Toast";
 import { AppointmentDialog } from "./AppointmentDialog";
 import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { StatusActions } from "./StatusActions";
-import { STATUS_TONE, ruleText } from "./labels";
+import { SCHEDULE_RULES, STATUS_TONE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
 
 const POLL_MS = 10_000;
@@ -149,19 +149,23 @@ function WalkInDialog({ doctors, chairs, defaultDoctor, canCreate, solo, onClose
   const [failure, setFailure] = useState("");
   const [patientError, setPatientError] = useState("");
   const [busy, setBusy] = useState(false);
+  // OF-037: outside the doctor's hours reception may still admit a patient (an emergency), after confirming.
+  const [offerOverride, setOfferOverride] = useState(false);
 
-  const submit = async () => {
+  const submit = async (override = false) => {
     setFailure("");
+    setOfferOverride(false);
     if (!patient) return setPatientError(t("rule.required"));
     setPatientError("");
     setBusy(true);
     try {
-      const a = await rpc("appointments.walk_in", { patient_id: patient.id, doctor_id: doctor, chair_id: chair || null, reason: reason.trim() || null, duration_minutes: null });
+      const a = await rpc("appointments.walk_in", { patient_id: patient.id, doctor_id: doctor, chair_id: chair || null, reason: reason.trim() || null, duration_minutes: null, override_schedule: override });
       toast.success(`${t("queue.walkInAdded")} ${a.queue_number ?? ""}`.trim());
       onAdded();
     } catch (x) {
       if (isSessionError(x)) return;
       const msg = ruleText(t, x, err);
+      if (x && typeof x === "object" && SCHEDULE_RULES.includes((x as { rule?: string | null }).rule as string)) setOfferOverride(true);
       if (x && typeof x === "object" && "field" in x && (x as { field: string | null }).field === "patient_id") setPatientError(msg);
       else setFailure(msg);
     } finally {
@@ -178,12 +182,20 @@ function WalkInDialog({ doctors, chairs, defaultDoctor, canCreate, solo, onClose
       footer={
         <>
           <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button variant="primary" icon={Footprints} loading={busy} onClick={submit} data-testid="walk-in-confirm">{t("queue.walkInAdd")}</Button>
+          <Button variant="primary" icon={Footprints} loading={busy} onClick={() => submit()} data-testid="walk-in-confirm">{t("queue.walkInAdd")}</Button>
         </>
       }
     >
       <div className="stack">
         {failure && <Notice tone="danger">{failure}</Notice>}
+        {offerOverride && (
+          <Notice tone="warning" title={t("appt.override.title")} testId="walk-in-override">
+            <span className="stack" style={{ gap: 8 }}>
+              <span>{t("appt.override.hint")}</span>
+              <Button size="sm" onClick={() => submit(true)} data-testid="walk-in-override-confirm">{t("appt.override.confirm")}</Button>
+            </span>
+          </Notice>
+        )}
         <PatientPicker value={patient} onChange={setPatient} canCreate={canCreate} error={patientError || null} testId="walkin-patient" />
         <div className={solo ? "" : "grid-2"}>
           {!solo && (

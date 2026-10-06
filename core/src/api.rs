@@ -465,6 +465,11 @@ impl Core {
                 }
                 ok(role)
             }
+            m::ROLES_RESET => {
+                s.require(perm::USERS_MANAGE)?;
+                let DeleteRoleParams { code, version } = params(p)?;
+                ok(self.with_tx(|c| auth::reset_role(c, &actor(&s), &code, version))?)
+            }
             m::ROLES_DELETE => {
                 s.require(perm::USERS_MANAGE)?;
                 let DeleteRoleParams { code, version } = params(p)?;
@@ -606,7 +611,9 @@ impl Core {
             }
             m::PATIENTS_EXPORT => {
                 s.require(perm::PATIENTS_VIEW)?;
-                ok(self.with_db(|o| crate::import::export_patients(&o.conn))?)
+                ok(self.with_db(|o| {
+                    crate::import::export_patients(&o.conn, &actor(&s), &self.config.exports_dir())
+                })?)
             }
             m::MEDICAL_HISTORY_GET => {
                 s.require(perm::CLINICAL_VIEW)?;
@@ -830,6 +837,20 @@ impl Core {
                 ok(self.with_tx(|c| recall::set_recall_status(c, &actor(&s), &p))?)
             }
             m::SYSTEM_INFO => ok(self.system_info()?),
+            m::DRAFTS_GET => {
+                let p: DraftParams = params(p)?;
+                ok(self.with_db(|o| crate::draft::get(&o.conn, &s.user.id, &p))?)
+            }
+            m::DRAFTS_SAVE => {
+                let p: SaveDraftParams = params(p)?;
+                self.with_db(|o| crate::draft::save(&o.conn, &s.user.id, &p))?;
+                ok(Empty {})
+            }
+            m::DRAFTS_DELETE => {
+                let p: DraftParams = params(p)?;
+                self.with_db(|o| crate::draft::delete(&o.conn, &s.user.id, &p))?;
+                ok(Empty {})
+            }
             _ => Err(CoreError::api(ErrorCode::UnknownMethod, method.to_string())),
         }
     }
@@ -942,12 +963,9 @@ impl Core {
                     sqlite_version: db::sqlite_version(&o.conn)?,
                     key_protection: self.protector.kind().code().into(),
                     schema_version: db::schema_version(&o.conn)?,
-                    // Recent writes live in the WAL until checkpointed; count both.
-                    size_bytes: ["db", "db-wal"]
-                        .iter()
-                        .filter_map(|ext| fs::metadata(self.config.db_path().with_extension(ext)).ok())
-                        .map(|m| m.len() as i64)
-                        .sum(),
+                    // OF-024: the size of the data itself. The write-ahead log (WAL) is temporary and is
+                    // not counted, so the figure does not jump up and down with recent writes.
+                    size_bytes: db::data_size_bytes(&o.conn)?,
                 }),
                 backup::latest(&o.conn)?,
             ),

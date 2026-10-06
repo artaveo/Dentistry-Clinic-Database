@@ -127,6 +127,8 @@ pub enum ValidationRule {
     ImportFileRead,
     ImportNoNameColumn,
     ImportColumn,
+    // OF-036: a new booking must be for a future time.
+    AppointmentInPast,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -356,6 +358,8 @@ pub struct UserInfo {
     pub role_label: Option<String>,
     pub is_active: bool,
     pub version: i64,
+    // Locked after too many wrong passwords, until the time in `locked_until` passes or an owner unlocks it.
+    pub locked: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -429,6 +433,8 @@ pub struct RoleInfo {
     /// Active users currently holding the role.
     pub user_count: u32,
     pub version: i64,
+    // A built-in role the clinic has changed; "back to defaults" clears it (OF-028).
+    pub customized: bool,
 }
 
 /// A permission code the UI can show in the role editor (4.1).
@@ -780,6 +786,9 @@ pub struct ImportPatientsParams {
     pub mapping: Option<Vec<ColumnMapping>>,
     #[serde(default)]
     pub commit: bool,
+    // Whether the first row holds column titles. Absent = detect it (OF-042).
+    #[serde(default)]
+    pub has_header: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -793,8 +802,10 @@ pub struct ImportPatientsResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ExportResult {
-    pub csv_base64: String,
+    // Full path of the saved .xlsx (inside the data folder's `exports` directory).
+    pub file_path: String,
     pub file_name: String,
+    pub rows: u32,
 }
 
 // ───────────────────────────── doctors, chairs, schedules (Phase 4.2) ─────────────────────────────
@@ -1138,6 +1149,9 @@ pub struct WalkInParams {
     /// Expected length; default 30 minutes.
     #[serde(default)]
     pub duration_minutes: Option<u32>,
+    /// Admit the patient outside the doctor's working hours anyway (OF-037); audited.
+    #[serde(default)]
+    pub override_schedule: bool,
 }
 
 // ───────────────────────────── follow-up & recall (Phase 4.6) ─────────────────────────────
@@ -1298,6 +1312,26 @@ pub struct RecallListResult {
     pub total: u32,
 }
 
+// ───────────────────────────── form drafts (OF-020) ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DraftParams {
+    pub form_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveDraftParams {
+    pub form_key: String,
+    // The form's values as a JSON object, kept until the form is saved or cancelled.
+    pub data_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DraftInfo {
+    pub data_json: Option<String>,
+    pub updated_at: Option<String>,
+}
+
 // ───────────────────────────── import with column mapping (OF-017) ─────────────────────────────
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
@@ -1332,6 +1366,9 @@ pub struct ImportInspectParams {
     /// Sheet of an Excel file; the first sheet when absent.
     #[serde(default)]
     pub sheet: Option<String>,
+    // Whether the first row holds column titles. Absent = detect it (OF-042).
+    #[serde(default)]
+    pub has_header: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -1346,6 +1383,8 @@ pub struct ImportInspectResult {
     pub total_rows: u32,
     /// Automatic guess from the header names (Dari, Pashto and English).
     pub suggested: Vec<ColumnMapping>,
+    // Whether the first row was read as column titles (detected or chosen); the UI offers to flip it.
+    pub has_header: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -1537,6 +1576,10 @@ api! {
     "backup.list"            => BACKUP_LIST(Empty) -> Vec<BackupInfo>;
     "audit.list"             => AUDIT_LIST(AuditListParams) -> Vec<AuditEntry>;
     "system.info"            => SYSTEM_INFO(Empty) -> SystemInfo;
+    "drafts.get"             => DRAFTS_GET(DraftParams) -> DraftInfo;
+    "drafts.save"            => DRAFTS_SAVE(SaveDraftParams) -> Empty;
+    "drafts.delete"          => DRAFTS_DELETE(DraftParams) -> Empty;
+    "roles.reset"            => ROLES_RESET(DeleteRoleParams) -> RoleInfo;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -1667,6 +1710,9 @@ pub fn typescript_bindings() -> String {
         SetRecallStatusParams,
         RecallListParams,
         RecallListResult,
+        DraftParams,
+        SaveDraftParams,
+        DraftInfo,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -79,7 +79,7 @@ export type UserInfo = { id: string, username: string, display_name: string, rol
 /**
  * Name of a clinic-made role; built-in roles have none (the UI translates `role`).
  */
-role_label: string | null, is_active: boolean, version: number, };
+role_label: string | null, is_active: boolean, version: number, locked: boolean, };
 
 export type SessionInfo = { token: string, user: UserInfo, permissions: Array<string>, timeout_minutes: number, locked: boolean, };
 
@@ -118,7 +118,7 @@ label: string | null, is_system: boolean, permissions: Array<string>,
 /**
  * Active users currently holding the role.
  */
-user_count: number, version: number, };
+user_count: number, version: number, customized: boolean, };
 
 export type PermissionInfo = { code: string, 
 /**
@@ -238,11 +238,11 @@ file_base64: string, file_name: string | null, sheet: string | null,
 /**
  * File column → patient field. Absent = use the automatic guess.
  */
-mapping: Array<ColumnMapping> | null, commit: boolean, };
+mapping: Array<ColumnMapping> | null, commit: boolean, has_header: boolean | null, };
 
 export type ImportPatientsResult = { total: number, imported: number, skipped: number, preview: Array<ImportPreviewRow>, errors: Array<ImportError>, };
 
-export type ExportResult = { csv_base64: string, file_name: string, };
+export type ExportResult = { file_path: string, file_name: string, rows: number, };
 
 export type ImportField = "full_name" | "father_name" | "phone" | "secondary_phone" | "date_of_birth" | "approximate_age" | "gender" | "province" | "address" | "emergency_contact_name" | "emergency_contact_phone" | "notes" | "registration_date";
 
@@ -252,7 +252,7 @@ export type ImportInspectParams = { file_base64: string, file_name: string,
 /**
  * Sheet of an Excel file; the first sheet when absent.
  */
-sheet: string | null, };
+sheet: string | null, has_header: boolean | null, };
 
 export type ImportInspectResult = { 
 /**
@@ -266,7 +266,7 @@ sample_rows: Array<Array<string>>, total_rows: number,
 /**
  * Automatic guess from the header names (Dari, Pashto and English).
  */
-suggested: Array<ColumnMapping>, };
+suggested: Array<ColumnMapping>, has_header: boolean, };
 
 export type AttachmentThumbnail = { id: string, 
 /**
@@ -392,7 +392,11 @@ export type WalkInParams = { patient_id: string, doctor_id: string, chair_id: st
 /**
  * Expected length; default 30 minutes.
  */
-duration_minutes: number | null, };
+duration_minutes: number | null,
+/**
+ * Admit the patient outside the doctor's working hours anyway (OF-037); audited.
+ */
+override_schedule: boolean, };
 
 export type RecallKind = "checkup" | "cleaning" | "follow_up" | "no_show" | "other";
 
@@ -423,6 +427,12 @@ statuses: Array<RecallStatus>,
 due_from: string | null, due_until: string | null, limit: number, offset: number, };
 
 export type RecallListResult = { items: Array<RecallInfo>, total: number, };
+
+export type DraftParams = { form_key: string, };
+
+export type SaveDraftParams = { form_key: string, data_json: string, };
+
+export type DraftInfo = { data_json: string | null, updated_at: string | null, };
 
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
@@ -496,6 +506,10 @@ export interface Api {
   "backup.list": { params: Empty; result: Array<BackupInfo> };
   "audit.list": { params: AuditListParams; result: Array<AuditEntry> };
   "system.info": { params: Empty; result: SystemInfo };
+  "drafts.get": { params: DraftParams; result: DraftInfo };
+  "drafts.save": { params: SaveDraftParams; result: Empty };
+  "drafts.delete": { params: DraftParams; result: Empty };
+  "roles.reset": { params: DeleteRoleParams; result: RoleInfo };
 }
 
 export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;

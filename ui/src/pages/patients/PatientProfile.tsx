@@ -5,12 +5,12 @@ import {
   Pencil, Pill, Receipt, ScrollText, Trash2, Wallet,
 } from "lucide-react";
 import type { ClinicProfile, PatientInfo } from "../../../../shared/ts/contract";
-import { isSessionError, rpc } from "../../lib/api";
-import { formatDate } from "../../lib/dates";
+import { ApiError, isSessionError, rpc } from "../../lib/api";
+import { digits, formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
-import { Button, IconButton } from "../../ui/Button";
+import { BackButton, Button, IconButton } from "../../ui/Button";
 import { Card, CardHeader, Page, PageHeader } from "../../ui/Card";
-import { Badge, ErrorState, Loading } from "../../ui/Feedback";
+import { Badge, ErrorState, Loading, Notice } from "../../ui/Feedback";
 import { Avatar } from "../../ui/Brand";
 import { useToast } from "../../ui/Toast";
 import { MedicalAlertBanner } from "./MedicalAlertBanner";
@@ -47,6 +47,7 @@ export function PatientProfile({ patientId, canEdit, appointments, clinic, clini
   const [error, setError] = useState("");
   const [tab, setTab] = useState<TabId>("overview");
   const [merging, setMerging] = useState(false);
+  const [blockedBy, setBlockedBy] = useState<number | null>(null);
   // Bumped after every medical-history save so the alert banner (mounted
   // once, independently) re-fetches instead of showing stale data.
   const [medicalRefreshKey, setMedicalRefreshKey] = useState(0);
@@ -64,9 +65,21 @@ export function PatientProfile({ patientId, canEdit, appointments, clinic, clini
     load();
   }, [patientId]);
 
+  // OF-041: a patient with open visits is not deleted; say how many, and where to cancel them.
   const remove = async () => {
     if (!patient || !window.confirm(t("patients.deleteConfirm"))) return;
-    await rpc("patients.delete", { id: patient.id, version: patient.version });
+    try {
+      await rpc("patients.delete", { id: patient.id, version: patient.version });
+    } catch (x) {
+      if (isSessionError(x)) return;
+      if (x instanceof ApiError && x.rule === "patient_has_open_appointments") {
+        const open = await rpc("appointments.list", { date_from: null, date_to: null, doctor_id: null, chair_id: null, patient_id: patient.id, statuses: ["scheduled", "confirmed", "checked_in", "in_treatment"], limit: 200, offset: 0 });
+        setBlockedBy(open.length);
+        return;
+      }
+      setError(err(x));
+      return;
+    }
     toast.success(t("patients.deleted"));
     onBack();
   };
@@ -92,8 +105,14 @@ export function PatientProfile({ patientId, canEdit, appointments, clinic, clini
           ) : undefined
         }
       />
-      <Button variant="link" onClick={onBack} data-testid="patient-back">{t("patients.back")}</Button>
+      <BackButton onBack={onBack} label={t("patients.back")} testId="patient-back" />
 
+      {blockedBy !== null && (
+        <Notice tone="warning" testId="patient-delete-blocked">
+          {t("patients.delete.blocked").replace("{n}", digits(blockedBy, lang))}{" "}
+          <Button variant="link" onClick={() => { setBlockedBy(null); setTab("appointments"); }} data-testid="patient-delete-show">{t("patients.delete.show")}</Button>
+        </Notice>
+      )}
       <MedicalAlertBanner key={medicalRefreshKey} patientId={patient.id} />
 
       <div className="profile-tabs" role="tablist">

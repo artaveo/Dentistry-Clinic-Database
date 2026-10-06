@@ -336,6 +336,72 @@ fn overlaps(
     )?)
 }
 
+/// OF-036: a patient holds a slot for every visit except a cancelled or moved one. A visit that
+/// was finished or missed still counts, so the same patient cannot be booked again at that time.
+fn patient_overlaps(conn: &Connection, patient_id: &str, slot: &Slot, exclude: Option<&str>) -> Result<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM appointment WHERE patient_id = ?1 AND deleted_at IS NULL
+                       AND status NOT IN ('cancelled', 'rescheduled') AND id IS NOT ?2
+                       AND start_at < ?4 AND end_at > ?3)",
+        params![patient_id, exclude, slot.start_at(), slot.end_at()],
+        |r| r.get(0),
+    )?)
+}
+
+/// OF-036: a new booking is for a time still to come. Past visits are not booked as appointments.
+fn check_not_past(slot: &Slot) -> Result<()> {
+    if slot.start_at() < crate::clock::booking_now_iso() {
+        return Err(CoreError::invalid(
+            "start_time",
+            ValidationRule::AppointmentInPast,
+            "the appointment is in the past",
+        ));
+    }
+    Ok(())
+}
+
+/// OF-035: a booking without a chosen chair takes the first free chair the doctor may use, so
+/// two doctors never share one dental chair by accident. A clinic without chairs keeps none.
+/// When every chair is busy at that time the booking is refused.
+fn resolve_chair(
+    conn: &Connection,
+    doctor_id: &str,
+    requested: Option<&str>,
+    slot: &Slot,
+    exclude: Option<&str>,
+) -> Result<Option<String>> {
+    if let Some(chair) = requested {
+        return Ok(Some(chair.to_string()));
+    }
+    let any_chair: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM chair WHERE deleted_at IS NULL AND status = 'active')",
+        [],
+        |r| r.get(0),
+    )?;
+    if !any_chair {
+        return Ok(None);
+    }
+    let free: Option<String> = conn
+        .query_row(
+            &format!(
+                "SELECT c.id FROM chair c
+                 WHERE c.deleted_at IS NULL AND c.status = 'active'
+                   AND (NOT EXISTS(SELECT 1 FROM doctor_chair d WHERE d.doctor_id = ?1)
+                        OR EXISTS(SELECT 1 FROM doctor_chair d WHERE d.doctor_id = ?1 AND d.chair_id = c.id))
+                   AND NOT EXISTS(SELECT 1 FROM appointment a WHERE a.chair_id = c.id AND a.deleted_at IS NULL
+                                  AND a.status IN {LIVE_STATUSES_SQL} AND a.id IS NOT ?4
+                                  AND a.start_at < ?3 AND a.end_at > ?2)
+                 ORDER BY c.sort_order, c.name LIMIT 1"
+            ),
+            params![doctor_id, slot.start_at(), slot.end_at(), exclude],
+            |r| r.get(0),
+        )
+        .optional()?;
+    free.map(Some).ok_or_else(|| {
+        CoreError::invalid("chair_id", ValidationRule::ChairBusy, "every chair is busy at this time")
+    })
+}
+
 /// Double-booking prevention (4.3): doctor, chair and patient each in one place at a time.
 fn check_conflicts(
     conn: &Connection,
@@ -361,7 +427,7 @@ fn check_conflicts(
             ));
         }
     }
-    if overlaps(conn, "patient_id", patient_id, slot, exclude)? {
+    if patient_overlaps(conn, patient_id, slot, exclude)? {
         return Err(CoreError::invalid(
             "patient_id",
             ValidationRule::PatientBusy,
@@ -445,19 +511,21 @@ pub fn create_appointment(
 ) -> Result<AppointmentInfo> {
     let slot = Slot::parse(&p.date, &p.start_time, &p.end_time)?;
     validate_texts(&p.reason, &p.notes)?;
-    let chair = p.chair_id.as_deref().filter(|s| !s.is_empty());
+    let requested = p.chair_id.as_deref().filter(|s| !s.is_empty());
     check_patient(conn, &p.patient_id)?;
     check_doctor(conn, &p.doctor_id, true)?;
-    check_chair(conn, &p.doctor_id, chair, true)?;
+    check_chair(conn, &p.doctor_id, requested, true)?;
+    check_not_past(&slot)?;
     check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;
-    check_conflicts(conn, &slot, &p.patient_id, &p.doctor_id, chair, None)?;
+    let chair = resolve_chair(conn, &p.doctor_id, requested, &slot, None)?;
+    check_conflicts(conn, &slot, &p.patient_id, &p.doctor_id, chair.as_deref(), None)?;
     let id = insert(
         conn,
         actor,
         NewAppointment {
             patient_id: &p.patient_id,
             doctor_id: &p.doctor_id,
-            chair_id: chair,
+            chair_id: chair.as_deref(),
             slot,
             reason: clean(&p.reason),
             notes: clean(&p.notes),
@@ -570,19 +638,21 @@ pub fn reschedule_appointment(
             format!("a {} appointment cannot be rescheduled", before.status.code()),
         ));
     }
-    let chair = p.chair_id.as_deref().filter(|s| !s.is_empty());
+    let requested = p.chair_id.as_deref().filter(|s| !s.is_empty());
     check_doctor(conn, &p.doctor_id, true)?;
-    check_chair(conn, &p.doctor_id, chair, true)?;
+    check_chair(conn, &p.doctor_id, requested, true)?;
+    check_not_past(&slot)?;
     check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;
-    // The old slot is freed by this very call, so it is excluded from the conflict check.
-    check_conflicts(conn, &slot, &before.patient_id, &p.doctor_id, chair, Some(&p.id))?;
+    // The old slot is freed by this very call, so it is excluded from the chair search and the conflict check.
+    let chair = resolve_chair(conn, &p.doctor_id, requested, &slot, Some(&p.id))?;
+    check_conflicts(conn, &slot, &before.patient_id, &p.doctor_id, chair.as_deref(), Some(&p.id))?;
     let new_id = insert(
         conn,
         actor,
         NewAppointment {
             patient_id: &before.patient_id,
             doctor_id: &p.doctor_id,
-            chair_id: chair,
+            chair_id: chair.as_deref(),
             slot,
             reason: before.reason.clone(),
             notes: before.notes.clone(),
@@ -747,10 +817,10 @@ pub fn walk_in(conn: &Connection, actor: &Actor, p: &WalkInParams) -> Result<App
             "a visit lasts 5 minutes to 12 hours",
         ));
     }
-    let chair = p.chair_id.as_deref().filter(|s| !s.is_empty());
+    let requested = p.chair_id.as_deref().filter(|s| !s.is_empty());
     check_patient(conn, &p.patient_id)?;
     check_doctor(conn, &p.doctor_id, true)?;
-    check_chair(conn, &p.doctor_id, chair, true)?;
+    check_chair(conn, &p.doctor_id, requested, true)?;
     let today = today_iso();
     let in_queue: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM appointment WHERE patient_id = ?1 AND local_date = ?2 AND deleted_at IS NULL
@@ -769,13 +839,17 @@ pub fn walk_in(conn: &Connection, actor: &Actor, p: &WalkInParams) -> Result<App
     let start_min = (now.hour() as i64 * 60 + now.minute() as i64).min(1435);
     let end_min = (start_min + minutes).min(1440);
     let slot = Slot { date: now.date(), start_min, end_min };
+    // OF-037: a walk-in outside the doctor's working hours is refused until reception confirms
+    // it (an emergency, say). A confirmed one is written to the audit log with that flag.
+    check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;
+    let chair = resolve_chair(conn, &p.doctor_id, requested, &slot, None)?;
     let id = insert(
         conn,
         actor,
         NewAppointment {
             patient_id: &p.patient_id,
             doctor_id: &p.doctor_id,
-            chair_id: chair,
+            chair_id: chair.as_deref(),
             slot,
             reason: clean(&p.reason),
             notes: None,
@@ -792,7 +866,7 @@ pub fn walk_in(conn: &Connection, actor: &Actor, p: &WalkInParams) -> Result<App
         Some("appointment"),
         Some(&id),
         None,
-        Some(&json!(info)),
+        Some(&json!({ "appointment": info, "outside_working_hours_confirmed": p.override_schedule })),
     )?;
     Ok(info)
 }

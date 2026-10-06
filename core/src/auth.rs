@@ -135,6 +135,12 @@ pub fn sync_roles(conn: &mut Connection) -> Result<()> {
              ON CONFLICT(id) DO NOTHING",
             params![id, code, now],
         )?;
+        // OF-028: a built-in role the clinic changed keeps its permissions across updates.
+        let customized =
+            tx.query_row("SELECT customized FROM role WHERE id = ?1", [&id], |r| r.get::<_, i64>(0))? == 1;
+        if customized {
+            continue;
+        }
         tx.execute("DELETE FROM role_permission WHERE role_id = ?1", [&id])?;
         for p in perms {
             tx.execute(
@@ -155,7 +161,8 @@ pub fn sync_roles(conn: &mut Connection) -> Result<()> {
 }
 
 const ROLE_SELECT: &str = "SELECT r.id, r.code, r.label, r.is_system, r.version,
-        (SELECT COUNT(*) FROM app_user u WHERE u.role_id = r.id AND u.deleted_at IS NULL AND u.is_active = 1)
+        (SELECT COUNT(*) FROM app_user u WHERE u.role_id = r.id AND u.deleted_at IS NULL AND u.is_active = 1),
+        r.customized
      FROM role r WHERE r.deleted_at IS NULL";
 
 fn read_roles(conn: &Connection, tail: &str, args: &[&dyn rusqlite::ToSql]) -> Result<Vec<RoleInfo>> {
@@ -171,6 +178,7 @@ fn read_roles(conn: &Connection, tail: &str, args: &[&dyn rusqlite::ToSql]) -> R
                     permissions: Vec::new(),
                     user_count: r.get(5)?,
                     version: r.get(4)?,
+                    customized: r.get::<_, i64>(6)? == 1,
                 },
             ))
         })?
@@ -208,6 +216,11 @@ fn validate_role(
     permissions: &[String],
     except: Option<&str>,
 ) -> Result<Vec<String>> {
+    validate_label(conn, label, except)?;
+    validate_permissions(permissions)
+}
+
+fn validate_label(conn: &Connection, label: &str, except: Option<&str>) -> Result<()> {
     let len = label.trim().chars().count();
     if !(1..=60).contains(&len) {
         return Err(CoreError::invalid(
@@ -228,6 +241,10 @@ fn validate_role(
             "a role with this name exists",
         ));
     }
+    Ok(())
+}
+
+fn validate_permissions(permissions: &[String]) -> Result<Vec<String>> {
     let mut perms: Vec<String> = permissions.to_vec();
     perms.sort();
     perms.dedup();
@@ -280,27 +297,54 @@ pub fn create_role(conn: &Connection, actor: &Actor, p: &CreateRoleParams) -> Re
     Ok(info)
 }
 
+/// A clinic's own role, which can be deleted (built-in roles cannot).
 fn custom_role(conn: &Connection, code: &str) -> Result<RoleInfo> {
     let role = get_role(conn, code)?;
     if role.is_system {
         return Err(CoreError::invalid(
             "code",
             ValidationRule::RoleSystem,
-            "built-in roles cannot be changed",
+            "built-in roles cannot be deleted",
+        ));
+    }
+    Ok(role)
+}
+
+/// A role the clinic may change: its own roles, and the built-in roles except the owner role (OF-028).
+fn editable_role(conn: &Connection, code: &str) -> Result<RoleInfo> {
+    let role = get_role(conn, code)?;
+    if code == OWNER {
+        return Err(CoreError::invalid(
+            "code",
+            ValidationRule::OwnerImmutable,
+            "the owner role cannot be changed",
         ));
     }
     Ok(role)
 }
 
 pub fn update_role(conn: &Connection, actor: &Actor, p: &UpdateRoleParams) -> Result<RoleInfo> {
-    let before = custom_role(conn, &p.code)?;
-    let perms = validate_role(conn, &p.label, &p.permissions, Some(&p.code))?;
+    let before = editable_role(conn, &p.code)?;
+    // A built-in role keeps its name; only its permissions can change.
+    let perms = if before.is_system {
+        validate_permissions(&p.permissions)?
+    } else {
+        validate_role(conn, &p.label, &p.permissions, Some(&p.code))?
+    };
     let id = role_row_id(conn, &p.code)?;
-    let changed = conn.execute(
-        "UPDATE role SET label = ?1, updated_at = ?2, updated_by = ?3, version = version + 1
-         WHERE id = ?4 AND version = ?5 AND deleted_at IS NULL",
-        params![p.label.trim(), now_iso(), actor.user_id, id, p.version],
-    )?;
+    let changed = if before.is_system {
+        conn.execute(
+            "UPDATE role SET customized = 1, updated_at = ?1, updated_by = ?2, version = version + 1
+             WHERE id = ?3 AND version = ?4 AND deleted_at IS NULL",
+            params![now_iso(), actor.user_id, id, p.version],
+        )?
+    } else {
+        conn.execute(
+            "UPDATE role SET label = ?1, updated_at = ?2, updated_by = ?3, version = version + 1
+             WHERE id = ?4 AND version = ?5 AND deleted_at IS NULL",
+            params![p.label.trim(), now_iso(), actor.user_id, id, p.version],
+        )?
+    };
     expect_one_row(changed, "role")?;
     conn.execute("DELETE FROM role_permission WHERE role_id = ?1", [&id])?;
     for perm in &perms {
@@ -314,6 +358,47 @@ pub fn update_role(conn: &Connection, actor: &Actor, p: &UpdateRoleParams) -> Re
         conn,
         actor,
         "role.update",
+        Some("role"),
+        Some(&id),
+        Some(&json!(before)),
+        Some(&json!(after)),
+    )?;
+    Ok(after)
+}
+
+/// Puts a built-in role back to the permissions it ships with (OF-028, "back to defaults").
+pub fn reset_role(conn: &Connection, actor: &Actor, code: &str, version: i64) -> Result<RoleInfo> {
+    let before = editable_role(conn, code)?;
+    if !before.is_system {
+        return Err(CoreError::invalid(
+            "code",
+            ValidationRule::RoleSystem,
+            "only built-in roles have defaults",
+        ));
+    }
+    let defaults =
+        system_roles().into_iter().find(|(c, _)| *c == code).map(|(_, perms)| perms).ok_or_else(|| {
+            CoreError::invalid("code", ValidationRule::RoleNotFound, "unknown built-in role")
+        })?;
+    let id = role_row_id(conn, code)?;
+    let changed = conn.execute(
+        "UPDATE role SET customized = 0, updated_at = ?1, updated_by = ?2, version = version + 1
+         WHERE id = ?3 AND version = ?4 AND deleted_at IS NULL",
+        params![now_iso(), actor.user_id, id, version],
+    )?;
+    expect_one_row(changed, "role")?;
+    conn.execute("DELETE FROM role_permission WHERE role_id = ?1", [&id])?;
+    for perm in defaults {
+        conn.execute(
+            "INSERT INTO role_permission(role_id, permission_code) VALUES (?1, ?2)",
+            params![id, perm],
+        )?;
+    }
+    let after = get_role(conn, code)?;
+    audit::record(
+        conn,
+        actor,
+        "role.reset",
         Some("role"),
         Some(&id),
         Some(&json!(before)),
@@ -422,10 +507,14 @@ pub fn validate_display_name(name: &str) -> Result<()> {
 
 // ───────────────────────────── users ─────────────────────────────
 
-const USER_SELECT: &str = "SELECT u.id, u.username, u.display_name, r.code, u.is_active, u.version, r.label
+const USER_SELECT: &str =
+    "SELECT u.id, u.username, u.display_name, r.code, u.is_active, u.version, r.label, u.locked_until
      FROM app_user u JOIN role r ON r.id = u.role_id WHERE u.deleted_at IS NULL";
 
 fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<UserInfo> {
+    // OF-030: "unlock" is offered only while the account is really locked (locked_until is in the future).
+    let locked_until: Option<String> = r.get(7)?;
+    let locked = locked_until.is_some_and(|until| until > now_iso());
     Ok(UserInfo {
         id: r.get(0)?,
         username: r.get(1)?,
@@ -434,6 +523,7 @@ fn map_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<UserInfo> {
         is_active: r.get::<_, i64>(4)? == 1,
         version: r.get(5)?,
         role_label: r.get(6)?,
+        locked,
     })
 }
 

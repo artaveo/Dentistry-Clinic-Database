@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Save, UserPlus } from "lucide-react";
 import type { LabeledItem, PatientInfo } from "../../../../shared/ts/contract";
 import { rpc } from "../../lib/api";
-import { useForm, v } from "../../lib/validation";
+import { focusFirstInvalid, useForm, v } from "../../lib/validation";
+import { ageOn, digits } from "../../lib/dates";
+import { useFormDraft } from "../../lib/draft";
 import { useI18n } from "../../i18n";
 import { useReferenceList } from "./useReferenceList";
 import { GeoPicker } from "../../setup/GeoPicker";
@@ -10,6 +12,7 @@ import { Button } from "../../ui/Button";
 import { Card, CardHeader, Page, PageHeader } from "../../ui/Card";
 import { Field, Select, Textarea, TextInput } from "../../ui/Field";
 import { Notice } from "../../ui/Feedback";
+import { Switch } from "../../ui/Controls";
 import { useToast } from "../../ui/Toast";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
 
@@ -54,15 +57,16 @@ function toValues(p?: PatientInfo | null): FormValues {
 }
 
 /** Full-field body shared by `patients.create`/`patients.update` — everything but `id`/`version`/`status`/`allow_duplicate`. */
-function toParams(values: FormValues) {
+function toParams(values: FormValues, exactBirth: boolean) {
   return {
     full_name: values.full_name.trim(),
     father_name: values.father_name.trim() || null,
     phone: values.phone.trim() || null,
     secondary_phone: values.secondary_phone.trim() || null,
     gender_id: values.gender_id || null,
-    date_of_birth: values.date_of_birth || null,
-    approximate_age: values.approximate_age.trim() ? Number(values.approximate_age) : null,
+    // OF-019: either the exact date or an estimated age is stored, never both.
+    date_of_birth: exactBirth ? values.date_of_birth || null : null,
+    approximate_age: !exactBirth && values.approximate_age.trim() ? Number(values.approximate_age) : null,
     preferred_language: (values.preferred_language || null) as "fa" | "ps" | "en" | null,
     province_id: values.province_id || null,
     district_id: values.district_id || null,
@@ -90,13 +94,25 @@ function ReferenceSelect({ typeCode, value, onChange, testId }: { typeCode: stri
 export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientInfo | null; onDone: (p: PatientInfo) => void; onCancel: () => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  // OF-019: the user picks one way to record the birth. The other input is read-only and derived.
+  const [exactBirth, setExactBirth] = useState(!!patient?.date_of_birth);
+  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm(toValues(patient), {
     full_name: v.required,
     phone: v.phone,
     secondary_phone: v.phone,
     emergency_contact_phone: v.phone,
-    approximate_age: (s) => (s.trim() && !/^\d{1,3}$/.test(s.trim()) ? "rule.age_range" : null),
+    approximate_age: (s) => (!exactBirth && s.trim() && !/^\d{1,3}$/.test(s.trim()) ? "rule.age_range" : null),
   });
+  // OF-020: a new patient's half-typed form survives a lock, a minimised window or a closed app.
+  const draft = useFormDraft<FormValues>("patient.create", form.values, !patient);
+  const restoreDraft = () => {
+    if (draft.offer) form.reset({ ...toValues(null), ...draft.offer });
+    draft.settle();
+  };
+  const derivedAge = exactBirth && form.values.date_of_birth ? ageOn(form.values.date_of_birth) : null;
+  const ageText = form.values.approximate_age.trim();
+  const estimatedYear = !exactBirth && /^\d{1,3}$/.test(ageText) ? new Date().getFullYear() - Number(ageText) : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [duplicates, setDuplicates] = useState<PatientInfo[] | null>(null);
@@ -106,10 +122,11 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
     setBusy(true);
     setError("");
     try {
-      const body = toParams(form.values);
+      const body = toParams(form.values, exactBirth);
       const saved = patient
         ? await rpc("patients.update", { id: patient.id, version: patient.version, status: patient.status, ...body })
         : await rpc("patients.create", { ...body, registration_date: null, allow_duplicate: allowDuplicate });
+      draft.clear();
       toast.success(t(patient ? "patients.saved" : "patients.created"));
       onDone(saved);
     } catch (x) {
@@ -125,15 +142,31 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
 
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!form.validate()) return;
+    if (!form.validate()) {
+      // OF-029: the first wrong box gets focus; its error is drawn in the same render.
+      setTimeout(() => focusFirstInvalid(formRef.current), 0);
+      return;
+    }
     await doSave(false);
   };
 
   return (
     <Page testId="page-patient-form">
       <PageHeader title={t(patient ? "patients.editTitle" : "patients.add")} description={t("patients.addHint")} />
-      <form className="stack" onSubmit={submit} noValidate data-testid="patient-form">
+      <form className="stack" onSubmit={submit} noValidate data-testid="patient-form" ref={formRef}>
         {error && <Notice tone="danger">{error}</Notice>}
+        {draft.offer && (
+          <Notice tone="info" title={t("draft.found.title")} testId="draft-offer">
+            <span className="stack" style={{ gap: 8 }}>
+              <span>{t("draft.found.hint")}</span>
+              <span className="row">
+                <Button size="sm" variant="primary" onClick={restoreDraft} data-testid="draft-restore">{t("draft.found.restore")}</Button>
+                <Button size="sm" onClick={() => { draft.clear(); draft.settle(); }} data-testid="draft-discard">{t("draft.found.discard")}</Button>
+              </span>
+            </span>
+          </Notice>
+        )}
+        {form.invalidCount > 0 && <Notice tone="danger" data-testid="form-error-summary">{t("form.errorsSummary").replace("{n}", digits(form.invalidCount, lang))}</Notice>}
 
         <Card>
           <CardHeader title={t("patient.section.identity")} />
@@ -147,11 +180,14 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
             <Field label={t("patient.field.gender")} optional>
               <ReferenceSelect typeCode="gender" value={form.values.gender_id} onChange={(id) => form.set("gender_id", id)} testId="patient-gender" />
             </Field>
-            <Field label={t("patient.field.dateOfBirth")} optional>
-              <TextInput type="date" dir="ltr" value={form.values.date_of_birth} onChange={(x) => form.set("date_of_birth", x.target.value)} data-testid="patient-dob" />
+            <div className="span-2">
+              <Switch checked={exactBirth} onChange={setExactBirth} label={t("patient.birth.exactKnown")} testId="patient-exact-birth" />
+            </div>
+            <Field label={t("patient.field.approximateAge")} optional={!exactBirth} error={exactBirth ? undefined : e("approximate_age")} hint={exactBirth ? t("patient.birth.ageFromDate") : estimatedYear !== null ? t("patient.birth.estimatedYear").replace("{year}", digits(estimatedYear, lang)) : undefined}>
+              <TextInput type="number" dir="ltr" min={0} max={120} readOnly={exactBirth} disabled={exactBirth} value={exactBirth ? (derivedAge ?? "") : form.values.approximate_age} onChange={(x) => form.set("approximate_age", x.target.value)} data-testid="patient-age" />
             </Field>
-            <Field label={t("patient.field.approximateAge")} optional error={e("approximate_age")}>
-              <TextInput type="number" dir="ltr" min={0} max={120} value={form.values.approximate_age} onChange={(x) => form.set("approximate_age", x.target.value)} data-testid="patient-age" />
+            <Field label={t("patient.field.dateOfBirth")} optional={!exactBirth} error={exactBirth ? e("date_of_birth") : undefined}>
+              <TextInput type="date" dir="ltr" disabled={!exactBirth} value={form.values.date_of_birth} onChange={(x) => form.set("date_of_birth", x.target.value)} data-testid="patient-dob" />
             </Field>
             <Field label={t("patient.field.preferredLanguage")} optional>
               <Select value={form.values.preferred_language} onChange={(x) => form.set("preferred_language", x.target.value)} data-testid="patient-language">
@@ -208,7 +244,7 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
         </Card>
 
         <div className="row" style={{ justifyContent: "flex-end" }}>
-          <Button onClick={onCancel}>{t("common.cancel")}</Button>
+          <Button onClick={() => { draft.clear(); onCancel(); }} data-testid="patient-cancel">{t("common.cancel")}</Button>
           <Button variant="primary" icon={patient ? Save : UserPlus} loading={busy} type="submit" data-testid="patient-save">
             {t(patient ? "common.save" : "patients.add")}
           </Button>

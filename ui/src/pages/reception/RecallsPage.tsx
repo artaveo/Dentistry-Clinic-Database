@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { BellRing, CalendarPlus, Check, Pencil, Phone, Plus, X } from "lucide-react";
-import type { CalendarSystem, ClinicProfile, RecallInfo, RecallKind, RecallStatus } from "../../../../shared/ts/contract";
+import { BellRing, CalendarClock, CalendarPlus, Check, Pencil, Phone, Plus, X } from "lucide-react";
+import type { AppointmentInfo, CalendarSystem, ClinicProfile, RecallInfo, RecallKind, RecallStatus } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
 import { addDays, daysBetween, todayIso } from "../../lib/calendar";
 import { digits, formatDate } from "../../lib/dates";
@@ -37,7 +37,14 @@ export function RecallsPage({ clinic, perms, clinicName }: { clinic: ClinicProfi
   const [edit, setEdit] = useState<{ recall?: RecallInfo } | null>(null);
   const [contact, setContact] = useState<RecallInfo | null>(null);
   const [book, setBook] = useState<RecallInfo | null>(null);
+  // OF-039: a booked recall's visit can be cancelled or moved from the call list itself.
+  const [visit, setVisit] = useState<AppointmentInfo | null>(null);
   const today = todayIso();
+
+  const openVisit = (r: RecallInfo) => {
+    if (!r.appointment_id) return;
+    rpc("appointments.get", { id: r.appointment_id }).then(setVisit).catch((x) => !isSessionError(x) && toast.error(err(x)));
+  };
 
   const load = useCallback(() => {
     const until = window_ === "overdue" ? addDays(todayIso(), -1) : window_ === "all" ? null : addDays(todayIso(), Number(window_));
@@ -98,7 +105,7 @@ export function RecallsPage({ clinic, perms, clinicName }: { clinic: ClinicProfi
                   <tr key={r.id} data-testid={`recall-row-${r.patient_number}`}>
                     <td><span className="cell-strong">{r.patient_name}</span><br /><span className="subtle t-caption"><bdi className="ltr num">{r.patient_number}</bdi></span></td>
                     <td><bdi className="ltr" data-testid="recall-phone">{r.patient_phone ?? "—"}</bdi></td>
-                    <td>{t(`recall.kind.${r.kind}`)}{r.repeat_months ? <span className="subtle t-caption"><br />{t("recall.every")} {digits(r.repeat_months, lang)} {t("recall.months")}</span> : null}{r.note ? <span className="subtle t-caption"><br />{r.note}</span> : null}</td>
+                    <td><span className="cell-strong">{t(`recall.kind.${r.kind}`)}</span><br /><Badge tone={r.repeat_months ? "accent" : "neutral"}>{r.repeat_months ? t("recall.type.recall") : t("recall.type.follow")}</Badge>{r.repeat_months ? <span className="subtle t-caption"><br />{t("recall.every")} {digits(r.repeat_months, lang)} {t("recall.months")}</span> : null}{r.note ? <span className="subtle t-caption"><br />{r.note}</span> : null}</td>
                     <td>{formatDate(r.due_date + "T06:00:00Z", lang, calendar)}<br />{dueText(r)}</td>
                     <td>{r.last_contacted_at ? <>{formatDate(r.last_contacted_at, lang, calendar)}{r.contact_note ? <span className="subtle t-caption"><br />{r.contact_note}</span> : null}</> : "—"}</td>
                     <td><Badge tone={RECALL_STATUS_TONE[r.status]} dot>{t(`recall.status.${r.status}`)}</Badge></td>
@@ -112,6 +119,7 @@ export function RecallsPage({ clinic, perms, clinicName }: { clinic: ClinicProfi
                         </div>
                       )}
                       {perms.edit && r.status === "dismissed" && <Button size="sm" icon={Check} onClick={() => act(r, "pending")}>{t("recall.reopen")}</Button>}
+                      {perms.edit && r.status === "booked" && r.appointment_id && <Button size="sm" icon={CalendarClock} onClick={() => openVisit(r)} data-testid={`recall-visit-${r.patient_number}`}>{t("recall.visit.manage")}</Button>}
                     </td>
                   </tr>
                 ))}
@@ -124,6 +132,19 @@ export function RecallsPage({ clinic, perms, clinicName }: { clinic: ClinicProfi
       {items && total > items.length && <span className="subtle t-caption">{t("recall.showing")} {digits(items.length, lang)} / {digits(total, lang)}</span>}
 
       {edit && <RecallDialog recall={edit.recall} calendar={calendar} canCreatePatients={perms.createPatients} onClose={() => setEdit(null)} onSaved={load} />}
+      {visit && doctors && (
+        <AppointmentDialog
+          appointment={visit}
+          doctors={doctors}
+          chairs={chairs}
+          calendar={calendar}
+          perms={perms}
+          clinicName={clinicName}
+          solo={isSolo(clinic, doctors)}
+          onClose={() => setVisit(null)}
+          onSaved={load}
+        />
+      )}
       {contact && <ContactDialog recall={contact} onClose={() => setContact(null)} onConfirm={(note) => { act(contact, "contacted", note); setContact(null); }} />}
       {book && doctors && (
         <AppointmentDialog

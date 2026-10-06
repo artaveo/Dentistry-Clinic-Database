@@ -205,6 +205,20 @@ fn measure_phase3_and_4(core: &Core, token: &str, patients: usize, enforce: bool
             ));
         }
     }
+    // OF-024: the data size (the main database file, without the WAL) must stay under 200 MB
+    // with 100 000 patients; attachments are not counted.
+    let db_mb =
+        call(core, m::SYSTEM_INFO, json!({}), Some(token))["database"]["size_bytes"].as_f64().unwrap_or(0.0)
+            / 1_048_576.0;
+    let size_ok = db_mb < 200.0;
+    println!("database data size: {db_mb:.1} MB (limit 200 MB) {}", if size_ok { "ok" } else { "TOO BIG" });
+    table.push_str(&format!(
+        "| Database data size, without attachments | {db_mb:.1} MB | 200 MB | {} |\n",
+        if size_ok { "✅" } else { "❌" }
+    ));
+    if !size_ok {
+        failed.push(format!("database data size {db_mb:.1} MB (limit 200 MB)"));
+    }
     if let Some(path) = std::env::var_os("GITHUB_STEP_SUMMARY") {
         use std::io::Write;
         if let Ok(mut f) = std::fs::OpenOptions::new().append(true).create(true).open(path) {
