@@ -15,7 +15,9 @@ const MAX_KEY_LEN: usize = 64;
 fn check_key(form_key: &str) -> Result<()> {
     let ok = !form_key.is_empty()
         && form_key.len() <= MAX_KEY_LEN
-        && form_key.chars().all(|c| c.is_ascii_lowercase() || c == '.' || c == '_' || c == '-');
+        && form_key
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-');
     if ok {
         Ok(())
     } else {

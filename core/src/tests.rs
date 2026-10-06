@@ -39,7 +39,11 @@ impl T {
     }
 
     fn ok(&self, method: &str, params: Value, token: Option<&str>) -> Value {
-        self.call(method, params, token).unwrap_or_else(|e| panic!("{method} failed: {e:?}"))
+        match self.core.handle(RpcRequest { method: method.into(), params, token: token.map(Into::into) }) {
+            RpcResponse::Ok { result } => result,
+            // The detail says which step failed (the code alone is just "internal").
+            RpcResponse::Error { error } => panic!("{method} failed: {:?}: {}", error.code, error.detail),
+        }
     }
 
     fn setup(&self) -> String {
