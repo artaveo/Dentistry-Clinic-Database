@@ -16,6 +16,7 @@ import { createInterface } from "node:readline";
 const esc = (s) => String(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
 
 const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
+let panicAt = null; // a test panic whose message lines are still being read
 
 for await (const line of rl) {
   let msg;
@@ -23,6 +24,19 @@ for await (const line of rl) {
     msg = JSON.parse(line);
   } catch {
     console.log(line); // not JSON: cargo's own plain-text progress, or a ran program's own output
+    // A failing test prints "thread '…' panicked at FILE:LINE:COL:" and the assertion details below it.
+    // Turn that into an annotation too, so the failure is readable without opening the log.
+    const panic = /panicked at (.+?):(\d+):\d+:?\s*$/.exec(line);
+    if (panic) {
+      panicAt = { file: panic[1], line: panic[2], lines: [] };
+    } else if (panicAt && panicAt.lines.length < 4) {
+      if (line.trim() === "") {
+        console.log(`::error file=${panicAt.file},line=${panicAt.line}::${esc(`test panicked: ${panicAt.lines.join(" | ")}`)}`);
+        panicAt = null;
+      } else {
+        panicAt.lines.push(line.trim());
+      }
+    }
     continue;
   }
   if (msg.reason !== "compiler-message" || !msg.message) continue;
