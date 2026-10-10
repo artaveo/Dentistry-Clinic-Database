@@ -965,7 +965,7 @@ impl Core {
                     schema_version: db::schema_version(&o.conn)?,
                     // OF-024: the size of the data itself. The write-ahead log (WAL) is temporary and is
                     // not counted, so the figure does not jump up and down with recent writes.
-                    size_bytes: db::data_size_bytes(&o.conn)?,
+                    size_bytes: db::data_size_bytes(&self.config.db_path())?,
                 }),
                 backup::latest(&o.conn)?,
             ),

@@ -205,10 +205,10 @@ pub fn vacuum_into(conn: &Connection, dest: &Path) -> Result<()> {
 }
 
 /// Bytes of the database pages (the main file once checkpointed), without the WAL (OF-024).
-pub fn data_size_bytes(conn: &Connection) -> Result<i64> {
-    let pages: i64 = conn.query_row("PRAGMA page_count", [], |r| r.get(0))?;
-    let page_size: i64 = conn.query_row("PRAGMA page_size", [], |r| r.get(0))?;
-    Ok(pages * page_size)
+/// The main database file's size on disk (OF-024). Reading the file avoids `PRAGMA page_size`,
+/// which SQLCipher can answer as text (`cipher_page_size`) depending on the connection's state.
+pub fn data_size_bytes(db_path: &Path) -> Result<i64> {
+    Ok(std::fs::metadata(db_path)?.len() as i64)
 }
 
 pub fn cipher_version(conn: &Connection) -> Result<String> {

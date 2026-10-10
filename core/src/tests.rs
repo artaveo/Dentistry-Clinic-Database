@@ -883,11 +883,22 @@ fn import_previews_then_commits_only_valid_rows() {
     assert_eq!(result["skipped"], 1);
     assert_eq!(t.ok(m::PATIENTS_LIST, json!({}), Some(&owner))["total"], 2);
 
+    // OF-022: the export is a real .xlsx file on disk now, not a CSV string.
     let exported = t.ok(m::PATIENTS_EXPORT, json!({}), Some(&owner));
-    let bytes = data_encoding::BASE64.decode(exported["csv_base64"].as_str().unwrap().as_bytes()).unwrap();
-    let text = String::from_utf8(bytes).unwrap();
-    assert!(text.contains("Ahmad Khan"));
-    assert!(text.contains("Zarghuna"));
+    assert_eq!(exported["rows"], 2);
+    let path = exported["file_path"].as_str().unwrap();
+    assert!(path.ends_with(".xlsx") && std::path::Path::new(path).exists());
+    let bytes = std::fs::read(path).unwrap();
+    let b64 = data_encoding::BASE64.encode(&bytes);
+    let info = t.ok(
+        m::PATIENTS_IMPORT_INSPECT,
+        json!({"file_base64": b64, "file_name": exported["file_name"]}),
+        Some(&owner),
+    );
+    let rows = info["sample_rows"].as_array().unwrap();
+    let names: Vec<&str> = rows.iter().map(|r| r[1].as_str().unwrap()).collect();
+    assert!(names.contains(&"Ahmad Khan"));
+    assert!(names.contains(&"Zarghuna"));
 }
 
 #[test]
