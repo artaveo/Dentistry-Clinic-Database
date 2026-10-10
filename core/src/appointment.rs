@@ -46,7 +46,9 @@ const APPOINTMENT_SELECT: &str = "SELECT a.id, a.patient_id, p.patient_number, p
         a.doctor_id, d.full_name, d.color, a.chair_id, c.name,
         a.local_date, a.start_min, a.end_min, a.start_at, a.end_at, a.reason, a.notes, a.status,
         a.is_walk_in, a.queue_number, a.checked_in_at, a.treatment_started_at, a.completed_at,
-        a.cancelled_at, a.cancel_reason, a.rescheduled_from_id, a.rescheduled_to_id, a.version
+        a.cancelled_at, a.cancel_reason, a.rescheduled_from_id, a.rescheduled_to_id, a.version,
+        a.service_id,
+        (SELECT h.reviewed_at FROM patient_medical_history h WHERE h.patient_id = a.patient_id AND h.deleted_at IS NULL)
      FROM appointment a
      JOIN patient p ON p.id = a.patient_id
      JOIN doctor d ON d.id = a.doctor_id
@@ -84,6 +86,8 @@ fn map_appointment(r: &rusqlite::Row<'_>) -> rusqlite::Result<AppointmentInfo> {
         rescheduled_from_id: r.get(25)?,
         rescheduled_to_id: r.get(26)?,
         version: r.get(27)?,
+        service_id: r.get(28)?,
+        medical_review_due: crate::medical::review_due(r.get::<_, Option<String>>(29)?.as_deref()),
     })
 }
 
@@ -447,6 +451,34 @@ fn check_schedule(conn: &Connection, doctor_id: &str, slot: &Slot, override_sche
     }
 }
 
+/// M2/M3: the visit's catalog service must exist and be active. When the clinic asked for it
+/// (`restrict_service_specialty`, not in a one-doctor clinic) only a doctor of the service's
+/// specialty may be booked for it; otherwise the UI only warns.
+fn check_service(conn: &Connection, service_id: Option<&str>, doctor_id: &str) -> Result<Option<String>> {
+    let Some(sid) = service_id.filter(|s| !s.is_empty()) else { return Ok(None) };
+    let service = crate::catalog::get_service(conn, sid).map_err(|e| e.rename_field("service_id"))?;
+    if !service.is_active {
+        return Err(CoreError::invalid(
+            "service_id",
+            ValidationRule::ServiceNotFound,
+            "this service is switched off",
+        ));
+    }
+    let restrict = crate::settings::get(conn)?.restrict_service_specialty
+        && crate::clinic::get(conn)?.clinic_mode == artaveo_shared::ClinicMode::Multi;
+    if let (true, Some(specialty)) = (restrict, service.specialty_id.as_deref()) {
+        let doctor = crate::scheduling::get_doctor(conn, doctor_id)?;
+        if !doctor.specialty_ids.iter().any(|s| s == specialty) {
+            return Err(CoreError::invalid(
+                "doctor_id",
+                ValidationRule::ServiceSpecialty,
+                "this doctor does not have the service's specialty",
+            ));
+        }
+    }
+    Ok(Some(sid.to_string()))
+}
+
 // ───────────────────────────── writes ─────────────────────────────
 
 struct NewAppointment<'a> {
@@ -459,6 +491,7 @@ struct NewAppointment<'a> {
     status: AppointmentStatus,
     is_walk_in: bool,
     rescheduled_from_id: Option<&'a str>,
+    service_id: Option<&'a str>,
 }
 
 fn next_queue_number(conn: &Connection, date: &str) -> Result<i64> {
@@ -477,9 +510,9 @@ fn insert(conn: &Connection, actor: &Actor, n: NewAppointment<'_>) -> Result<Str
     let queue_number = if checked_in { Some(next_queue_number(conn, &date)?) } else { None };
     conn.execute(
         "INSERT INTO appointment(id, patient_id, doctor_id, chair_id, start_at, end_at, local_date, start_min, end_min,
-            reason, notes, status, is_walk_in, queue_number, checked_in_at, rescheduled_from_id,
+            reason, notes, status, is_walk_in, queue_number, checked_in_at, rescheduled_from_id, service_id,
             created_at, created_by, updated_at, updated_by)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?17,?18)",
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?18,?19)",
         params![
             id,
             n.patient_id,
@@ -497,6 +530,7 @@ fn insert(conn: &Connection, actor: &Actor, n: NewAppointment<'_>) -> Result<Str
             queue_number,
             checked_in.then(|| now.clone()),
             n.rescheduled_from_id,
+            n.service_id,
             now,
             actor.user_id
         ],
@@ -519,6 +553,7 @@ pub fn create_appointment(
     check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;
     let chair = resolve_chair(conn, &p.doctor_id, requested, &slot, None)?;
     check_conflicts(conn, &slot, &p.patient_id, &p.doctor_id, chair.as_deref(), None)?;
+    let service = check_service(conn, p.service_id.as_deref(), &p.doctor_id)?;
     let id = insert(
         conn,
         actor,
@@ -532,6 +567,7 @@ pub fn create_appointment(
             status: AppointmentStatus::Scheduled,
             is_walk_in: false,
             rescheduled_from_id: None,
+            service_id: service.as_deref(),
         },
     )?;
     if let Some(rid) = p.recall_id.as_deref().filter(|s| !s.is_empty()) {
@@ -598,9 +634,17 @@ pub fn update_appointment(
         check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;
         check_conflicts(conn, &slot, &before.patient_id, &p.doctor_id, chair, Some(&p.id))?;
     }
+    // The service is checked again only when it or the doctor changes (an existing pair stays valid).
+    let service = if p.service_id.as_deref().filter(|s| !s.is_empty()) != before.service_id.as_deref()
+        || p.doctor_id != before.doctor_id
+    {
+        check_service(conn, p.service_id.as_deref(), &p.doctor_id)?
+    } else {
+        before.service_id.clone()
+    };
     let changed = conn.execute(
         "UPDATE appointment SET doctor_id=?1, chair_id=?2, start_at=?3, end_at=?4, local_date=?5, start_min=?6, end_min=?7,
-            reason=?8, notes=?9, updated_at=?10, updated_by=?11, version=version+1
+            reason=?8, notes=?9, updated_at=?10, updated_by=?11, version=version+1, service_id=?14
          WHERE id=?12 AND version=?13 AND deleted_at IS NULL",
         params![
             p.doctor_id,
@@ -615,7 +659,8 @@ pub fn update_appointment(
             now_iso(),
             actor.user_id,
             p.id,
-            p.version
+            p.version,
+            service
         ],
     )?;
     expect_one_row(changed, "appointment")?;
@@ -669,6 +714,7 @@ pub fn reschedule_appointment(
             status: AppointmentStatus::Scheduled,
             is_walk_in: false,
             rescheduled_from_id: Some(&p.id),
+            service_id: before.service_id.as_deref(),
         },
     )?;
     let now = now_iso();
@@ -866,6 +912,7 @@ pub fn walk_in(conn: &Connection, actor: &Actor, p: &WalkInParams) -> Result<App
             status: AppointmentStatus::CheckedIn,
             is_walk_in: true,
             rescheduled_from_id: None,
+            service_id: None,
         },
     )?;
     let info = get_appointment(conn, &id)?;

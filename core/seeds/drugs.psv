@@ -1,0 +1,25 @@
+code|name|form|strength|classes|quantity|dose|times|timing|days|as_needed
+amoxicillin_500|Amoxicillin|capsule|500 mg|penicillin|15|1|3|after_food|5|0
+amoxicillin_clav_625|Amoxicillin + Clavulanic acid|tablet|625 mg|penicillin|15|1|3|after_food|5|0
+phenoxymethylpenicillin_250|Phenoxymethylpenicillin (Penicillin V)|tablet|250 mg|penicillin|20|2|4|before_food|5|0
+cloxacillin_500|Cloxacillin|capsule|500 mg|penicillin|20|1|4|before_food|5|0
+cefalexin_500|Cefalexin|capsule|500 mg|cephalosporin|20|1|4|-|5|0
+metronidazole_400|Metronidazole|tablet|400 mg|metronidazole|15|1|3|after_food|5|0
+metronidazole_250|Metronidazole|tablet|250 mg|metronidazole|15|1|3|after_food|5|0
+clindamycin_300|Clindamycin|capsule|300 mg|lincosamide|15|1|3|after_food|5|0
+azithromycin_500|Azithromycin|tablet|500 mg|macrolide|3|1|1|before_food|3|0
+erythromycin_500|Erythromycin|tablet|500 mg|macrolide|20|1|4|after_food|5|0
+doxycycline_100|Doxycycline|capsule|100 mg|tetracycline|8|1|1|after_food|7|0
+ibuprofen_400|Ibuprofen|tablet|400 mg|nsaid|15|1|3|after_food|5|0
+diclofenac_50|Diclofenac sodium|tablet|50 mg|nsaid|10|1|2|after_food|5|0
+mefenamic_acid_500|Mefenamic acid|capsule|500 mg|nsaid|15|1|3|after_food|5|0
+paracetamol_500|Paracetamol|tablet|500 mg|paracetamol|20|1|4|-|5|1
+tramadol_50|Tramadol|capsule|50 mg|opioid|10|1|2|after_food|3|1
+chlorhexidine_012|Chlorhexidine gluconate mouthwash|mouthwash|0.12%|antiseptic|1 bottle|10 ml|2|-|7|0
+nystatin_susp|Nystatin oral suspension|suspension|100,000 IU/ml|antifungal|1 bottle|1 ml|4|after_food|7|0
+miconazole_gel|Miconazole oral gel|gel|2%|azole;antifungal|1 tube|-|4|after_food|7|0
+fluconazole_150|Fluconazole|capsule|150 mg|azole;antifungal|1|1|1|-|1|0
+aciclovir_400|Aciclovir|tablet|400 mg|antiviral|15|1|3|-|5|0
+lidocaine_gel_2|Lidocaine gel|gel|2%|local_anesthetic|1 tube|-|3|-|3|1
+omeprazole_20|Omeprazole|capsule|20 mg|ppi|7|1|1|before_food|7|0
+dexamethasone_4|Dexamethasone|tablet|4 mg|steroid|3|1|1|morning|3|0

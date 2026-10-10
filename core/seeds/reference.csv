@@ -30,3 +30,12 @@ relationship,sibling,4,خواهر یا برادر,خور یا ورور,Sibling
 relationship,relative,5,خویشاوند,خپلوان,Relative
 relationship,friend,6,دوست,ملګری,Friend
 relationship,other,7,سایر,نور,Other
+specialty,general,1,عمومی,عمومي,General dentistry
+specialty,oral_surgery,2,جراحی دهان و فک,د خولې او ژامې جراحي,Oral and maxillofacial surgery
+specialty,endodontics,3,اندودانتیکس (عصب‌کشی),اندوډونټکس (عصب ایستل),Endodontics (root canals)
+specialty,orthodontics,4,ارتودنسی,ارتوډونسي,Orthodontics
+specialty,prosthodontics,5,پروتز (روکش، بریج، دندان مصنوعی),پروتز (پوښ، برج، مصنوعي غاښونه),Prosthodontics (crowns / bridges / dentures)
+specialty,periodontics,6,پریودانتیکس (لثه),پریوډونټکس (اورۍ),Periodontics (gums)
+specialty,implantology,7,ایمپلنت,ایمپلانټ,Implantology
+specialty,pediatric,8,دندان‌پزشکی اطفال,د ماشومانو د غاښونو طب,Paediatric dentistry
+specialty,cosmetic,9,زیبایی (بلیچینگ، لمینیت),ښکلا (سپینول، لمینیټ),Cosmetic dentistry (whitening / veneers)

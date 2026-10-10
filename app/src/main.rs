@@ -8,17 +8,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use artaveo_core::{Config, Core};
+
+mod print;
 use artaveo_shared::{ErrorCode, RpcError, RpcRequest, RpcResponse};
 
 /// The folder where the Core writes Excel exports (OF-022).
 struct ExportsDir(std::path::PathBuf);
 
 /// Opens Explorer with an exported file selected. Only files directly inside the exports
-/// folder are accepted, so the window cannot make Explorer open an arbitrary path.
+/// folder (Excel exports) or its documents folder (PDFs of printed documents) are accepted, so the
+/// window cannot make Explorer open an arbitrary path.
 #[tauri::command]
-fn reveal_export(exports: tauri::State<'_, ExportsDir>, path: String) -> Result<(), String> {
+fn reveal_export(
+    exports: tauri::State<'_, ExportsDir>,
+    documents: tauri::State<'_, print::DocumentsDir>,
+    path: String,
+) -> Result<(), String> {
     let file = std::path::PathBuf::from(&path);
-    let inside = file.parent().is_some_and(|dir| dir == exports.0.as_path());
+    let inside = file.parent().is_some_and(|dir| dir == exports.0.as_path() || dir == documents.0.as_path());
     if !inside || !file.is_file() {
         return Err("only exported files can be shown from here".into());
     }
@@ -59,6 +66,7 @@ fn main() {
     let config = Config::from_env();
     let _log_guard = artaveo_core::logging::init(&config.log_dir(), config.environment).ok();
     let exports_dir = ExportsDir(config.exports_dir());
+    let documents_dir = print::DocumentsDir(config.exports_dir().join("documents"));
     tracing::info!(
         version = artaveo_core::APP_VERSION,
         commit = artaveo_core::GIT_COMMIT,
@@ -92,7 +100,15 @@ fn main() {
     tauri::Builder::default()
         .manage(Arc::new(backend))
         .manage(exports_dir)
-        .invoke_handler(tauri::generate_handler![rpc, reveal_export])
+        .manage(documents_dir)
+        .invoke_handler(tauri::generate_handler![
+            rpc,
+            reveal_export,
+            print::list_printers,
+            print::printer_papers,
+            print::print_page,
+            print::save_pdf
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Artaveo Dental");
 }

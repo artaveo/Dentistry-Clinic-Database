@@ -1,0 +1,55 @@
+[
+  {
+    "code": "after_extraction",
+    "name": { "fa": "بعد از کشیدن دندان", "ps": "د غاښ له ایستلو وروسته", "en": "After an extraction" },
+    "items": [
+      { "drug": "ibuprofen_400", "days": 3, "quantity": "9" },
+      { "drug": "paracetamol_500", "days": 3, "quantity": "10" },
+      { "drug": "chlorhexidine_012", "days": 7 }
+    ]
+  },
+  {
+    "code": "tooth_infection",
+    "name": { "fa": "عفونت دندان", "ps": "د غاښ انتان", "en": "Tooth infection" },
+    "items": [
+      { "drug": "amoxicillin_500" },
+      { "drug": "metronidazole_400" },
+      { "drug": "ibuprofen_400", "days": 3, "quantity": "9" }
+    ]
+  },
+  {
+    "code": "infection_penicillin_allergy",
+    "name": { "fa": "عفونت دندان (حساسیت به پنی‌سیلین)", "ps": "د غاښ انتان (پنسلین ته حساسیت)", "en": "Tooth infection (penicillin allergy)" },
+    "items": [
+      { "drug": "clindamycin_300" },
+      { "drug": "ibuprofen_400", "days": 3, "quantity": "9" }
+    ]
+  },
+  {
+    "code": "after_root_canal",
+    "name": { "fa": "درد بعد از عصب‌کشی", "ps": "له عصب ایستلو وروسته درد", "en": "Pain after a root canal" },
+    "items": [
+      { "drug": "ibuprofen_400", "days": 3, "quantity": "9" },
+      { "drug": "paracetamol_500", "days": 3, "quantity": "10" }
+    ]
+  },
+  {
+    "code": "after_implant",
+    "name": { "fa": "بعد از جراحی ایمپلنت", "ps": "د ایمپلانټ له جراحۍ وروسته", "en": "After implant surgery" },
+    "items": [
+      { "drug": "amoxicillin_500" },
+      { "drug": "ibuprofen_400", "days": 3, "quantity": "9" },
+      { "drug": "chlorhexidine_012", "days": 10 }
+    ]
+  },
+  {
+    "code": "oral_thrush",
+    "name": { "fa": "عفونت قارچی دهان (برفک)", "ps": "د خولې فنګسي انتان", "en": "Oral thrush" },
+    "items": [{ "drug": "nystatin_susp" }]
+  },
+  {
+    "code": "cold_sore",
+    "name": { "fa": "تبخال", "ps": "تبخال", "en": "Cold sore (herpes)" },
+    "items": [{ "drug": "aciclovir_400" }]
+  }
+]

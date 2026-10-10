@@ -285,6 +285,11 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
             )?;
         }
     }
+    // Phase 5A: formulary, prescription and document templates, the service catalog (in that order:
+    // services point at document templates), and old free-text doctor specialties matched to the list.
+    crate::formulary::sync_seeds(&tx)?;
+    crate::catalog::sync_seeds(&tx)?;
+    crate::specialty::link_legacy(&tx)?;
     for d in district_rows()? {
         let id = seed_id("district", &d.code);
         let province_id = seed_id("province", d.parent.as_deref().unwrap());

@@ -51,6 +51,8 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         daily_backup_hour: hour,
         backup_keep_daily: Number(latinDigits(form.values.backup_keep_daily)),
         calendar_snap_minutes: snap,
+        print_brand_footer: initial.print_brand_footer,
+        restrict_service_specialty: initial.restrict_service_specialty,
       });
       onSaved(saved);
       // A new auto-lock time applies at once, without signing in again (OF-012).

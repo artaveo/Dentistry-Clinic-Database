@@ -88,7 +88,7 @@ fn status_code(s: ActiveStatus) -> &'static str {
 }
 
 const DOCTOR_SELECT: &str = "SELECT d.id, d.user_id, u.username, d.full_name, d.specialty, d.color, d.status,
-        d.sort_order, d.version
+        d.sort_order, d.version, d.license_number
      FROM doctor d LEFT JOIN app_user u ON u.id = d.user_id AND u.deleted_at IS NULL
      WHERE d.deleted_at IS NULL";
 
@@ -102,6 +102,7 @@ struct DoctorRow {
     status: String,
     sort_order: i64,
     version: i64,
+    license_number: Option<String>,
 }
 
 fn map_doctor_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<DoctorRow> {
@@ -115,6 +116,7 @@ fn map_doctor_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<DoctorRow> {
         status: r.get(6)?,
         sort_order: r.get(7)?,
         version: r.get(8)?,
+        license_number: r.get(9)?,
     })
 }
 
@@ -149,6 +151,7 @@ fn map_leave(r: &rusqlite::Row<'_>) -> rusqlite::Result<LeaveInfo> {
 }
 
 fn assemble(conn: &Connection, rows: Vec<DoctorRow>) -> Result<Vec<DoctorInfo>> {
+    let mut specialties = crate::specialty::of_doctors(conn)?;
     let mut hours = slots(conn, "doctor_hours")?;
     let mut breaks = slots(conn, "doctor_break")?;
     let mut chairs: HashMap<String, Vec<String>> = HashMap::new();
@@ -177,12 +180,14 @@ fn assemble(conn: &Connection, rows: Vec<DoctorRow>) -> Result<Vec<DoctorInfo>> 
             breaks: breaks.remove(&d.id).unwrap_or_default(),
             chair_ids: chairs.remove(&d.id).unwrap_or_default(),
             leaves: leaves.remove(&d.id).unwrap_or_default(),
+            specialty_ids: specialties.remove(&d.id).unwrap_or_default(),
             status: status_from(&d.status),
             id: d.id,
             user_id: d.user_id,
             username: d.username,
             full_name: d.full_name,
             specialty: d.specialty,
+            license_number: d.license_number,
             color: d.color,
             sort_order: d.sort_order,
             version: d.version,
@@ -210,7 +215,19 @@ pub fn get_doctor(conn: &Connection, id: &str) -> Result<DoctorInfo> {
     Ok(assemble(conn, vec![row])?.remove(0))
 }
 
-fn validate_doctor_fields(full_name: &str, specialty: Option<&str>, color: &str) -> Result<()> {
+fn validate_doctor_fields(
+    full_name: &str,
+    specialty: Option<&str>,
+    license: Option<&str>,
+    color: &str,
+) -> Result<()> {
+    if license.is_some_and(|s| s.trim().chars().count() > 50) {
+        return Err(CoreError::invalid(
+            "license_number",
+            ValidationRule::LicenseLength,
+            "the licence number is at most 50 characters",
+        ));
+    }
     let len = full_name.trim().chars().count();
     if !(1..=100).contains(&len) {
         return Err(CoreError::invalid(
@@ -260,7 +277,8 @@ fn check_user_link(conn: &Connection, user_id: Option<&str>, except_doctor: Opti
 }
 
 pub fn create_doctor(conn: &Connection, actor: &Actor, p: &CreateDoctorParams) -> Result<DoctorInfo> {
-    validate_doctor_fields(&p.full_name, p.specialty.as_deref(), &p.color)?;
+    validate_doctor_fields(&p.full_name, p.specialty.as_deref(), p.license_number.as_deref(), &p.color)?;
+    let specialties = crate::specialty::check_ids(conn, "specialty_ids", &p.specialty_ids)?;
     let user_id = p.user_id.as_deref().filter(|s| !s.is_empty());
     check_user_link(conn, user_id, None)?;
     let id = new_id();
@@ -271,8 +289,9 @@ pub fn create_doctor(conn: &Connection, actor: &Actor, p: &CreateDoctorParams) -
         |r| r.get(0),
     )?;
     conn.execute(
-        "INSERT INTO doctor(id, user_id, full_name, specialty, color, sort_order, created_at, created_by, updated_at, updated_by)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?7,?8)",
+        "INSERT INTO doctor(id, user_id, full_name, specialty, color, sort_order, license_number, created_at, created_by,
+            updated_at, updated_by)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?8,?9)",
         params![
             id,
             user_id,
@@ -280,23 +299,26 @@ pub fn create_doctor(conn: &Connection, actor: &Actor, p: &CreateDoctorParams) -
             p.specialty.as_deref().map(str::trim).filter(|s| !s.is_empty()),
             p.color.to_ascii_lowercase(),
             order,
+            p.license_number.as_deref().map(str::trim).filter(|s| !s.is_empty()),
             now,
             actor.user_id
         ],
     )?;
+    crate::specialty::set_for_doctor(conn, &id, &specialties)?;
     let info = get_doctor(conn, &id)?;
     audit::record(conn, actor, "doctor.create", Some("doctor"), Some(&id), None, Some(&json!(info)))?;
     Ok(info)
 }
 
 pub fn update_doctor(conn: &Connection, actor: &Actor, p: &UpdateDoctorParams) -> Result<DoctorInfo> {
-    validate_doctor_fields(&p.full_name, p.specialty.as_deref(), &p.color)?;
+    validate_doctor_fields(&p.full_name, p.specialty.as_deref(), p.license_number.as_deref(), &p.color)?;
+    let specialties = crate::specialty::check_ids(conn, "specialty_ids", &p.specialty_ids)?;
     let before = get_doctor(conn, &p.id)?;
     let user_id = p.user_id.as_deref().filter(|s| !s.is_empty());
     check_user_link(conn, user_id, Some(&p.id))?;
     let changed = conn.execute(
         "UPDATE doctor SET user_id=?1, full_name=?2, specialty=?3, color=?4, status=?5,
-            updated_at=?6, updated_by=?7, version=version+1
+            updated_at=?6, updated_by=?7, version=version+1, license_number=?10
          WHERE id=?8 AND version=?9 AND deleted_at IS NULL",
         params![
             user_id,
@@ -307,10 +329,12 @@ pub fn update_doctor(conn: &Connection, actor: &Actor, p: &UpdateDoctorParams) -
             now_iso(),
             actor.user_id,
             p.id,
-            p.version
+            p.version,
+            p.license_number.as_deref().map(str::trim).filter(|s| !s.is_empty())
         ],
     )?;
     expect_one_row(changed, "doctor")?;
+    crate::specialty::set_for_doctor(conn, &p.id, &specialties)?;
     let after = get_doctor(conn, &p.id)?;
     audit::record(
         conn,

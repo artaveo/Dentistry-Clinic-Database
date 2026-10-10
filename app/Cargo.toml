@@ -19,3 +19,12 @@ artaveo-shared.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tauri = { version = "2", features = [] }
+serde.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+# Silent print and PDF through WebView2 (ADR-13). Must match the webview2-com / windows versions
+# of the wry release Tauri pulls in (see Cargo.lock), like the Phase 0 print spike.
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation"] }
+windows-core = "0.62"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Graphics_Printing", "Win32_Storage_Xps"] }

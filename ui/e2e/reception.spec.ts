@@ -38,7 +38,8 @@ test("doctors and chairs: add them, validate live, set a schedule and a leave", 
   await page.getByTestId("doctor-name").blur();
   await expect(page.getByTestId("field-error")).toBeVisible(); // OF-001..003: red before pressing save
   await page.getByTestId("doctor-name").fill("داکتر احمد رحیمی");
-  await page.getByTestId("doctor-specialty").fill("ارتودانسی");
+  await page.getByTestId("doctor-specialty-orthodontics").click(); // M2: specialties come from the list
+  await page.getByTestId("doctor-license").fill("MoPH-10234");
   await page.getByTestId("doctor-color-7c3aed").click();
   await page.getByTestId("doctor-save").click();
   await expect(toast()).toHaveText("تغییرات ذخیره شد.");
@@ -84,7 +85,7 @@ test("book an appointment with a patient registered on the spot; a double bookin
   await expect(page.getByTestId("page-calendar")).toBeVisible();
   await page.getByTestId("appt-new").click();
   await pickNewPatient("patient-picker", "بیمار آزمایشی یکم", "0700900001");
-  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودانسی" });
+  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودنسی" });
   await page.getByTestId("appt-reason").fill("کنترول");
   await page.getByTestId("appt-save").click();
   await expect(toast()).toHaveText("نوبت ثبت شد.");
@@ -94,7 +95,7 @@ test("book an appointment with a patient registered on the spot; a double bookin
   // Same doctor, same time, another patient → the exact reason under the doctor field.
   await page.getByTestId("appt-new").click();
   await pickNewPatient("patient-picker", "بیمار آزمایشی دوم", "0700900002");
-  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودانسی" });
+  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودنسی" });
   await page.getByTestId("appt-save").click();
   await expect(page.getByTestId("field-error")).toHaveText("داکتر در این زمان نوبت دیگری دارد.");
   // Another doctor is free and works Saturdays only: at 9 PM the schedule objects, reception may override.
@@ -187,7 +188,7 @@ test("call list: the follow-up and the no-show are there; record a call, then bo
   await noShowRow.locator('[data-testid^="recall-book-"]').click();
   await expect(page.getByTestId("appointment-dialog")).toBeVisible();
   await expect(page.getByTestId("patient-picker-name")).toHaveText("بیمار آزمایشی دوم");
-  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودانسی" });
+  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودنسی" });
   // A fixed 11:00 PM today, clear of the earlier bookings. Picking only the hour used to keep the
   // default's minute and AM/PM (the next quarter hour after now), so a run at e.g. 4:35 PM booked
   // 11:45 PM, whose 30 minutes cross midnight and are refused before anything reaches the Core.

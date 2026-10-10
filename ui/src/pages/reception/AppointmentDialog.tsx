@@ -5,6 +5,8 @@ import { ApiError, isSessionError, rpc } from "../../lib/api";
 import { fromMinutes, nowMinutes, toMinutes, todayIso } from "../../lib/calendar";
 import { digits, formatTime } from "../../lib/dates";
 import { useForm } from "../../lib/validation";
+import { serviceName, specialtiesText, useCatalog, useSpecialties } from "../../lib/clinical";
+import { tr } from "../../lib/medical";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { DateField } from "../../ui/DateField";
@@ -36,7 +38,7 @@ function defaultStartTime(date: string, explicit?: string): string {
   return fromMinutes(Math.min(1425, Math.floor(nowMinutes() / 15) * 15 + 15));
 }
 
-type Values = { doctor_id: string; chair_id: string; date: string; start_time: string; duration: string; reason: string; notes: string };
+type Values = { doctor_id: string; chair_id: string; date: string; start_time: string; duration: string; reason: string; notes: string; service_id: string };
 
 /**
  * Create or edit one appointment (4.3): patient, doctor, chair, date, time and length. The Core
@@ -80,6 +82,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
       duration: String(initialDuration),
       reason: appointment?.reason ?? defaults?.reason ?? "",
       notes: appointment?.notes ?? "",
+      service_id: appointment?.service_id ?? "",
     },
     {
       doctor_id: (s) => (s ? null : "rule.required"),
@@ -93,6 +96,22 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   const [card, setCard] = useState(false);
 
   const doctor = doctors.find((d) => d.id === form.values.doctor_id);
+  const specialties = useSpecialties();
+  const catalog = useCatalog();
+  const service = catalog?.services.find((x) => x.id === form.values.service_id) ?? null;
+  // M2: the doctors of the chosen service's specialty are listed first; another doctor only gets a gentle warning.
+  const fits = (d: DoctorInfo) => !service?.specialty_id || d.specialty_ids.includes(service.specialty_id);
+  const doctorLabel = (d: DoctorInfo) => {
+    const spec = specialtiesText(d, specialties, lang);
+    return spec ? `${d.full_name} — ${spec}` : d.full_name;
+  };
+  const specialtyName = tr(specialties?.find((x) => x.id === service?.specialty_id)?.label, lang);
+  const pickService = (id: string) => {
+    form.set("service_id", id);
+    const picked = catalog?.services.find((x) => x.id === id);
+    // An empty reason takes the service's name.
+    if (picked && !form.values.reason.trim()) form.set("reason", serviceName(picked, catalog, lang));
+  };
   // A doctor limited to some chairs only offers those.
   const chairChoices = useMemo(() => chairs.filter((c) => !doctor?.chair_ids.length || doctor.chair_ids.includes(c.id) || c.id === form.values.chair_id), [chairs, doctor, form.values.chair_id]);
   const e = (k: keyof Values) => form.error(k) && t(form.error(k)!);
@@ -122,14 +141,15 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
     if (!patient) return setPatientError(t("rule.required"));
     if (!form.validate()) return;
     const v = form.values;
-    const body = { doctor_id: v.doctor_id, chair_id: v.chair_id || null, date: v.date, start_time: v.start_time, end_time: endTime, override_schedule: override };
+    const body = { doctor_id: v.doctor_id, chair_id: v.chair_id || null, date: v.date, start_time: v.start_time, end_time: endTime, override_schedule: override, service_id: v.service_id || null };
     setBusy(mode);
     try {
       if (!current) {
         await rpc("appointments.create", { ...body, patient_id: patient.id, reason: v.reason.trim() || null, notes: v.notes.trim() || null, recall_id: defaults?.recallId ?? null });
         toast.success(t("appt.created"));
       } else if (mode === "reschedule") {
-        await rpc("appointments.reschedule", { ...body, id: current.id, version: current.version });
+        const { service_id: _, ...move } = body;
+        await rpc("appointments.reschedule", { ...move, id: current.id, version: current.version });
         toast.success(t("appt.rescheduled"));
       } else {
         await rpc("appointments.update", { ...body, id: current.id, version: current.version, reason: v.reason.trim() || null, notes: v.notes.trim() || null });
@@ -204,11 +224,37 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
               {onOpenAppointment && <Button variant="link" onClick={() => onOpenAppointment(clash)} data-testid="appt-clash-open">{t("appt.clash.open")}</Button>}
             </Notice>
           )}
+          {catalog && catalog.services.length > 0 && (
+            <Field label={t("appt.service")} hint={t("appt.serviceHint")} optional error={e("service_id")}>
+              <Select value={form.values.service_id} disabled={readOnly} onChange={(x) => pickService(x.target.value)} data-testid="appt-service">
+                <option value="">{t("appt.serviceNone")}</option>
+                {catalog.categories.map((c) => {
+                  const items = catalog.services.filter((x) => x.category_id === c.id);
+                  return items.length ? (
+                    <optgroup key={c.id} label={tr(c.name, lang)}>
+                      {items.map((x) => <option key={x.id} value={x.id}>{x.parent_id ? `   ${serviceName(x, catalog, lang)}` : tr(x.name, lang)}</option>)}
+                    </optgroup>
+                  ) : null;
+                })}
+              </Select>
+            </Field>
+          )}
           <div className="grid-2">
             {!solo && (
               <Field label={t("appt.doctor")} error={e("doctor_id")}>
                 <Select value={form.values.doctor_id} disabled={!movable || readOnly} onChange={(x) => { form.set("doctor_id", x.target.value); form.set("chair_id", ""); }} data-testid="appt-doctor">
-                  {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name}{d.specialty ? ` — ${d.specialty}` : ""}</option>)}
+                  {service?.specialty_id ? (
+                    <>
+                      <optgroup label={t("appt.doctorsOfSpecialty").replace("{specialty}", specialtyName)}>
+                        {doctors.filter(fits).map((d) => <option key={d.id} value={d.id}>{doctorLabel(d)}</option>)}
+                      </optgroup>
+                      <optgroup label={t("appt.otherDoctors")}>
+                        {doctors.filter((d) => !fits(d)).map((d) => <option key={d.id} value={d.id}>{doctorLabel(d)}</option>)}
+                      </optgroup>
+                    </>
+                  ) : (
+                    doctors.map((d) => <option key={d.id} value={d.id}>{doctorLabel(d)}</option>)
+                  )}
                 </Select>
               </Field>
             )}
@@ -235,6 +281,9 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
               <TextInput value={form.values.reason} maxLength={200} disabled={readOnly} onChange={(x) => form.set("reason", x.target.value)} data-testid="appt-reason" />
             </Field>
           </div>
+          {!solo && service && doctor && !fits(doctor) && (
+            <Notice tone="warning" testId="appt-specialty-warning">{t("appt.specialtyWarning").replace("{specialty}", specialtyName)}</Notice>
+          )}
           <Field label={t("appt.notes")} optional error={e("notes")}>
             <Textarea rows={2} value={form.values.notes} maxLength={1000} disabled={readOnly} onChange={(x) => form.set("notes", x.target.value)} data-testid="appt-notes" />
           </Field>

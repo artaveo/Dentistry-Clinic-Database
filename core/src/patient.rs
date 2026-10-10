@@ -513,6 +513,11 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
     )?;
     let moved_recalls = conn
         .execute("UPDATE recall SET patient_id = ?1 WHERE patient_id = ?2", params![p.keep_id, p.merge_id])?;
+    // Printed documents (Phase 5A) follow the patient too; they keep the name they were issued with.
+    let moved_documents = conn.execute(
+        "UPDATE clinical_document SET patient_id = ?1 WHERE patient_id = ?2",
+        params![p.keep_id, p.merge_id],
+    )?;
     // Stays searchable (staff may still look the old name up and need to be
     // redirected to `keep`); only `check_duplicate` excludes merged-away
     // records, via `merged_into_id IS NULL` below.
@@ -528,7 +533,8 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
             "merged_after": merge_after,
             "kept": keep.id,
             "moved_appointments": moved_appointments,
-            "moved_recalls": moved_recalls
+            "moved_recalls": moved_recalls,
+            "moved_documents": moved_documents
         })),
     )?;
     Ok(keep)

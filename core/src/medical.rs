@@ -368,9 +368,39 @@ pub fn update_question(
     Ok(after)
 }
 
+/// A choice code's words in a printed document's language (record summaries, 5.10b); the screen
+/// uses its own translations.
+pub(crate) fn choice_label(code: &str, lang: artaveo_shared::Language) -> String {
+    use artaveo_shared::Language::*;
+    let (fa, ps, en) = match code {
+        "controlled" => ("کنترل‌شده", "کنټرول شوې", "controlled"),
+        "uncontrolled" => ("کنترل‌نشده", "نا کنټرول شوې", "uncontrolled"),
+        "active" => ("فعال", "فعال", "active"),
+        "treated" => ("درمان‌شده", "درملنه شوې", "treated"),
+        "oral" => ("خوراکی", "خوراکي", "by mouth"),
+        "injection" => ("تزریقی", "پیچکاري", "injected"),
+        other => (other, other, other),
+    };
+    match lang {
+        Fa => fa,
+        Ps => ps,
+        En => en,
+    }
+    .to_string()
+}
+
+/// "5 months" for a pregnancy's months in a printed document's language.
+pub(crate) fn months_label(n: &str, lang: artaveo_shared::Language) -> String {
+    match lang {
+        artaveo_shared::Language::Fa => format!("{n} ماه"),
+        artaveo_shared::Language::Ps => format!("{n} میاشتې"),
+        artaveo_shared::Language::En => format!("{n} months"),
+    }
+}
+
 // ───────────────────────────── a patient's history ─────────────────────────────
 
-fn review_due(reviewed_at: Option<&str>) -> bool {
+pub(crate) fn review_due(reviewed_at: Option<&str>) -> bool {
     match reviewed_at.and_then(parse) {
         Some(at) => now() - at > time::Duration::days(REVIEW_AFTER_DAYS),
         None => true,

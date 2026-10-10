@@ -16,6 +16,7 @@ import { useToast } from "../../ui/Toast";
 import { MedicalAlertBanner } from "./MedicalAlertBanner";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { AttachmentsTab } from "./AttachmentsTab";
+import { DocumentsTab, PrescriptionsTab } from "./documents/DocumentTabs";
 import { PatientAuditTab } from "./PatientAuditTab";
 import { MergeDialog } from "./MergeDialog";
 import { PatientAppointmentsTab } from "./PatientAppointmentsTab";
@@ -32,7 +33,7 @@ const TABS: { id: TabId; icon: LucideIcon; labelKey: string; ready: boolean }[] 
   { id: "notes", icon: NotebookPen, labelKey: "patients.tab.clinicalNotes", ready: false },
   { id: "plans", icon: ClipboardList, labelKey: "patients.tab.treatmentPlans", ready: false },
   { id: "treatments", icon: Activity, labelKey: "patients.tab.treatments", ready: false },
-  { id: "prescriptions", icon: Pill, labelKey: "patients.tab.prescriptions", ready: false },
+  { id: "prescriptions", icon: Pill, labelKey: "patients.tab.prescriptions", ready: true },
   { id: "invoices", icon: Receipt, labelKey: "patients.tab.invoices", ready: false },
   { id: "payments", icon: Wallet, labelKey: "patients.tab.payments", ready: false },
   { id: "documents", icon: Images, labelKey: "patients.tab.documents", ready: true },
@@ -88,6 +89,9 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
   if (!patient) return <Page><Loading /></Page>;
 
   const genderLabel = genders.find((g) => g.id === patient.gender_id)?.label;
+  // Clinical tabs need clinical.view (reception sees the visits and the files, not the medical record).
+  const available = (id: TabId, ready: boolean) =>
+    id === "appointments" ? appointments.view : id === "medical" || id === "prescriptions" ? ready && clinical.view : ready;
   const referralLabel = referrals.find((r) => r.id === patient.referral_source_id)?.label;
 
   return (
@@ -122,10 +126,10 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
             type="button"
             role="tab"
             aria-selected={tab === id}
-            disabled={!(ready || (id === "appointments" && appointments.view))}
-            title={ready || (id === "appointments" && appointments.view) ? undefined : t("patients.tab.comingSoon")}
+            disabled={!available(id, ready)}
+            title={available(id, ready) ? undefined : t("patients.tab.comingSoon")}
             className="profile-tab"
-            onClick={() => (ready || (id === "appointments" && appointments.view)) && setTab(id)}
+            onClick={() => available(id, ready) && setTab(id)}
             data-testid={`patient-tab-${id}`}
           >
             <Icon aria-hidden />
@@ -163,7 +167,12 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
         <MedicalHistoryTab patientId={patient.id} female={genders.find((g) => g.id === patient.gender_id)?.code === "female"} canEdit={clinical.edit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
       )}
       {tab === "appointments" && <PatientAppointmentsTab patient={patient} perms={appointments} clinic={clinic} clinicName={clinicName} />}
-      {tab === "documents" && <AttachmentsTab patientId={patient.id} canEdit={canEdit} />}
+      {tab === "prescriptions" && <PrescriptionsTab patient={patient} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} />}
+      {tab === "documents" && (clinical.view ? (
+        <DocumentsTab patient={patient} gender={genders.find((g) => g.id === patient.gender_id)?.code ?? null} canEdit={clinical.edit} canEditFiles={canEdit} calendar={clinic?.calendar_system ?? "shamsi"} />
+      ) : (
+        <AttachmentsTab patientId={patient.id} canEdit={canEdit} />
+      ))}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 
       {merging && patient && (

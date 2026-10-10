@@ -96,7 +96,7 @@ const state = {
   logo: null as string | null,
   users: [] as U[],
   sessions: new Map<string, Session>(),
-  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5 } as Settings,
+  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false } as Settings,
   backups: [] as BackupInfo[],
   audit: [] as AuditEntry[],
   recoveryKey: "",
@@ -207,8 +207,8 @@ function seed() {
 function seedScheduling() {
   const hours = [0, 1, 2, 3, 4, 5].flatMap((day) => [{ day, start: "08:00", end: "12:00" }, { day, start: "14:00", end: "17:00" }]);
   state.doctors = [
-    { id: "d1", user_id: null, username: null, full_name: "داکتر احمد رحیمی", specialty: "ارتودانسی", color: "#0e7490", status: "active", sort_order: 1, hours, breaks: [], chair_ids: [], leaves: [], version: 1 },
-    { id: "d2", user_id: null, username: null, full_name: "داکتر فرید سلطانی", specialty: "جراحی", color: "#f59e0b", status: "active", sort_order: 2, hours, breaks: [], chair_ids: [], leaves: [], version: 1 },
+    { id: "d1", user_id: null, username: null, full_name: "داکتر احمد رحیمی", specialty: null, specialty_ids: ["specialty/orthodontics"], license_number: "MoPH-10234", color: "#0e7490", status: "active", sort_order: 1, hours, breaks: [], chair_ids: [], leaves: [], version: 1 },
+    { id: "d2", user_id: null, username: null, full_name: "داکتر فرید سلطانی", specialty: null, specialty_ids: ["specialty/oral_surgery"], license_number: null, color: "#f59e0b", status: "active", sort_order: 2, hours, breaks: [], chair_ids: [], leaves: [], version: 1 },
   ];
   if (typeof location !== "undefined" && new URLSearchParams(location.search).get("solo") === "1") state.doctors = state.doctors.slice(0, 1);
   state.chairs = [{ id: "c1", name: "چوکی ۱", status: "active", sort_order: 1, version: 1 }, { id: "c2", name: "چوکی ۲", status: "active", sort_order: 2, version: 1 }];
@@ -236,7 +236,7 @@ function mockBook(patient: P, doctorId: string, chairId: string | null, date: st
     id: uuid(), patient_id: patient.id, patient_number: patient.patient_number, patient_name: patient.full_name, patient_phone: patient.phone, doctor_id: d.id, doctor_name: d.full_name,
     doctor_color: d.color, chair_id: chairId, chair_name: state.chairs.find((c) => c.id === chairId)?.name ?? null, date, start_time: start, end_time: end, start_at: toUtc(start), end_at: toUtc(end),
     reason: null, notes: null, status, is_walk_in: false, queue_number: null, checked_in_at: null, treatment_started_at: null, completed_at: null, cancelled_at: null, cancel_reason: null,
-    rescheduled_from_id: null, rescheduled_to_id: null, version: 1, ...extra,
+    rescheduled_from_id: null, rescheduled_to_id: null, service_id: null, medical_review_due: !state.medicalHistory.get(patient.id) || state.medicalHistory.get(patient.id)!.review_due, version: 1, ...extra,
   };
   state.appointments.push(a);
   return a;
@@ -609,7 +609,7 @@ function call(method: string, p: any, token: string | null): unknown {
       need(s, "doctors.manage");
       if (!/^#[0-9a-fA-F]{6}$/.test(p.color)) invalid("color", "color_format");
       if (!p.full_name.trim()) invalid("full_name", "full_name_length");
-      const d: DoctorInfo = { id: uuid(), user_id: p.user_id, username: null, full_name: p.full_name.trim(), specialty: p.specialty, color: p.color.toLowerCase(), status: "active", sort_order: state.doctors.length + 1, hours: [], breaks: [], chair_ids: [], leaves: [], version: 1 };
+      const d: DoctorInfo = { id: uuid(), user_id: p.user_id, username: null, full_name: p.full_name.trim(), specialty: p.specialty ?? null, specialty_ids: p.specialty_ids ?? [], license_number: p.license_number ?? null, color: p.color.toLowerCase(), status: "active", sort_order: state.doctors.length + 1, hours: [], breaks: [], chair_ids: [], leaves: [], version: 1 };
       state.doctors.push(d);
       return d;
     }

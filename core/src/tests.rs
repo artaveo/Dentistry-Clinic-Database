@@ -2398,3 +2398,472 @@ fn form_drafts_are_kept_per_form_and_must_be_objects() {
         "a draft is a JSON object"
     );
 }
+
+// ───────────────────────────── Phase 5A: documents, prescriptions, catalog ─────────────────────────────
+
+/// A checklist question's id by code.
+fn qid(t: &T, token: &str, code: &str) -> Value {
+    question(t, token, code)["id"].clone()
+}
+
+fn drug_line(t: &T, token: &str, code: &str) -> Value {
+    let d = t
+        .ok(m::DRUGS_LIST, json!({}), Some(token))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == code)
+        .unwrap_or_else(|| panic!("drug {code}"))
+        .clone();
+    json!({"drug_id": d["id"], "name": d["name"], "form": d["form"], "strength": d["strength"], "quantity": d["quantity"],
+           "dose": d["dose"], "times_per_day": d["times_per_day"], "timing": d["timing"], "days": d["days"],
+           "as_needed": d["as_needed"]})
+}
+
+#[test]
+fn prescriptions_are_numbered_warn_about_allergies_and_reprint_without_a_new_number() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    // Penicillin allergy and a pregnancy in the checklist.
+    t.ok(
+        m::MEDICAL_HISTORY_UPDATE,
+        json!({"patient_id": c.patient, "version": 0, "answers": [
+            {"question_id": qid(t, owner, "allergy_penicillin"), "answer": "yes", "detail_text": "Amoxicillin"},
+            {"question_id": qid(t, owner, "pregnant"), "answer": "yes", "detail_text": "4"}
+        ]}),
+        Some(owner),
+    );
+    let items = json!([drug_line(t, owner, "amoxicillin_500"), drug_line(t, owner, "paracetamol_500")]);
+    let warnings =
+        t.ok(m::PRESCRIPTIONS_CHECK, json!({"patient_id": c.patient, "items": items}), Some(owner));
+    let warnings = warnings.as_array().unwrap();
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert_eq!(warnings[0]["key"], "penicillin_allergy:0");
+    assert_eq!(warnings[0]["severity"], "danger");
+    assert_eq!(warnings[0]["detail"], "Amoxicillin");
+
+    let issue = |acknowledged: Value, doctor: Value| {
+        json!({"patient_id": c.patient, "doctor_id": doctor, "language": "fa", "paper": "a5",
+               "content": {"kind": "prescription", "items": items, "notes": "  ", "acknowledged": acknowledged}})
+    };
+    // A prescription needs its doctor, and every warning must be accepted.
+    let (_, field, rule) = rule_of(t, m::DOCUMENTS_ISSUE, issue(json!([]), json!(null)), owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("doctor_id"), Some("doctor_required")));
+    let (_, field, rule) = rule_of(t, m::DOCUMENTS_ISSUE, issue(json!([]), json!(c.doctor)), owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("items.0"), Some("rx_warning_not_acknowledged")));
+
+    let rx = t.ok(
+        m::DOCUMENTS_ISSUE,
+        issue(json!(["penicillin_allergy:0", "stale:9"]), json!(c.doctor)),
+        Some(owner),
+    );
+    let year = {
+        let d = crate::clock::local_now().date();
+        crate::calendar::GregorianDate { year: d.year(), month: d.month() as u8, day: d.day() }
+            .to_shamsi()
+            .unwrap()
+            .year
+    };
+    assert_eq!(rx["number"], format!("RX-{year}-000001"));
+    assert_eq!(rx["kind"], "prescription");
+    assert_eq!(rx["patient"]["name"], "بیمار یکم");
+    assert_eq!(rx["doctor"]["name"], "دکتر احمد");
+    assert_eq!(rx["content"]["notes"], json!(null));
+    assert_eq!(
+        rx["content"]["acknowledged"],
+        json!(["penicillin_allergy:0"]),
+        "only warnings that applied are kept"
+    );
+    assert_eq!(rx["issued_by_name"], "مالک");
+
+    // Reprints count; they never make a new number.
+    let printed = t.ok(m::DOCUMENTS_MARK_PRINTED, json!({"id": rx["id"]}), Some(owner));
+    let printed = t.ok(m::DOCUMENTS_MARK_PRINTED, json!({"id": printed["id"], "pdf": true}), Some(owner));
+    assert_eq!(printed["print_count"], 2);
+    assert_eq!(printed["number"], rx["number"]);
+    let second =
+        t.ok(m::DOCUMENTS_ISSUE, issue(json!(["penicillin_allergy:0"]), json!(c.doctor)), Some(owner));
+    assert_eq!(second["number"], format!("RX-{year}-000002"));
+
+    // Voiding needs a reason; a void document cannot be printed again.
+    let (_, field, _) =
+        rule_of(t, m::DOCUMENTS_VOID, json!({"id": second["id"], "version": 1, "reason": " "}), owner);
+    assert_eq!(field.as_deref(), Some("reason"));
+    let void = t.ok(
+        m::DOCUMENTS_VOID,
+        json!({"id": second["id"], "version": 1, "reason": "دوز اشتباه"}),
+        Some(owner),
+    );
+    assert_eq!((void["status"].as_str(), void["void_reason"].as_str()), (Some("void"), Some("دوز اشتباه")));
+    let (_, _, rule) = rule_of(t, m::DOCUMENTS_MARK_PRINTED, json!({"id": second["id"]}), owner);
+    assert_eq!(rule.as_deref(), Some("document_void"));
+
+    let list = t.ok(m::DOCUMENTS_LIST, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(list.as_array().unwrap().len(), 2);
+    let actions = t.audit_actions(owner);
+    for a in ["document.issue", "document.print", "document.pdf", "document.void"] {
+        assert!(actions.contains(&a.to_string()), "{a}");
+    }
+}
+
+#[test]
+fn every_document_kind_is_checked_numbered_and_frozen_as_issued() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let doc = |content: Value| {
+        t.call(
+            m::DOCUMENTS_ISSUE,
+            json!({"patient_id": c.patient, "language": "ps", "paper": "a5", "content": content}),
+            Some(owner),
+        )
+    };
+    let cert = doc(json!({"kind": "certificate", "visit_date": c.today, "rest_days": 3})).unwrap();
+    assert!(cert["number"].as_str().unwrap().starts_with("MC-"));
+    assert_eq!(cert["content"]["rest_from"], json!(c.today), "rest starts on the visit day unless said");
+    assert_eq!(cert["language"], "ps");
+    let (_, field, rule) = rule_of(
+        t,
+        m::DOCUMENTS_ISSUE,
+        json!({"patient_id": c.patient, "language": "fa", "paper": "a5",
+               "content": {"kind": "certificate", "visit_date": c.today, "rest_days": 90}}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("rest_days"), Some("rest_days_range")));
+
+    let ir = doc(json!({"kind": "imaging_request", "tests": ["opg", "cbct", "opg"], "teeth": "36"})).unwrap();
+    assert_eq!(ir["content"]["tests"], json!(["opg", "cbct"]));
+    let (_, field, _) = rule_of(
+        t,
+        m::DOCUMENTS_ISSUE,
+        json!({"patient_id": c.patient, "language": "fa", "paper": "a5", "content": {"kind": "imaging_request", "tests": ["other"]}}),
+        owner,
+    );
+    assert_eq!(field.as_deref(), Some("notes"), "an 'other' test must be named");
+
+    let rf = doc(
+        json!({"kind": "referral", "to": "Dr Karimi, oral surgeon", "reason": "Impacted 38", "urgent": true}),
+    )
+    .unwrap();
+    assert!(rf["number"].as_str().unwrap().starts_with("RF-"));
+    let lo = doc(json!({"kind": "lab_order", "teeth": "11 21", "work": "Zirconia crowns", "shade": "A2"}))
+        .unwrap();
+    assert!(lo["number"].as_str().unwrap().starts_with("LO-"));
+
+    // A consent form written from a built-in template keeps its words even if the template changes later.
+    let templates = t.ok(m::DOCUMENT_TEMPLATES_LIST, json!({"kind": "consent"}), Some(owner));
+    let extraction =
+        templates.as_array().unwrap().iter().find(|x| x["code"] == "consent_extraction").unwrap().clone();
+    assert_eq!(extraction["paper"], "a4");
+    let cf =
+        doc(json!({"kind": "consent", "template_id": extraction["id"], "title": extraction["title"]["ps"],
+                        "body": "متن", "teeth": "38"}))
+        .unwrap();
+    assert!(cf["number"].as_str().unwrap().starts_with("CF-"));
+
+    // The record summary is frozen with what the record said that day.
+    t.ok(
+        m::MEDICAL_HISTORY_UPDATE,
+        json!({"patient_id": c.patient, "version": 0, "answers": [
+            {"question_id": qid(t, owner, "diabetes"), "answer": "yes", "detail_choice": "controlled"}]}),
+        Some(owner),
+    );
+    c.book(&c.patient, &c.doctor, None, &c.today, "09:00", "09:30").unwrap();
+    let mr = doc(json!({"kind": "record_summary", "purpose": "For Dr Karimi"})).unwrap();
+    let snap = &mr["content"]["snapshot"];
+    assert_eq!(snap["medical"], json!(["د شکرې ناروغي (کنټرول شوې)"]), "labels in the document's language");
+    assert_eq!(snap["visits"].as_array().unwrap().len(), 1);
+    assert_eq!(snap["visits"][0]["doctor"], "دکتر احمد");
+
+    // Reception without clinical.edit cannot issue documents.
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "rec", "display_name": "Reception", "password": "reception-1", "role": "receptionist"}),
+        Some(owner),
+    );
+    let rec = t.login("rec", "reception-1");
+    assert_eq!(
+        t.call(
+            m::DOCUMENTS_ISSUE,
+            json!({"patient_id": c.patient, "language": "fa", "paper": "a5", "content": {"kind": "certificate", "visit_date": c.today}}),
+            Some(&rec)
+        ),
+        Err(ErrorCode::Forbidden)
+    );
+}
+
+#[test]
+fn a_signed_consent_is_scanned_back_onto_its_document() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let cf = t.ok(
+        m::DOCUMENTS_ISSUE,
+        json!({"patient_id": c.patient, "language": "fa", "paper": "a4",
+               "content": {"kind": "consent", "title": "رضایت‌نامه", "body": "متن"}}),
+        Some(owner),
+    );
+    let png = data_encoding::BASE64.encode(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
+    let mine = t.ok(
+        m::ATTACHMENTS_UPLOAD,
+        json!({"patient_id": c.patient, "kind": "consent_form", "file_name": "signed.png", "data_base64": png}),
+        Some(owner),
+    );
+    let other = t.ok(
+        m::ATTACHMENTS_UPLOAD,
+        json!({"patient_id": c.patient2, "kind": "consent_form", "file_name": "signed.png", "data_base64": png}),
+        Some(owner),
+    );
+    let (_, field, _) = rule_of(
+        t,
+        m::DOCUMENTS_ATTACH_SCAN,
+        json!({"id": cf["id"], "version": 1, "attachment_id": other["id"]}),
+        owner,
+    );
+    assert_eq!(field.as_deref(), Some("attachment_id"));
+    let linked = t.ok(
+        m::DOCUMENTS_ATTACH_SCAN,
+        json!({"id": cf["id"], "version": 1, "attachment_id": mine["id"]}),
+        Some(owner),
+    );
+    assert_eq!(linked["attachment_id"], mine["id"]);
+}
+
+#[test]
+fn formulary_and_templates_are_the_clinics_to_edit() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let drugs = t.ok(m::DRUGS_LIST, json!({}), Some(&owner));
+    assert!(drugs.as_array().unwrap().len() >= 20);
+    let amox = drugs.as_array().unwrap().iter().find(|d| d["code"] == "amoxicillin_500").unwrap().clone();
+    assert_eq!(amox["classes"], json!(["penicillin"]));
+    assert_eq!((amox["times_per_day"].as_i64(), amox["timing"].as_str()), (Some(3), Some("after_food")));
+
+    let made = t.ok(
+        m::DRUGS_SAVE,
+        json!({"name": "Benzydamine mouthwash", "form": "mouthwash", "strength": "0.15%", "classes": ["antiseptic"], "days": 5}),
+        Some(&owner),
+    );
+    assert_eq!(made["is_system"], false);
+    let (_, field, rule) =
+        rule_of(&t, m::DRUGS_SAVE, json!({"name": "X", "form": "pill", "classes": []}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("form"), Some("rx_form")));
+    let (_, field, rule) =
+        rule_of(&t, m::DRUGS_SAVE, json!({"name": "X", "form": "tablet", "classes": ["magic"]}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("classes"), Some("drug_class_unknown")));
+    let (_, field, rule) =
+        rule_of(&t, m::DRUGS_SAVE, json!({"name": "X", "form": "tablet", "times_per_day": 20}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("times_per_day"), Some("rx_dose_range")));
+
+    let rx_templates = t.ok(m::RX_TEMPLATES_LIST, json!({}), Some(&owner));
+    let after_ext =
+        rx_templates.as_array().unwrap().iter().find(|x| x["code"] == "after_extraction").unwrap().clone();
+    assert_eq!(after_ext["name"]["fa"], "بعد از کشیدن دندان");
+    assert_eq!(after_ext["items"].as_array().unwrap().len(), 3);
+    assert_eq!(after_ext["items"][0]["days"], 3, "a template can shorten a medicine's default course");
+
+    // Rewriting a built-in template marks it as the clinic's; a start-up keeps it; "reset" brings the default back.
+    let list = t.ok(m::DOCUMENT_TEMPLATES_LIST, json!({"kind": "post_op"}), Some(&owner));
+    let mut tpl =
+        list.as_array().unwrap().iter().find(|x| x["code"] == "post_op_extraction").unwrap().clone();
+    let original = tpl["body"]["fa"].clone();
+    tpl["body"]["fa"] = json!("متن کلینیک");
+    let saved = t.ok(m::DOCUMENT_TEMPLATES_SAVE, tpl.clone(), Some(&owner));
+    assert_eq!(
+        (saved["customized"].as_bool(), saved["body"]["fa"].as_str()),
+        (Some(true), Some("متن کلینیک"))
+    );
+    let t = t.reopen();
+    let owner = t.login("owner", "owner-pass-1");
+    let again = t.ok(m::DOCUMENT_TEMPLATES_LIST, json!({"kind": "post_op"}), Some(&owner));
+    let again = again.as_array().unwrap().iter().find(|x| x["code"] == "post_op_extraction").unwrap().clone();
+    assert_eq!(again["body"]["fa"], "متن کلینیک");
+    let reset = t.ok(
+        m::DOCUMENT_TEMPLATES_RESET,
+        json!({"id": again["id"], "version": again["version"]}),
+        Some(&owner),
+    );
+    assert_eq!((reset["customized"].as_bool(), &reset["body"]["fa"]), (Some(false), &original));
+    let (_, field, rule) = rule_of(
+        &t,
+        m::DOCUMENT_TEMPLATES_SAVE,
+        json!({"kind": "referral", "title": {"fa": "x", "ps": "", "en": ""}, "body": {"fa": "x", "ps": "", "en": ""}, "paper": "a4"}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("kind"), Some("template_kind")));
+}
+
+#[test]
+fn doctors_have_specialties_and_a_licence_and_old_text_is_matched() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let specialties = t.ok(m::SPECIALTIES_LIST, json!({}), Some(&owner));
+    let specialties = specialties.as_array().unwrap();
+    assert_eq!(specialties.len(), 9);
+    let ortho = specialties.iter().find(|s| s["code"] == "orthodontics").unwrap()["id"].clone();
+    let surgery = specialties.iter().find(|s| s["code"] == "oral_surgery").unwrap()["id"].clone();
+    let d = t.ok(
+        m::DOCTORS_CREATE,
+        json!({"full_name": "دکتر احمد", "color": "#0e7490", "specialty_ids": [ortho, surgery, ortho], "license_number": " MoPH-1234 "}),
+        Some(&owner),
+    );
+    assert_eq!(d["specialty_ids"], json!([surgery, ortho]), "list order, no duplicates");
+    assert_eq!(d["license_number"], "MoPH-1234");
+    let (_, field, rule) = rule_of(
+        &t,
+        m::DOCTORS_CREATE,
+        json!({"full_name": "x", "color": "#0e7490", "specialty_ids": ["nope"]}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("specialty_ids"), Some("specialty_not_found")));
+
+    // A doctor saved before v0.5.0 with free text "ارتودانسی" is linked on the next start.
+    let old = t.ok(
+        m::DOCTORS_CREATE,
+        json!({"full_name": "دکتر قدیم", "color": "#f59e0b", "specialty": "ارتودانسی"}),
+        Some(&owner),
+    );
+    assert_eq!(old["specialty_ids"], json!([]));
+    let t = t.reopen();
+    let owner = t.login("owner", "owner-pass-1");
+    let old = t
+        .ok(m::DOCTORS_LIST, json!({}), Some(&owner))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["id"] == old["id"])
+        .unwrap()
+        .clone();
+    assert_eq!((old["specialty_ids"].clone(), old["specialty"].clone()), (json!([ortho]), json!(null)));
+
+    // The clinic adds its own specialty; a seeded one can be switched off but not renamed.
+    let mine = t.ok(
+        m::SPECIALTIES_SAVE,
+        json!({"label": {"fa": "دندان‌پزشکی سالمندان", "ps": "", "en": "Geriatric"}}),
+        Some(&owner),
+    );
+    assert_eq!(
+        (mine["is_system"].as_bool(), mine["label"]["ps"].as_str()),
+        (Some(false), Some("دندان‌پزشکی سالمندان"))
+    );
+    let cosmetic = specialties.iter().find(|s| s["code"] == "cosmetic").unwrap().clone();
+    let off = t.ok(
+        m::SPECIALTIES_SAVE,
+        json!({"id": cosmetic["id"], "version": cosmetic["version"], "label": {"fa": "تغییر", "ps": "", "en": ""}, "is_active": false}),
+        Some(&owner),
+    );
+    assert_eq!((off["is_active"].as_bool(), &off["label"]["fa"]), (Some(false), &cosmetic["label"]["fa"]));
+}
+
+#[test]
+fn catalog_has_three_levels_validates_and_drives_booking() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let catalog = t.ok(m::CATALOG_GET, json!({}), Some(owner));
+    assert_eq!(catalog["categories"].as_array().unwrap().len(), 11);
+    let services = catalog["services"].as_array().unwrap();
+    let find =
+        |code: &str| services.iter().find(|s| s["code"] == code).unwrap_or_else(|| panic!("{code}")).clone();
+    let rct = find("END-01");
+    let two = find("END-01D");
+    assert_eq!(two["parent_id"], rct["id"]);
+    assert_eq!(
+        (two["sessions"].as_i64(), two["tooth_scope"].as_str()),
+        (Some(2), Some("tooth")),
+        "variants inherit"
+    );
+    assert_eq!(find("END-01M")["sessions"], 3);
+    let endo = t
+        .ok(m::SPECIALTIES_LIST, json!({}), Some(owner))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["code"] == "endodontics")
+        .unwrap()["id"]
+        .clone();
+    assert_eq!(two["specialty_id"], endo, "the category's specialty");
+    assert!(two["consent_template_id"].is_string());
+    assert_eq!(find("RST-01")["needs_surface"], true);
+    assert_eq!(find("PRS-01")["lab_required"], true);
+    assert_eq!(find("DX-01")["price"], 0, "prices are the clinic's to set");
+
+    // Price it, and the codes stay unique and well-formed.
+    let mut priced = two.clone();
+    priced["price"] = json!(350_000); // 3 500 AFN
+    let priced = t.ok(m::CATALOG_SAVE_SERVICE, priced, Some(owner));
+    assert_eq!(priced["price"], 350_000);
+    let mut dup = find("END-01S");
+    dup["code"] = json!("end-01d");
+    let (_, field, rule) = rule_of(t, m::CATALOG_SAVE_SERVICE, dup.clone(), owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("code"), Some("service_code_taken")));
+    dup["code"] = json!("ریشه");
+    let (_, _, rule) = rule_of(t, m::CATALOG_SAVE_SERVICE, dup.clone(), owner);
+    assert_eq!(rule.as_deref(), Some("service_code_format"));
+    let mut deep = find("END-01S");
+    deep["parent_id"] = two["id"].clone();
+    let (_, field, rule) = rule_of(t, m::CATALOG_SAVE_SERVICE, deep, owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("parent_id"), Some("service_variant_depth")));
+    let mut neg = find("DX-01");
+    neg["price"] = json!(-1);
+    assert_eq!(rule_of(t, m::CATALOG_SAVE_SERVICE, neg, owner).2.as_deref(), Some("service_price"));
+
+    // A new category with a new service.
+    let cat = t.ok(
+        m::CATALOG_SAVE_CATEGORY,
+        json!({"name": {"fa": "خدمات خانگی", "ps": "", "en": "Home visits"}, "specialty_id": null}),
+        Some(owner),
+    );
+    let svc = t.ok(
+        m::CATALOG_SAVE_SERVICE,
+        json!({"code": "HV-01", "category_id": cat["id"], "name": {"fa": "معاینه در خانه", "ps": "", "en": ""},
+               "price": 100_000, "tooth_scope": "none"}),
+        Some(owner),
+    );
+    assert_eq!(svc["sessions"], 1);
+
+    // Booking for a service: free by default, only its specialty's doctors when the clinic asks for it.
+    let a = t.ok(
+        m::APPOINTMENTS_CREATE,
+        json!({"patient_id": c.patient, "doctor_id": c.doctor2, "date": c.today, "start_time": "09:00", "end_time": "09:30", "service_id": two["id"]}),
+        Some(owner),
+    );
+    assert_eq!(a["service_id"], two["id"]);
+    assert_eq!(a["medical_review_due"], true, "no medical history yet");
+    let mut settings = t.ok(m::SETTINGS_GET, json!({}), Some(owner));
+    settings["restrict_service_specialty"] = json!(true);
+    t.ok(m::SETTINGS_UPDATE, settings, Some(owner));
+    let mut clinic = t.ok(m::CLINIC_GET, json!({}), Some(owner));
+    clinic["clinic_mode"] = json!("multi");
+    t.ok(m::CLINIC_UPDATE, clinic, Some(owner));
+    let (_, field, rule) = rule_of(
+        t,
+        m::APPOINTMENTS_CREATE,
+        json!({"patient_id": c.patient2, "doctor_id": c.doctor2, "date": c.today, "start_time": "10:00", "end_time": "10:30", "service_id": two["id"]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("doctor_id"), Some("service_specialty")));
+    let d2 = t
+        .ok(m::DOCTORS_LIST, json!({}), Some(owner))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["id"] == json!(c.doctor2))
+        .unwrap()
+        .clone();
+    let mut d2u = d2.clone();
+    d2u["specialty_ids"] = json!([endo]);
+    t.ok(m::DOCTORS_UPDATE, d2u, Some(owner));
+    t.ok(
+        m::APPOINTMENTS_CREATE,
+        json!({"patient_id": c.patient2, "doctor_id": c.doctor2, "date": c.today, "start_time": "10:00", "end_time": "10:30", "service_id": two["id"]}),
+        Some(owner),
+    );
+    // A move keeps the service (the calendar resends it).
+    let moved = t.ok(
+        m::APPOINTMENTS_UPDATE,
+        json!({"id": a["id"], "version": a["version"], "doctor_id": c.doctor2, "chair_id": a["chair_id"], "date": c.today,
+               "start_time": "11:00", "end_time": "11:30", "reason": null, "notes": null, "service_id": two["id"]}),
+        Some(owner),
+    );
+    assert_eq!(moved["service_id"], two["id"]);
+}

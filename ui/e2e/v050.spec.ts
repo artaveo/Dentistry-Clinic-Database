@@ -80,7 +80,7 @@ test("OF-044: dragging shows the exact landing time, snaps to 5 minutes, and sav
   await page.getByTestId("patient-picker-phone-input").fill("0700900044");
   await page.getByTestId("patient-picker-create").click();
   await expect(page.getByTestId("patient-picker-name")).toHaveText("بیمار کشیدن تقویم");
-  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودانسی" });
+  await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودنسی" });
   await page.getByTestId("appt-start-hour").selectOption("3");
   await page.getByTestId("appt-start-minute").selectOption("40");
   await page.getByTestId("appt-start-pm").click();

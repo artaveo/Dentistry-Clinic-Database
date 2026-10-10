@@ -16,6 +16,7 @@ import { AppointmentDialog, type Defaults } from "./AppointmentDialog";
 import { layoutLanes } from "./layout";
 import { LIVE, MOVABLE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
+import { specialtiesText, useSpecialties } from "../../lib/clinical";
 
 type View = "day" | "week" | "month";
 type Group = "doctor" | "chair";
@@ -62,6 +63,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
   const toast = useToast();
   const calendar: CalendarSystem = clinic?.calendar_system ?? "shamsi";
   const { doctors, chairs, error: setupError, reload } = useScheduling();
+  const specialties = useSpecialties();
   const [view, setViewState] = useState<View>(storedView());
   const [anchor, setAnchor] = useState(todayIso());
   const narrow = useNarrow();
@@ -148,8 +150,8 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     }
     // Solo clinic (2.6): one plain column for the day, no doctor header.
     if (solo) return [{ key: "day", date: anchor, label: t(`wizard.day.${weekdayIndex(anchor)}`), sub: dayNumber(anchor, calendar, lang) }];
-    return shownDoctors.map((d) => ({ key: d.id, date: anchor, label: d.full_name, sub: d.specialty ?? undefined, color: d.color, doctorId: d.id }));
-  }, [view, group, anchor, chairs, shownDoctors, calendar, lang, t, solo, weekCount]);
+    return shownDoctors.map((d) => ({ key: d.id, date: anchor, label: d.full_name, sub: specialtiesText(d, specialties, lang) || undefined, color: d.color, doctorId: d.id }));
+  }, [view, group, anchor, chairs, shownDoctors, calendar, lang, t, solo, weekCount, specialties]);
 
   const inColumn = (a: AppointmentInfo, c: Column) => {
     if (view === "week") return a.date === c.date;
@@ -172,6 +174,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         reason: a.reason,
         notes: a.notes,
         override_schedule: false,
+        service_id: a.service_id,
       });
       toast.success(t("cal.moved"));
     } catch (x) {

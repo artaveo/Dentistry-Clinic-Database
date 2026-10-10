@@ -898,6 +898,11 @@ body.cal-dragging, body.cal-dragging * { cursor: grabbing !important; user-selec
 .sched-row .day { font-weight: 600; padding-top: 8px; }
 .sched-slots { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
 .sched-slot { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.chip-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip-toggle { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-full); border: 1px solid var(--line); background: var(--fill-subtle); color: var(--text-2); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.chip-toggle svg { width: 14px; height: 14px; }
+.chip-toggle:hover { background: var(--fill-hover); color: var(--text); }
+.chip-toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent-text); }
 .chip-check { display: inline-flex; align-items: center; gap: var(--space-2); padding: 6px 12px; border-radius: var(--radius-full); border: 1px solid var(--line); background: var(--fill-subtle); cursor: pointer; }
 .chip-check:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
 .perm-group { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -925,3 +930,128 @@ body.cal-dragging, body.cal-dragging * { cursor: grabbing !important; user-selec
 .queue-actions:empty { display: none; }
 .cell-actions { white-space: nowrap; width: 1%; }
 .cell-actions .row { flex-wrap: nowrap; }
+
+/* ───────────── printed documents (Phase 5A, ADR-13) ───────────── */
+/* A sheet is paper: real millimetres, white and black in both themes, the clinic's colour as the only accent. */
+.doc-sheet {
+  --w: 148mm; --h: 210mm; --m: 11mm;
+  position: relative; box-sizing: border-box; width: var(--w); min-height: var(--h); padding: var(--m);
+  display: flex; flex-direction: column; background: #fff; color: #16181d;
+  font-family: "Artaveo Sans", "Noto Sans Arabic", sans-serif; line-height: 1.6; text-align: start;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.doc-sheet.paper-a4 { --w: 210mm; --h: 297mm; --m: 16mm; font-size: 10.5pt; }
+.doc-sheet.paper-a5 { font-size: 9.5pt; }
+.doc-sheet.paper-a6 { --w: 105mm; --h: 148mm; --m: 7mm; font-size: 8pt; line-height: 1.5; }
+.doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 4mm; padding-bottom: 3mm; border-bottom: .6mm solid var(--doc-accent, #0e7490); }
+.doc-clinic { display: flex; align-items: center; gap: 3mm; min-width: 0; }
+.doc-logo { display: block; height: 14mm; width: auto; max-width: 32mm; object-fit: contain; }
+.paper-a6 .doc-logo { height: 9mm; }
+.doc-monogram { display: grid; place-items: center; flex: none; width: 12mm; height: 12mm; border-radius: 3mm; background: var(--doc-accent, #0e7490); color: #fff; font-weight: 700; font-size: 1.6em; }
+.paper-a6 .doc-monogram { width: 8mm; height: 8mm; border-radius: 2mm; }
+.doc-clinic-name { font-weight: 700; font-size: 1.35em; line-height: 1.3; }
+.doc-clinic-meta { color: #555; font-size: .85em; }
+.doc-doctor { text-align: end; font-size: .9em; color: #333; }
+.doc-doctor-name { font-weight: 700; font-size: 1.15em; color: #16181d; }
+.doc-title { margin: 4mm 0 1.5mm; text-align: center; font-size: 1.45em; line-height: 1.3; font-weight: 700; }
+.doc-meta { display: flex; justify-content: space-between; gap: 3mm; font-size: .88em; color: #444; }
+.doc-patient { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1mm 4mm; margin: 2.5mm 0 3.5mm; padding: 2mm 3mm; border-radius: 2mm; background: #f3f5f8; }
+.doc-patient-facts { color: #444; font-size: .92em; }
+.doc-patient-facts > span + span::before { content: " · "; color: #999; }
+.doc-body { flex: 1; }
+.rx-symbol { font-family: Georgia, "Times New Roman", serif; font-size: 2.3em; line-height: 1; color: var(--doc-accent, #0e7490); margin-bottom: 2mm; }
+.rx-items { margin: 0; padding-inline-start: 6mm; }
+.rx-item { margin-bottom: 3.2mm; padding-inline-start: 1mm; }
+.rx-item::marker { font-weight: 700; color: #555; }
+.rx-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 3mm; }
+.rx-name { font-weight: 700; font-size: 1.05em; }
+.rx-form, .rx-qty { color: #444; font-size: .9em; }
+.rx-sentence { margin-top: .6mm; color: #16181d; }
+.doc-text p { margin: 0 0 2.2mm; line-height: 1.85; text-align: justify; }
+.doc-bullets { margin: 0; padding-inline-start: 5mm; }
+.doc-bullets li { margin-bottom: 1.6mm; line-height: 1.75; }
+.doc-fields { display: flex; flex-direction: column; }
+.doc-row { display: grid; grid-template-columns: minmax(24mm, max-content) 1fr; gap: 1mm 4mm; padding: 1.6mm 0; border-bottom: .2mm dotted #c9ced6; }
+.doc-row-label { color: #555; font-weight: 600; }
+.doc-checks { display: flex; flex-wrap: wrap; gap: 1mm 5mm; margin: 0; padding: 0; list-style: none; }
+.doc-check { display: inline-grid; place-items: center; width: 4mm; height: 4mm; margin-inline-end: 1.5mm; border: .3mm solid #333; border-radius: .8mm; font-size: .8em; line-height: 1; }
+.doc-urgent { align-self: flex-start; margin-bottom: 2mm; padding: .8mm 3mm; border-radius: 1.5mm; background: #c42b1c; color: #fff; font-weight: 700; }
+.doc-h2 { margin: 4mm 0 1.5mm; font-size: 1.08em; color: var(--doc-accent, #0e7490); }
+.doc-table { width: 100%; border-collapse: collapse; font-size: .9em; }
+.doc-table th, .doc-table td { padding: 1.2mm 1mm; border-bottom: .2mm solid #dde1e6; text-align: start; }
+.doc-table th { color: #555; font-weight: 600; }
+.doc-muted { color: #777; }
+.doc-note { margin-top: 3mm; padding: 2mm 3mm; border-inline-start: .8mm solid var(--doc-accent, #0e7490); background: #f6f7f9; white-space: pre-line; }
+.doc-closing { margin-top: 3mm; color: #333; }
+.doc-addressee { font-weight: 600; }
+.doc-signatures { display: flex; justify-content: flex-end; gap: 8mm; margin-top: 8mm; break-inside: avoid; }
+.doc-signatures.three { justify-content: space-between; }
+.doc-sign { display: flex; flex-direction: column; align-items: center; gap: 1.5mm; min-width: 38mm; font-size: .85em; color: #333; }
+.paper-a6 .doc-sign { min-width: 28mm; }
+.doc-sign-line { width: 100%; height: 12mm; border-bottom: .3mm solid #444; }
+.doc-thumb { width: 16mm; height: 16mm; border: .3mm dashed #777; border-radius: 2mm; }
+.doc-foot { display: flex; justify-content: space-between; align-items: center; gap: 3mm; margin-top: 5mm; padding-top: 2mm; border-top: .3mm solid #e1e4e9; font-size: .74em; color: #666; }
+.doc-brand { display: inline-flex; align-items: center; gap: 1mm; white-space: nowrap; color: #9aa1ab; font-size: .92em; }
+.doc-void { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 5em; font-weight: 800; color: rgba(196, 43, 28, .16); transform: rotate(-24deg); }
+.card-when { margin: 2mm 0 3mm; text-align: center; }
+.card-day { font-weight: 600; color: #444; }
+.card-date { font-size: 1.3em; font-weight: 700; }
+.card-time { font-size: 1.7em; font-weight: 800; color: var(--doc-accent, #0e7490); }
+.card-note { margin-top: 2mm; text-align: center; font-size: .9em; }
+
+/* Preview dialog: the sheet scaled on a soft desk, the output choices beside it. */
+.doc-preview-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--space-5); align-items: stretch; }
+@media (max-width: 960px) { .doc-preview-layout { grid-template-columns: 1fr; } }
+.doc-preview { display: flex; justify-content: center; align-items: flex-start; max-height: min(72vh, 820px); overflow: auto; padding: 12px; border-radius: var(--radius-lg); background: var(--fill-subtle); border: 1px solid var(--line); }
+.doc-preview-paper { flex: none; overflow: hidden; background: #fff; box-shadow: var(--shadow-3); border-radius: 2px; }
+.doc-preview-side { display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-4); min-width: 0; }
+
+/* The print-only layer: on screen it does not exist; on paper it is the only thing. */
+#print-root { display: none; }
+@media print {
+  html:has(body.print-doc), body.print-doc { background: #fff !important; margin: 0; }
+  body.print-doc::before { display: none !important; }
+  body.print-doc > *:not(#print-root) { display: none !important; }
+  body.print-doc #print-root { display: block; }
+  #print-root .print-compact { position: relative; height: 297mm; display: flex; justify-content: center; align-items: flex-start; }
+  /* A small document on A4: real size at the top, a dashed cut line around it. */
+  #print-root .print-compact .doc-sheet { min-height: var(--h); height: var(--h); outline: .25mm dashed #8a9099; outline-offset: 0; }
+}
+
+/* ───────────── document editors (Phase 5A) ───────────── */
+/* The editor and the preview dialogs need room for a form beside a real-size page. */
+.dialog.wide:has(.editor-layout), .dialog.wide:has(.doc-preview-layout) { width: min(1180px, calc(100vw - 48px)); }
+.editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); gap: var(--space-5); align-items: start; }
+@media (max-width: 1100px) { .editor-layout { grid-template-columns: 1fr; } .editor-preview { display: none; } }
+.editor-main { min-width: 0; }
+.editor-preview { position: sticky; top: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.editor-preview-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+.editor-preview .doc-preview { max-height: min(64vh, 760px); }
+
+.rx-empty { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-5); border: 1px dashed var(--line); border-radius: var(--radius-lg); color: var(--text-3); }
+.rx-empty svg { width: 18px; height: 18px; }
+.rx-lines { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.rx-line { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--fill-subtle); }
+.rx-line-head { display: flex; align-items: flex-end; gap: var(--space-3); }
+.rx-line-head .field:last-of-type { width: 130px; flex: none; }
+.rx-line-no { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin-bottom: 6px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); font-weight: 700; font-size: 13px; }
+.rx-line-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: var(--space-3); }
+.rx-line-foot { flex-wrap: wrap; }
+.rx-line-sentence { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+.rx-warning { display: flex; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid; }
+.rx-warning > svg { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.rx-warning.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.rx-warning.danger > svg { color: var(--danger); }
+.rx-warning.caution { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 35%, transparent); }
+.rx-warning.caution > svg { color: var(--warning); }
+.rx-warning.acked { opacity: .78; }
+.rx-warning-text { margin-bottom: var(--space-2); font-weight: 500; }
+
+/* A search box with its own list of matches (medicines). */
+.combo { position: relative; }
+.combo-list { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); max-height: 300px; overflow: auto; margin: 0; padding: 4px; list-style: none; border-radius: var(--radius-lg); background: var(--glass-overlay); border: 1px solid var(--line); box-shadow: var(--shadow-3); backdrop-filter: blur(var(--blur-overlay, 30px)); }
+.combo-list li { display: flex; align-items: center; gap: var(--space-2); min-height: 38px; padding: 0 var(--space-3); border-radius: var(--radius-md); cursor: pointer; }
+.combo-list li svg { width: 16px; height: 16px; color: var(--text-3); flex: none; }
+.combo-list li[aria-selected="true"], .combo-list li:hover { background: var(--fill-hover); }
+.row-void td { opacity: .62; }
+.row-void td:last-child { opacity: 1; }

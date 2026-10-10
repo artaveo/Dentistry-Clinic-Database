@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -162,7 +162,15 @@ export type Settings = { session_timeout_minutes: number, daily_backup_hour: num
 /**
  * OF-044: an appointment dragged in the calendar lands on steps of this many minutes (1, 5, 10 or 15).
  */
-calendar_snap_minutes: number, };
+calendar_snap_minutes: number, 
+/**
+ * 2.1b: a very small "Artaveo Dental" mark at the foot of printed documents (the clinic may turn it off).
+ */
+print_brand_footer: boolean, 
+/**
+ * M2: only doctors of a service's specialty may be booked for it (off: a gentle warning only).
+ */
+restrict_service_specialty: boolean, };
 
 export type DatabaseInfo = { encrypted: boolean, cipher_version: string, sqlite_version: string, 
 /**
@@ -363,7 +371,19 @@ export type DoctorInfo = { id: string,
 /**
  * The login this doctor signs in with, if any.
  */
-user_id: string | null, username: string | null, full_name: string, specialty: string | null, 
+user_id: string | null, username: string | null, full_name: string, 
+/**
+ * Free-text specialty from before v0.5.0 that matched none of the specialty list (shown as is).
+ */
+specialty: string | null, 
+/**
+ * M2: the doctor's specialties (reference data), one or more.
+ */
+specialty_ids: Array<string>, 
+/**
+ * Licence / registration number printed on prescriptions (5.9).
+ */
+license_number: string | null, 
 /**
  * Calendar colour, `#rrggbb`.
  */
@@ -379,9 +399,9 @@ chair_ids: Array<string>, leaves: Array<LeaveInfo>, version: number, };
 
 export type DoctorListParams = { include_inactive: boolean, };
 
-export type CreateDoctorParams = { full_name: string, specialty: string | null, color: string, user_id: string | null, };
+export type CreateDoctorParams = { full_name: string, specialty: string | null, specialty_ids: Array<string>, license_number: string | null, color: string, user_id: string | null, };
 
-export type UpdateDoctorParams = { id: string, version: number, full_name: string, specialty: string | null, color: string, status: ActiveStatus, user_id: string | null, };
+export type UpdateDoctorParams = { id: string, version: number, full_name: string, specialty: string | null, specialty_ids: Array<string>, license_number: string | null, color: string, status: ActiveStatus, user_id: string | null, };
 
 export type SetScheduleParams = { doctor_id: string, version: number, hours: Array<ScheduleSlot>, breaks: Array<ScheduleSlot>, chair_ids: Array<string>, };
 
@@ -411,7 +431,15 @@ date: string, start_time: string, end_time: string,
 /**
  * The same instants in UTC (ADR-07).
  */
-start_at: string, end_at: string, reason: string | null, notes: string | null, status: AppointmentStatus, is_walk_in: boolean, 
+start_at: string, end_at: string, reason: string | null, notes: string | null, 
+/**
+ * M2/M3: the catalog service this visit is for, if chosen.
+ */
+service_id: string | null, 
+/**
+ * M1: the patient's medical history was never recorded or is due for review (ask at this visit).
+ */
+medical_review_due: boolean, status: AppointmentStatus, is_walk_in: boolean, 
 /**
  * Ticket of the day, assigned at check-in.
  */
@@ -425,9 +453,17 @@ override_schedule: boolean,
 /**
  * Booking made from the recall list (4.6): the recall becomes `booked`.
  */
-recall_id: string | null, };
+recall_id: string | null, 
+/**
+ * M2/M3: the catalog service the visit is for (optional).
+ */
+service_id: string | null, };
 
-export type UpdateAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, reason: string | null, notes: string | null, override_schedule: boolean, };
+export type UpdateAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, reason: string | null, notes: string | null, override_schedule: boolean, 
+/**
+ * Full-replace like the rest of this call: the UI always resends the current service.
+ */
+service_id: string | null, };
 
 export type RescheduleAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, override_schedule: boolean, };
 
@@ -509,6 +545,252 @@ export type SaveDraftParams = { form_key: string, data_json: string, };
 
 export type DraftInfo = { data_json: string | null, updated_at: string | null, };
 
+export type DocumentKind = "prescription" | "consent" | "post_op" | "referral" | "imaging_request" | "certificate" | "lab_order" | "record_summary";
+
+export type Paper = "a4" | "a5" | "a6";
+
+export type DocumentStatus = "issued" | "void";
+
+export type RxTiming = "after_food" | "before_food" | "with_food" | "morning" | "bedtime";
+
+export type RxItem = { 
+/**
+ * The formulary entry it came from, if any (warnings use its classes).
+ */
+drug_id: string | null, name: string, 
+/**
+ * `tablet`, `capsule`, `syrup`, `suspension`, `mouthwash`, `gel`, `cream`, `ointment`,
+ * `injection`, `drops`, `spray`, `other`.
+ */
+form: string, strength: string | null, 
+/**
+ * How many to dispense (a count, or "1 bottle").
+ */
+quantity: string | null, 
+/**
+ * How much each time ("1", "½", "10 ml").
+ */
+dose: string | null, times_per_day: number | null, timing: RxTiming | null, days: number | null, 
+/**
+ * Only when needed (pain), up to `times_per_day`.
+ */
+as_needed: boolean, 
+/**
+ * Anything else for this medicine, in the patient's language.
+ */
+note: string | null, };
+
+export type PrescriptionContent = { items: Array<RxItem>, notes: string | null, 
+/**
+ * The warnings (`RxWarning::key`) the doctor has seen and accepted; every warning must be here.
+ */
+acknowledged: Array<string>, };
+
+export type TemplateDocContent = { template_id: string | null, title: string, body: string, procedure: string | null, teeth: string | null, };
+
+export type ReferralContent = { 
+/**
+ * Who the patient is sent to (a doctor, clinic or specialist).
+ */
+to: string, specialty: string | null, reason: string, 
+/**
+ * Findings and treatment so far.
+ */
+summary: string | null, urgent: boolean, };
+
+export type ImagingRequestContent = { 
+/**
+ * `opg`, `cbct`, `periapical`, `bitewing`, `cephalometric`, `occlusal`, `blood_cbc`,
+ * `blood_coagulation`, `blood_sugar`, `hepatitis_hiv`, `other`.
+ */
+tests: Array<string>, teeth: string | null, 
+/**
+ * The radiology centre or medical laboratory, if known.
+ */
+center: string | null, notes: string | null, };
+
+export type CertificateContent = { 
+/**
+ * The visit being certified (clinic-local ISO date).
+ */
+visit_date: string, 
+/**
+ * Days of rest advised from `rest_from` (none = the visit only).
+ */
+rest_days: number | null, rest_from: string | null, 
+/**
+ * Who it is for ("for the employer", "for the school").
+ */
+addressee: string | null, notes: string | null, };
+
+export type LabOrderContent = { lab: string | null, teeth: string, 
+/**
+ * The work: crown, bridge, denture … (often a catalog service name).
+ */
+work: string, material: string | null, 
+/**
+ * Tooth colour (A1, A2, B1 …).
+ */
+shade: string | null, due_date: string | null, notes: string | null, };
+
+export type RecordSummaryContent = { purpose: string | null, snapshot: RecordSnapshot | null, };
+
+export type RecordSnapshot = { 
+/**
+ * "Yes" answers of the medical checklist, labels in the document's language, detail appended.
+ */
+medical: Array<string>, medical_notes: string | null, 
+/**
+ * Latest visits: date, doctor, status code, reason.
+ */
+visits: Array<RecordVisit>, 
+/**
+ * Latest prescriptions: number, date, medicine names.
+ */
+prescriptions: Array<RecordPrescription>, };
+
+export type RecordVisit = { date: string, doctor: string, status: AppointmentStatus, reason: string | null, };
+
+export type RecordPrescription = { number: string, issued_at: string, medicines: Array<string>, };
+
+export type DocumentContent = { "kind": "prescription" } & PrescriptionContent | { "kind": "consent" } & TemplateDocContent | { "kind": "post_op" } & TemplateDocContent | { "kind": "referral" } & ReferralContent | { "kind": "imaging_request" } & ImagingRequestContent | { "kind": "certificate" } & CertificateContent | { "kind": "lab_order" } & LabOrderContent | { "kind": "record_summary" } & RecordSummaryContent;
+
+export type DocumentPatient = { name: string, number: string, father_name: string | null, 
+/**
+ * `male` / `female` (reference code), if known.
+ */
+gender: string | null, 
+/**
+ * Age in years on the day of issue, if known.
+ */
+age: number | null, phone: string | null, };
+
+export type DocumentDoctor = { name: string, license_number: string | null, specialties: Array<Translations>, };
+
+export type DocumentInfo = { id: string, number: string, kind: DocumentKind, patient_id: string, patient: DocumentPatient, doctor_id: string | null, doctor: DocumentDoctor | null, appointment_id: string | null, 
+/**
+ * The document's own language (the patient's), not the screen's.
+ */
+language: Language, paper: Paper, content: DocumentContent, issued_at: string, issued_by_name: string | null, print_count: number, last_printed_at: string | null, 
+/**
+ * The signed copy scanned back in (consent forms), a patient attachment.
+ */
+attachment_id: string | null, status: DocumentStatus, void_reason: string | null, version: number, };
+
+export type DocumentListParams = { patient_id: string, kind: DocumentKind | null, };
+
+export type IssueDocumentParams = { patient_id: string, 
+/**
+ * Required for prescriptions (their letterhead is the doctor's); optional otherwise.
+ */
+doctor_id: string | null, appointment_id: string | null, language: Language, paper: Paper, content: DocumentContent, };
+
+export type MarkPrintedParams = { id: string, 
+/**
+ * Saved as a PDF instead of printed on paper.
+ */
+pdf: boolean, };
+
+export type VoidDocumentParams = { id: string, version: number, reason: string, };
+
+export type AttachDocumentScanParams = { id: string, version: number, attachment_id: string, };
+
+export type RxSeverity = "danger" | "caution";
+
+export type RxWarning = { 
+/**
+ * Stable id of this warning for this prescription: `<rule>:<item index>`.
+ */
+key: string, 
+/**
+ * What clashes (`penicillin_allergy`, `nsaid_bleeding`, …); the UI words it.
+ */
+rule: string, item_index: number, 
+/**
+ * The checklist question behind it and the patient's detail for it (e.g. "5" months).
+ */
+question_code: string, detail: string | null, severity: RxSeverity, };
+
+export type CheckPrescriptionParams = { patient_id: string, items: Array<RxItem>, };
+
+export type DrugInfo = { id: string, code: string, name: string, form: string, strength: string | null, 
+/**
+ * Medicine classes the warnings check: `penicillin`, `cephalosporin`, `nsaid`, `tetracycline`,
+ * `metronidazole`, `macrolide`, `lincosamide`, `opioid`, `azole`, `paracetamol`, `steroid`,
+ * `local_anesthetic`, `antiseptic`, `antifungal`, `antiviral`, `ppi`.
+ */
+classes: Array<string>, quantity: string | null, dose: string | null, times_per_day: number | null, timing: RxTiming | null, days: number | null, as_needed: boolean, is_system: boolean, is_active: boolean, version: number, };
+
+export type IncludeInactiveParams = { include_inactive: boolean, };
+
+export type SaveDrugParams = { 
+/**
+ * None = a new medicine.
+ */
+id: string | null, version: number, name: string, form: string, strength: string | null, classes: Array<string>, quantity: string | null, dose: string | null, times_per_day: number | null, timing: RxTiming | null, days: number | null, as_needed: boolean, is_active: boolean, };
+
+export type RxTemplateInfo = { id: string, code: string, name: Translations, items: Array<RxItem>, is_system: boolean, is_active: boolean, version: number, };
+
+export type SaveRxTemplateParams = { id: string | null, version: number, name: Translations, items: Array<RxItem>, is_active: boolean, };
+
+export type DocumentTemplateInfo = { id: string, kind: DocumentKind, code: string, title: Translations, body: Translations, 
+/**
+ * Paper the document prints on by default.
+ */
+paper: Paper, is_system: boolean, 
+/**
+ * A built-in template the clinic has rewritten.
+ */
+customized: boolean, is_active: boolean, version: number, };
+
+export type DocumentTemplateListParams = { kind: DocumentKind | null, include_inactive: boolean, };
+
+export type SaveDocumentTemplateParams = { id: string | null, version: number, kind: DocumentKind, title: Translations, body: Translations, paper: Paper, is_active: boolean, };
+
+export type SpecialtyInfo = { id: string, code: string, label: Translations, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
+
+export type SaveSpecialtyParams = { id: string | null, version: number, label: Translations, is_active: boolean, };
+
+export type ToothScope = "tooth" | "teeth" | "quadrant" | "arch" | "mouth" | "none";
+
+export type ServiceCategoryInfo = { id: string, code: string, name: Translations, specialty_id: string | null, sort_order: number, is_system: boolean, is_active: boolean, version: number, };
+
+export type ServiceInfo = { id: string, 
+/**
+ * The clinic's own short code ("END-02"), shown in lists and on estimates.
+ */
+code: string, category_id: string, parent_id: string | null, name: Translations, 
+/**
+ * Default price in AFN × 100 (ADR-06); 0 = not priced yet.
+ */
+price: number, 
+/**
+ * The specialty that does it (defaults to its category's, M2).
+ */
+specialty_id: string | null, tooth_scope: ToothScope, 
+/**
+ * A tooth surface must be chosen (fillings).
+ */
+needs_surface: boolean, 
+/**
+ * Usual number of visits (root canal 2, implant 3 …), for planning (M4).
+ */
+sessions: number, lab_required: boolean, 
+/**
+ * Consent form suggested before this treatment (5.10) and the sheet handed out after it (5.10b).
+ */
+consent_template_id: string | null, post_op_template_id: string | null, sort_order: number, is_system: boolean, is_active: boolean, version: number, };
+
+export type CatalogInfo = { categories: Array<ServiceCategoryInfo>, 
+/**
+ * Services and variants together, in display order.
+ */
+services: Array<ServiceInfo>, };
+
+export type SaveServiceCategoryParams = { id: string | null, version: number, name: Translations, specialty_id: string | null, is_active: boolean, };
+
+export type SaveServiceParams = { id: string | null, version: number, code: string, category_id: string, parent_id: string | null, name: Translations, price: number, specialty_id: string | null, tooth_scope: ToothScope, needs_surface: boolean, sessions: number, lab_required: boolean, consent_template_id: string | null, post_op_template_id: string | null, is_active: boolean, };
+
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
@@ -589,6 +871,25 @@ export interface Api {
   "drafts.save": { params: SaveDraftParams; result: Empty };
   "drafts.delete": { params: DraftParams; result: Empty };
   "roles.reset": { params: DeleteRoleParams; result: RoleInfo };
+  "documents.list": { params: DocumentListParams; result: Array<DocumentInfo> };
+  "documents.get": { params: IdParams; result: DocumentInfo };
+  "documents.issue": { params: IssueDocumentParams; result: DocumentInfo };
+  "documents.mark_printed": { params: MarkPrintedParams; result: DocumentInfo };
+  "documents.void": { params: VoidDocumentParams; result: DocumentInfo };
+  "documents.attach_scan": { params: AttachDocumentScanParams; result: DocumentInfo };
+  "prescriptions.check": { params: CheckPrescriptionParams; result: Array<RxWarning> };
+  "drugs.list": { params: IncludeInactiveParams; result: Array<DrugInfo> };
+  "drugs.save": { params: SaveDrugParams; result: DrugInfo };
+  "rx_templates.list": { params: IncludeInactiveParams; result: Array<RxTemplateInfo> };
+  "rx_templates.save": { params: SaveRxTemplateParams; result: RxTemplateInfo };
+  "document_templates.list": { params: DocumentTemplateListParams; result: Array<DocumentTemplateInfo> };
+  "document_templates.save": { params: SaveDocumentTemplateParams; result: DocumentTemplateInfo };
+  "document_templates.reset": { params: IdVersionParams; result: DocumentTemplateInfo };
+  "specialties.list": { params: IncludeInactiveParams; result: Array<SpecialtyInfo> };
+  "specialties.save": { params: SaveSpecialtyParams; result: SpecialtyInfo };
+  "catalog.get": { params: IncludeInactiveParams; result: CatalogInfo };
+  "catalog.save_category": { params: SaveServiceCategoryParams; result: ServiceCategoryInfo };
+  "catalog.save_service": { params: SaveServiceParams; result: ServiceInfo };
 }
 
 export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;

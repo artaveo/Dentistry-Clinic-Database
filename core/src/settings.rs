@@ -13,6 +13,8 @@ pub const DEFAULTS: Settings = Settings {
     daily_backup_hour: 19,
     backup_keep_daily: 14,
     calendar_snap_minutes: 5,
+    print_brand_footer: true,
+    restrict_service_specialty: false,
 };
 
 /// OF-044: the steps an appointment can be dragged in.
@@ -26,12 +28,22 @@ fn num(conn: &Connection, key: &str, default: u32) -> Result<u32> {
     Ok(read(conn, key)?.and_then(|v| v.parse().ok()).unwrap_or(default))
 }
 
+fn flag(conn: &Connection, key: &str, default: bool) -> Result<bool> {
+    Ok(read(conn, key)?.map(|v| v == "1").unwrap_or(default))
+}
+
 pub fn get(conn: &Connection) -> Result<Settings> {
     Ok(Settings {
         session_timeout_minutes: num(conn, "session_timeout_minutes", DEFAULTS.session_timeout_minutes)?,
         daily_backup_hour: num(conn, "daily_backup_hour", DEFAULTS.daily_backup_hour)?,
         backup_keep_daily: num(conn, "backup_keep_daily", DEFAULTS.backup_keep_daily)?,
         calendar_snap_minutes: num(conn, "calendar_snap_minutes", DEFAULTS.calendar_snap_minutes)?,
+        print_brand_footer: flag(conn, "print_brand_footer", DEFAULTS.print_brand_footer)?,
+        restrict_service_specialty: flag(
+            conn,
+            "restrict_service_specialty",
+            DEFAULTS.restrict_service_specialty,
+        )?,
     })
 }
 
@@ -71,6 +83,8 @@ pub fn update(conn: &Connection, actor: &Actor, new: &Settings) -> Result<Settin
         ("daily_backup_hour", new.daily_backup_hour),
         ("backup_keep_daily", new.backup_keep_daily),
         ("calendar_snap_minutes", new.calendar_snap_minutes),
+        ("print_brand_footer", new.print_brand_footer as u32),
+        ("restrict_service_specialty", new.restrict_service_specialty as u32),
     ] {
         conn.execute(
             "INSERT INTO setting(key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)

@@ -22,6 +22,23 @@ export function Switch({ checked, onChange, label, disabled, testId }: { checked
   );
 }
 
+/** Several independent choices as pills (a doctor's specialties, the tests of a request). */
+export function ChipGroup({ options, selected, onChange, label, testId }: { options: { value: string; label: ReactNode; testId?: string }[]; selected: string[]; onChange: (next: string[]) => void; label: string; testId?: string }) {
+  return (
+    <div className="chip-group" role="group" aria-label={label} data-testid={testId}>
+      {options.map((o) => {
+        const on = selected.includes(o.value);
+        return (
+          <button key={o.value} type="button" className="chip-toggle" aria-pressed={on} onClick={() => onChange(on ? selected.filter((x) => x !== o.value) : [...selected, o.value])} data-testid={o.testId}>
+            {on && <Check aria-hidden />}
+            <span>{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export type SegmentOption<V extends string> = { value: V; label: ReactNode; icon?: LucideIcon; testId?: string };
 
 /** 2–4 mutually exclusive choices (theme, calendar, AM/PM). */

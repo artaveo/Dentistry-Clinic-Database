@@ -8,7 +8,9 @@ import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
 import { Button, IconButton } from "../ui/Button";
 import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
-import { Switch } from "../ui/Controls";
+import { ChipGroup, Switch } from "../ui/Controls";
+import { specialtiesText, useSpecialties } from "../lib/clinical";
+import { tr } from "../lib/medical";
 import { DateField } from "../ui/DateField";
 import { Field, Select, TextInput } from "../ui/Field";
 import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../ui/Feedback";
@@ -22,6 +24,7 @@ const COLORS = ["#0e7490", "#f59e0b", "#7c3aed", "#16a34a", "#dc2626", "#db2777"
 /** Doctors and chairs (4.2): profile, weekly schedule, breaks, usable chairs and leave. */
 export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
   const { t, err, lang } = useI18n();
+  const specialties = useSpecialties();
   const calendar: CalendarSystem = clinic?.calendar_system ?? "shamsi";
   const [doctors, setDoctors] = useState<DoctorInfo[] | null>(null);
   const [chairs, setChairs] = useState<ChairInfo[] | null>(null);
@@ -57,7 +60,7 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
               {doctors?.map((d) => (
                 <tr key={d.id} data-testid={`doctor-row-${d.id}`}>
                   <td><span className="row"><span className="dot-swatch lg" style={{ background: d.color }} aria-hidden /><span className="cell-strong">{d.full_name}</span></span>{d.username && <span className="subtle t-caption"><br /><bdi className="ltr">{d.username}</bdi></span>}</td>
-                  <td>{d.specialty ?? "—"}</td>
+                  <td>{specialtiesText(d, specialties, lang) || "—"}{d.license_number && <span className="subtle t-caption"><br />{t("doctors.license")}: <bdi className="ltr">{d.license_number}</bdi></span>}</td>
                   <td>{summary(d)}{d.leaves.length > 0 && <span className="subtle t-caption"><br />{t("doctors.leaves")}: {digits(d.leaves.length, lang)}</span>}</td>
                   <td>{d.status === "active" ? <Badge tone="success" dot>{t("users.active")}</Badge> : <Badge dot>{t("users.inactive")}</Badge>}</td>
                   <td className="cell-actions">
@@ -102,12 +105,17 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
 }
 
 function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClose: () => void; onSaved: () => void }) {
-  const { t, err } = useI18n();
+  const { t, err, lang } = useI18n();
+  const specialties = useSpecialties();
+  const [specialtyIds, setSpecialtyIds] = useState<string[]>(doctor?.specialty_ids ?? []);
   const toast = useToast();
   const [users, setUsers] = useState<UserInfo[] | null>(null);
   const [active, setActive] = useState(doctor ? doctor.status === "active" : true);
   const [color, setColor] = useState(doctor?.color ?? COLORS[0]);
-  const form = useForm({ full_name: doctor?.full_name ?? "", specialty: doctor?.specialty ?? "", user_id: doctor?.user_id ?? "" }, { full_name: v.fullName });
+  const form = useForm(
+    { full_name: doctor?.full_name ?? "", license_number: doctor?.license_number ?? "", user_id: doctor?.user_id ?? "" },
+    { full_name: v.fullName, license_number: (s) => ([...s.trim()].length > 50 ? "rule.license_length" : null) },
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -121,7 +129,15 @@ function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClo
     setError("");
     if (!form.validate()) return;
     setBusy(true);
-    const base = { full_name: form.values.full_name.trim(), specialty: form.values.specialty.trim() || null, color, user_id: form.values.user_id || null };
+    // An old free-text specialty (before v0.5.0) is kept until the doctor is given specialties from the list.
+    const base = {
+      full_name: form.values.full_name.trim(),
+      specialty: specialtyIds.length ? null : (doctor?.specialty ?? null),
+      specialty_ids: specialtyIds,
+      license_number: form.values.license_number.trim() || null,
+      color,
+      user_id: form.values.user_id || null,
+    };
     try {
       if (doctor) await rpc("doctors.update", { ...base, id: doctor.id, version: doctor.version, status: active ? "active" : "inactive" });
       else await rpc("doctors.create", base);
@@ -147,8 +163,20 @@ function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClo
         <Field label={t("doctors.name")} hint={t("hint.doctorName")} error={form.error("full_name") && t(form.error("full_name")!)}>
           <TextInput value={form.values.full_name} onChange={(e) => form.set("full_name", e.target.value)} onBlur={() => form.blur("full_name")} data-testid="doctor-name" />
         </Field>
-        <Field label={t("doctors.specialty")} optional error={form.error("specialty") && t(form.error("specialty")!)}>
-          <TextInput value={form.values.specialty} maxLength={100} onChange={(e) => form.set("specialty", e.target.value)} data-testid="doctor-specialty" />
+        {/* M2: one or more specialties from the clinic's list (Settings → Clinical lists). */}
+        <div className="field">
+          <span className="field-label">{t("doctors.specialties")}<span className="optional">{t("common.optional")}</span></span>
+          <ChipGroup
+            label={t("doctors.specialties")}
+            options={(specialties ?? []).filter((s) => s.is_active || specialtyIds.includes(s.id)).map((s) => ({ value: s.id, label: tr(s.label, lang), testId: `doctor-specialty-${s.code}` }))}
+            selected={specialtyIds}
+            onChange={setSpecialtyIds}
+            testId="doctor-specialties"
+          />
+          <span className="field-hint">{doctor?.specialty && !specialtyIds.length ? t("doctors.oldSpecialty").replace("{text}", doctor.specialty) : t("doctors.specialtiesHint")}</span>
+        </div>
+        <Field label={t("doctors.license")} hint={t("doctors.licenseHint")} optional error={form.error("license_number") && t(form.error("license_number")!)}>
+          <TextInput value={form.values.license_number} dir="ltr" onChange={(e) => form.set("license_number", e.target.value)} data-testid="doctor-license" />
         </Field>
         <div className="field">
           <span className="field-label">{t("doctors.color")}</span>

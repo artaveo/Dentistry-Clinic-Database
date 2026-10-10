@@ -29,6 +29,7 @@ use crate::session::{state_of, Session};
 use crate::settings;
 use crate::sysinfo;
 use crate::{appointment, recall, scheduling};
+use crate::{catalog, documents, formulary, specialty};
 use crate::{APP_VERSION, GIT_COMMIT};
 
 /// Methods still allowed while the screen is locked.
@@ -630,6 +631,104 @@ impl Core {
                 s.require(perm::CLINICAL_EDIT)?;
                 let p: ReviewMedicalHistoryParams = params(p)?;
                 ok(self.with_tx(|c| medical::review_history(c, &actor(&s), &p))?)
+            }
+            m::DOCUMENTS_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let DocumentListParams { patient_id, kind } = params(p)?;
+                ok(self.with_db(|o| documents::list(&o.conn, &patient_id, kind))?)
+            }
+            m::DOCUMENTS_GET => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| documents::get(&o.conn, &id))?)
+            }
+            m::DOCUMENTS_ISSUE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: IssueDocumentParams = params(p)?;
+                ok(self.with_tx(|c| documents::issue(c, &actor(&s), &p))?)
+            }
+            m::DOCUMENTS_MARK_PRINTED => {
+                // Printing (or reprinting) an issued document is part of seeing it.
+                s.require(perm::CLINICAL_VIEW)?;
+                let MarkPrintedParams { id, pdf } = params(p)?;
+                ok(self.with_tx(|c| documents::mark_printed(c, &actor(&s), &id, pdf))?)
+            }
+            m::DOCUMENTS_VOID => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: VoidDocumentParams = params(p)?;
+                ok(self.with_tx(|c| documents::void(c, &actor(&s), &p))?)
+            }
+            m::DOCUMENTS_ATTACH_SCAN => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: AttachDocumentScanParams = params(p)?;
+                ok(self.with_tx(|c| documents::attach_scan(c, &actor(&s), &p))?)
+            }
+            m::PRESCRIPTIONS_CHECK => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let CheckPrescriptionParams { patient_id, items } = params(p)?;
+                ok(self.with_db(|o| documents::check_prescription(&o.conn, &patient_id, &items))?)
+            }
+            m::DRUGS_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| formulary::list_drugs(&o.conn, include_inactive))?)
+            }
+            m::DRUGS_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveDrugParams = params(p)?;
+                ok(self.with_tx(|c| formulary::save_drug(c, &actor(&s), &p))?)
+            }
+            m::RX_TEMPLATES_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| formulary::list_rx_templates(&o.conn, include_inactive))?)
+            }
+            m::RX_TEMPLATES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveRxTemplateParams = params(p)?;
+                ok(self.with_tx(|c| formulary::save_rx_template(c, &actor(&s), &p))?)
+            }
+            m::DOCUMENT_TEMPLATES_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let DocumentTemplateListParams { kind, include_inactive } = params(p)?;
+                ok(self.with_db(|o| formulary::list_document_templates(&o.conn, kind, include_inactive))?)
+            }
+            m::DOCUMENT_TEMPLATES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveDocumentTemplateParams = params(p)?;
+                ok(self.with_tx(|c| formulary::save_document_template(c, &actor(&s), &p))?)
+            }
+            m::DOCUMENT_TEMPLATES_RESET => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let IdVersionParams { id, version } = params(p)?;
+                ok(self.with_tx(|c| formulary::reset_document_template(c, &actor(&s), &id, version))?)
+            }
+            m::SPECIALTIES_LIST => {
+                // Doctor lists, the catalog and booking all show specialties.
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| specialty::list(&o.conn, include_inactive))?)
+            }
+            m::SPECIALTIES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveSpecialtyParams = params(p)?;
+                ok(self.with_tx(|c| specialty::save(c, &actor(&s), &p))?)
+            }
+            m::CATALOG_GET => {
+                // Booking (reception) and clinical work both pick services from the catalog.
+                s.require(perm::APPOINTMENTS_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| catalog::get(&o.conn, include_inactive))?)
+            }
+            m::CATALOG_SAVE_CATEGORY => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveServiceCategoryParams = params(p)?;
+                ok(self.with_tx(|c| catalog::save_category(c, &actor(&s), &p))?)
+            }
+            m::CATALOG_SAVE_SERVICE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveServiceParams = params(p)?;
+                ok(self.with_tx(|c| catalog::save_service(c, &actor(&s), &p))?)
             }
             m::MEDICAL_QUESTIONS_LIST => {
                 // Whoever sees a patient's alert banner needs the questions' labels.

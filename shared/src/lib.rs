@@ -140,6 +140,32 @@ pub enum ValidationRule {
     MedicalChoice,
     MedicalMonthsRange,
     MedicalSystemQuestion,
+    // Phase 5A: documents, prescriptions, formulary and templates.
+    DocumentNotFound,
+    DocumentVoid,
+    DocumentText,
+    DocumentItems,
+    DoctorRequired,
+    RxForm,
+    RxDoseRange,
+    RxWarningNotAcknowledged,
+    ImagingTestUnknown,
+    RestDaysRange,
+    DrugNotFound,
+    DrugClassUnknown,
+    TemplateNotFound,
+    TemplateKind,
+    // M2 / M3: specialties and the service catalog.
+    SpecialtyNotFound,
+    ServiceNotFound,
+    ServiceCategoryNotFound,
+    ServiceCodeTaken,
+    ServiceCodeFormat,
+    ServicePrice,
+    ServiceSessions,
+    ServiceVariantDepth,
+    ServiceSpecialty,
+    LicenseLength,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -969,7 +995,12 @@ pub struct DoctorInfo {
     pub user_id: Option<String>,
     pub username: Option<String>,
     pub full_name: String,
+    /// Free-text specialty from before v0.5.0 that matched none of the specialty list (shown as is).
     pub specialty: Option<String>,
+    /// M2: the doctor's specialties (reference data), one or more.
+    pub specialty_ids: Vec<String>,
+    /// Licence / registration number printed on prescriptions (5.9).
+    pub license_number: Option<String>,
     /// Calendar colour, `#rrggbb`.
     pub color: String,
     pub status: ActiveStatus,
@@ -994,6 +1025,10 @@ pub struct CreateDoctorParams {
     pub full_name: String,
     #[serde(default)]
     pub specialty: Option<String>,
+    #[serde(default)]
+    pub specialty_ids: Vec<String>,
+    #[serde(default)]
+    pub license_number: Option<String>,
     pub color: String,
     #[serde(default)]
     pub user_id: Option<String>,
@@ -1006,6 +1041,10 @@ pub struct UpdateDoctorParams {
     pub full_name: String,
     #[serde(default)]
     pub specialty: Option<String>,
+    #[serde(default)]
+    pub specialty_ids: Vec<String>,
+    #[serde(default)]
+    pub license_number: Option<String>,
     pub color: String,
     pub status: ActiveStatus,
     #[serde(default)]
@@ -1137,6 +1176,10 @@ pub struct AppointmentInfo {
     pub end_at: String,
     pub reason: Option<String>,
     pub notes: Option<String>,
+    /// M2/M3: the catalog service this visit is for, if chosen.
+    pub service_id: Option<String>,
+    /// M1: the patient's medical history was never recorded or is due for review (ask at this visit).
+    pub medical_review_due: bool,
     pub status: AppointmentStatus,
     pub is_walk_in: bool,
     /// Ticket of the day, assigned at check-in.
@@ -1170,6 +1213,9 @@ pub struct CreateAppointmentParams {
     /// Booking made from the recall list (4.6): the recall becomes `booked`.
     #[serde(default)]
     pub recall_id: Option<String>,
+    /// M2/M3: the catalog service the visit is for (optional).
+    #[serde(default)]
+    pub service_id: Option<String>,
 }
 
 /// Edits an appointment's details and/or moves it (drag & drop uses the same call).
@@ -1189,6 +1235,9 @@ pub struct UpdateAppointmentParams {
     pub notes: Option<String>,
     #[serde(default)]
     pub override_schedule: bool,
+    /// Full-replace like the rest of this call: the UI always resends the current service.
+    #[serde(default)]
+    pub service_id: Option<String>,
 }
 
 /// Moves an appointment to a new slot, keeping the old one as `rescheduled` and linked (4.4).
@@ -1436,6 +1485,611 @@ pub struct RecallListResult {
     pub total: u32,
 }
 
+// ───────────────────────────── specialties & service catalog (Phase 5A: M2, M3) ─────────────────────────────
+
+/// A dental specialty (M2): reference data — nine seeded, the clinic may add or switch off its own.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct SpecialtyInfo {
+    pub id: String,
+    pub code: String,
+    pub label: Translations,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub sort_order: i64,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveSpecialtyParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub label: Translations,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+/// Which teeth a service is for (M3): one tooth, several, a quadrant, a jaw, the whole mouth, or none.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToothScope {
+    Tooth,
+    Teeth,
+    Quadrant,
+    Arch,
+    Mouth,
+    None,
+}
+
+/// First level of the catalog (M3), e.g. "Restorative", "Endodontics"; usually one specialty.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ServiceCategoryInfo {
+    pub id: String,
+    pub code: String,
+    pub name: Translations,
+    pub specialty_id: Option<String>,
+    pub sort_order: i64,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+/// A service ("Root canal") or, when `parent_id` is set, one of its variants ("Two canals"). Treatment
+/// plans and treatments (5B) and invoices (Phase 6) point at one of these.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ServiceInfo {
+    pub id: String,
+    /// The clinic's own short code ("END-02"), shown in lists and on estimates.
+    pub code: String,
+    pub category_id: String,
+    pub parent_id: Option<String>,
+    pub name: Translations,
+    /// Default price in AFN × 100 (ADR-06); 0 = not priced yet.
+    pub price: i64,
+    /// The specialty that does it (defaults to its category's, M2).
+    pub specialty_id: Option<String>,
+    pub tooth_scope: ToothScope,
+    /// A tooth surface must be chosen (fillings).
+    pub needs_surface: bool,
+    /// Usual number of visits (root canal 2, implant 3 …), for planning (M4).
+    pub sessions: i64,
+    pub lab_required: bool,
+    /// Consent form suggested before this treatment (5.10) and the sheet handed out after it (5.10b).
+    pub consent_template_id: Option<String>,
+    pub post_op_template_id: Option<String>,
+    pub sort_order: i64,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CatalogInfo {
+    pub categories: Vec<ServiceCategoryInfo>,
+    /// Services and variants together, in display order.
+    pub services: Vec<ServiceInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveServiceCategoryParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub name: Translations,
+    #[serde(default)]
+    pub specialty_id: Option<String>,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveServiceParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub code: String,
+    pub category_id: String,
+    #[serde(default)]
+    pub parent_id: Option<String>,
+    pub name: Translations,
+    pub price: i64,
+    #[serde(default)]
+    pub specialty_id: Option<String>,
+    pub tooth_scope: ToothScope,
+    #[serde(default)]
+    pub needs_surface: bool,
+    #[serde(default = "one")]
+    pub sessions: i64,
+    #[serde(default)]
+    pub lab_required: bool,
+    #[serde(default)]
+    pub consent_template_id: Option<String>,
+    #[serde(default)]
+    pub post_op_template_id: Option<String>,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+fn one() -> i64 {
+    1
+}
+
+// ───────────────────────────── clinical documents & print engine (Phase 5A, ADR-13) ─────────────────────────────
+
+/// Every printed clinical document (5.9, 5.10, 5.10b) is one of these; each has its own number series
+/// (`RX-1405-000001`: kind prefix, Shamsi year of issue, running number).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentKind {
+    /// RX — prescription (5.9).
+    Prescription,
+    /// CF — consent form (5.10).
+    Consent,
+    /// PO — after-treatment instructions for the patient.
+    PostOp,
+    /// RF — referral letter to another doctor or specialist.
+    Referral,
+    /// IR — request for an X-ray / scan / lab test.
+    ImagingRequest,
+    /// MC — medical certificate: the visit, and rest if needed.
+    Certificate,
+    /// LO — work order for the dental laboratory.
+    LabOrder,
+    /// MR — summary of the patient's record.
+    RecordSummary,
+}
+
+/// Paper size of a document. A PDF is always exactly this size (ADR-13); how a small document is put
+/// on a printer's paper is a per-computer print setting.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Paper {
+    A4,
+    A5,
+    A6,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentStatus {
+    Issued,
+    /// Withdrawn with a reason; it stays in the record, marked void, and cannot be printed again.
+    Void,
+}
+
+/// When a medicine is taken relative to meals or the day (printed in the patient's language).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RxTiming {
+    AfterFood,
+    BeforeFood,
+    WithFood,
+    Morning,
+    Bedtime,
+}
+
+/// One line of a prescription. The medicine name is the Latin scientific/brand name the pharmacy
+/// reads; the dose is structured so it prints as a sentence in the patient's language
+/// ("روزانه ۳ بار، بعد از غذا، ۵ روز").
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RxItem {
+    /// The formulary entry it came from, if any (warnings use its classes).
+    #[serde(default)]
+    pub drug_id: Option<String>,
+    pub name: String,
+    /// `tablet`, `capsule`, `syrup`, `suspension`, `mouthwash`, `gel`, `cream`, `ointment`,
+    /// `injection`, `drops`, `spray`, `other`.
+    pub form: String,
+    #[serde(default)]
+    pub strength: Option<String>,
+    /// How many to dispense (a count, or "1 bottle").
+    #[serde(default)]
+    pub quantity: Option<String>,
+    /// How much each time ("1", "½", "10 ml").
+    #[serde(default)]
+    pub dose: Option<String>,
+    #[serde(default)]
+    pub times_per_day: Option<u8>,
+    #[serde(default)]
+    pub timing: Option<RxTiming>,
+    #[serde(default)]
+    pub days: Option<u16>,
+    /// Only when needed (pain), up to `times_per_day`.
+    #[serde(default)]
+    pub as_needed: bool,
+    /// Anything else for this medicine, in the patient's language.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PrescriptionContent {
+    pub items: Vec<RxItem>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    /// The warnings (`RxWarning::key`) the doctor has seen and accepted; every warning must be here.
+    #[serde(default)]
+    pub acknowledged: Vec<String>,
+}
+
+/// A document written from an editable template (consent form, after-treatment instructions): the
+/// text as printed, with the patient/doctor/tooth/procedure already filled in.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct TemplateDocContent {
+    #[serde(default)]
+    pub template_id: Option<String>,
+    pub title: String,
+    pub body: String,
+    #[serde(default)]
+    pub procedure: Option<String>,
+    #[serde(default)]
+    pub teeth: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ReferralContent {
+    /// Who the patient is sent to (a doctor, clinic or specialist).
+    pub to: String,
+    #[serde(default)]
+    pub specialty: Option<String>,
+    pub reason: String,
+    /// Findings and treatment so far.
+    #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub urgent: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ImagingRequestContent {
+    /// `opg`, `cbct`, `periapical`, `bitewing`, `cephalometric`, `occlusal`, `blood_cbc`,
+    /// `blood_coagulation`, `blood_sugar`, `hepatitis_hiv`, `other`.
+    pub tests: Vec<String>,
+    #[serde(default)]
+    pub teeth: Option<String>,
+    /// The radiology centre or medical laboratory, if known.
+    #[serde(default)]
+    pub center: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct CertificateContent {
+    /// The visit being certified (clinic-local ISO date).
+    pub visit_date: String,
+    /// Days of rest advised from `rest_from` (none = the visit only).
+    #[serde(default)]
+    pub rest_days: Option<u16>,
+    #[serde(default)]
+    pub rest_from: Option<String>,
+    /// Who it is for ("for the employer", "for the school").
+    #[serde(default)]
+    pub addressee: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+/// Work order for a dental laboratory (linked to the Lab Case of Phase 8 later).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct LabOrderContent {
+    #[serde(default)]
+    pub lab: Option<String>,
+    pub teeth: String,
+    /// The work: crown, bridge, denture … (often a catalog service name).
+    pub work: String,
+    #[serde(default)]
+    pub material: Option<String>,
+    /// Tooth colour (A1, A2, B1 …).
+    #[serde(default)]
+    pub shade: Option<String>,
+    #[serde(default)]
+    pub due_date: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+/// A summary of the patient's record, for the patient or another doctor. The Core fills `snapshot`
+/// when it is issued, so a reprint shows exactly what was handed out.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordSummaryContent {
+    #[serde(default)]
+    pub purpose: Option<String>,
+    #[serde(default)]
+    pub snapshot: Option<RecordSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordSnapshot {
+    /// "Yes" answers of the medical checklist, labels in the document's language, detail appended.
+    pub medical: Vec<String>,
+    pub medical_notes: Option<String>,
+    /// Latest visits: date, doctor, status code, reason.
+    pub visits: Vec<RecordVisit>,
+    /// Latest prescriptions: number, date, medicine names.
+    pub prescriptions: Vec<RecordPrescription>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordVisit {
+    pub date: String,
+    pub doctor: String,
+    pub status: AppointmentStatus,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordPrescription {
+    pub number: String,
+    pub issued_at: String,
+    pub medicines: Vec<String>,
+}
+
+/// What a document says, by kind.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DocumentContent {
+    Prescription(PrescriptionContent),
+    Consent(TemplateDocContent),
+    PostOp(TemplateDocContent),
+    Referral(ReferralContent),
+    ImagingRequest(ImagingRequestContent),
+    Certificate(CertificateContent),
+    LabOrder(LabOrderContent),
+    RecordSummary(RecordSummaryContent),
+}
+
+/// The patient as printed on a document (kept with it, so a reprint is identical).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct DocumentPatient {
+    pub name: String,
+    pub number: String,
+    pub father_name: Option<String>,
+    /// `male` / `female` (reference code), if known.
+    pub gender: Option<String>,
+    /// Age in years on the day of issue, if known.
+    pub age: Option<i64>,
+    pub phone: Option<String>,
+}
+
+/// The doctor as printed on a document's letterhead (5.9: name, specialties, licence number).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct DocumentDoctor {
+    pub name: String,
+    pub license_number: Option<String>,
+    pub specialties: Vec<Translations>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DocumentInfo {
+    pub id: String,
+    pub number: String,
+    pub kind: DocumentKind,
+    pub patient_id: String,
+    pub patient: DocumentPatient,
+    pub doctor_id: Option<String>,
+    pub doctor: Option<DocumentDoctor>,
+    pub appointment_id: Option<String>,
+    /// The document's own language (the patient's), not the screen's.
+    pub language: Language,
+    pub paper: Paper,
+    pub content: DocumentContent,
+    pub issued_at: String,
+    pub issued_by_name: Option<String>,
+    pub print_count: i64,
+    pub last_printed_at: Option<String>,
+    /// The signed copy scanned back in (consent forms), a patient attachment.
+    pub attachment_id: Option<String>,
+    pub status: DocumentStatus,
+    pub void_reason: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DocumentListParams {
+    pub patient_id: String,
+    #[serde(default)]
+    pub kind: Option<DocumentKind>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct IssueDocumentParams {
+    pub patient_id: String,
+    /// Required for prescriptions (their letterhead is the doctor's); optional otherwise.
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    #[serde(default)]
+    pub appointment_id: Option<String>,
+    pub language: Language,
+    pub paper: Paper,
+    pub content: DocumentContent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct MarkPrintedParams {
+    pub id: String,
+    /// Saved as a PDF instead of printed on paper.
+    #[serde(default)]
+    pub pdf: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct VoidDocumentParams {
+    pub id: String,
+    pub version: i64,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AttachDocumentScanParams {
+    pub id: String,
+    pub version: i64,
+    pub attachment_id: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RxSeverity {
+    /// An allergy or a medicine to avoid: shown in red.
+    Danger,
+    /// Use with care (bleeding, stomach, kidney, pregnancy …): shown in amber.
+    Caution,
+}
+
+/// A clash between a medicine and the patient's medical checklist (5.9), e.g. penicillin allergy +
+/// Amoxicillin. The doctor must acknowledge it (by `key`) to issue the prescription.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RxWarning {
+    /// Stable id of this warning for this prescription: `<rule>:<item index>`.
+    pub key: String,
+    /// What clashes (`penicillin_allergy`, `nsaid_bleeding`, …); the UI words it.
+    pub rule: String,
+    pub item_index: u32,
+    /// The checklist question behind it and the patient's detail for it (e.g. "5" months).
+    pub question_code: String,
+    pub detail: Option<String>,
+    pub severity: RxSeverity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CheckPrescriptionParams {
+    pub patient_id: String,
+    pub items: Vec<RxItem>,
+}
+
+// ───────────────────────────── formulary & templates (Phase 5A) ─────────────────────────────
+
+/// A medicine of the clinic's formulary (5.9), seeded from common dental medicines of the essential
+/// medicines list; the clinic edits it. Its defaults fill a prescription line.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct DrugInfo {
+    pub id: String,
+    pub code: String,
+    pub name: String,
+    pub form: String,
+    pub strength: Option<String>,
+    /// Medicine classes the warnings check: `penicillin`, `cephalosporin`, `nsaid`, `tetracycline`,
+    /// `metronidazole`, `macrolide`, `lincosamide`, `opioid`, `azole`, `paracetamol`, `steroid`,
+    /// `local_anesthetic`, `antiseptic`, `antifungal`, `antiviral`, `ppi`.
+    pub classes: Vec<String>,
+    pub quantity: Option<String>,
+    pub dose: Option<String>,
+    pub times_per_day: Option<u8>,
+    pub timing: Option<RxTiming>,
+    pub days: Option<u16>,
+    pub as_needed: bool,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct IncludeInactiveParams {
+    #[serde(default)]
+    pub include_inactive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveDrugParams {
+    /// None = a new medicine.
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub name: String,
+    pub form: String,
+    #[serde(default)]
+    pub strength: Option<String>,
+    #[serde(default)]
+    pub classes: Vec<String>,
+    #[serde(default)]
+    pub quantity: Option<String>,
+    #[serde(default)]
+    pub dose: Option<String>,
+    #[serde(default)]
+    pub times_per_day: Option<u8>,
+    #[serde(default)]
+    pub timing: Option<RxTiming>,
+    #[serde(default)]
+    pub days: Option<u16>,
+    #[serde(default)]
+    pub as_needed: bool,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// A ready-made prescription ("after an extraction", "tooth infection") filled in with one click.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RxTemplateInfo {
+    pub id: String,
+    pub code: String,
+    pub name: Translations,
+    pub items: Vec<RxItem>,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveRxTemplateParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub name: Translations,
+    pub items: Vec<RxItem>,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+/// An editable text template for consent forms and after-treatment instructions (5.10, 5.10b), in
+/// the three languages. Placeholders: `{patient}`, `{doctor}`, `{clinic}`, `{date}`, `{procedure}`,
+/// `{teeth}`. The clinic may rewrite a built-in one (audited) and put it back to the default.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct DocumentTemplateInfo {
+    pub id: String,
+    pub kind: DocumentKind,
+    pub code: String,
+    pub title: Translations,
+    pub body: Translations,
+    /// Paper the document prints on by default.
+    pub paper: Paper,
+    pub is_system: bool,
+    /// A built-in template the clinic has rewritten.
+    pub customized: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DocumentTemplateListParams {
+    #[serde(default)]
+    pub kind: Option<DocumentKind>,
+    #[serde(default)]
+    pub include_inactive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveDocumentTemplateParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub kind: DocumentKind,
+    pub title: Translations,
+    pub body: Translations,
+    pub paper: Paper,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
 // ───────────────────────────── form drafts (OF-020) ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -1562,6 +2216,12 @@ pub struct Settings {
     /// OF-044: an appointment dragged in the calendar lands on steps of this many minutes (1, 5, 10 or 15).
     #[serde(default = "default_calendar_snap")]
     pub calendar_snap_minutes: u32,
+    /// 2.1b: a very small "Artaveo Dental" mark at the foot of printed documents (the clinic may turn it off).
+    #[serde(default = "yes")]
+    pub print_brand_footer: bool,
+    /// M2: only doctors of a service's specialty may be booked for it (off: a gentle warning only).
+    #[serde(default)]
+    pub restrict_service_specialty: bool,
 }
 
 fn default_calendar_snap() -> u32 {
@@ -1715,6 +2375,25 @@ api! {
     "drafts.save"            => DRAFTS_SAVE(SaveDraftParams) -> Empty;
     "drafts.delete"          => DRAFTS_DELETE(DraftParams) -> Empty;
     "roles.reset"            => ROLES_RESET(DeleteRoleParams) -> RoleInfo;
+    "documents.list"             => DOCUMENTS_LIST(DocumentListParams) -> Vec<DocumentInfo>;
+    "documents.get"              => DOCUMENTS_GET(IdParams) -> DocumentInfo;
+    "documents.issue"            => DOCUMENTS_ISSUE(IssueDocumentParams) -> DocumentInfo;
+    "documents.mark_printed"     => DOCUMENTS_MARK_PRINTED(MarkPrintedParams) -> DocumentInfo;
+    "documents.void"             => DOCUMENTS_VOID(VoidDocumentParams) -> DocumentInfo;
+    "documents.attach_scan"      => DOCUMENTS_ATTACH_SCAN(AttachDocumentScanParams) -> DocumentInfo;
+    "prescriptions.check"        => PRESCRIPTIONS_CHECK(CheckPrescriptionParams) -> Vec<RxWarning>;
+    "drugs.list"                 => DRUGS_LIST(IncludeInactiveParams) -> Vec<DrugInfo>;
+    "drugs.save"                 => DRUGS_SAVE(SaveDrugParams) -> DrugInfo;
+    "rx_templates.list"          => RX_TEMPLATES_LIST(IncludeInactiveParams) -> Vec<RxTemplateInfo>;
+    "rx_templates.save"          => RX_TEMPLATES_SAVE(SaveRxTemplateParams) -> RxTemplateInfo;
+    "document_templates.list"    => DOCUMENT_TEMPLATES_LIST(DocumentTemplateListParams) -> Vec<DocumentTemplateInfo>;
+    "document_templates.save"    => DOCUMENT_TEMPLATES_SAVE(SaveDocumentTemplateParams) -> DocumentTemplateInfo;
+    "document_templates.reset"   => DOCUMENT_TEMPLATES_RESET(IdVersionParams) -> DocumentTemplateInfo;
+    "specialties.list"           => SPECIALTIES_LIST(IncludeInactiveParams) -> Vec<SpecialtyInfo>;
+    "specialties.save"           => SPECIALTIES_SAVE(SaveSpecialtyParams) -> SpecialtyInfo;
+    "catalog.get"                => CATALOG_GET(IncludeInactiveParams) -> CatalogInfo;
+    "catalog.save_category"      => CATALOG_SAVE_CATEGORY(SaveServiceCategoryParams) -> ServiceCategoryInfo;
+    "catalog.save_service"       => CATALOG_SAVE_SERVICE(SaveServiceParams) -> ServiceInfo;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -1857,6 +2536,49 @@ pub fn typescript_bindings() -> String {
         DraftParams,
         SaveDraftParams,
         DraftInfo,
+        DocumentKind,
+        Paper,
+        DocumentStatus,
+        RxTiming,
+        RxItem,
+        PrescriptionContent,
+        TemplateDocContent,
+        ReferralContent,
+        ImagingRequestContent,
+        CertificateContent,
+        LabOrderContent,
+        RecordSummaryContent,
+        RecordSnapshot,
+        RecordVisit,
+        RecordPrescription,
+        DocumentContent,
+        DocumentPatient,
+        DocumentDoctor,
+        DocumentInfo,
+        DocumentListParams,
+        IssueDocumentParams,
+        MarkPrintedParams,
+        VoidDocumentParams,
+        AttachDocumentScanParams,
+        RxSeverity,
+        RxWarning,
+        CheckPrescriptionParams,
+        DrugInfo,
+        IncludeInactiveParams,
+        SaveDrugParams,
+        RxTemplateInfo,
+        SaveRxTemplateParams,
+        DocumentTemplateInfo,
+        DocumentTemplateListParams,
+        SaveDocumentTemplateParams,
+        SpecialtyInfo,
+        SaveSpecialtyParams,
+        ToothScope,
+        ServiceCategoryInfo,
+        ServiceInfo,
+        CatalogInfo,
+        SaveServiceCategoryParams,
+        SaveServiceParams,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(
