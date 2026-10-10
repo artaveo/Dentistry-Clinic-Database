@@ -144,8 +144,12 @@ test("OF-042: a sheet without a title row is read as data, and the import says w
   await expect(page.getByTestId("import-summary")).toContainText("2");
   await expect(page.getByTestId("import-commit")).toBeEnabled();
 
-  // Saying the first row is a title row shifts the data down by one row.
-  await page.getByTestId("import-has-header").check();
+  // Saying the first row is a title row shifts the data down by one row. The switch flips at
+  // once, but the Core's answer (which this reads back) only lands after a round trip.
+  const reinspected = page.waitForResponse((r) => r.request().postDataJSON()?.method === "patients.import_inspect");
+  await page.getByTestId("import-has-header").click();
+  await reinspected;
+  await expect(page.getByTestId("import-has-header")).toBeChecked();
   await expect(page.getByTestId("import-mapping")).toContainText("ALI");
   await page.keyboard.press("Escape");
 });
