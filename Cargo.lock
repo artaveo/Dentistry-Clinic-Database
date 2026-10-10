@@ -96,10 +96,15 @@ version = "0.4.1"
 dependencies = [
  "artaveo-core",
  "artaveo-shared",
+ "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tracing",
+ "webview2-com",
+ "windows",
+ "windows-core",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
