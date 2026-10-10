@@ -109,6 +109,10 @@ test("OF-020: an unfinished patient form comes back after leaving the page", asy
   // Saving the patient also clears the draft.
   await page.getByTestId("patient-save").click();
   await expect(toast()).toHaveText("بیمار ثبت شد.");
+  // Back to the list: "tab-patients" is already the active tab, so clicking it again would be a
+  // no-op and leave the next test stuck on this profile page.
+  await page.getByTestId("patient-back").click();
+  await expect(page.getByTestId("patient-list")).toBeVisible();
 });
 
 test("OF-022 / OF-043: the export is a real Excel file, reported, and reads back with Persian text", async () => {
