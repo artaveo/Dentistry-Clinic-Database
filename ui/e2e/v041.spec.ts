@@ -77,8 +77,12 @@ test("OF-023: the back arrow and Alt+Left both return to the patient list", asyn
 });
 
 test("OF-029: a failed save moves the cursor to the first wrong box and counts the problems", async () => {
+  // The create form checks for an unsent draft (OF-020) right on mount; let that settle first so
+  // it cannot land between the save click and the error summary appearing.
+  const draftChecked = page.waitForResponse((r) => r.request().postDataJSON()?.method === "drafts.get");
   await page.getByTestId("add-patient-open").click();
   await expect(page.getByTestId("page-patient-form")).toBeVisible();
+  await draftChecked;
   await page.getByTestId("patient-save").click();
   await expect(page.getByTestId("form-error-summary")).toBeVisible();
   await expect(page.getByTestId("patient-full-name")).toBeFocused();

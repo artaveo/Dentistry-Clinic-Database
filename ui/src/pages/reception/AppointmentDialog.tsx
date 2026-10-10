@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { CalendarClock, Printer, Save } from "lucide-react";
 import type { AppointmentInfo, CalendarSystem, ChairInfo, DoctorInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
-import { fromMinutes, toMinutes, todayIso } from "../../lib/calendar";
+import { fromMinutes, nowMinutes, toMinutes, todayIso } from "../../lib/calendar";
 import { digits, formatTime } from "../../lib/dates";
 import { useForm } from "../../lib/validation";
 import { useI18n } from "../../i18n";
@@ -21,6 +21,20 @@ import { MOVABLE, SCHEDULE_RULES, STATUS_TONE } from "./labels";
 export type Defaults = { date?: string; start?: string; doctorId?: string; chairId?: string; patient?: PickedPatient | null; recallId?: string | null; reason?: string };
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90, 120, 180];
+
+/**
+ * A new booking's default start time, never already in the past (OF-036: the Core refuses a past
+ * time outright). "نوبت جدید" with no time picked yet used to default to a flat 09:00, which is
+ * past for most of a normal working day; it now rounds up from the clinic's current time instead,
+ * and only falls back to 09:00 when booking a day other than today.
+ */
+function defaultStartTime(date: string, explicit?: string): string {
+  if (explicit) return explicit;
+  if (date !== todayIso()) return "09:00";
+  // The next quarter hour strictly after now (not "now" itself), so the time picked the moment the
+  // dialog opened is still in the future by the time the form is actually filled in and saved.
+  return fromMinutes(Math.min(1425, Math.floor(nowMinutes() / 15) * 15 + 15));
+}
 
 type Values = { doctor_id: string; chair_id: string; date: string; start_time: string; duration: string; reason: string; notes: string };
 
@@ -62,7 +76,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
       doctor_id: appointment?.doctor_id ?? defaults?.doctorId ?? doctors[0]?.id ?? "",
       chair_id: appointment?.chair_id ?? defaults?.chairId ?? "",
       date: appointment?.date ?? defaults?.date ?? todayIso(),
-      start_time: appointment?.start_time ?? defaults?.start ?? "09:00",
+      start_time: defaultStartTime(appointment?.date ?? defaults?.date ?? todayIso(), appointment?.start_time ?? defaults?.start),
       duration: String(initialDuration),
       reason: appointment?.reason ?? defaults?.reason ?? "",
       notes: appointment?.notes ?? "",
