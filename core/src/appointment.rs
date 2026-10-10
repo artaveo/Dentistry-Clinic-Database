@@ -561,6 +561,11 @@ pub fn update_appointment(
     let slot = Slot::parse(&p.date, &p.start_time, &p.end_time)?;
     validate_texts(&p.reason, &p.notes)?;
     let before = get_appointment(conn, &p.id)?;
+    // `chair_id` is a full-replace field like the rest of this call (ADR-01: the UI always
+    // resends the appointment's current chair, explicitly, even when the chair selector itself
+    // is hidden — see AppointmentDialog/CalendarPage.move). A caller that omits it is clearing
+    // the chair, not "leaving it alone"; that also lets dragging an appointment onto the
+    // "no chair" column actually clear it.
     let chair = p.chair_id.as_deref().filter(|s| !s.is_empty());
     use AppointmentStatus::*;
     if !matches!(before.status, Scheduled | Confirmed | CheckedIn | InTreatment) {

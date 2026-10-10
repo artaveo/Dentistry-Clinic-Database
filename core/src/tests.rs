@@ -1244,16 +1244,19 @@ fn double_booking_is_refused_for_doctor_chair_and_patient() {
         Some(&c.owner),
     );
     assert_eq!(blocked, Err(ErrorCode::Validation));
+    // `chair_id` is resent explicitly throughout, as the real UI always does (OF-035): omitting it
+    // means "clear the chair", not "leave it alone".
     let edited = c.t.ok(
         m::APPOINTMENTS_UPDATE,
-        json!({"id": a["id"], "version": a["version"], "doctor_id": c.doctor, "date": day, "start_time": "11:00", "end_time": "11:30", "notes": "bring X-rays"}),
+        json!({"id": a["id"], "version": a["version"], "doctor_id": c.doctor, "chair_id": a["chair_id"], "date": day, "start_time": "11:00", "end_time": "11:30", "notes": "bring X-rays"}),
         Some(&c.owner),
     );
     assert_eq!(edited["notes"], "bring X-rays");
+    assert_eq!(edited["chair_id"], a["chair_id"]);
     // Drag & drop is the same call with a new time; the old slot becomes free.
     let moved = c.t.ok(
         m::APPOINTMENTS_UPDATE,
-        json!({"id": a["id"], "version": edited["version"], "doctor_id": c.doctor, "date": day, "start_time": "13:00", "end_time": "13:30"}),
+        json!({"id": a["id"], "version": edited["version"], "doctor_id": c.doctor, "chair_id": edited["chair_id"], "date": day, "start_time": "13:00", "end_time": "13:30"}),
         Some(&c.owner),
     );
     assert_eq!((moved["start_time"].as_str(), moved["end_time"].as_str()), (Some("13:00"), Some("13:30")));
@@ -1339,7 +1342,10 @@ fn appointment_status_workflow_queue_and_walk_ins() {
     // Once the patient has arrived the time can no longer be moved, but notes can.
     let moved = c.t.call(m::APPOINTMENTS_UPDATE, json!({"id": a["id"], "version": a["version"], "doctor_id": c.doctor, "date": c.today, "start_time": "11:00", "end_time": "11:30"}), Some(&c.owner));
     assert_eq!(moved, Err(ErrorCode::Validation));
-    assert!(c.t.call(m::APPOINTMENTS_UPDATE, json!({"id": a["id"], "version": a["version"], "doctor_id": c.doctor, "date": c.today, "start_time": "09:00", "end_time": "09:30", "notes": "late"}), Some(&c.owner)).is_ok());
+    // OF-035: a chair may have been auto-assigned when `a` was booked; the real UI always resends
+    // the current chair explicitly on every edit (AppointmentDialog/CalendarPage.move), so this
+    // notes-only edit does too — omitting it would mean "clear the chair", not "leave it alone".
+    assert!(c.t.call(m::APPOINTMENTS_UPDATE, json!({"id": a["id"], "version": a["version"], "doctor_id": c.doctor, "chair_id": a["chair_id"], "date": c.today, "start_time": "09:00", "end_time": "09:30", "notes": "late"}), Some(&c.owner)).is_ok());
 
     // The day's queue, as the "today" page reads it.
     let today = c.t.ok(
