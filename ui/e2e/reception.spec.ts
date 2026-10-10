@@ -187,7 +187,12 @@ test("call list: the follow-up and the no-show are there; record a call, then bo
   await expect(page.getByTestId("appointment-dialog")).toBeVisible();
   await expect(page.getByTestId("patient-picker-name")).toHaveText("بیمار آزمایشی دوم");
   await page.getByTestId("appt-doctor").selectOption({ label: "داکتر احمد رحیمی — ارتودانسی" });
+  // A fixed 11:00 PM today, clear of the earlier bookings. Picking only the hour used to keep the
+  // default's minute and AM/PM (the next quarter hour after now), so a run at e.g. 4:35 PM booked
+  // 11:45 PM, whose 30 minutes cross midnight and are refused before anything reaches the Core.
   await page.getByTestId("appt-start-hour").selectOption("11");
+  await page.getByTestId("appt-start-minute").selectOption("0");
+  await page.getByTestId("appt-start-pm").click();
   await page.getByTestId("appt-save").click();
   await expect(toast()).toHaveText("نوبت ثبت شد.");
   await expect(list.locator("tbody tr").filter({ hasText: "بیمار آزمایشی دوم" })).toHaveCount(0); // booked: off the call list
