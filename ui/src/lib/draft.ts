@@ -13,13 +13,19 @@ export function useFormDraft<T extends Record<string, string>>(formKey: string, 
   const timer = useRef<number | undefined>(undefined);
   // The newest change that has not been written yet.
   const pending = useRef<string | null>(null);
+  // A save already sent to the Core, not resolved yet; `clear()` waits for it (see below).
+  const inFlight = useRef<Promise<unknown> | null>(null);
 
   const write = () => {
     window.clearTimeout(timer.current);
     if (pending.current === null) return;
     const json = pending.current;
     pending.current = null;
-    rpc("drafts.save", { form_key: formKey, data_json: json }).catch(() => {});
+    inFlight.current = rpc("drafts.save", { form_key: formKey, data_json: json })
+      .catch(() => {})
+      .finally(() => {
+        inFlight.current = null;
+      });
   };
   // Kept current so the timer and the unmount cleanup always write through the latest form key.
   const writeRef = useRef(write);
@@ -59,7 +65,12 @@ export function useFormDraft<T extends Record<string, string>>(formKey: string, 
     clear: () => {
       pending.current = null;
       window.clearTimeout(timer.current);
-      if (enabled) rpc("drafts.delete", { form_key: formKey }).catch(() => {});
+      if (!enabled) return;
+      // A debounced save can already be in flight (sent, not yet answered) when this runs. Wait
+      // for it before deleting, so a slow save can never land after the delete and resurrect the
+      // draft — this form shares its key with every other open copy of the same form for this
+      // user (e.g. patients.spec.ts and OF-019/OF-029 all use "patient.create").
+      (inFlight.current ?? Promise.resolve()).then(() => rpc("drafts.delete", { form_key: formKey }).catch(() => {}));
     },
   };
 }

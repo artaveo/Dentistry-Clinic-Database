@@ -78,11 +78,19 @@ test("OF-023: the back arrow and Alt+Left both return to the patient list", asyn
 
 test("OF-029: a failed save moves the cursor to the first wrong box and counts the problems", async () => {
   // The create form checks for an unsent draft (OF-020) right on mount; let that settle first so
-  // it cannot land between the save click and the error summary appearing.
+  // it cannot land between the save click and the error summary appearing. patients.spec.ts uses
+  // this same "patient.create" draft (same owner user, shared Core), so one may genuinely be
+  // waiting here — clear it first so this test starts from a truly empty form either way.
   const draftChecked = page.waitForResponse((r) => r.request().postDataJSON()?.method === "drafts.get");
   await page.getByTestId("add-patient-open").click();
   await expect(page.getByTestId("page-patient-form")).toBeVisible();
   await draftChecked;
+  if (await page.getByTestId("draft-offer").isVisible()) {
+    const draftCleared = page.waitForResponse((r) => r.request().postDataJSON()?.method === "drafts.delete");
+    await page.getByTestId("draft-discard").click();
+    await draftCleared;
+  }
+  await expect(page.getByTestId("patient-full-name")).toHaveValue("");
   await page.getByTestId("patient-save").click();
   await expect(page.getByTestId("form-error-summary")).toBeVisible();
   await expect(page.getByTestId("patient-full-name")).toBeFocused();
