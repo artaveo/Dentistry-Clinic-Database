@@ -15,7 +15,29 @@ const ISO_MILLIS: &[FormatItem<'static>] =
 pub const CLINIC_OFFSET: UtcOffset = offset!(+4:30);
 
 pub fn now() -> OffsetDateTime {
-    OffsetDateTime::now_utc()
+    OffsetDateTime::now_utc() + shift()
+}
+
+/// E2E only (feature `dev-server`, never in release builds): the dev server can move the whole
+/// Core's clock by a fixed amount, so the browser suite always runs at the same clinic hour
+/// (see `ui/playwright.config.ts`) whatever time of day CI starts. The page's clock is moved
+/// by the same amount, so the UI and the Core still agree on "now".
+#[cfg(feature = "dev-server")]
+static SHIFT_MS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+#[cfg(feature = "dev-server")]
+pub fn set_shift_ms(ms: i64) {
+    SHIFT_MS.store(ms, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(feature = "dev-server")]
+fn shift() -> time::Duration {
+    time::Duration::milliseconds(SHIFT_MS.load(std::sync::atomic::Ordering::Relaxed))
+}
+
+#[cfg(not(feature = "dev-server"))]
+fn shift() -> time::Duration {
+    time::Duration::ZERO
 }
 
 #[cfg(test)]

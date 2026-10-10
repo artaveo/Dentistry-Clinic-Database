@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { newClinicPage } from "./clinicClock";
 
 // One clinic, walked through end to end against the real Core: the full Setup
 // Wizard, every Shell page in three languages and two themes, and the owner
@@ -11,7 +12,7 @@ let recoveryKey = "";
 const OWNER = { user: "owner", pass: "owner-pass-123" };
 
 test.beforeAll(async ({ browser }) => {
-  page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  page = await newClinicPage(browser, { width: 1280, height: 800 });
 });
 
 // SCREENSHOTS=1 writes images for the manual test guide (docs/testing/img/v0.2.1).

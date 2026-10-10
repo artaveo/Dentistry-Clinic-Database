@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { newClinicPage } from "./clinicClock";
 
 // Phase 3: patients, medical records, attachments, merge and import, against
 // the real Core. Runs after app.spec.ts in the same shared clinic/session
@@ -13,7 +14,7 @@ let page: Page;
 const OWNER = { user: "owner", pass: "recovered-pass-1" };
 
 test.beforeAll(async ({ browser }) => {
-  page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  page = await newClinicPage(browser, { width: 1280, height: 800 });
   await page.goto("/");
   // A fresh page load always re-shows the splash then the login screen (the
   // in-memory token from app.spec.ts's session does not survive a reload);

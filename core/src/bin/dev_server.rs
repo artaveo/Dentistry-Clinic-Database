@@ -25,6 +25,11 @@ fn main() {
     } else {
         Environment::Development
     };
+    // Playwright runs the suite at a fixed clinic hour (ui/playwright.config.ts).
+    if let Some(ms) = std::env::var("ARTAVEO_E2E_CLOCK_SHIFT_MS").ok().and_then(|v| v.parse().ok()) {
+        artaveo_core::clock::set_shift_ms(ms);
+        println!("clock shifted by {ms} ms");
+    }
     let config = Config::new(env, data_dir);
     let _log = artaveo_core::logging::init(&config.log_dir(), env).expect("logging");
     let core = Arc::new(Core::open(config).expect("open core"));

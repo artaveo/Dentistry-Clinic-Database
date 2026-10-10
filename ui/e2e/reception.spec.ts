@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { newClinicPage } from "./clinicClock";
 
 // Phase 4: staff, doctors, appointments and the reception workflow against the real Core.
 // Runs after app.spec.ts and patients.spec.ts in the same shared clinic (single worker), so
@@ -12,7 +13,7 @@ const OWNER = { user: "owner", pass: "recovered-pass-1" };
 const toast = () => page.getByTestId("toast").last();
 
 test.beforeAll(async ({ browser }) => {
-  page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
+  page = await newClinicPage(browser, { width: 1360, height: 900 });
   await page.goto("/");
   await page.getByTestId("login-username").fill(OWNER.user);
   await page.getByTestId("login-password").fill(OWNER.pass);

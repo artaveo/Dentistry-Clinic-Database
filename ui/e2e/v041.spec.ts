@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { newClinicPage } from "./clinicClock";
 
 // v0.4.1 (owner feedback OF-015, OF-019 … OF-043) against the real Core. Runs after the earlier
 // files in the same clinic and session (single worker, one dev server), so it only logs in.
@@ -13,7 +14,7 @@ const EXPORTS = path.resolve(".e2e-data/exports");
 const FIXTURES = path.resolve("e2e/fixtures");
 
 test.beforeAll(async ({ browser }) => {
-  page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  page = await newClinicPage(browser, { width: 1280, height: 800 });
   await page.goto("/");
   await page.getByTestId("login-username").fill(OWNER.user);
   await page.getByTestId("login-password").fill(OWNER.pass);
