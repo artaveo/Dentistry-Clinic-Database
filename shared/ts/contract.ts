@@ -392,7 +392,7 @@ export type WalkInParams = { patient_id: string, doctor_id: string, chair_id: st
 /**
  * Expected length; default 30 minutes.
  */
-duration_minutes: number | null,
+duration_minutes: number | null, 
 /**
  * Admit the patient outside the doctor's working hours anyway (OF-037); audited.
  */
