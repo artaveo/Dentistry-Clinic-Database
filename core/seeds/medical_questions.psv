@@ -1,0 +1,35 @@
+code|group|sort|detail|choices|alert|female_only|fa|ps|en|detail_fa|detail_ps|detail_en|note_fa|note_ps|note_en
+heart_disease|cardio|10|text|-|1|0|بیماری قلبی|د زړه ناروغي|Heart disease|نوع بیماری|د ناروغۍ ډول|Type|-|-|-
+heart_valve|cardio|20|none|-|1|0|دریچه مصنوعی قلب / سابقه اندوکاردیت / بیماری مادرزادی قلب|د زړه مصنوعي والو / د اندوکاردیت مخینه / د زړه زېږنده ناروغي|Artificial heart valve / past endocarditis / congenital heart disease|-|-|-|احتمالاً پیش از درمان آنتی‌بیوتیک پیشگیری لازم است|کېدای شي له درملنې مخکې مخنیوونکي انټي بیوټیک ته اړتیا وي|Antibiotic cover may be needed before treatment
+pacemaker|cardio|30|none|-|1|0|پیس‌میکر|پېس مېکر|Pacemaker|-|-|-|-|-|-
+hypertension|cardio|40|none|-|1|0|فشار خون بالا|لوړ فشار|High blood pressure|-|-|-|-|-|-
+hypotension|cardio|50|none|-|0|0|فشار خون پایین / غش کردن|ټیټ فشار / بې‌هوښه کېدل|Low blood pressure / fainting|-|-|-|-|-|-
+stroke|cardio|60|none|-|1|0|سکته مغزی|دماغي سکته|Stroke|-|-|-|-|-|-
+rheumatic_fever|cardio|70|none|-|0|0|تب روماتیزمی|روماتیزمي تبه|Rheumatic fever|-|-|-|-|-|-
+bleeding_disorder|blood|80|none|-|1|0|اختلال انعقاد / هموفیلی / خونریزی طولانی بعد از کشیدن دندان|د وینې د ټینګېدو ستونزه / هیموفیلیا / د غاښ له ایستلو وروسته اوږده وینه بهېدنه|Bleeding disorder / haemophilia / long bleeding after an extraction|-|-|-|-|-|-
+anticoagulants|blood|90|text|-|1|0|مصرف رقیق‌کننده خون (وارفارین، آسپرین، کلوپیدوگرل و…)|د وینې نریوونکي درمل (وارفارین، اسپرین، کلوپیدوګرل…)|Blood thinners (warfarin, aspirin, clopidogrel…)|نام دارو|د درمل نوم|Medicine name|پیش از کشیدن دندان یا جراحی با داکتر معالج مشوره شود|د غاښ له ایستلو یا جراحۍ مخکې له معالج ډاکټر سره مشوره وشي|Check with the prescribing doctor before an extraction or surgery
+anemia|blood|100|none|-|0|0|کم‌خونی|د وینې لږوالی|Anaemia|-|-|-|-|-|-
+diabetes|endocrine|110|choice|controlled;uncontrolled|1|0|مرض شکر (دیابت)|د شکرې ناروغي|Diabetes|وضعیت|حالت|Status|-|-|-
+thyroid|endocrine|120|none|-|0|0|تیروئید|تایرایډ|Thyroid disease|-|-|-|-|-|-
+asthma|respiratory|130|none|-|1|0|آسم / تنگی نفس|استما / ساه لنډي|Asthma / shortness of breath|-|-|-|-|-|-
+tuberculosis|respiratory|140|choice|active;treated|1|0|توبرکلوز یا دیگر امراض شش|نري رنځ یا د سږو نورې ناروغۍ|Tuberculosis or other lung disease|وضعیت|حالت|Status|-|-|-
+hepatitis|infectious|150|none|-|1|0|زردی سیاه (هپاتیت B/C)|تور ژیړی (هیپاټایټس B/C)|Hepatitis B/C|-|-|-|-|-|-
+hiv|infectious|160|none|-|1|0|HIV|HIV|HIV|-|-|-|-|-|-
+kidney_disease|kidney_liver|170|none|-|1|0|امراض کلیه / دیالیز|د پښتورګو ناروغي / ډیالیز|Kidney disease / dialysis|-|-|-|-|-|-
+liver_disease|kidney_liver|180|none|-|1|0|امراض کبد|د ځیګر ناروغي|Liver disease|-|-|-|-|-|-
+epilepsy|neuro|190|none|-|1|0|صرع / تشنج|مرګي / اختلاج|Epilepsy / seizures|-|-|-|-|-|-
+bisphosphonates|bone|200|none|-|1|0|داروی پوکی استخوان (بیس‌فسفونات‌ها، تزریقی یا خوراکی) — اکنون یا در ۱۰ سال گذشته|د هډوکو د پوکوالي درمل (بیسفوسفونېټونه، پیچکاري یا خوراکي) — اوس یا په تېرو ۱۰ کلونو کې|Osteoporosis medicine (bisphosphonates, injected or by mouth) — now or in the past 10 years|-|-|-|خطر نکروز فک بعد از جراحی|له جراحۍ وروسته د ژامې د نکروز خطر|Risk of jaw necrosis after surgery
+joint_replacement|bone|210|none|-|0|0|تعویض مفصل|د بند بدلول|Joint replacement|-|-|-|-|-|-
+chemo_radiotherapy|cancer|220|none|-|1|0|شیمی‌درمانی / رادیوتراپی سر و گردن|کیموتراپي / د سر او غاړې رادیوتراپي|Chemotherapy / head and neck radiotherapy|-|-|-|-|-|-
+stomach_ulcer|digestive|230|none|-|0|0|امراض معده / زخم معده|د معدې ناروغي / د معدې زخم|Stomach disease / ulcer|-|-|-|-|-|-
+skin_disease|skin|240|none|-|0|0|امراض یا حساسیت جلدی|د پوستکي ناروغي یا حساسیت|Skin disease or skin allergy|-|-|-|-|-|-
+tobacco|habits|250|text|-|0|0|دخانیات (سگرت / نسوار / قلیان)|تنباکو (سګرټ / نسوار / چلم)|Tobacco (cigarettes / naswar / hookah)|نوع|ډول|Type|-|-|-
+pregnant|women|260|months|-|1|1|حامله هستید؟|ایا امیندواره یاست؟|Pregnant?|چند ماه|څو میاشتې|Months|در انتخاب دارو و عکس رادیولوژی دقت شود|د درملو او اکسرې په ټاکلو کې پام وشي|Take care with medicines and X-rays
+breastfeeding|women|270|none|-|1|1|طفل شیرخوار دارید (شیردهی)؟|شیدې خوړونکی ماشوم لرئ؟|Breastfeeding?|-|-|-|-|-|-
+allergy_penicillin|allergy|280|text|-|1|0|حساسیت به پنی‌سیلین / آنتی‌بیوتیک|پنسلین / انټي بیوټیک ته حساسیت|Allergy to penicillin / antibiotics|نام دارو|د درمل نوم|Medicine name|-|-|-
+allergy_local_anesthetic|allergy|290|none|-|1|0|حساسیت به داروی بی‌حسی موضعی|موضعي بې‌حسه کوونکو درملو ته حساسیت|Allergy to local anaesthetic|-|-|-|-|-|-
+allergy_painkillers|allergy|300|none|-|1|0|حساسیت به مسکن‌ها (آسپرین / ایبوپروفن)|د درد ضد درملو ته حساسیت (اسپرین / ایبوپروفین)|Allergy to painkillers (aspirin / ibuprofen)|-|-|-|-|-|-
+allergy_latex|allergy|310|none|-|1|0|حساسیت به لاتکس (دستکش)|لاټکس ته حساسیت (دستکشې)|Allergy to latex (gloves)|-|-|-|-|-|-
+allergy_other|allergy|320|text_choice|oral;injection|1|0|سایر حساسیت‌های دارویی|نورې درملي حساسیتونه|Other medicine allergy|نام دارو|د درمل نوم|Medicine name|-|-|-
+current_medications|medication|330|text|-|0|0|داروهای مصرفی فعلی|اوسني درمل|Medicines taken now|فهرست داروها|د درملو لړلیک|List of medicines|-|-|-
+previous_surgery|surgery|340|text|-|0|0|جراحی یا بستری قبلی|پخوانۍ جراحي یا بستر کېدل|Previous surgery or hospital stay|توضیح|تشریح|Details|-|-|-

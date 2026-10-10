@@ -131,6 +131,15 @@ pub enum ValidationRule {
     AppointmentInPast,
     // OF-044: calendar drag step.
     CalendarSnapRange,
+    // M1 / OF-025: structured medical history.
+    MedicalQuestionNotFound,
+    MedicalQuestionGroup,
+    MedicalQuestionLabel,
+    MedicalDetailKind,
+    MedicalDetailLength,
+    MedicalChoice,
+    MedicalMonthsRange,
+    MedicalSystemQuestion,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -659,15 +668,128 @@ pub struct MergePatientsParams {
     pub merge_id_version: i64,
 }
 
+/// The same text in the three interface languages (clinic-editable reference data, e.g. a checklist
+/// question or a service name). The Core fills an empty language from the first one given.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+pub struct Translations {
+    pub fa: String,
+    pub ps: String,
+    pub en: String,
+}
+
+/// What a "yes" to a checklist question asks for next (M1).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MedicalDetailKind {
+    /// Nothing more.
+    None,
+    /// A short text (a medicine's name, the kind of heart disease, …).
+    Text,
+    /// One of the question's `choices` (controlled / uncontrolled, …).
+    Choice,
+    /// A short text and one of the `choices` (a medicine allergy: name + by mouth / injected).
+    TextChoice,
+    /// A number of months (1–10): how far along a pregnancy is.
+    Months,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MedicalAnswerValue {
+    Yes,
+    No,
+    Unknown,
+}
+
+/// One question of the medical-history checklist (M1). System questions come from the seed and can
+/// only be switched off; the clinic can add its own.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct MedicalQuestionInfo {
+    pub id: String,
+    /// Stable code (`anticoagulants`, `pregnant`, …); prescriptions check these (5.9).
+    pub code: String,
+    /// `cardio`, `blood`, `endocrine`, `respiratory`, `infectious`, `kidney_liver`, `neuro`, `bone`,
+    /// `cancer`, `digestive`, `skin`, `habits`, `women`, `allergy`, `medication`, `surgery`, `other`.
+    pub group_code: String,
+    pub sort_order: i64,
+    pub detail_kind: MedicalDetailKind,
+    /// Choice codes for `choice` / `text_choice` questions (`controlled`, `uncontrolled`, …).
+    pub choices: Vec<String>,
+    /// A "yes" shows in the medical alert banner.
+    pub alert: bool,
+    /// Asked only of women (pregnancy, breastfeeding).
+    pub female_only: bool,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub label: Translations,
+    pub detail_label: Option<Translations>,
+    /// Why the alert matters, shown next to it ("antibiotic cover may be needed").
+    pub alert_note: Option<Translations>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct MedicalQuestionListParams {
+    #[serde(default)]
+    pub include_inactive: bool,
+}
+
+/// A question the clinic adds. Its detail can only be nothing or a short text.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateMedicalQuestionParams {
+    pub group_code: String,
+    pub label: Translations,
+    #[serde(default = "detail_none")]
+    pub detail_kind: MedicalDetailKind,
+    #[serde(default)]
+    pub alert: bool,
+    #[serde(default)]
+    pub female_only: bool,
+}
+
+fn detail_none() -> MedicalDetailKind {
+    MedicalDetailKind::None
+}
+
+/// System questions accept only `is_active` and `sort_order`; the clinic's own accept everything.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateMedicalQuestionParams {
+    pub id: String,
+    pub version: i64,
+    pub group_code: String,
+    pub label: Translations,
+    pub detail_kind: MedicalDetailKind,
+    pub alert: bool,
+    pub female_only: bool,
+    pub is_active: bool,
+    pub sort_order: i64,
+}
+
+/// A patient's answer to one checklist question. No answer at all = not asked yet.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct MedicalAnswer {
+    pub question_id: String,
+    pub answer: MedicalAnswerValue,
+    /// Only kept for a "yes": the text detail, or the number of months for `months`.
+    #[serde(default)]
+    pub detail_text: Option<String>,
+    /// Only kept for a "yes" to a `choice` / `text_choice` question: one of its choice codes.
+    #[serde(default)]
+    pub detail_choice: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct MedicalHistoryInfo {
     pub patient_id: String,
-    pub allergies: Option<String>,
-    pub current_medications: Option<String>,
-    pub chronic_conditions: Option<String>,
-    pub dental_history: Option<String>,
-    pub previous_surgeries: Option<String>,
+    /// Answers in checklist order (only questions that were asked).
+    pub answers: Vec<MedicalAnswer>,
+    /// «سایر توضیحات» — free text after the checklist (earlier free-text fields were moved here).
     pub notes: Option<String>,
+    /// When the history was last saved or confirmed as still true, and by whom.
+    pub reviewed_at: Option<String>,
+    pub reviewed_by_name: Option<String>,
+    /// Never recorded, or not reviewed for more than six months: ask again at the next visit.
+    pub review_due: bool,
     pub version: i64,
 }
 
@@ -675,18 +797,18 @@ pub struct MedicalHistoryInfo {
 pub struct UpdateMedicalHistoryParams {
     pub patient_id: String,
     pub version: i64,
+    /// The full set of answers: a question left out becomes "not asked".
     #[serde(default)]
-    pub allergies: Option<String>,
-    #[serde(default)]
-    pub current_medications: Option<String>,
-    #[serde(default)]
-    pub chronic_conditions: Option<String>,
-    #[serde(default)]
-    pub dental_history: Option<String>,
-    #[serde(default)]
-    pub previous_surgeries: Option<String>,
+    pub answers: Vec<MedicalAnswer>,
     #[serde(default)]
     pub notes: Option<String>,
+}
+
+/// "Asked again today, nothing changed": marks the history reviewed without editing it.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ReviewMedicalHistoryParams {
+    pub patient_id: String,
+    pub version: i64,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -1555,6 +1677,10 @@ api! {
     "patients.export"            => PATIENTS_EXPORT(Empty) -> ExportResult;
     "medical_history.get"        => MEDICAL_HISTORY_GET(PatientIdParams) -> MedicalHistoryInfo;
     "medical_history.update"     => MEDICAL_HISTORY_UPDATE(UpdateMedicalHistoryParams) -> MedicalHistoryInfo;
+    "medical_history.review"     => MEDICAL_HISTORY_REVIEW(ReviewMedicalHistoryParams) -> MedicalHistoryInfo;
+    "medical_questions.list"     => MEDICAL_QUESTIONS_LIST(MedicalQuestionListParams) -> Vec<MedicalQuestionInfo>;
+    "medical_questions.create"   => MEDICAL_QUESTIONS_CREATE(CreateMedicalQuestionParams) -> MedicalQuestionInfo;
+    "medical_questions.update"   => MEDICAL_QUESTIONS_UPDATE(UpdateMedicalQuestionParams) -> MedicalQuestionInfo;
     "attachments.list"           => ATTACHMENTS_LIST(PatientIdParams) -> Vec<AttachmentInfo>;
     "attachments.upload"         => ATTACHMENTS_UPLOAD(UploadAttachmentParams) -> AttachmentInfo;
     "attachments.delete"         => ATTACHMENTS_DELETE(IdVersionParams) -> Empty;
@@ -1667,8 +1793,17 @@ pub fn typescript_bindings() -> String {
         PatientListResult,
         PatientIdParams,
         MergePatientsParams,
+        Translations,
+        MedicalDetailKind,
+        MedicalAnswerValue,
+        MedicalQuestionInfo,
+        MedicalQuestionListParams,
+        CreateMedicalQuestionParams,
+        UpdateMedicalQuestionParams,
+        MedicalAnswer,
         MedicalHistoryInfo,
         UpdateMedicalHistoryParams,
+        ReviewMedicalHistoryParams,
         AttachmentKind,
         AttachmentInfo,
         UploadAttachmentParams,

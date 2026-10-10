@@ -4,8 +4,9 @@
 // by E2E tests (they run the real Core) and mirrors only the behaviour the UI
 // needs: the same methods, validation rules, field errors and lock rules.
 // `?mock=seeded` starts with a configured clinic and some history.
+import questionsPsv from "../../../core/seeds/medical_questions.psv?raw";
 import type {
-  AppointmentInfo, AppointmentStatus, AttachmentInfo, AuditEntry, BackupInfo, ChairInfo, ClinicProfile, DoctorInfo, RecallInfo, RoleInfo, ErrorCode, LabeledItem, MedicalHistoryInfo, PatientInfo, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
+  AppointmentInfo, AppointmentStatus, AttachmentInfo, AuditEntry, BackupInfo, ChairInfo, ClinicProfile, DoctorInfo, RecallInfo, RoleInfo, ErrorCode, LabeledItem, MedicalAnswer, MedicalHistoryInfo, MedicalQuestionInfo, PatientInfo, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
 } from "../../../shared/ts/contract";
 
 type Fail = { code: ErrorCode; detail: string; field?: string; rule?: ValidationRule };
@@ -69,6 +70,19 @@ const REFERENCE: Record<string, [string, string, string, string][]> = {
 
 type P = PatientInfo;
 type MH = MedicalHistoryInfo;
+
+/** The same checklist the Core seeds (M1), read from its seed file. */
+function parseQuestions(psv: string): MedicalQuestionInfo[] {
+  return psv.trim().split(/\r?\n/).slice(1).map((line) => {
+    const c = line.split("|").map((x) => x.trim());
+    const opt = (i: number) => (c[i] === "-" ? null : { fa: c[i], ps: c[i + 1], en: c[i + 2] });
+    return {
+      id: `mq-${c[0]}`, code: c[0], group_code: c[1], sort_order: Number(c[2]), detail_kind: c[3] as MedicalQuestionInfo["detail_kind"],
+      choices: c[4] === "-" ? [] : c[4].split(";"), alert: c[5] === "1", female_only: c[6] === "1", is_system: true, is_active: true,
+      label: { fa: c[7], ps: c[8], en: c[9] }, detail_label: opt(10), alert_note: opt(13), version: 1,
+    };
+  });
+}
 type A = AttachmentInfo & { sha256: string; data_url: string };
 
 const iso = (d = new Date()) => d.toISOString().replace(/\.\d+Z$/, (m) => m.slice(0, 4) + "Z");
@@ -89,6 +103,7 @@ const state = {
   patients: [] as P[],
   patientSeq: 0,
   medicalHistory: new Map<string, MH>(),
+  medicalQuestions: parseQuestions(questionsPsv),
   attachments: [] as A[],
   doctors: [] as DoctorInfo[],
   chairs: [] as ChairInfo[],
@@ -176,7 +191,16 @@ function seed() {
     state.patients.push(patient);
   });
   seedScheduling();
-  state.medicalHistory.set(state.patients[0].id, { patient_id: state.patients[0].id, allergies: "پنی‌سیلین", current_medications: null, chronic_conditions: "دیابت", dental_history: null, previous_surgeries: null, notes: null, version: 1 });
+  // Reviewed eight months ago: the profile asks for a new review.
+  state.medicalHistory.set(state.patients[0].id, {
+    patient_id: state.patients[0].id,
+    answers: [
+      { question_id: "mq-diabetes", answer: "yes", detail_text: null, detail_choice: "uncontrolled" },
+      { question_id: "mq-hiv", answer: "no", detail_text: null, detail_choice: null },
+      { question_id: "mq-allergy_penicillin", answer: "yes", detail_text: "آموکسی‌سیلین", detail_choice: null },
+    ],
+    notes: "حساسیت‌ها: پنی‌سیلین", reviewed_at: iso(new Date(Date.now() - 240 * 86_400_000)), reviewed_by_name: "داکتر احمد رحیمی", review_due: true, version: 1,
+  });
 }
 
 /** Two doctors, two chairs and a few of today's visits, so the calendar and queue have something to show. */
@@ -458,20 +482,55 @@ function call(method: string, p: any, token: string | null): unknown {
       return { total: 0, imported: 0, skipped: 0, preview: [], errors: [] };
     case "medical_history.get": {
       const h = state.medicalHistory.get(p.patient_id);
-      return h ?? { patient_id: p.patient_id, allergies: null, current_medications: null, chronic_conditions: null, dental_history: null, previous_surgeries: null, notes: null, version: 0 };
+      return h ?? { patient_id: p.patient_id, answers: [], notes: null, reviewed_at: null, reviewed_by_name: null, review_due: true, version: 0 };
     }
-    case "medical_history.update": {
+    case "medical_history.update":
+    case "medical_history.review": {
       need(s, "clinical.edit");
       const before = state.medicalHistory.get(p.patient_id);
       if ((before?.version ?? 0) !== p.version) fail("conflict", "changed");
+      const review = method === "medical_history.review";
+      const answers: MedicalAnswer[] = review ? (before?.answers ?? []) : (p.answers as MedicalAnswer[]).map((a) => {
+        const q = state.medicalQuestions.find((x) => x.id === a.question_id);
+        if (!q) invalid(`answers.${a.question_id}`, "medical_question_not_found");
+        if (a.answer !== "yes") return { ...a, detail_text: null, detail_choice: null };
+        if (q!.detail_kind === "months" && a.detail_text && !(Number(a.detail_text) >= 1 && Number(a.detail_text) <= 10)) invalid(`answers.${q!.id}`, "medical_months_range");
+        return a;
+      });
       const after: MH = {
-        patient_id: p.patient_id, allergies: p.allergies ?? null, current_medications: p.current_medications ?? null,
-        chronic_conditions: p.chronic_conditions ?? null, dental_history: p.dental_history ?? null,
-        previous_surgeries: p.previous_surgeries ?? null, notes: p.notes ?? null, version: (before?.version ?? 0) + 1,
+        patient_id: p.patient_id, answers, notes: review ? (before?.notes ?? null) : (p.notes ?? null), reviewed_at: iso(),
+        reviewed_by_name: s.user.display_name, review_due: false, version: (before?.version ?? 0) + 1,
       };
       state.medicalHistory.set(p.patient_id, after);
-      record(s.user, "patient.medical_history_update", "patient", p.patient_id);
+      record(s.user, review ? "patient.medical_history_review" : "patient.medical_history_update", "patient", p.patient_id);
       return after;
+    }
+    case "medical_questions.list":
+      return state.medicalQuestions.filter((q) => p.include_inactive || q.is_active);
+    case "medical_questions.create": {
+      need(s, "settings.manage");
+      const label = p.label.fa || p.label.ps || p.label.en;
+      if (!label?.trim()) invalid("label", "medical_question_label");
+      const q: MedicalQuestionInfo = {
+        id: uuid(), code: `custom_${Date.now()}`, group_code: p.group_code, sort_order: 999, detail_kind: p.detail_kind ?? "none", choices: [],
+        alert: !!p.alert, female_only: !!p.female_only, is_system: false, is_active: true,
+        label: { fa: p.label.fa || label, ps: p.label.ps || label, en: p.label.en || label },
+        detail_label: p.detail_kind === "text" ? { fa: "توضیح", ps: "تشریح", en: "Details" } : null, alert_note: null, version: 1,
+      };
+      state.medicalQuestions.push(q);
+      record(s.user, "medical_question.create", "medical_question", q.id);
+      return q;
+    }
+    case "medical_questions.update": {
+      need(s, "settings.manage");
+      const i = state.medicalQuestions.findIndex((x) => x.id === p.id);
+      if (i < 0) invalid("id", "medical_question_not_found");
+      const q = state.medicalQuestions[i];
+      if (q.version !== p.version) fail("conflict", "changed");
+      const next = q.is_system ? { ...q, is_active: p.is_active, sort_order: p.sort_order } : { ...q, ...p };
+      state.medicalQuestions[i] = { ...next, version: q.version + 1 };
+      record(s.user, "medical_question.update", "medical_question", q.id);
+      return state.medicalQuestions[i];
     }
     case "attachments.list":
       return state.attachments.filter((a) => a.patient_id === p.patient_id);

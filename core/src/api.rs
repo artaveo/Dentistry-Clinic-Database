@@ -23,6 +23,7 @@ use crate::db::{self, KeyFiles};
 use crate::error::{CoreError, Result};
 use crate::ids::new_id;
 use crate::keys::RecoveryKey;
+use crate::medical;
 use crate::patient;
 use crate::session::{state_of, Session};
 use crate::settings;
@@ -618,12 +619,33 @@ impl Core {
             m::MEDICAL_HISTORY_GET => {
                 s.require(perm::CLINICAL_VIEW)?;
                 let PatientIdParams { patient_id } = params(p)?;
-                ok(self.with_db(|o| patient::get_medical_history(&o.conn, &patient_id))?)
+                ok(self.with_db(|o| medical::get_history(&o.conn, &patient_id))?)
             }
             m::MEDICAL_HISTORY_UPDATE => {
                 s.require(perm::CLINICAL_EDIT)?;
                 let p: UpdateMedicalHistoryParams = params(p)?;
-                ok(self.with_db(|o| patient::update_medical_history(&o.conn, &actor(&s), &p))?)
+                ok(self.with_tx(|c| medical::update_history(c, &actor(&s), &p))?)
+            }
+            m::MEDICAL_HISTORY_REVIEW => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: ReviewMedicalHistoryParams = params(p)?;
+                ok(self.with_tx(|c| medical::review_history(c, &actor(&s), &p))?)
+            }
+            m::MEDICAL_QUESTIONS_LIST => {
+                // Whoever sees a patient's alert banner needs the questions' labels.
+                s.require(perm::PATIENTS_VIEW)?;
+                let MedicalQuestionListParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| medical::list_questions(&o.conn, include_inactive))?)
+            }
+            m::MEDICAL_QUESTIONS_CREATE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: CreateMedicalQuestionParams = params(p)?;
+                ok(self.with_tx(|c| medical::create_question(c, &actor(&s), &p))?)
+            }
+            m::MEDICAL_QUESTIONS_UPDATE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: UpdateMedicalQuestionParams = params(p)?;
+                ok(self.with_tx(|c| medical::update_question(c, &actor(&s), &p))?)
             }
             m::ATTACHMENTS_LIST => {
                 s.require(perm::PATIENTS_VIEW)?;

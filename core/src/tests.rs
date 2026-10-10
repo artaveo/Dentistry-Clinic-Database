@@ -773,42 +773,213 @@ fn patient_merge_folds_the_losing_record() {
     assert_eq!(dups.as_array().unwrap().len(), 1);
 }
 
+/// The id of the seeded checklist question `code` (M1).
+fn question(t: &T, token: &str, code: &str) -> Value {
+    t.ok(m::MEDICAL_QUESTIONS_LIST, json!({"include_inactive": true}), Some(token))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|q| q["code"] == code)
+        .unwrap_or_else(|| panic!("question {code}"))
+        .clone()
+}
+
 #[test]
-fn medical_history_alert_and_optimistic_locking() {
+fn medical_history_checklist_answers_alerts_and_optimistic_locking() {
+    // M1 / OF-025: a yes/no/unknown checklist replaces the free-text fields.
     let t = T::new();
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let patient = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
 
-    let empty = t.ok(m::MEDICAL_HISTORY_GET, json!({"patient_id": patient["id"]}), Some(&owner));
-    assert_eq!(empty["version"], 0);
-
-    let created = t.ok(
-        m::MEDICAL_HISTORY_UPDATE,
-        json!({"patient_id": patient["id"], "version": 0, "allergies": "Penicillin", "chronic_conditions": "Diabetes"}),
-        Some(&owner),
-    );
-    assert_eq!(created["version"], 1);
-    assert_eq!(created["allergies"], "Penicillin");
-
+    let questions = t.ok(m::MEDICAL_QUESTIONS_LIST, json!({}), Some(&owner));
+    let questions = questions.as_array().unwrap();
+    assert_eq!(questions.len(), 34);
+    assert_eq!(questions[0]["group_code"], "cardio", "checklist order: groups as in the spec");
+    let anticoag = question(&t, &owner, "anticoagulants");
+    assert_eq!(anticoag["alert"], true);
+    assert_eq!(anticoag["detail_kind"], "text");
+    assert_eq!(anticoag["label"]["fa"], "مصرف رقیق‌کننده خون (وارفارین، آسپرین، کلوپیدوگرل و…)");
+    assert!(anticoag["alert_note"]["en"].as_str().unwrap().contains("prescribing doctor"));
+    let diabetes = question(&t, &owner, "diabetes");
+    assert_eq!(diabetes["choices"], json!(["controlled", "uncontrolled"]));
+    let pregnant = question(&t, &owner, "pregnant");
     assert_eq!(
+        (pregnant["female_only"].as_bool(), pregnant["detail_kind"].as_str()),
+        (Some(true), Some("months"))
+    );
+    let hiv = question(&t, &owner, "hiv");
+
+    let empty = t.ok(m::MEDICAL_HISTORY_GET, json!({"patient_id": patient["id"]}), Some(&owner));
+    assert_eq!((empty["version"].as_i64(), empty["review_due"].as_bool()), (Some(0), Some(true)));
+    assert_eq!(empty["answers"], json!([]));
+
+    let save = |version: i64, answers: Value| {
         t.call(
             m::MEDICAL_HISTORY_UPDATE,
-            json!({"patient_id": patient["id"], "version": 0, "allergies": "x"}),
-            Some(&owner)
-        ),
+            json!({"patient_id": patient["id"], "version": version, "answers": answers, "notes": " دندان قروچه "}),
+            Some(&owner),
+        )
+    };
+    let saved = save(
+        0,
+        json!([
+            {"question_id": anticoag["id"], "answer": "yes", "detail_text": " Warfarin "},
+            {"question_id": diabetes["id"], "answer": "yes", "detail_choice": "uncontrolled"},
+            // A detail only belongs to a "yes": it is dropped otherwise.
+            {"question_id": hiv["id"], "answer": "no", "detail_text": "ignored"},
+            {"question_id": pregnant["id"], "answer": "yes", "detail_text": "۵"}
+        ]),
+    )
+    .unwrap();
+    assert_eq!(saved["version"], 1);
+    assert_eq!(saved["review_due"], false);
+    assert_eq!(saved["reviewed_by_name"], "مالک");
+    assert_eq!(saved["notes"], "دندان قروچه");
+    let answers = saved["answers"].as_array().unwrap();
+    assert_eq!(answers.len(), 4);
+    assert_eq!(answers[0]["question_id"], anticoag["id"], "answers in checklist order");
+    assert_eq!(answers[0]["detail_text"], "Warfarin");
+    let hiv_answer = answers.iter().find(|a| a["question_id"] == hiv["id"]).unwrap();
+    assert_eq!((hiv_answer["answer"].as_str(), hiv_answer["detail_text"].as_str()), (Some("no"), None));
+    assert_eq!(answers.iter().find(|a| a["question_id"] == pregnant["id"]).unwrap()["detail_text"], "5");
+
+    // Each rule names the answer at fault (OF-002).
+    let field_of = |answers: Value| {
+        let (_, field, rule) = rule_of(
+            &t,
+            m::MEDICAL_HISTORY_UPDATE,
+            json!({"patient_id": patient["id"], "version": 1, "answers": answers}),
+            &owner,
+        );
+        (field, rule)
+    };
+    let pregnant_field = Some(format!("answers.{}", pregnant["id"].as_str().unwrap()));
+    assert_eq!(
+        field_of(json!([{"question_id": pregnant["id"], "answer": "yes", "detail_text": "12"}])),
+        (pregnant_field.clone(), Some("medical_months_range".into()))
+    );
+    assert_eq!(
+        field_of(json!([{"question_id": diabetes["id"], "answer": "yes", "detail_choice": "sometimes"}])).1,
+        Some("medical_choice".into())
+    );
+    assert_eq!(
+        field_of(json!([{"question_id": "nope", "answer": "yes"}])).1,
+        Some("medical_question_not_found".into())
+    );
+    let long = "x".repeat(301);
+    assert_eq!(
+        field_of(json!([{"question_id": anticoag["id"], "answer": "yes", "detail_text": long}])).1,
+        Some("medical_detail_length".into())
+    );
+
+    // A stale view is refused; the full set replaces the old one.
+    assert_eq!(save(0, json!([])), Err(ErrorCode::Conflict));
+    let replaced = save(1, json!([{"question_id": hiv["id"], "answer": "unknown"}])).unwrap();
+    assert_eq!(replaced["answers"].as_array().unwrap().len(), 1);
+
+    // "Reviewed, nothing changed" only moves the review date (and the version).
+    let reviewed =
+        t.ok(m::MEDICAL_HISTORY_REVIEW, json!({"patient_id": patient["id"], "version": 2}), Some(&owner));
+    assert_eq!((reviewed["version"].as_i64(), reviewed["answers"].as_array().unwrap().len()), (Some(3), 1));
+    assert_eq!(
+        t.call(m::MEDICAL_HISTORY_REVIEW, json!({"patient_id": patient["id"], "version": 2}), Some(&owner)),
         Err(ErrorCode::Conflict)
     );
 
-    let updated = t.ok(
-        m::MEDICAL_HISTORY_UPDATE,
-        json!({"patient_id": patient["id"], "version": 1, "allergies": "Penicillin, Latex"}),
-        Some(&owner),
-    );
-    assert_eq!(updated["version"], 2);
-
     let actions = t.audit_actions(&owner);
     assert_eq!(actions.iter().filter(|a| a.as_str() == "patient.medical_history_update").count(), 2);
+    assert!(actions.contains(&"patient.medical_history_review".to_string()));
+}
+
+#[test]
+fn clinic_adds_its_own_questions_and_can_switch_system_ones_off() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let q = t.ok(
+        m::MEDICAL_QUESTIONS_CREATE,
+        json!({"group_code": "other", "label": {"fa": "سابقه کرونا", "ps": "", "en": ""}, "detail_kind": "text", "alert": true}),
+        Some(&owner),
+    );
+    assert_eq!((q["is_system"].as_bool(), q["label"]["en"].as_str()), (Some(false), Some("سابقه کرونا")));
+    assert_eq!(q["detail_label"]["fa"], "توضیح");
+    let (_, field, rule) = rule_of(
+        &t,
+        m::MEDICAL_QUESTIONS_CREATE,
+        json!({"group_code": "other", "label": {"fa": " ", "ps": "", "en": ""}}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("label"), Some("medical_question_label")));
+    let (_, field, rule) = rule_of(
+        &t,
+        m::MEDICAL_QUESTIONS_CREATE,
+        json!({"group_code": "other", "label": {"fa": "x", "ps": "x", "en": "x"}, "detail_kind": "months"}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("detail_kind"), Some("medical_detail_kind")));
+
+    // A system question can be switched off, never reworded.
+    let mut thyroid = question(&t, &owner, "thyroid");
+    thyroid["is_active"] = json!(false);
+    let off = t.ok(m::MEDICAL_QUESTIONS_UPDATE, thyroid.clone(), Some(&owner));
+    assert_eq!(off["is_active"], false);
+    assert_eq!(t.ok(m::MEDICAL_QUESTIONS_LIST, json!({}), Some(&owner)).as_array().unwrap().len(), 34);
+    let mut reworded = off.clone();
+    reworded["label"]["fa"] = json!("چیز دیگر");
+    let (_, _, rule) = rule_of(&t, m::MEDICAL_QUESTIONS_UPDATE, reworded, &owner);
+    assert_eq!(rule.as_deref(), Some("medical_system_question"));
+    // A start-up (seed sync) keeps the clinic's choice.
+    let t = t.reopen();
+    let owner = t.login("owner", "owner-pass-1");
+    assert_eq!(question(&t, &owner, "thyroid")["is_active"], false);
+
+    // Reception (no settings.manage) can read the questions but not change them.
+    let mut reception_cannot = q.clone();
+    reception_cannot["alert"] = json!(false);
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "rec", "display_name": "Reception", "password": "reception-1", "role": "receptionist"}),
+        Some(&owner),
+    );
+    let rec = t.login("rec", "reception-1");
+    t.ok(m::MEDICAL_QUESTIONS_LIST, json!({}), Some(&rec));
+    assert_eq!(t.call(m::MEDICAL_QUESTIONS_UPDATE, reception_cannot, Some(&rec)), Err(ErrorCode::Forbidden));
+}
+
+#[test]
+fn migration_moves_old_free_text_medical_history_into_the_notes() {
+    // OF-025: a history typed as free text before v0.5.0 survives the move to the checklist.
+    let dir = tempfile::tempdir().unwrap();
+    let config = Config::new(Environment::Test, dir.path().to_path_buf());
+    let recovery = RecoveryKey::generate();
+    let protector = default_protector();
+    let path = config.db_path();
+    {
+        let (mut conn, _key) = db::create(&path, protector.as_ref(), &recovery).unwrap();
+        let v9: Vec<db::Migration> = db::MIGRATIONS
+            .iter()
+            .filter(|m| m.version <= 9)
+            .map(|m| db::Migration { version: m.version, name: m.name, sql: m.sql })
+            .collect();
+        db::migrate(&mut conn, &v9, &config.backup_dir()).unwrap();
+        conn.execute_batch(
+            "INSERT INTO db_meta(key, value) VALUES ('clinic_name', 'Old'), ('default_language', 'fa'), ('clinic_id', 'x'),
+                    ('created_at', '2026-01-01T00:00:00.000Z'), ('created_with_version', '0.4.1');
+             INSERT INTO patient(id, patient_number, full_name, registration_date, created_at, updated_at)
+             VALUES ('p1', 'P-000001', 'Old Patient', '2026-01-01', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+             INSERT INTO patient_medical_history(id, patient_id, allergies, chronic_conditions, notes, created_at, updated_at)
+             VALUES ('h1', 'p1', 'Penicillin', ' دیابت ', 'یادداشت قدیمی', '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z');",
+        )
+        .unwrap();
+    }
+    let core = Core::open(config).unwrap();
+    let h = core.with_db(|o| crate::medical::get_history(&o.conn, "p1")).unwrap();
+    assert_eq!(h.notes.as_deref(), Some("حساسیت‌ها: Penicillin\nبیماری‌های مزمن: دیابت\nیادداشت قدیمی"));
+    assert_eq!(h.reviewed_at.as_deref(), Some("2026-02-01T00:00:00.000Z"));
+    assert!(h.review_due, "reviewed more than six months ago");
+    assert_eq!(h.version, 1);
+    assert!(h.answers.is_empty());
 }
 
 #[test]

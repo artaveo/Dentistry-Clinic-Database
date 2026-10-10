@@ -475,6 +475,36 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 .profile-tab[aria-selected="true"] { color: var(--accent-text); background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent-text); }
 .profile-tab:disabled { opacity: .4; cursor: not-allowed; }
 .medical-alert { margin-block: var(--space-2); }
+.medical-alert-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 2px var(--space-4); }
+.medical-alert-list li { position: relative; }
+.medical-alert-list li + li::before { content: "·"; position: absolute; inset-inline-start: calc(var(--space-4) / -2 - 2px); color: var(--danger); font-weight: 700; }
+.medical-alert-note { color: var(--text-2); font-size: 12.5px; }
+.medical-review { margin-block: var(--space-2); }
+
+/* ───────────── medical-history checklist (M1) ───────────── */
+.mh-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.mh-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: var(--space-4); align-items: start; }
+.mh-group { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--fill-subtle); padding: var(--space-2) var(--space-3) var(--space-3); }
+.mh-group-title { margin: var(--space-2) var(--space-1) var(--space-2); font-size: 13px; line-height: 20px; font-weight: 600; color: var(--text-2); letter-spacing: .01em; }
+.mh-row { padding: var(--space-2) var(--space-2); border-radius: var(--radius-md); transition: background var(--dur-fast) var(--ease); }
+.mh-row + .mh-row { border-top: 1px solid var(--line); border-radius: 0; }
+.mh-row.is-yes { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.mh-row.is-alert { background: color-mix(in srgb, var(--danger) 7%, transparent); }
+.mh-row-main { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.mh-label { display: inline-flex; align-items: flex-start; gap: var(--space-2); font-size: 13.5px; line-height: 21px; min-width: 0; }
+.mh-alert-icon { width: 15px; height: 15px; flex: none; margin-top: 3px; color: var(--danger); opacity: .75; }
+.mh-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); padding: var(--space-3) 0 var(--space-1); }
+.mh-note { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--danger); }
+/* Three-way answer: yes / no / unknown — the chosen one is filled in its own colour; none chosen = not asked yet. */
+.tri { display: inline-flex; flex: none; padding: 2px; gap: 2px; border-radius: var(--radius-md); background: var(--fill-subtle); border: 1px solid var(--line); }
+.tri button { min-width: 52px; height: 28px; padding: 0 var(--space-2); border: none; border-radius: calc(var(--radius-md) - 2px); background: transparent; color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.tri button:hover:not(:disabled) { background: var(--fill-hover); color: var(--text); }
+.tri button:disabled { cursor: default; }
+.tri button[aria-checked="true"] { background: var(--glass-overlay); color: var(--text); box-shadow: var(--shadow-1), 0 0 0 1px var(--line); }
+.tri button.tri-yes[aria-checked="true"] { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.mh-row.is-alert .tri button.tri-yes[aria-checked="true"] { background: var(--danger); color: #fff; }
+.tri button.tri-no[aria-checked="true"] { background: var(--success-soft); color: var(--success); box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 35%, transparent); }
+.tri button.tri-unknown[aria-checked="true"] { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 35%, transparent); }
 .attachment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-3); padding: var(--space-4); }
 .attachment-skeleton { grid-column: 1 / -1; }
 .attachment-card { display: flex; flex-direction: column; gap: var(--space-2); }

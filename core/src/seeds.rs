@@ -13,6 +13,8 @@ use crate::ids::seed_id;
 const REFERENCE_CSV: &str = include_str!("../seeds/reference.csv");
 const PROVINCES_CSV: &str = include_str!("../seeds/provinces.csv");
 const DISTRICTS_CSV: &str = include_str!("../seeds/districts.csv");
+/// Pipe-separated (`|`): the labels themselves contain commas.
+const MEDICAL_QUESTIONS_PSV: &str = include_str!("../seeds/medical_questions.psv");
 
 pub const LANGS: [&str; 3] = ["fa", "ps", "en"];
 
@@ -33,16 +35,21 @@ pub struct GeoRow {
 }
 
 fn rows(csv: &str, expect_header: &str) -> Result<Vec<Vec<String>>> {
-    let mut lines = csv.lines().filter(|l| !l.trim().is_empty());
+    rows_sep(csv, expect_header, ',')
+}
+
+/// Seed rows split on `sep`; every column must be non-empty (optional ones use `-`).
+fn rows_sep(text: &str, expect_header: &str, sep: char) -> Result<Vec<Vec<String>>> {
+    let mut lines = text.lines().filter(|l| !l.trim().is_empty());
     let header = lines.next().unwrap_or_default().trim();
     if header != expect_header {
         return Err(CoreError::validation(format!("seed header `{header}` != `{expect_header}`")));
     }
-    let width = expect_header.split(',').count();
+    let width = expect_header.split(sep).count();
     lines
         .enumerate()
         .map(|(i, l)| {
-            let cols: Vec<String> = l.split(',').map(|c| c.trim().to_string()).collect();
+            let cols: Vec<String> = l.split(sep).map(|c| c.trim().to_string()).collect();
             if cols.len() != width || cols.iter().any(String::is_empty) {
                 return Err(CoreError::validation(format!(
                     "seed line {}: expected {width} non-empty columns",
@@ -75,6 +82,92 @@ pub fn reference_rows() -> Result<Vec<ReferenceRow>> {
                 code: c[1].clone(),
                 sort: parse_sort(&c[2])?,
                 labels: labels(&c[3..]),
+            })
+        })
+        .collect()
+}
+
+/// A system question of the medical-history checklist (M1).
+#[derive(Debug, Clone)]
+pub struct MedicalQuestionRow {
+    pub code: String,
+    pub group: String,
+    pub sort: i64,
+    pub detail: String,
+    pub choices: Option<String>,
+    pub alert: bool,
+    pub female_only: bool,
+    pub labels: [String; 3],
+    pub detail_labels: Option<[String; 3]>,
+    pub notes: Option<[String; 3]>,
+}
+
+fn optional3(c: &[String], what: &str, code: &str) -> Result<Option<[String; 3]>> {
+    match c.iter().filter(|x| x.as_str() == "-").count() {
+        0 => Ok(Some(labels(c))),
+        3 => Ok(None),
+        _ => Err(CoreError::validation(format!(
+            "medical question {code}: {what} must be given in all three languages or none"
+        ))),
+    }
+}
+
+fn flag(s: &str, code: &str) -> Result<bool> {
+    match s {
+        "0" => Ok(false),
+        "1" => Ok(true),
+        _ => Err(CoreError::validation(format!("medical question {code}: flag `{s}` is not 0/1"))),
+    }
+}
+
+pub fn medical_question_rows() -> Result<Vec<MedicalQuestionRow>> {
+    let rows = rows_sep(
+        MEDICAL_QUESTIONS_PSV,
+        "code|group|sort|detail|choices|alert|female_only|fa|ps|en|detail_fa|detail_ps|detail_en|note_fa|note_ps|note_en",
+        '|',
+    )?;
+    let mut seen = HashSet::new();
+    rows.into_iter()
+        .map(|c| {
+            let code = c[0].clone();
+            if !seen.insert(code.clone()) {
+                return Err(CoreError::validation(format!("duplicate medical question {code}")));
+            }
+            if !crate::medical::GROUPS.contains(&c[1].as_str()) {
+                return Err(CoreError::validation(format!(
+                    "medical question {code}: unknown group {}",
+                    c[1]
+                )));
+            }
+            if !["none", "text", "choice", "text_choice", "months"].contains(&c[3].as_str()) {
+                return Err(CoreError::validation(format!(
+                    "medical question {code}: unknown detail {}",
+                    c[3]
+                )));
+            }
+            let choices = (c[4] != "-").then(|| c[4].clone());
+            if c[3].contains("choice") != choices.is_some() {
+                return Err(CoreError::validation(format!(
+                    "medical question {code}: choices do not match its detail"
+                )));
+            }
+            let detail_labels = optional3(&c[10..13], "detail label", &code)?;
+            if (c[3] != "none") != detail_labels.is_some() {
+                return Err(CoreError::validation(format!(
+                    "medical question {code}: detail label does not match its detail"
+                )));
+            }
+            Ok(MedicalQuestionRow {
+                group: c[1].clone(),
+                sort: parse_sort(&c[2])?,
+                detail: c[3].clone(),
+                choices,
+                alert: flag(&c[5], &code)?,
+                female_only: flag(&c[6], &code)?,
+                labels: labels(&c[7..10]),
+                detail_labels,
+                notes: optional3(&c[13..16], "alert note", &code)?,
+                code,
             })
         })
         .collect()
@@ -164,6 +257,34 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
         )?;
         geo("province", &id, &p.labels)?;
     }
+    // M1: system checklist questions. The clinic may switch one off (is_active) — that choice is kept.
+    for q in medical_question_rows()? {
+        let id = seed_id("medical_question", &q.code);
+        tx.execute(
+            "INSERT INTO medical_question(id, code, group_code, sort_order, detail_kind, choices, alert, female_only,
+                is_system, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, ?9, ?9)
+             ON CONFLICT(id) DO UPDATE SET group_code = excluded.group_code, sort_order = excluded.sort_order,
+                detail_kind = excluded.detail_kind, choices = excluded.choices, alert = excluded.alert,
+                female_only = excluded.female_only, is_system = 1",
+            params![id, q.code, q.group, q.sort, q.detail, q.choices, q.alert, q.female_only, now],
+        )?;
+        for (i, lang) in LANGS.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO medical_question_translation(question_id, language_code, label, detail_label, alert_note)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(question_id, language_code) DO UPDATE SET label = excluded.label,
+                    detail_label = excluded.detail_label, alert_note = excluded.alert_note",
+                params![
+                    id,
+                    lang,
+                    q.labels[i],
+                    q.detail_labels.as_ref().map(|l| l[i].clone()),
+                    q.notes.as_ref().map(|l| l[i].clone())
+                ],
+            )?;
+        }
+    }
     for d in district_rows()? {
         let id = seed_id("district", &d.code);
         let province_id = seed_id("province", d.parent.as_deref().unwrap());
@@ -200,6 +321,16 @@ mod tests {
         // Dari labels use Persian ی/ک, never Arabic ي/ك (search and sorting depend on it).
         for d in &districts {
             assert!(!d.labels[0].contains(['ي', 'ك']), "{}: {}", d.code, d.labels[0]);
+        }
+        // M1: the full checklist of the clinical-workflow spec, women's questions only for women.
+        let questions = medical_question_rows().unwrap();
+        assert_eq!(questions.len(), 34);
+        for code in ["anticoagulants", "bisphosphonates", "pregnant", "allergy_penicillin", "allergy_other"] {
+            assert!(questions.iter().any(|q| q.code == code && q.alert), "{code}");
+        }
+        assert!(questions.iter().filter(|q| q.female_only).all(|q| q.group == "women"));
+        for q in &questions {
+            assert!(!q.labels[0].contains(['ي', 'ك']), "{}: {}", q.code, q.labels[0]);
         }
     }
 }

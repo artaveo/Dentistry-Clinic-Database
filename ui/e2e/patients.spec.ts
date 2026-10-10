@@ -73,14 +73,22 @@ test("edit a patient with live validation and optimistic locking", async () => {
   await expect(page.getByTestId("page-title")).toHaveText("احمد خان رحیمی ۲");
 });
 
-test("medical history: saving allergies/conditions shows the alert banner (3.2/3.3)", async () => {
+test("medical history: the checklist's important answers show in the alert banner (3.2, M1)", async () => {
+  // Never asked yet: the profile says so.
+  await expect(page.getByTestId("medical-review-reminder")).toBeVisible();
   await page.getByTestId("patient-tab-medical").click();
-  await page.getByTestId("mh-allergies").fill("حساسیت به پنی‌سیلین");
-  await page.getByTestId("mh-conditions").fill("دیابت");
+  await page.getByTestId("mh-allergy_penicillin-yes").click();
+  await page.getByTestId("mh-allergy_penicillin-detail").fill("پنی‌سیلین");
+  await page.getByTestId("mh-diabetes-yes").click();
+  await page.getByTestId("mh-diabetes-choice-uncontrolled").click();
+  await page.getByTestId("mh-rest-no").click();
+  await expect(page.getByTestId("mh-q-hiv")).toHaveAttribute("data-answer", "no");
   await page.getByTestId("mh-save").click();
   await expect(toast()).toHaveText("سوابق پزشکی ذخیره شد.");
   await expect(page.getByTestId("medical-alert-banner")).toContainText("پنی‌سیلین");
-  await expect(page.getByTestId("medical-alert-banner")).toContainText("دیابت");
+  await expect(page.getByTestId("medical-alert-banner")).toContainText("مرض شکر (دیابت) (کنترل‌نشده)");
+  await expect(page.getByTestId("medical-review-reminder")).toHaveCount(0);
+  await expect(page.getByTestId("mh-reviewed")).toBeVisible();
 });
 
 test("attachments: upload an image, view it, then delete it (3.5)", async () => {

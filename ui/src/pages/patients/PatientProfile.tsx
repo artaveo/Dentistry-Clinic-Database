@@ -19,7 +19,7 @@ import { AttachmentsTab } from "./AttachmentsTab";
 import { PatientAuditTab } from "./PatientAuditTab";
 import { MergeDialog } from "./MergeDialog";
 import { PatientAppointmentsTab } from "./PatientAppointmentsTab";
-import type { AppointmentPerms } from "./PatientsPage";
+import type { AppointmentPerms, ClinicalPerms } from "./PatientsPage";
 import { useReferenceList } from "./useReferenceList";
 
 type TabId = "overview" | "medical" | "appointments" | "chart" | "notes" | "plans" | "treatments" | "prescriptions" | "invoices" | "payments" | "documents" | "timeline" | "audit";
@@ -40,7 +40,7 @@ const TABS: { id: TabId; icon: LucideIcon; labelKey: string; ready: boolean }[] 
   { id: "audit", icon: ScrollText, labelKey: "patients.tab.audit", ready: true },
 ];
 
-export function PatientProfile({ patientId, canEdit, appointments, clinic, clinicName, onBack, onEdit }: { patientId: string; canEdit: boolean; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
+export function PatientProfile({ patientId, canEdit, clinical, appointments, clinic, clinicName, onBack, onEdit }: { patientId: string; canEdit: boolean; clinical: ClinicalPerms; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const [patient, setPatient] = useState<PatientInfo | null>(null);
@@ -113,7 +113,7 @@ export function PatientProfile({ patientId, canEdit, appointments, clinic, clini
           <Button variant="link" onClick={() => { setBlockedBy(null); setTab("appointments"); }} data-testid="patient-delete-show">{t("patients.delete.show")}</Button>
         </Notice>
       )}
-      <MedicalAlertBanner key={medicalRefreshKey} patientId={patient.id} />
+      {clinical.view && <MedicalAlertBanner key={medicalRefreshKey} patientId={patient.id} hideReview={tab === "medical"} onOpenHistory={() => setTab("medical")} />}
 
       <div className="profile-tabs" role="tablist">
         {TABS.map(({ id, icon: Icon, labelKey, ready }) => (
@@ -160,7 +160,7 @@ export function PatientProfile({ patientId, canEdit, appointments, clinic, clini
         </Card>
       )}
       {tab === "medical" && (
-        <MedicalHistoryTab patientId={patient.id} canEdit={canEdit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
+        <MedicalHistoryTab patientId={patient.id} female={genders.find((g) => g.id === patient.gender_id)?.code === "female"} canEdit={clinical.edit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
       )}
       {tab === "appointments" && <PatientAppointmentsTab patient={patient} perms={appointments} clinic={clinic} clinicName={clinicName} />}
       {tab === "documents" && <AttachmentsTab patientId={patient.id} canEdit={canEdit} />}

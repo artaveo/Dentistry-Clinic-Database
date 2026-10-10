@@ -4,9 +4,8 @@
 //! triggers, so normalization (`crate::normalize`) stays in one place.
 
 use artaveo_shared::{
-    AttachmentInfo, AttachmentKind, CreatePatientParams, MedicalHistoryInfo, MergePatientsParams,
-    PatientInfo, PatientListParams, PatientListResult, PatientStatus, UpdateMedicalHistoryParams,
-    UpdatePatientParams, ValidationRule,
+    AttachmentInfo, AttachmentKind, CreatePatientParams, MergePatientsParams, PatientInfo, PatientListParams,
+    PatientListResult, PatientStatus, UpdatePatientParams, ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
@@ -261,38 +260,6 @@ pub fn check_duplicate(conn: &Connection, full_name: &str, phone: Option<&str>) 
     let rows: Vec<PatientInfo> =
         stmt.query_map([fts_query], map_patient)?.collect::<rusqlite::Result<_>>()?;
     Ok(rows)
-}
-
-pub fn get_medical_history(conn: &Connection, patient_id: &str) -> Result<MedicalHistoryInfo> {
-    let row = conn
-        .query_row(
-            "SELECT allergies, current_medications, chronic_conditions, dental_history, previous_surgeries, notes, version
-             FROM patient_medical_history WHERE patient_id = ?1 AND deleted_at IS NULL",
-            [patient_id],
-            |r| {
-                Ok(MedicalHistoryInfo {
-                    patient_id: patient_id.to_string(),
-                    allergies: r.get(0)?,
-                    current_medications: r.get(1)?,
-                    chronic_conditions: r.get(2)?,
-                    dental_history: r.get(3)?,
-                    previous_surgeries: r.get(4)?,
-                    notes: r.get(5)?,
-                    version: r.get(6)?,
-                })
-            },
-        )
-        .optional()?;
-    Ok(row.unwrap_or_else(|| MedicalHistoryInfo {
-        patient_id: patient_id.to_string(),
-        allergies: None,
-        current_medications: None,
-        chronic_conditions: None,
-        dental_history: None,
-        previous_surgeries: None,
-        notes: None,
-        version: 0,
-    }))
 }
 
 // ───────────────────────────── search index ─────────────────────────────
@@ -565,71 +532,6 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         })),
     )?;
     Ok(keep)
-}
-
-pub fn update_medical_history(
-    conn: &Connection,
-    actor: &Actor,
-    p: &UpdateMedicalHistoryParams,
-) -> Result<MedicalHistoryInfo> {
-    let before = get_medical_history(conn, &p.patient_id)?;
-    let now = now_iso();
-    if before.version == 0 {
-        if p.version != 0 {
-            // The caller's view is stale (someone else created the first row since).
-            return Err(CoreError::api(
-                artaveo_shared::ErrorCode::Conflict,
-                "medical history was changed by another user or no longer exists",
-            ));
-        }
-        conn.execute(
-            "INSERT INTO patient_medical_history(id, patient_id, allergies, current_medications, chronic_conditions,
-                dental_history, previous_surgeries, notes, created_at, created_by, updated_at, updated_by)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?9,?10)",
-            params![
-                new_id(),
-                p.patient_id,
-                p.allergies,
-                p.current_medications,
-                p.chronic_conditions,
-                p.dental_history,
-                p.previous_surgeries,
-                p.notes,
-                now,
-                actor.user_id,
-            ],
-        )?;
-    } else {
-        let changed = conn.execute(
-            "UPDATE patient_medical_history SET allergies=?1, current_medications=?2, chronic_conditions=?3,
-                dental_history=?4, previous_surgeries=?5, notes=?6, updated_at=?7, updated_by=?8, version=version+1
-             WHERE patient_id=?9 AND version=?10 AND deleted_at IS NULL",
-            params![
-                p.allergies,
-                p.current_medications,
-                p.chronic_conditions,
-                p.dental_history,
-                p.previous_surgeries,
-                p.notes,
-                now,
-                actor.user_id,
-                p.patient_id,
-                p.version,
-            ],
-        )?;
-        expect_one_row(changed, "medical history")?;
-    }
-    let after = get_medical_history(conn, &p.patient_id)?;
-    audit::record(
-        conn,
-        actor,
-        "patient.medical_history_update",
-        Some("patient"),
-        Some(&p.patient_id),
-        Some(&json!(before)),
-        Some(&json!(after)),
-    )?;
-    Ok(after)
 }
 
 // ───────────────────────────── attachments (3.5, ADR-12) ─────────────────────────────

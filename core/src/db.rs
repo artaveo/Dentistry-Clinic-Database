@@ -41,6 +41,11 @@ pub static MIGRATIONS: &[Migration] = &[
         name: "role_customized",
         sql: include_str!("../migrations/0009_role_customized.sql"),
     },
+    Migration {
+        version: 10,
+        name: "medical_checklist",
+        sql: include_str!("../migrations/0010_medical_checklist.sql"),
+    },
 ];
 
 /// Files next to the database.

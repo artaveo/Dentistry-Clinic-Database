@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -204,9 +204,80 @@ export type PatientIdParams = { patient_id: string, };
 
 export type MergePatientsParams = { keep_id: string, merge_id: string, merge_id_version: number, };
 
-export type MedicalHistoryInfo = { patient_id: string, allergies: string | null, current_medications: string | null, chronic_conditions: string | null, dental_history: string | null, previous_surgeries: string | null, notes: string | null, version: number, };
+export type Translations = { fa: string, ps: string, en: string, };
 
-export type UpdateMedicalHistoryParams = { patient_id: string, version: number, allergies: string | null, current_medications: string | null, chronic_conditions: string | null, dental_history: string | null, previous_surgeries: string | null, notes: string | null, };
+export type MedicalDetailKind = "none" | "text" | "choice" | "text_choice" | "months";
+
+export type MedicalAnswerValue = "yes" | "no" | "unknown";
+
+export type MedicalQuestionInfo = { id: string, 
+/**
+ * Stable code (`anticoagulants`, `pregnant`, …); prescriptions check these (5.9).
+ */
+code: string, 
+/**
+ * `cardio`, `blood`, `endocrine`, `respiratory`, `infectious`, `kidney_liver`, `neuro`, `bone`,
+ * `cancer`, `digestive`, `skin`, `habits`, `women`, `allergy`, `medication`, `surgery`, `other`.
+ */
+group_code: string, sort_order: number, detail_kind: MedicalDetailKind, 
+/**
+ * Choice codes for `choice` / `text_choice` questions (`controlled`, `uncontrolled`, …).
+ */
+choices: Array<string>, 
+/**
+ * A "yes" shows in the medical alert banner.
+ */
+alert: boolean, 
+/**
+ * Asked only of women (pregnancy, breastfeeding).
+ */
+female_only: boolean, is_system: boolean, is_active: boolean, label: Translations, detail_label: Translations | null, 
+/**
+ * Why the alert matters, shown next to it ("antibiotic cover may be needed").
+ */
+alert_note: Translations | null, version: number, };
+
+export type MedicalQuestionListParams = { include_inactive: boolean, };
+
+export type CreateMedicalQuestionParams = { group_code: string, label: Translations, detail_kind: MedicalDetailKind, alert: boolean, female_only: boolean, };
+
+export type UpdateMedicalQuestionParams = { id: string, version: number, group_code: string, label: Translations, detail_kind: MedicalDetailKind, alert: boolean, female_only: boolean, is_active: boolean, sort_order: number, };
+
+export type MedicalAnswer = { question_id: string, answer: MedicalAnswerValue, 
+/**
+ * Only kept for a "yes": the text detail, or the number of months for `months`.
+ */
+detail_text: string | null, 
+/**
+ * Only kept for a "yes" to a `choice` / `text_choice` question: one of its choice codes.
+ */
+detail_choice: string | null, };
+
+export type MedicalHistoryInfo = { patient_id: string, 
+/**
+ * Answers in checklist order (only questions that were asked).
+ */
+answers: Array<MedicalAnswer>, 
+/**
+ * «سایر توضیحات» — free text after the checklist (earlier free-text fields were moved here).
+ */
+notes: string | null, 
+/**
+ * When the history was last saved or confirmed as still true, and by whom.
+ */
+reviewed_at: string | null, reviewed_by_name: string | null, 
+/**
+ * Never recorded, or not reviewed for more than six months: ask again at the next visit.
+ */
+review_due: boolean, version: number, };
+
+export type UpdateMedicalHistoryParams = { patient_id: string, version: number, 
+/**
+ * The full set of answers: a question left out becomes "not asked".
+ */
+answers: Array<MedicalAnswer>, notes: string | null, };
+
+export type ReviewMedicalHistoryParams = { patient_id: string, version: number, };
 
 export type AttachmentKind = "xray" | "photo" | "document" | "scan" | "consent_form" | "other";
 
@@ -480,6 +551,10 @@ export interface Api {
   "patients.export": { params: Empty; result: ExportResult };
   "medical_history.get": { params: PatientIdParams; result: MedicalHistoryInfo };
   "medical_history.update": { params: UpdateMedicalHistoryParams; result: MedicalHistoryInfo };
+  "medical_history.review": { params: ReviewMedicalHistoryParams; result: MedicalHistoryInfo };
+  "medical_questions.list": { params: MedicalQuestionListParams; result: Array<MedicalQuestionInfo> };
+  "medical_questions.create": { params: CreateMedicalQuestionParams; result: MedicalQuestionInfo };
+  "medical_questions.update": { params: UpdateMedicalQuestionParams; result: MedicalQuestionInfo };
   "attachments.list": { params: PatientIdParams; result: Array<AttachmentInfo> };
   "attachments.upload": { params: UploadAttachmentParams; result: AttachmentInfo };
   "attachments.delete": { params: IdVersionParams; result: Empty };

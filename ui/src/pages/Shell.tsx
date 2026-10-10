@@ -234,7 +234,7 @@ export function Shell({
       </aside>
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
-        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
+        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
         {tab === "appointments" && <CalendarPage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "recalls" && <RecallsPage clinic={clinic} perms={perms} clinicName={clinicName} />}

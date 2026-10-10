@@ -19,6 +19,7 @@ pub mod ids;
 pub mod import;
 pub mod keys;
 pub mod logging;
+pub mod medical;
 pub mod normalize;
 pub mod patient;
 pub mod recall;
