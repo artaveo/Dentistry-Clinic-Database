@@ -588,6 +588,11 @@ pub fn update_appointment(
                 "the time, doctor and chair cannot change after check-in",
             ));
         }
+        // OF-044: a visit is moved to a time still to come, like a new booking (OF-036). Changing
+        // only the doctor or chair of a late visit is still allowed.
+        if before.date != format_date(slot.date) || before.start_time != format_minutes(slot.start_min) {
+            check_not_past(&slot)?;
+        }
         check_doctor(conn, &p.doctor_id, before.doctor_id != p.doctor_id)?;
         check_chair(conn, &p.doctor_id, chair, before.chair_id.as_deref() != chair)?;
         check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;

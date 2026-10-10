@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Archive, DatabaseBackup, Save, ShieldCheck, Timer } from "lucide-react";
+import { Archive, CalendarDays, DatabaseBackup, Save, ShieldCheck, Timer } from "lucide-react";
 import type { Settings } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, isSessionError, rpc } from "../lib/api";
 import { digits, latinDigits } from "../lib/dates";
@@ -8,6 +8,7 @@ import { useI18n } from "../i18n";
 import { Button } from "../ui/Button";
 import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
 import { Field, TextInput } from "../ui/Field";
+import { Segmented } from "../ui/Controls";
 import { ErrorState, Loading, Notice } from "../ui/Feedback";
 import { HourPicker12 } from "../ui/TimePicker";
 import { useToast } from "../ui/Toast";
@@ -34,6 +35,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
   );
   const [hour, setHour] = useState(initial.daily_backup_hour);
   const [hourError, setHourError] = useState("");
+  const [snap, setSnap] = useState(initial.calendar_snap_minutes);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const e = (k: "session_timeout_minutes" | "backup_keep_daily") => form.error(k) && t(form.error(k)!);
@@ -48,6 +50,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         session_timeout_minutes: Number(latinDigits(form.values.session_timeout_minutes)),
         daily_backup_hour: hour,
         backup_keep_daily: Number(latinDigits(form.values.backup_keep_daily)),
+        calendar_snap_minutes: snap,
       });
       onSaved(saved);
       // A new auto-lock time applies at once, without signing in again (OF-012).
@@ -84,6 +87,18 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
               <TextInput icon={Archive} inputMode="numeric" suffix={t("common.copies")} value={form.values.backup_keep_daily} onChange={(x) => form.set("backup_keep_daily", x.target.value)} data-testid="setting-backup_keep_daily" />
             </Field>
           </div>
+        </Card>
+        <Card>
+          <CardHeader icon={CalendarDays} title={t("settings.calendar")} description={t("settings.calendarHint")} />
+          {/* OF-044: an appointment dragged in the calendar lands on steps of this size. */}
+          <Field label={t("settings.snap")} hint={t("hint.snap")}>
+            <Segmented<string>
+              value={String(snap)}
+              onChange={(x) => setSnap(Number(x))}
+              label={t("settings.snap")}
+              options={[1, 5, 10, 15].map((n) => ({ value: String(n), label: `${digits(n, lang)} ${t("common.minutes")}`, testId: `setting-calendar-snap-${n}` }))}
+            />
+          </Field>
         </Card>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="settings-save">{t("common.save")}</Button>

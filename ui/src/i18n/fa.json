@@ -858,5 +858,19 @@
   "draft.found.discard": "حذف پیش‌نویس",
   "users.lockedHint": "این حساب بعد از چند بار رمز اشتباه قفل شده است. «رفع قفل حساب» آن را فوراً باز می‌کند.",
   "roles.resetDone": "نقش به تنظیمات پیش‌فرض برگشت.",
-  "roles.resetDefaults": "بازگشت به تنظیمات پیش‌فرض"
+  "roles.resetDefaults": "بازگشت به تنظیمات پیش‌فرض",
+  "settings.calendar": "تقویم نوبت‌ها",
+  "settings.calendarHint": "رفتار تقویم هنگام جابه‌جا کردن نوبت‌ها با موس.",
+  "settings.snap": "گام جابه‌جایی نوبت",
+  "hint.snap": "نوبتی که کشیده می‌شود دقیقاً روی همین گام‌ها می‌نشیند (پیش‌فرض ۵ دقیقه).",
+  "rule.calendar_snap_range": "گام تقویم باید ۱، ۵، ۱۰ یا ۱۵ دقیقه باشد.",
+  "cal.drop.time_range": "از نیمه‌شب می‌گذرد",
+  "cal.drop.appointment_in_past": "زمان گذشته است",
+  "cal.drop.doctor_on_leave": "داکتر رخصت است",
+  "cal.drop.outside_working_hours": "خارج از ساعت کاری داکتر",
+  "cal.drop.doctor_on_break": "وقت استراحت داکتر",
+  "cal.drop.chair_not_allowed": "این داکتر از این چوکی استفاده نمی‌کند",
+  "cal.drop.doctor_busy": "تداخل با نوبت دیگر داکتر",
+  "cal.drop.chair_busy": "چوکی در این زمان مشغول است",
+  "cal.drop.patient_busy": "بیمار در این زمان نوبت دیگری دارد"
 }

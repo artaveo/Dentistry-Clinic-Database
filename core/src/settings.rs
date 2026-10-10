@@ -8,8 +8,15 @@ use crate::audit::{self, Actor};
 use crate::clock::now_iso;
 use crate::error::{CoreError, Result};
 
-pub const DEFAULTS: Settings =
-    Settings { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14 };
+pub const DEFAULTS: Settings = Settings {
+    session_timeout_minutes: 10,
+    daily_backup_hour: 19,
+    backup_keep_daily: 14,
+    calendar_snap_minutes: 5,
+};
+
+/// OF-044: the steps an appointment can be dragged in.
+pub const CALENDAR_SNAP_STEPS: [u32; 4] = [1, 5, 10, 15];
 
 fn read(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn.query_row("SELECT value FROM setting WHERE key = ?1", [key], |r| r.get(0)).optional()?)
@@ -24,6 +31,7 @@ pub fn get(conn: &Connection) -> Result<Settings> {
         session_timeout_minutes: num(conn, "session_timeout_minutes", DEFAULTS.session_timeout_minutes)?,
         daily_backup_hour: num(conn, "daily_backup_hour", DEFAULTS.daily_backup_hour)?,
         backup_keep_daily: num(conn, "backup_keep_daily", DEFAULTS.backup_keep_daily)?,
+        calendar_snap_minutes: num(conn, "calendar_snap_minutes", DEFAULTS.calendar_snap_minutes)?,
     })
 }
 
@@ -49,12 +57,20 @@ pub fn update(conn: &Connection, actor: &Actor, new: &Settings) -> Result<Settin
             "backups to keep must be 1–365",
         ));
     }
+    if !CALENDAR_SNAP_STEPS.contains(&new.calendar_snap_minutes) {
+        return Err(CoreError::invalid(
+            "calendar_snap_minutes",
+            ValidationRule::CalendarSnapRange,
+            "the calendar step must be 1, 5, 10 or 15 minutes",
+        ));
+    }
     let before = get(conn)?;
     let now = now_iso();
     for (k, v) in [
         ("session_timeout_minutes", new.session_timeout_minutes),
         ("daily_backup_hour", new.daily_backup_hour),
         ("backup_keep_daily", new.backup_keep_daily),
+        ("calendar_snap_minutes", new.calendar_snap_minutes),
     ] {
         conn.execute(
             "INSERT INTO setting(key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)

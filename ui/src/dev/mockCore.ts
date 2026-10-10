@@ -82,7 +82,7 @@ const state = {
   logo: null as string | null,
   users: [] as U[],
   sessions: new Map<string, Session>(),
-  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14 } as Settings,
+  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5 } as Settings,
   backups: [] as BackupInfo[],
   audit: [] as AuditEntry[],
   recoveryKey: "",
@@ -524,7 +524,8 @@ function call(method: string, p: any, token: string | null): unknown {
       if (p.session_timeout_minutes < 1 || p.session_timeout_minutes > 240) invalid("session_timeout_minutes", "session_timeout_range");
       if (p.daily_backup_hour < 0 || p.daily_backup_hour > 23) invalid("daily_backup_hour", "backup_hour_range");
       if (p.backup_keep_daily < 1 || p.backup_keep_daily > 365) invalid("backup_keep_daily", "backup_keep_range");
-      state.settings = { ...p };
+      if (![1, 5, 10, 15].includes(p.calendar_snap_minutes ?? 5)) invalid("calendar_snap_minutes", "calendar_snap_range");
+      state.settings = { ...p, calendar_snap_minutes: p.calendar_snap_minutes ?? 5 };
       record(s.user, "settings.update", "setting");
       return state.settings;
     case "backup.create": {

@@ -858,5 +858,19 @@
   "draft.found.discard": "Discard draft",
   "users.lockedHint": "This account was locked after too many wrong passwords. Unlock it to open it at once.",
   "roles.resetDone": "The role is back to its default permissions.",
-  "roles.resetDefaults": "Back to default permissions"
+  "roles.resetDefaults": "Back to default permissions",
+  "settings.calendar": "Appointment calendar",
+  "settings.calendarHint": "How the calendar behaves when appointments are moved with the mouse.",
+  "settings.snap": "Drag step",
+  "hint.snap": "A dragged appointment lands exactly on steps of this size (default 5 minutes).",
+  "rule.calendar_snap_range": "The calendar step must be 1, 5, 10 or 15 minutes.",
+  "cal.drop.time_range": "Runs past midnight",
+  "cal.drop.appointment_in_past": "That time has passed",
+  "cal.drop.doctor_on_leave": "Doctor on leave",
+  "cal.drop.outside_working_hours": "Outside the doctor's hours",
+  "cal.drop.doctor_on_break": "Doctor's break",
+  "cal.drop.chair_not_allowed": "Doctor doesn't use this chair",
+  "cal.drop.doctor_busy": "Clashes with the doctor's other visit",
+  "cal.drop.chair_busy": "Chair is busy then",
+  "cal.drop.patient_busy": "Patient has another visit then"
 }

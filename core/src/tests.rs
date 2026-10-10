@@ -2143,6 +2143,34 @@ fn bookings_take_a_free_chair_and_refuse_past_times() {
 }
 
 #[test]
+fn calendar_drag_step_is_a_setting_and_moves_never_go_into_the_past() {
+    // OF-044: the drag step is 5 minutes unless the clinic picks 1, 10 or 15.
+    let c = clinic4();
+    let mut s = c.t.ok(m::SETTINGS_GET, json!({}), Some(&c.owner));
+    assert_eq!(s["calendar_snap_minutes"], 5);
+    s["calendar_snap_minutes"] = json!(7);
+    let (_, field, rule) = rule_of(&c.t, m::SETTINGS_UPDATE, s.clone(), &c.owner);
+    assert_eq!(
+        (field.as_deref(), rule.as_deref()),
+        (Some("calendar_snap_minutes"), Some("calendar_snap_range"))
+    );
+    s["calendar_snap_minutes"] = json!(15);
+    assert_eq!(c.t.ok(m::SETTINGS_UPDATE, s, Some(&c.owner))["calendar_snap_minutes"], 15);
+
+    // A visit moved to an exact minute keeps it; moving it to a time already gone is refused.
+    let a = c.book(&c.patient, &c.doctor, None, &c.today, "15:40", "16:10").unwrap();
+    let moved = |date: &str, start: &str, end: &str, version: &Value| {
+        json!({"id": a["id"], "version": version, "doctor_id": c.doctor, "chair_id": a["chair_id"], "date": date,
+               "start_time": start, "end_time": end, "reason": "check", "notes": null})
+    };
+    let m1 = c.t.ok(m::APPOINTMENTS_UPDATE, moved(&c.today, "17:10", "17:40", &a["version"]), Some(&c.owner));
+    assert_eq!((m1["start_time"].as_str(), m1["end_time"].as_str()), (Some("17:10"), Some("17:40")));
+    let (_, field, rule) =
+        rule_of(&c.t, m::APPOINTMENTS_UPDATE, moved(&c.today, "05:10", "05:40", &m1["version"]), &c.owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("start_time"), Some("appointment_in_past")));
+}
+
+#[test]
 fn walk_in_outside_working_hours_needs_confirmation() {
     // OF-037: a walk-in outside the doctor's hours is refused until reception confirms it, and the
     // confirmation is audited. The doctor's hours are set to one minute a day, so "now" is always outside.

@@ -612,10 +612,13 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
 .app-main { grid-area: main; overflow: auto; position: relative; }
 
 /* ───────────── lock screen ───────────── */
-/* OF-015: the content behind the lock is blurred by itself (filter works in every WebView2 build), so nothing is readable.
-   The overlay adds a tint on top; `data-perf="reduced"` replaces both with an opaque backdrop. */
-.app-shell[data-locked] > .app-header, .app-shell[data-locked] > .app-sidebar, .app-shell[data-locked] > .app-main { filter: blur(32px) saturate(110%); }
-.lock-screen { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: var(--space-6); background: color-mix(in srgb, var(--base) 78%, transparent); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); animation: fade-in var(--dur-slow) var(--ease); }
+/* OF-015 / OF-045: the content behind the lock is blurred by itself (filter works in every WebView2 build) just enough
+   that no text or number can be read, while the app's shape, colours and halos still show through; a light tint
+   sits on top. No backdrop-filter: blurring the already-blurred content again is what made v0.4.1 look opaque.
+   `data-perf="reduced"` replaces both with an opaque backdrop. */
+.app-shell[data-locked] > .app-header, .app-shell[data-locked] > .app-sidebar, .app-shell[data-locked] > .app-main { filter: blur(var(--lock-blur)) saturate(125%); }
+.lock-screen { --lock-tint: 44%; position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: var(--space-6); background: color-mix(in srgb, var(--base) var(--lock-tint), transparent); animation: fade-in var(--dur-slow) var(--ease); }
+.app-shell { --lock-blur: 16px; }
 :root[data-perf="reduced"] .lock-screen { background: var(--base); backdrop-filter: none; }
 :root[data-perf="reduced"] .app-shell[data-locked] > * { filter: none; }
 .lock-card { width: min(400px, 100%); border-radius: var(--radius-xl); padding: var(--space-7) var(--space-7) var(--space-6); display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
@@ -802,7 +805,25 @@ kbd { font-family: var(--font-sans); font-size: 11.5px; line-height: 18px; min-w
   padding: 3px 8px; border: none; border-inline-start: 4px solid var(--doc, var(--accent)); border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--doc, var(--accent)) 16%, var(--glass-overlay)); color: var(--text); font-size: 12.5px; line-height: 17px; cursor: pointer;
 }
-.tg-appt[draggable="true"] { cursor: grab; }
+.tg-appt.movable { cursor: grab; touch-action: none; }
+.tg-appt.dragging { opacity: .35; }
+/* OF-044: live drop preview — a thin line at the exact landing minute, a ghost of the visit and a time label. */
+body.cal-dragging, body.cal-dragging * { cursor: grabbing !important; user-select: none; }
+.tg-line.half { border-top-style: dashed; opacity: .55; }
+.tg-dropline { position: absolute; inset-inline: -1px; height: 0; border-top: 2px solid var(--accent); z-index: 4; pointer-events: none; }
+.tg-dropline.invalid { border-top-color: var(--danger); }
+.tg-ghost {
+  position: absolute; inset-inline: 2px; z-index: 3; pointer-events: none; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1.5px dashed var(--accent); box-shadow: var(--shadow-2);
+}
+.tg-ghost.invalid { background: color-mix(in srgb, var(--danger) 18%, transparent); border-color: var(--danger); }
+.tg-drag-label {
+  position: absolute; inset-block-end: calc(100% + 6px); inset-inline-start: 0; display: flex; flex-direction: column; gap: 2px;
+  padding: 4px 10px; border-radius: var(--radius-md); white-space: nowrap; font-size: 12.5px; line-height: 18px; font-weight: 600;
+  color: var(--on-accent, #fff); background: var(--accent); box-shadow: var(--shadow-3);
+}
+.tg-ghost.invalid .tg-drag-label { background: var(--danger); color: #fff; }
+.tg-drag-issue { font-weight: 500; font-size: 12px; }
 .tg-appt:hover { filter: brightness(.97); box-shadow: var(--shadow-1); }
 .tg-appt-time { font-size: 11px; color: var(--text-2); }
 .tg-appt-name { font-weight: 600; }

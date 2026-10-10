@@ -858,5 +858,19 @@
   "draft.found.discard": "مسوده لرې کول",
   "users.lockedHint": "دا حساب د ډېرو غلطو پټنومونو وروسته بند شوی. «د حساب بندېدل خلاص کول» یې سمدلاسه خلاصوي.",
   "roles.resetDone": "رول بېرته د خپل اصلي واک ته راغی.",
-  "roles.resetDefaults": "اصلي واکونو ته بیرته ستنېدل"
+  "roles.resetDefaults": "اصلي واکونو ته بیرته ستنېدل",
+  "settings.calendar": "د نوبتونو جنتري",
+  "settings.calendarHint": "کله چې نوبتونه د موږک په مرسته ځای پر ځای کېږي، د جنتري چلند.",
+  "settings.snap": "د نوبت د ځای پر ځای کولو ګام",
+  "hint.snap": "کش شوی نوبت په همدې ګامونو کېني (اصلي ۵ دقیقې).",
+  "rule.calendar_snap_range": "د جنتري ګام باید ۱، ۵، ۱۰ یا ۱۵ دقیقې وي.",
+  "cal.drop.time_range": "له نیمې شپې اوړي",
+  "cal.drop.appointment_in_past": "وخت تېر شوی",
+  "cal.drop.doctor_on_leave": "ډاکټر رخصت دی",
+  "cal.drop.outside_working_hours": "د ډاکټر له کاري ساعتونو بهر",
+  "cal.drop.doctor_on_break": "د ډاکټر د آرام وخت",
+  "cal.drop.chair_not_allowed": "دا ډاکټر دا څوکۍ نه کاروي",
+  "cal.drop.doctor_busy": "د ډاکټر له بل وخت سره ټکر",
+  "cal.drop.chair_busy": "څوکۍ پدې وخت بوخته ده",
+  "cal.drop.patient_busy": "ناروغ پدې وخت بل وخت لري"
 }

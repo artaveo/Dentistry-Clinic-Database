@@ -129,6 +129,8 @@ pub enum ValidationRule {
     ImportColumn,
     // OF-036: a new booking must be for a future time.
     AppointmentInPast,
+    // OF-044: calendar drag step.
+    CalendarSnapRange,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -1435,6 +1437,13 @@ pub struct Settings {
     pub session_timeout_minutes: u32,
     pub daily_backup_hour: u32,
     pub backup_keep_daily: u32,
+    /// OF-044: an appointment dragged in the calendar lands on steps of this many minutes (1, 5, 10 or 15).
+    #[serde(default = "default_calendar_snap")]
+    pub calendar_snap_minutes: u32,
+}
+
+fn default_calendar_snap() -> u32 {
+    5
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

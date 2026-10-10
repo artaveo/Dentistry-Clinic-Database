@@ -14,18 +14,24 @@ import { Dialog } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
 import { AppointmentDialog, type Defaults } from "./AppointmentDialog";
 import { layoutLanes } from "./layout";
-import { MOVABLE, ruleText } from "./labels";
+import { LIVE, MOVABLE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
 
 type View = "day" | "week" | "month";
 type Group = "doctor" | "chair";
-const PX_PER_MIN = 1.15;
-const SNAP = 5;
+/** OF-044: an hour is 90px tall, so a 5-minute step is 7.5px — easy to aim at. */
+const PX_PER_MIN = 1.5;
 const HIDDEN: AppointmentStatus[] = ["cancelled", "rescheduled"];
 const VIEW_KEY = "artaveo.calendar.view";
 
 /** One column of the time grid. */
 type Column = { key: string; date: string; label: string; sub?: string; color?: string; doctorId?: string; chairId?: string | null };
+
+/**
+ * OF-044: an appointment being dragged. `start` is where it would land (snapped to the clinic's step) and
+ * `issue` the Core rule that landing there would break, if any — the drop is only done when there is none.
+ */
+type Drag = { appt: AppointmentInfo; offsetMin: number; duration: number; x0: number; y0: number; active: boolean; colKey?: string; start?: number; issue?: string | null };
 
 function storedView(): View {
   try {
@@ -69,8 +75,16 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
   const [error, setError] = useState("");
   const [dialog, setDialog] = useState<{ appt?: AppointmentInfo; defaults?: Defaults } | null>(null);
   const [tick, setTick] = useState(0);
-  const drag = useRef<{ id: string; offsetMin: number; duration: number } | null>(null);
-  const [dropHint, setDropHint] = useState<string | null>(null);
+  const today = todayIso();
+  const drag = useRef<Drag | null>(null);
+  const [dragView, setDragView] = useState<Drag | null>(null);
+  /** The click that ends a drag must not also open the appointment or a new booking. */
+  const swallowClick = useRef(false);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [snap, setSnap] = useState(5);
+  useEffect(() => {
+    rpc("settings.get", {}).then((s) => setSnap(s.calendar_snap_minutes || 5)).catch(() => {});
+  }, []);
 
   const setView = (v: View) => {
     setViewState(v);
@@ -166,10 +180,133 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     load();
   };
 
-  const minuteAt = (e: React.PointerEvent | React.DragEvent, el: HTMLElement) => {
+  const minuteAt = (e: React.PointerEvent | React.MouseEvent, el: HTMLElement) => {
     const y = e.clientY - el.getBoundingClientRect().top;
-    return startMin + Math.round(y / PX_PER_MIN / SNAP) * SNAP;
+    return startMin + Math.round(y / PX_PER_MIN / 5) * 5;
   };
+
+  /** Doctor and chair an appointment gets in a column (day view by doctor / by chair; otherwise unchanged). */
+  const targetOf = (a: AppointmentInfo, col: Column) => ({
+    doctorId: view === "day" && group === "doctor" ? (col.doctorId ?? a.doctor_id) : a.doctor_id,
+    chairId: view === "day" && group === "chair" ? (col.chairId ?? null) : a.chair_id,
+  });
+
+  /** OF-044: the same rules the Core applies to a move, checked live while dragging (the Core still decides). */
+  const issueFor = (a: AppointmentInfo, col: Column, start: number): string | null => {
+    const end = start + toMinutes(a.end_time) - toMinutes(a.start_time);
+    if (end > 1440) return "time_range";
+    if (col.date < today || (col.date === today && start < nowMinutes())) return "appointment_in_past";
+    const { doctorId, chairId } = targetOf(a, col);
+    const doc = doctors?.find((d) => d.id === doctorId);
+    if (doc) {
+      if (doc.leaves.some((l) => l.start_date <= col.date && col.date <= l.end_date)) return "doctor_on_leave";
+      const wd = weekdayIndex(col.date);
+      if (doc.hours.length && !doc.hours.some((h) => h.day === wd && toMinutes(h.start) <= start && toMinutes(h.end) >= end)) return "outside_working_hours";
+      if (doc.breaks.some((b) => b.day === wd && toMinutes(b.start) < end && toMinutes(b.end) > start)) return "doctor_on_break";
+      if (chairId && doc.chair_ids.length && !doc.chair_ids.includes(chairId)) return "chair_not_allowed";
+    }
+    const others = (items ?? []).filter((x) => x.id !== a.id && x.date === col.date && toMinutes(x.start_time) < end && toMinutes(x.end_time) > start);
+    if (others.some((x) => LIVE.includes(x.status) && x.doctor_id === doctorId)) return "doctor_busy";
+    if (chairId && others.some((x) => LIVE.includes(x.status) && x.chair_id === chairId)) return "chair_busy";
+    if (others.some((x) => x.patient_id === a.patient_id && !HIDDEN.includes(x.status))) return "patient_busy";
+    return null;
+  };
+
+  // The window-level drag listeners are registered once and read the latest render through this ref.
+  const live = useRef({ columns: [] as Column[], startMin: 0, snap, issueFor, move });
+
+  live.current = { columns, startMin, snap, issueFor, move };
+
+  // OF-044: dragging uses pointer events (not HTML drag & drop) so the exact landing time can be shown
+  // and checked on every move, Esc can cancel, and nothing depends on WebView2's drag support.
+  useEffect(() => {
+    // Near the top or bottom edge of the scrolling page, keep scrolling so any hour can be reached.
+    let lastPointer: PointerEvent | null = null;
+    let scrollTimer = 0;
+    const autoScroll = () => {
+      const scroller = gridRef.current?.closest(".app-main");
+      if (!drag.current?.active || !lastPointer || !scroller) return;
+      const r = scroller.getBoundingClientRect();
+      const edge = 56;
+      const dy = lastPointer.clientY > r.bottom - edge ? 14 : lastPointer.clientY < r.top + edge ? -14 : 0;
+      if (dy) {
+        scroller.scrollTop += dy;
+        onMove(lastPointer);
+      }
+    };
+    const stop = () => {
+      drag.current = null;
+      lastPointer = null;
+      window.clearInterval(scrollTimer);
+      scrollTimer = 0;
+      setDragView(null);
+      document.body.classList.remove("cal-dragging");
+    };
+    function onMove(e: PointerEvent) {
+      const d = drag.current;
+      if (!d) return;
+      lastPointer = e;
+      if (!scrollTimer && d.active) scrollTimer = window.setInterval(autoScroll, 30);
+      if (!d.active) {
+        if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) return;
+        d.active = true;
+        document.body.classList.add("cal-dragging");
+      }
+      const { columns: cols, startMin: top0, snap: stepMin, issueFor: check } = live.current;
+      const el = [...(gridRef.current?.querySelectorAll<HTMLElement>(".tg-col") ?? [])].find((c) => {
+        const r = c.getBoundingClientRect();
+        return e.clientX >= r.left && e.clientX < r.right;
+      });
+      const col = el && cols.find((c) => c.key === el.dataset.colKey);
+      if (!el || !col) {
+        Object.assign(d, { colKey: undefined, start: undefined, issue: null });
+      } else {
+        const raw = top0 + (e.clientY - el.getBoundingClientRect().top) / PX_PER_MIN - d.offsetMin;
+        const start = Math.max(0, Math.min(1440 - d.duration, Math.round(raw / stepMin) * stepMin));
+        Object.assign(d, { colKey: col.key, start, issue: check(d.appt, col, start) });
+      }
+      setDragView({ ...d });
+    }
+    const onUp = () => {
+      const d = drag.current;
+      if (!d) {
+        // The button release after an Esc-cancelled drag must not open anything either.
+        if (swallowClick.current) window.setTimeout(() => (swallowClick.current = false), 0);
+        return;
+      }
+      const wasActive = d.active;
+      stop();
+      if (!wasActive) return; // a plain click: the button's onClick opens the appointment
+      swallowClick.current = true;
+      window.setTimeout(() => (swallowClick.current = false), 0);
+      const col = live.current.columns.find((c) => c.key === d.colKey);
+      if (!col || d.start == null || d.issue) return;
+      const a = d.appt;
+      const sameDoctor = (col.doctorId ?? a.doctor_id) === a.doctor_id;
+      const sameChair = col.chairId === undefined || (col.chairId ?? null) === (a.chair_id ?? null);
+      if (col.date === a.date && d.start === toMinutes(a.start_time) && sameDoctor && sameChair) return;
+      live.current.move(a, col, d.start);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && drag.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (drag.current.active) swallowClick.current = true;
+        stop();
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", stop);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", stop);
+      window.removeEventListener("keydown", onKey, true);
+      document.body.classList.remove("cal-dragging");
+    };
+  }, []);
 
   const title = (() => {
     if (view === "day") return formatDate(anchor + "T06:00:00Z", lang, calendar);
@@ -181,7 +318,6 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     return `${monthName(calendar, m.month, lang)} ${digits(m.year, lang)}`;
   })();
   const step = (n: number) => setAnchor((a) => (view === "month" ? shiftMonth(a, calendar, n) : addDays(a, view === "week" ? weekCount * n : n)));
-  const today = todayIso();
   const hours = Array.from({ length: Math.floor((endMin - startMin) / 60) }, (_, i) => startMin + i * 60);
 
   if (setupError) return <Page><ErrorState message={err(setupError)} onRetry={reload} /></Page>;
@@ -224,7 +360,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         ) : !doctors.length ? (
           <div className="empty"><span className="empty-title">{t("cal.noDoctors")}</span></div>
         ) : (
-          <div className="timegrid" data-testid={`cal-grid-${view}`} data-view={view} style={{ ["--cols" as string]: columns.length }}>
+          <div className="timegrid" ref={gridRef} data-testid={`cal-grid-${view}`} data-view={view} style={{ ["--cols" as string]: columns.length }}>
             <div className="tg-head">
               <div className="tg-corner" />
               {columns.map((c) => (
@@ -235,7 +371,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
                 </div>
               ))}
             </div>
-            <div className="tg-body" style={{ height: (endMin - startMin) * PX_PER_MIN }}>
+            <div className="tg-body" style={{ height: (endMin - startMin) * PX_PER_MIN }} data-start-min={startMin} data-px-per-min={PX_PER_MIN} data-snap={snap}>
               <div className="tg-hours">
                 {hours.map((h) => <div key={h} className="tg-hour" style={{ top: (h - startMin) * PX_PER_MIN }}><span>{formatTime(fromMinutes(h), lang)}</span></div>)}
               </div>
@@ -246,25 +382,17 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
                 return (
                   <div
                     key={c.key}
-                    className={`tg-col ${dropHint === c.key ? "drop" : ""}`}
+                    className={`tg-col ${dragView?.active && dragView.colKey === c.key ? "drop" : ""}`}
+                    data-col-key={c.key}
                     data-testid={`cal-col-${c.key}`}
                     onClick={(e) => {
-                      if (!perms.edit || e.target !== e.currentTarget) return;
-                      const m = Math.max(0, Math.round(minuteAt(e as unknown as React.PointerEvent, e.currentTarget) / 15) * 15);
+                      if (swallowClick.current || !perms.edit || e.target !== e.currentTarget) return;
+                      const m = Math.max(0, Math.round(minuteAt(e, e.currentTarget) / 15) * 15);
                       setDialog({ defaults: { date: c.date, start: fromMinutes(Math.min(m, 1425)), doctorId: c.doctorId ?? (doctorId || doctors?.[0]?.id), chairId: c.chairId ?? undefined } });
-                    }}
-                    onDragOver={(e) => { if (drag.current) { e.preventDefault(); setDropHint(c.key); } }}
-                    onDragLeave={() => setDropHint((k) => (k === c.key ? null : k))}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDropHint(null);
-                      const d = drag.current;
-                      drag.current = null;
-                      const a = items.find((x) => x.id === d?.id);
-                      if (d && a) move(a, c, minuteAt(e, e.currentTarget) - d.offsetMin);
                     }}
                   >
                     {hours.map((h) => <div key={h} className="tg-line" style={{ top: (h - startMin) * PX_PER_MIN }} />)}
+                    {hours.map((h) => <div key={`h${h}`} className="tg-line half" style={{ top: (h + 30 - startMin) * PX_PER_MIN }} />)}
                     {nowLine !== null && nowLine >= startMin && nowLine <= endMin && <div className="tg-now" style={{ top: (nowLine - startMin) * PX_PER_MIN }} aria-hidden />}
                     {mine.map((a) => {
                       const p = placed.find((x) => x.id === a.id)!;
@@ -274,17 +402,14 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
                         <button
                           key={a.id}
                           type="button"
-                          className={`tg-appt st-${a.status} ${dur < 45 ? "short" : ""}`}
+                          className={`tg-appt st-${a.status} ${dur < 30 ? "short" : ""} ${movable ? "movable" : ""} ${dragView?.active && dragView.appt.id === a.id ? "dragging" : ""}`}
                           style={{ top: (toMinutes(a.start_time) - startMin) * PX_PER_MIN, height: Math.max(22, dur * PX_PER_MIN - 2), insetInlineStart: `${(p.lane / p.lanes) * 100}%`, width: `calc(${100 / p.lanes}% - 3px)`, ["--doc" as string]: a.doctor_color }}
-                          draggable={movable}
-                          onDragStart={(e) => {
+                          onPointerDown={(e) => {
+                            if (!movable || e.button !== 0) return;
                             const r = e.currentTarget.getBoundingClientRect();
-                            drag.current = { id: a.id, offsetMin: Math.round((e.clientY - r.top) / PX_PER_MIN / SNAP) * SNAP, duration: dur };
-                            e.dataTransfer.effectAllowed = "move";
-                            e.dataTransfer.setData("text/plain", a.id);
+                            drag.current = { appt: a, offsetMin: (e.clientY - r.top) / PX_PER_MIN, duration: dur, x0: e.clientX, y0: e.clientY, active: false };
                           }}
-                          onDragEnd={() => { drag.current = null; setDropHint(null); }}
-                          onClick={(e) => { e.stopPropagation(); setDialog({ appt: a }); }}
+                          onClick={(e) => { e.stopPropagation(); if (!swallowClick.current) setDialog({ appt: a }); }}
                           title={`${a.patient_name} · ${formatTime(a.start_time, lang)}–${formatTime(a.end_time, lang)}`}
                           data-testid={`cal-appt-${a.id}`}
                         >
@@ -294,6 +419,9 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
                         </button>
                       );
                     })}
+                    {dragView?.active && dragView.colKey === c.key && dragView.start != null && (
+                      <DropPreview drag={dragView} top={(dragView.start - startMin) * PX_PER_MIN} height={Math.max(22, dragView.duration * PX_PER_MIN - 2)} />
+                    )}
                   </div>
                 );
               })}
@@ -330,6 +458,24 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         />
       )}
     </Page>
+  );
+}
+
+/** OF-044: where the dragged appointment would land, with its exact start–end time; red with the reason when it cannot. */
+function DropPreview({ drag, top, height }: { drag: Drag; top: number; height: number }) {
+  const { t, lang } = useI18n();
+  const start = drag.start!;
+  const bad = !!drag.issue;
+  return (
+    <>
+      <div className={`tg-dropline ${bad ? "invalid" : ""}`} style={{ top }} aria-hidden />
+      <div className={`tg-ghost ${bad ? "invalid" : ""}`} style={{ top, height }} data-testid="cal-drag-ghost" data-start={fromMinutes(start)} data-valid={bad ? "false" : "true"}>
+        <div className="tg-drag-label" role="status" data-testid="cal-drag-label">
+          <span className="num">{formatTime(fromMinutes(start), lang)} – {formatTime(fromMinutes(start + drag.duration), lang)}</span>
+          {bad && <span className="tg-drag-issue" data-testid="cal-drag-issue">{t(`cal.drop.${drag.issue}`)}</span>}
+        </div>
+      </div>
+    </>
   );
 }
 
