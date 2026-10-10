@@ -17,6 +17,8 @@ const esc = (s) => String(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(
 
 const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
 let panicAt = null; // a test panic whose message lines are still being read
+let failuresBlock = null; // the libtest "failures:" detail section, collected as a fallback
+let docError = null; // a plain rustc/rustdoc "error:" (e.g. a broken doctest), not JSON-wrapped
 
 for await (const line of rl) {
   let msg;
@@ -24,6 +26,19 @@ for await (const line of rl) {
     msg = JSON.parse(line);
   } catch {
     console.log(line); // not JSON: cargo's own plain-text progress, or a ran program's own output
+
+    // libtest's detailed failure dump starts with "failures:" and ends at the next blank-line
+    // boundary before "failures:" (the short name list) or "test result:". Keep the whole thing as
+    // one fallback annotation even when the per-test panic line below does not match.
+    if (line.trim() === "failures:" && !failuresBlock) {
+      failuresBlock = [];
+    } else if (failuresBlock && (line.trim() === "failures:" || /^test result:/.test(line))) {
+      if (failuresBlock.length) console.log(`::error::${esc("cargo test failures:\n" + failuresBlock.join("\n"))}`);
+      failuresBlock = null;
+    } else if (failuresBlock) {
+      failuresBlock.push(line);
+    }
+
     // A failing test prints "thread '…' panicked at FILE:LINE:COL:" and the assertion details below it.
     // Turn that into an annotation too, so the failure is readable without opening the log.
     const panic = /panicked at (.+?):(\d+):\d+:?\s*$/.exec(line);
@@ -35,6 +50,23 @@ for await (const line of rl) {
         panicAt = null;
       } else {
         panicAt.lines.push(line.trim());
+      }
+    }
+
+    // A doctest (or other rustdoc-driven build) failure prints plain rustc-style text that never
+    // goes through --message-format=json, e.g.:
+    //   error[E0433]: failed to resolve: ...
+    //    --> core/src/lib.rs:12:5
+    const err = /^error(\[E\d+\])?: (.+)$/.exec(line);
+    if (err) {
+      docError = { text: err[2] };
+    } else if (docError && !docError.file) {
+      const loc = /^\s*-->\s*(.+?):(\d+):(\d+)/.exec(line);
+      if (loc) {
+        console.log(`::error file=${loc[1]},line=${loc[2]},col=${loc[3]}::${esc(docError.text)}`);
+        docError = null;
+      } else if (line.trim() === "") {
+        docError = null; // no location line followed; drop it rather than mis-attribute
       }
     }
     continue;
