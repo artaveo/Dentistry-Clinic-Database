@@ -37,20 +37,28 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [sheet, setSheet] = useState<string>("");
   const [mapping, setMapping] = useState<Mapping>({});
   const [preview, setPreview] = useState<ImportPatientsResult | null>(null);
+  // The switch shows the user's choice at once; `info.has_header` only catches up when the Core answers.
+  const [hasHeader, setHasHeader] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const seq = useRef(0);
+  const inspectSeq = useRef(0);
 
-  // `hasHeader` is the user's choice (OF-042); null lets the Core detect it from the first row.
-  const inspect = async (f: { name: string; base64: string }, sheetName?: string, hasHeader: boolean | null = null) => {
+  // `wantHeader` is the user's choice (OF-042); null lets the Core detect it from the first row.
+  const inspect = async (f: { name: string; base64: string }, sheetName?: string, wantHeader: boolean | null = null) => {
+    const mine = ++inspectSeq.current;
+    if (wantHeader !== null) setHasHeader(wantHeader);
     setError("");
     setPreview(null);
     try {
-      const r = await rpc("patients.import_inspect", { file_base64: f.base64, file_name: f.name, sheet: sheetName ?? null, has_header: hasHeader });
+      const r = await rpc("patients.import_inspect", { file_base64: f.base64, file_name: f.name, sheet: sheetName ?? null, has_header: wantHeader });
+      if (mine !== inspectSeq.current) return;
       setInfo(r);
+      setHasHeader(r.has_header);
       setSheet(r.sheet ?? "");
       setMapping(toMapping(r));
     } catch (x) {
+      if (mine !== inspectSeq.current) return;
       setInfo(null);
       if (!isSessionError(x)) setError(x && typeof x === "object" && "rule" in x && (x as { rule: string | null }).rule ? t(`rule.${(x as { rule: string }).rule}`) : err(x));
     }
@@ -148,7 +156,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
                 </Select>
               </Field>
             )}
-            <Switch checked={info.has_header} onChange={(v) => file && inspect(file, sheet || undefined, v)} label={t("patients.import.firstRowIsTitle")} testId="import-has-header" />
+            <Switch checked={hasHeader} onChange={(v) => file && inspect(file, sheet || undefined, v)} label={t("patients.import.firstRowIsTitle")} testId="import-has-header" />
             <Notice tone="info" title={<span className="row"><Sparkles size={16} aria-hidden />{t("patients.import.mapTitle")}</span>}>{t("patients.import.mapHint")}</Notice>
             <div className="table-wrap">
               <table className="table" data-testid="import-mapping">
