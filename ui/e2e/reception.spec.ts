@@ -71,6 +71,11 @@ test("doctors and chairs: add them, validate live, set a schedule and a leave", 
   await page.getByTestId("sched-leaves").locator("li button").first().click();
   await expect(page.getByTestId("sched-leaves")).not.toContainText("سفر");
   await page.getByTestId("schedule-save").click();
+  // Wait for this save's own toast (and the dialog closing) before the next test starts, so its
+  // "تغییرات ذخیره شد." — identical text to several other saves — cannot still be on screen when
+  // the next test checks its own toast.
+  await expect(toast()).toHaveText("تغییرات ذخیره شد.");
+  await expect(page.getByTestId("schedule-save")).toHaveCount(0);
 });
 
 test("book an appointment with a patient registered on the spot; a double booking is refused", async () => {

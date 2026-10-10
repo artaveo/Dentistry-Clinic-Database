@@ -78,6 +78,7 @@ test("OF-023: the back arrow and Alt+Left both return to the patient list", asyn
 
 test("OF-029: a failed save moves the cursor to the first wrong box and counts the problems", async () => {
   await page.getByTestId("add-patient-open").click();
+  await expect(page.getByTestId("page-patient-form")).toBeVisible();
   await page.getByTestId("patient-save").click();
   await expect(page.getByTestId("form-error-summary")).toBeVisible();
   await expect(page.getByTestId("patient-full-name")).toBeFocused();
