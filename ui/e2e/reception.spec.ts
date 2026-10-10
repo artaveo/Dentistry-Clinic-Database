@@ -225,7 +225,32 @@ test("roles: a custom role limits what its users see; reset password and unlock"
   await page.getByTestId("create-user").click();
   await expect(page.getByTestId("user-list")).toContainText("پذیرش شبانه");
 
+  // OF-030: "unlock" is only enabled once the account is actually locked, so lock night1's for
+  // real — five wrong passwords locks it (the 5th attempt's own answer is still just "wrong
+  // password"; the Core only reports "locked" starting on the next attempt after that) — instead
+  // of clicking a button that is correctly disabled.
+  await page.getByTestId("current-user").click();
+  await page.getByTestId("logout").click();
+  for (let i = 0; i < 5; i++) {
+    await page.getByTestId("login-username").fill("night1");
+    await page.getByTestId("login-password").fill("wrong-password");
+    await page.getByTestId("login-submit").click();
+    await expect(page.getByTestId("login-error")).toBeVisible();
+  }
+  await page.getByTestId("login-username").fill(OWNER.user);
+  await page.getByTestId("login-password").fill(OWNER.pass);
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByTestId("tab-users")).toBeVisible();
+  await page.getByTestId("tab-users").click();
+
   await page.getByTestId("edit-user-night1").click();
+  await expect(page.getByTestId("user-locked")).toBeVisible();
+  // Unlock first: resetting the password also clears the lock itself (a forgotten-password reset
+  // should let the user back in right away), so "unlock" would already be disabled again afterwards.
+  await page.getByTestId("user-unlock").click();
+  await expect(toast()).toHaveText("قفل حساب برداشته شد.");
+  await expect(page.getByTestId("user-locked")).toHaveCount(0);
+  await expect(page.getByTestId("user-unlock")).toBeDisabled();
   await page.getByTestId("user-reset-open").click();
   await page.getByTestId("reset-password-input").fill("short");
   await page.getByTestId("reset-password-input").blur();
@@ -233,8 +258,6 @@ test("roles: a custom role limits what its users see; reset password and unlock"
   await page.getByTestId("reset-password-input").fill("brand-new-pass-1");
   await page.getByTestId("reset-password-confirm").click();
   await expect(toast()).toHaveText("رمز عبور بازنشانی شد.");
-  await page.getByTestId("user-unlock").click();
-  await expect(toast()).toHaveText("قفل حساب برداشته شد.");
   await page.getByTestId("edit-user-dialog").getByRole("button", { name: "لغو" }).click();
 
   // Sign in as that user: reception pages yes, doctors and users no.
