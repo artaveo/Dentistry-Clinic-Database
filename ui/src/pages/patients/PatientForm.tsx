@@ -166,7 +166,7 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
             </span>
           </Notice>
         )}
-        {form.invalidCount > 0 && <Notice tone="danger" data-testid="form-error-summary">{t("form.errorsSummary").replace("{n}", digits(form.invalidCount, lang))}</Notice>}
+        {form.invalidCount > 0 && <Notice tone="danger" testId="form-error-summary">{t("form.errorsSummary").replace("{n}", digits(form.invalidCount, lang))}</Notice>}
 
         <Card>
           <CardHeader title={t("patient.section.identity")} />
