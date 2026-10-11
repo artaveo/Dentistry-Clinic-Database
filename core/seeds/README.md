@@ -14,7 +14,10 @@ the same province/district/reference item has the same ID in every clinic.
 | `drugs.psv` | 24-medicine starter formulary (Latin name, form, strength, warning classes, default dose) | **doctor to review** |
 | `rx_templates.json` | 7 ready-made prescriptions pointing at `drugs.psv` codes | **doctor to review** |
 | `document_templates.json` | 6 consent forms + 5 after-treatment sheets, A4, with `{patient}`, `{doctor}`, `{clinic}`, `{teeth}`, `{procedure}`, `{date}` placeholders — fa/ps/en | **doctor to review** (legal/clinical wording) |
-| `services.json` | M3 catalog: 11 categories, 53 services and variants, scope and specialty; prices are **not** seeded (0 = "not set") | **owner to set prices** |
+| `services.json` | M3 catalog: 11 categories, 53 services and variants, scope and specialty; since v0.6.0 also how each service is drawn on the chart (`symbol`) and the usual days between its sessions (`interval`, default 7); prices are **not** seeded (0 = "not set") | **owner to set prices**; doctor to review symbols and intervals |
+| `tooth_conditions.json` | 5.3: 18 existing tooth conditions for the chart (caries, filling, crown, root canal, missing, extracted, implant, …): chart symbol, surfaces or whole tooth, short mark — fa/ps/en | **doctor to review**; Pashto needs native-speaker review |
+| `note_templates.json` | 5.6: 9 visit-note templates (first exam, toothache, root canal 1st/last session, extraction, filling, scaling, ortho adjustment, implant surgery), the eight note sections in fa/ps/en | **doctor to review** (clinical wording); Pashto needs native-speaker review |
+| `plan_templates.json` | 5.7: 8 ready-made plans (root canal + crown, single implant, extraction + implant, bridge, fixed orthodontics, complete dentures, check-up + cleaning, child prevention) as lists of catalog services with their teeth and phase | **doctor to review** |
 
 ## Districts
 
@@ -37,7 +40,7 @@ Rules enforced by `cargo test -p artaveo-core seeds`: known province codes,
 unique codes, three non-empty labels, one centre per province, Persian ی/ک in
 Dari.
 
-## Phase 5A seeds belong to the clinic after the first start
+## Phase 5A and 5B seeds belong to the clinic after the first start
 
 Unlike the reference lists above, the clinical seeds are a **starting point**
 the doctor edits in «فهرست‌های بالینی» and «خدمات و تعرفه‌ها»:
@@ -47,6 +50,8 @@ the doctor edits in «فهرست‌های بالینی» and «خدمات و ت�
   doctor's edit, price or switched-off item;
 * a document template the clinic edited is marked `customized` and is never
   overwritten by a newer seed text; «بازگشت به متن اصلی» restores the seed;
+* tooth conditions and ready-made plans are inserted once as well; a note template the clinic
+  edited is marked `customized` like the document templates;
 * system checklist questions keep their seeded wording (so alerts and
   prescription warnings stay reliable) but the clinic may switch one off and
   add its own questions.

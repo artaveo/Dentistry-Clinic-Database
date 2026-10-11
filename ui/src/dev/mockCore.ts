@@ -20,7 +20,7 @@ const fail = (code: ErrorCode, detail: string, field?: string, rule?: Validation
 };
 const invalid = (field: string, rule: ValidationRule, detail = rule) => fail("validation", detail, field, rule);
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 const PROVINCES: [string, string, string, string][] = [
   ["KBL", "کابل", "کابل", "Kabul"],
   ["HRT", "هرات", "هرات", "Herat"],
@@ -96,7 +96,7 @@ const state = {
   logo: null as string | null,
   users: [] as U[],
   sessions: new Map<string, Session>(),
-  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false } as Settings,
+  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false, tooth_numbering: "fdi" } as Settings,
   backups: [] as BackupInfo[],
   audit: [] as AuditEntry[],
   recoveryKey: "",
@@ -236,7 +236,7 @@ function mockBook(patient: P, doctorId: string, chairId: string | null, date: st
     id: uuid(), patient_id: patient.id, patient_number: patient.patient_number, patient_name: patient.full_name, patient_phone: patient.phone, doctor_id: d.id, doctor_name: d.full_name,
     doctor_color: d.color, chair_id: chairId, chair_name: state.chairs.find((c) => c.id === chairId)?.name ?? null, date, start_time: start, end_time: end, start_at: toUtc(start), end_at: toUtc(end),
     reason: null, notes: null, status, is_walk_in: false, queue_number: null, checked_in_at: null, treatment_started_at: null, completed_at: null, cancelled_at: null, cancel_reason: null,
-    rescheduled_from_id: null, rescheduled_to_id: null, service_id: null, medical_review_due: !state.medicalHistory.get(patient.id) || state.medicalHistory.get(patient.id)!.review_due, version: 1, ...extra,
+    rescheduled_from_id: null, rescheduled_to_id: null, service_id: null, treatment: null, medical_review_due: !state.medicalHistory.get(patient.id) || state.medicalHistory.get(patient.id)!.review_due, version: 1, ...extra,
   };
   state.appointments.push(a);
   return a;

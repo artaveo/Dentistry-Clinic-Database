@@ -1,0 +1,20 @@
+[
+  { "code": "caries", "symbol": "surface", "surface": true, "name": { "fa": "پوسیدگی", "ps": "د غاښ خرابوالی", "en": "Caries" } },
+  { "code": "filling", "symbol": "surface", "surface": true, "name": { "fa": "پرکاری", "ps": "ډک شوی", "en": "Filling" } },
+  { "code": "temporary_filling", "symbol": "surface", "surface": true, "name": { "fa": "پرکاری موقت", "ps": "لنډمهاله ډکول", "en": "Temporary filling" } },
+  { "code": "sealant", "symbol": "sealant", "name": { "fa": "فیشورسیلانت", "ps": "فیشر سیلنټ", "en": "Fissure sealant" } },
+  { "code": "veneer", "symbol": "veneer", "name": { "fa": "لمینیت", "ps": "لمینیټ", "en": "Veneer" } },
+  { "code": "crown", "symbol": "crown", "name": { "fa": "روکش", "ps": "پوښ", "en": "Crown" } },
+  { "code": "root_canal", "symbol": "root_canal", "name": { "fa": "عصب‌کشی‌شده", "ps": "عصب یې ایستل شوی", "en": "Root canal treated" } },
+  { "code": "missing", "symbol": "missing", "name": { "fa": "غایب", "ps": "نشته", "en": "Missing" } },
+  { "code": "extracted", "symbol": "missing", "name": { "fa": "کشیده‌شده", "ps": "ایستل شوی", "en": "Extracted" } },
+  { "code": "implant", "symbol": "implant", "name": { "fa": "ایمپلنت", "ps": "ایمپلانټ", "en": "Implant" } },
+  { "code": "bridge_pontic", "symbol": "bridge", "name": { "fa": "بریج (دندان پل)", "ps": "برج (د پل غاښ)", "en": "Bridge pontic" } },
+  { "code": "bridge_abutment", "symbol": "crown", "name": { "fa": "پایه بریج", "ps": "د برج پایه", "en": "Bridge abutment" } },
+  { "code": "denture", "symbol": "denture", "name": { "fa": "دندان مصنوعی", "ps": "مصنوعي غاښ", "en": "Denture" } },
+  { "code": "fracture", "symbol": "fracture", "name": { "fa": "شکستگی", "ps": "ماتېدنه", "en": "Fracture" } },
+  { "code": "impacted", "symbol": "impacted", "name": { "fa": "نهفته", "ps": "پټ", "en": "Impacted" } },
+  { "code": "periapical_lesion", "symbol": "lesion", "name": { "fa": "ضایعه یا آبسه ریشه", "ps": "د ریښې زخم یا آبسه", "en": "Periapical lesion / abscess" } },
+  { "code": "bracket", "symbol": "bracket", "name": { "fa": "براکت ارتودنسی", "ps": "د ارتوډونسي براکټ", "en": "Orthodontic bracket" } },
+  { "code": "wear", "symbol": "marker", "abbreviation": "W", "name": { "fa": "سایش", "ps": "سولېدنه", "en": "Tooth wear" } }
+]

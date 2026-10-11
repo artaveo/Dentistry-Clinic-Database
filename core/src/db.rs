@@ -48,6 +48,11 @@ pub static MIGRATIONS: &[Migration] = &[
     },
     Migration { version: 11, name: "documents", sql: include_str!("../migrations/0011_documents.sql") },
     Migration { version: 12, name: "catalog", sql: include_str!("../migrations/0012_catalog.sql") },
+    Migration {
+        version: 13,
+        name: "clinical_core",
+        sql: include_str!("../migrations/0013_clinical_core.sql"),
+    },
 ];
 
 /// Files next to the database.

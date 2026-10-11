@@ -2867,3 +2867,670 @@ fn catalog_has_three_levels_validates_and_drives_booking() {
     );
     assert_eq!(moved["service_id"], two["id"]);
 }
+
+// ───────────────────────────── Phase 5B: chart, plans, sessions, notes, perio, timeline ─────────────────────────────
+
+fn service_id(t: &T, token: &str, code: &str) -> Value {
+    t.ok(m::CATALOG_GET, json!({}), Some(token))["services"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["code"] == code)
+        .unwrap_or_else(|| panic!("service {code}"))["id"]
+        .clone()
+}
+
+fn condition_id(t: &T, token: &str, code: &str) -> Value {
+    t.ok(m::TOOTH_CONDITIONS_LIST, json!({}), Some(token))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["code"] == code)
+        .unwrap_or_else(|| panic!("condition {code}"))["id"]
+        .clone()
+}
+
+fn plan_template_id(t: &T, token: &str, code: &str) -> Value {
+    t.ok(m::PLAN_TEMPLATES_LIST, json!({}), Some(token))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["code"] == code)
+        .unwrap_or_else(|| panic!("plan template {code}"))["id"]
+        .clone()
+}
+
+fn actions_of(v: &Value) -> Vec<String> {
+    v.as_array().unwrap().iter().map(|e| e["action"].as_str().unwrap().to_string()).collect()
+}
+
+#[test]
+fn dental_chart_records_findings_dentition_and_tooth_history() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let chart = t.ok(m::CHART_GET, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(chart["dentition"], "permanent", "no age: adult teeth");
+    assert_eq!(chart["dentition_chosen"], false);
+    assert!(chart["findings"].as_array().unwrap().is_empty());
+
+    // A child of 8 starts with a mixed dentition.
+    let child = t.ok(m::PATIENTS_CREATE, json!({"full_name": "طفل", "approximate_age": 8}), Some(owner));
+    assert_eq!(t.ok(m::CHART_GET, json!({"patient_id": child["id"]}), Some(owner))["dentition"], "mixed");
+
+    // Caries needs its surfaces; numbers and surfaces are checked and kept in MODBL order.
+    let caries = condition_id(t, owner, "caries");
+    let (_, field, rule) = rule_of(
+        t,
+        m::CHART_ADD_FINDINGS,
+        json!({"patient_id": c.patient, "condition_id": caries, "teeth": [36]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("surfaces"), Some("tooth_surface")));
+    let (_, _, rule) = rule_of(
+        t,
+        m::CHART_ADD_FINDINGS,
+        json!({"patient_id": c.patient, "condition_id": caries, "teeth": [19], "surfaces": "O"}),
+        owner,
+    );
+    assert_eq!(rule.as_deref(), Some("tooth_number"));
+    let added = t.ok(
+        m::CHART_ADD_FINDINGS,
+        json!({"patient_id": c.patient, "condition_id": caries, "teeth": [37, 36], "surfaces": "do"}),
+        Some(owner),
+    );
+    let added = added.as_array().unwrap();
+    assert_eq!(added.len(), 2, "one finding per tooth");
+    assert_eq!((added[0]["tooth"].as_i64(), added[0]["surfaces"].as_str()), (Some(36), Some("OD")));
+    let missing = condition_id(t, owner, "missing");
+    t.ok(
+        m::CHART_ADD_FINDINGS,
+        json!({"patient_id": c.patient, "condition_id": missing, "teeth": [18]}),
+        Some(owner),
+    );
+    let chart = t.ok(m::CHART_GET, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(chart["findings"].as_array().unwrap().len(), 3);
+
+    // A finding entered by mistake leaves the chart but stays in the tooth's history.
+    t.ok(m::CHART_REMOVE_FINDING, json!({"id": added[1]["id"], "version": added[1]["version"]}), Some(owner));
+    let chart = t.ok(m::CHART_GET, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(chart["findings"].as_array().unwrap().len(), 2);
+    let history = t.ok(m::CHART_TOOTH_HISTORY, json!({"patient_id": c.patient, "tooth": 37}), Some(owner));
+    assert_eq!(actions_of(&history), vec!["finding.removed", "finding.added"]);
+    let other = t.ok(m::CHART_TOOTH_HISTORY, json!({"patient_id": c.patient, "tooth": 11}), Some(owner));
+    assert!(other.as_array().unwrap().is_empty());
+
+    // Dentition: a baby tooth only takes the place of an adult tooth 1 to 5.
+    let (_, field, rule) = rule_of(
+        t,
+        m::CHART_SET_DENTITION,
+        json!({"patient_id": c.patient, "dentition": "mixed", "primary_slots": [16], "version": 0}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("primary_slots"), Some("dentition_slots")));
+    let chart = t.ok(
+        m::CHART_SET_DENTITION,
+        json!({"patient_id": c.patient, "dentition": "mixed", "primary_slots": [14, 13], "version": 0}),
+        Some(owner),
+    );
+    assert_eq!(
+        (chart["dentition"].as_str(), chart["dentition_chosen"].as_bool()),
+        (Some("mixed"), Some(true))
+    );
+    assert_eq!(chart["primary_slots"], json!([13, 14]));
+    assert_eq!(
+        t.call(
+            m::CHART_SET_DENTITION,
+            json!({"patient_id": c.patient, "dentition": "primary", "version": 0}),
+            Some(owner)
+        ),
+        Err(ErrorCode::Conflict),
+        "stale version"
+    );
+
+    // The clinic's own condition, drawn as a badge.
+    let (_, field, rule) = rule_of(
+        t,
+        m::TOOTH_CONDITIONS_SAVE,
+        json!({"name": {"fa": "تغییر رنگ", "ps": "", "en": ""}, "symbol": "marker", "abbreviation": "ABCD"}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("abbreviation"), Some("condition_abbreviation")));
+    let own = t.ok(
+        m::TOOTH_CONDITIONS_SAVE,
+        json!({"name": {"fa": "تغییر رنگ", "ps": "", "en": "Discoloration"}, "symbol": "marker", "abbreviation": "DC"}),
+        Some(owner),
+    );
+    assert_eq!((own["is_system"].as_bool(), own["name"]["ps"].as_str()), (Some(false), Some("تغییر رنگ")));
+    let actions = t.audit_actions(owner);
+    for a in ["chart.finding_add", "chart.finding_remove", "chart.dentition", "tooth_condition.create"] {
+        assert!(actions.contains(&a.to_string()), "{a}");
+    }
+}
+
+#[test]
+fn treatment_plans_alternatives_sessions_and_appointments() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    // The catalog says how each service is drawn and how far apart its sessions are.
+    let catalog = t.ok(m::CATALOG_GET, json!({}), Some(owner));
+    let svc = |code: &str| {
+        catalog["services"].as_array().unwrap().iter().find(|s| s["code"] == code).unwrap().clone()
+    };
+    assert_eq!(svc("END-01D")["chart_symbol"], "root_canal");
+    assert_eq!(svc("ORT-01M")["session_interval_days"], 30);
+    let mut rct = svc("END-01D");
+    rct["price"] = json!(350_000);
+    t.ok(m::CATALOG_SAVE_SERVICE, rct.clone(), Some(owner));
+
+    // Plan A from a ready-made plan on tooth 36; plan B as the alternative.
+    let a = t.ok(
+        m::PLANS_CREATE,
+        json!({"patient_id": c.patient, "title": "گزینه الف", "template_id": plan_template_id(t, owner, "rct_crown"), "teeth": [36]}),
+        Some(owner),
+    );
+    assert_eq!(a["status"], "proposed");
+    let services: Vec<Value> =
+        a["items"].as_array().unwrap().iter().map(|i| i["service_id"].clone()).collect();
+    assert_eq!(
+        services,
+        vec![service_id(t, owner, "RAD-01"), service_id(t, owner, "END-01"), service_id(t, owner, "PRS-01")]
+    );
+    assert!(a["items"].as_array().unwrap().iter().all(|i| i["teeth"] == json!([36])));
+    assert_eq!(a["items"][2]["phase"], 2);
+    let b = t.ok(
+        m::PLANS_CREATE,
+        json!({"patient_id": c.patient, "title": "گزینه ب", "template_id": plan_template_id(t, owner, "extraction_implant"), "teeth": [36]}),
+        Some(owner),
+    );
+    assert_eq!(b["items"].as_array().unwrap().len(), 5);
+    let (_, field, rule) = rule_of(
+        t,
+        m::PLANS_CREATE,
+        json!({"patient_id": c.patient, "title": "x", "template_id": plan_template_id(t, owner, "single_implant")}),
+        owner,
+    );
+    assert_eq!(
+        (field.as_deref(), rule.as_deref()),
+        (Some("teeth"), Some("item_teeth")),
+        "tooth lines need teeth"
+    );
+
+    // A one-tooth service on two teeth is two items at the catalog price; a filling needs surfaces.
+    let items = t.ok(
+        m::TREATMENT_ITEMS_ADD,
+        json!({"patient_id": c.patient, "plan_id": a["id"], "service_id": rct["id"], "teeth": [37, 46]}),
+        Some(owner),
+    );
+    let items = items.as_array().unwrap();
+    assert_eq!(items.len(), 2);
+    assert_eq!(
+        (items[0]["unit_price"].as_i64(), items[0]["sessions_planned"].as_i64()),
+        (Some(350_000), Some(2))
+    );
+    let filling = service_id(t, owner, "RST-01C");
+    let (_, field, rule) = rule_of(
+        t,
+        m::TREATMENT_ITEMS_ADD,
+        json!({"patient_id": c.patient, "plan_id": a["id"], "service_id": filling, "teeth": [26]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("surfaces"), Some("tooth_surface")));
+    let bridge = t.ok(
+        m::TREATMENT_ITEMS_ADD,
+        json!({"patient_id": c.patient, "plan_id": a["id"], "service_id": service_id(t, owner, "PRS-02Z"),
+               "teeth": [24, 25, 26], "unit_price": 900_000}),
+        Some(owner),
+    );
+    assert_eq!((bridge[0]["units"].as_i64(), bridge[0]["unit_price"].as_i64()), (Some(3), Some(900_000)));
+    let plans = t.ok(m::PLANS_LIST, json!({"patient_id": c.patient}), Some(owner));
+    let total =
+        plans.as_array().unwrap().iter().find(|p| p["id"] == a["id"]).unwrap()["total"].as_i64().unwrap();
+    assert_eq!(total, 2 * 350_000 + 3 * 900_000, "unpriced catalog services count 0");
+
+    // The patient chooses plan A: plan B is set aside with its items.
+    let a = t.ok(
+        m::PLANS_SET_STATUS,
+        json!({"id": a["id"], "version": 1, "status": "accepted", "cancel_alternatives": true}),
+        Some(owner),
+    );
+    assert_eq!(a["status"], "accepted");
+    let plans = t.ok(m::PLANS_LIST, json!({"patient_id": c.patient}), Some(owner));
+    let b = plans.as_array().unwrap().iter().find(|p| p["id"] == b["id"]).unwrap().clone();
+    assert_eq!((b["status"].as_str(), b["superseded_by"].clone()), (Some("cancelled"), a["id"].clone()));
+    assert!(b["items"].as_array().unwrap().iter().all(|i| i["status"] == "cancelled"));
+
+    // Two visits booked as sessions 1 and 2 of the root canal on 37; a third is refused.
+    let item = items[0].clone();
+    let book = |start: &str, end: &str| {
+        t.call(
+            m::APPOINTMENTS_CREATE,
+            json!({"patient_id": c.patient, "doctor_id": c.doctor, "date": c.today, "start_time": start, "end_time": end,
+                   "treatment_item_id": item["id"]}),
+            Some(owner),
+        )
+    };
+    let v1 = book("09:00", "10:00").unwrap();
+    assert_eq!(v1["treatment"]["session_no"], 1);
+    assert_eq!(v1["treatment"]["sessions_planned"], 2);
+    assert_eq!(v1["service_id"], rct["id"], "the visit is for the item's service");
+    let v2 = book("15:00", "15:30").unwrap();
+    assert_eq!(v2["treatment"]["session_no"], 2);
+    let (_, field, rule) = rule_of(
+        t,
+        m::APPOINTMENTS_CREATE,
+        json!({"patient_id": c.patient, "doctor_id": c.doctor, "date": c.today, "start_time": "16:00", "end_time": "16:30",
+               "treatment_item_id": item["id"]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("session_no"), Some("session_number")));
+    let (_, field, rule) = rule_of(
+        t,
+        m::APPOINTMENTS_CREATE,
+        json!({"patient_id": c.patient2, "doctor_id": c.doctor, "date": c.today, "start_time": "17:00", "end_time": "17:30",
+               "treatment_item_id": item["id"]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("treatment_item_id"), Some("item_patient")));
+
+    // Completing the first visit records session 1: the item and the plan are in progress.
+    let mut v = v1.clone();
+    for status in ["checked_in", "in_treatment", "completed"] {
+        v = t.ok(
+            m::APPOINTMENTS_SET_STATUS,
+            json!({"id": v["id"], "version": v["version"], "status": status}),
+            Some(owner),
+        );
+    }
+    assert_eq!(v["treatment"]["sessions_done"], 1);
+    let plans = t.ok(m::PLANS_LIST, json!({"patient_id": c.patient}), Some(owner));
+    let a = plans.as_array().unwrap().iter().find(|p| p["id"] == a["id"]).unwrap().clone();
+    assert_eq!(a["status"], "in_progress");
+    let rct37 = a["items"].as_array().unwrap().iter().find(|i| i["id"] == item["id"]).unwrap().clone();
+    assert_eq!((rct37["status"].as_str(), rct37["sessions_done"].as_i64()), (Some("in_progress"), Some(1)));
+    assert_eq!(rct37["upcoming"].as_array().unwrap().len(), 1, "session 2 is booked");
+    assert_eq!(
+        t.ok(m::TREATMENT_ITEMS_SUGGEST_NEXT, json!({"item_id": item["id"]}), Some(owner)),
+        Value::Null
+    );
+
+    // The root canal on 46 has no booking: after its first session the next one is suggested a week later.
+    let rct46 = items[1].clone();
+    let r = t.ok(
+        m::TREATMENT_ITEMS_RECORD_SESSION,
+        json!({"item_id": rct46["id"], "version": rct46["version"], "doctor_id": c.doctor, "note": "دو کانال پاکسازی شد"}),
+        Some(owner),
+    );
+    assert_eq!(
+        (r["session"]["session_no"].as_i64(), r["item"]["status"].as_str()),
+        (Some(1), Some("in_progress"))
+    );
+    assert_eq!(r["next"]["session_no"], 2);
+    assert_eq!(r["next"]["interval_days"], 7);
+    let today = crate::scheduling::parse_date("today", &c.today).unwrap();
+    assert_eq!(r["next"]["date"], crate::scheduling::format_date(today + time::Duration::days(7)));
+    let r2 = t.ok(
+        m::TREATMENT_ITEMS_RECORD_SESSION,
+        json!({"item_id": rct46["id"], "version": r["item"]["version"]}),
+        Some(owner),
+    );
+    assert_eq!(r2["item"]["status"], "completed");
+    assert_eq!(r2["next"], Value::Null);
+
+    // Work in progress keeps the plan from being cancelled; the planned count cannot go below the done one.
+    let (_, _, rule) = rule_of(
+        t,
+        m::PLANS_SET_STATUS,
+        json!({"id": a["id"], "version": a["version"], "status": "cancelled"}),
+        owner,
+    );
+    assert_eq!(rule.as_deref(), Some("plan_has_work_in_progress"));
+    let (_, field, rule) = rule_of(
+        t,
+        m::TREATMENT_ITEMS_UPDATE,
+        json!({"id": rct37["id"], "version": rct37["version"], "teeth": [37], "unit_price": 300_000, "phase": 1,
+               "sessions_planned": 0}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("sessions_planned"), Some("item_sessions")));
+    let changed = t.ok(
+        m::TREATMENT_ITEMS_UPDATE,
+        json!({"id": rct37["id"], "version": rct37["version"], "teeth": [37], "unit_price": 300_000, "phase": 1,
+               "sessions_planned": 3, "details": "سه کانال"}),
+        Some(owner),
+    );
+    assert_eq!(
+        (changed["unit_price"].as_i64(), changed["sessions_planned"].as_i64()),
+        (Some(300_000), Some(3))
+    );
+
+    // A treatment done today without a plan (5.8).
+    let done = t.ok(
+        m::TREATMENT_ITEMS_ADD,
+        json!({"patient_id": c.patient, "service_id": service_id(t, owner, "SRG-01"), "teeth": [48], "perform_now": true,
+               "doctor_id": c.doctor}),
+        Some(owner),
+    );
+    assert_eq!((done[0]["status"].as_str(), done[0]["plan_id"].clone()), (Some("completed"), Value::Null));
+    let treatments = t.ok(m::TREATMENTS_LIST, json!({"patient_id": c.patient}), Some(owner));
+    assert!(treatments.as_array().unwrap().iter().any(|i| i["id"] == done[0]["id"]));
+    assert!(treatments.as_array().unwrap().iter().any(|i| i["id"] == rct46["id"]));
+
+    // Cancelling an item keeps its booked visit as an ordinary visit.
+    let cancelled = t.ok(
+        m::TREATMENT_ITEMS_SET_STATUS,
+        json!({"id": changed["id"], "version": changed["version"], "status": "cancelled", "reason": "بیمار نخواست"}),
+        Some(owner),
+    );
+    assert_eq!(cancelled["status"], "cancelled");
+    assert_eq!(t.ok(m::APPOINTMENTS_GET, json!({"id": v2["id"]}), Some(owner))["treatment"], Value::Null);
+    let restored = t.ok(
+        m::TREATMENT_ITEMS_SET_STATUS,
+        json!({"id": cancelled["id"], "version": cancelled["version"], "status": "planned"}),
+        Some(owner),
+    );
+    assert_eq!(restored["status"], "in_progress", "it had a session already");
+
+    // The printed estimate (TP) freezes the plan as it was, in the document's language.
+    let doc = t.ok(
+        m::DOCUMENTS_ISSUE,
+        json!({"patient_id": c.patient, "language": "en", "paper": "a4",
+               "content": {"kind": "treatment_plan", "plan_ids": [a["id"]], "valid_days": 30}}),
+        Some(owner),
+    );
+    assert!(doc["number"].as_str().unwrap().starts_with("TP-"));
+    let snap = &doc["content"]["plans"][0];
+    assert_eq!(snap["title"], "گزینه الف");
+    assert!(snap["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|i| i["service"] == "Root canal treatment — Two canals"));
+    assert_eq!(doc["content"]["numbering"], "fdi");
+    let (_, field, _) = rule_of(
+        t,
+        m::DOCUMENTS_ISSUE,
+        json!({"patient_id": c.patient2, "language": "fa", "paper": "a4",
+               "content": {"kind": "treatment_plan", "plan_ids": [a["id"]]}}),
+        owner,
+    );
+    assert_eq!(field.as_deref(), Some("plan_ids"));
+
+    // The timeline tells the story; reception (no clinical access) cannot read it but can book sessions.
+    let timeline = t.ok(m::TIMELINE_LIST, json!({"patient_id": c.patient}), Some(owner));
+    let actions = actions_of(&timeline);
+    for a in [
+        "patient.registered",
+        "plan.created",
+        "plan.accepted",
+        "plan.superseded",
+        "appointment.completed",
+        "session.recorded",
+        "item.completed",
+        "document.issued",
+    ] {
+        assert!(actions.contains(&a.to_string()), "{a} in {actions:?}");
+    }
+    let only = t.ok(m::TIMELINE_LIST, json!({"patient_id": c.patient, "kinds": ["treatment"]}), Some(owner));
+    assert!(only.as_array().unwrap().iter().all(|e| e["kind"] == "treatment"));
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "desk", "display_name": "پذیرش", "password": "desk-pass-1", "role": "receptionist"}),
+        Some(owner),
+    );
+    let desk = t.login("desk", "desk-pass-1");
+    assert_eq!(
+        t.call(m::TIMELINE_LIST, json!({"patient_id": c.patient}), Some(&desk)),
+        Err(ErrorCode::Forbidden)
+    );
+    assert_eq!(
+        t.call(m::PLANS_LIST, json!({"patient_id": c.patient}), Some(&desk)),
+        Err(ErrorCode::Forbidden)
+    );
+    let open = t.ok(m::TREATMENT_ITEMS_OPEN, json!({"patient_id": c.patient}), Some(&desk));
+    assert!(!open.as_array().unwrap().is_empty());
+    assert!(open
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|i| i["status"] == "planned" || i["status"] == "in_progress"));
+}
+
+#[test]
+fn clinical_notes_lock_after_sign_off_and_take_addenda() {
+    let Clinic4 { t, owner, patient, doctor, today, .. } = clinic4();
+    let (_, field, rule) =
+        rule_of(&t, m::NOTES_SAVE, json!({"patient_id": patient, "fields": {"diagnosis": "  "}}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("fields"), Some("note_empty")));
+    let note = t.ok(
+        m::NOTES_SAVE,
+        json!({"patient_id": patient, "doctor_id": doctor, "fields": {"chief_complaint": "درد دندان ۳۶", "diagnosis": "پالپیت"}}),
+        Some(&owner),
+    );
+    assert_eq!((note["status"].as_str(), note["visit_date"].as_str()), (Some("draft"), Some(today.as_str())));
+    let note = t.ok(
+        m::NOTES_SAVE,
+        json!({"id": note["id"], "version": note["version"], "patient_id": patient, "doctor_id": doctor,
+               "fields": {"chief_complaint": "درد دندان ۳۶", "diagnosis": "پالپیت برگشت‌ناپذیر", "procedure": "باز کردن حفره"}}),
+        Some(&owner),
+    );
+    assert_eq!(note["fields"]["diagnosis"], "پالپیت برگشت‌ناپذیر");
+    let signed = t.ok(m::NOTES_SIGN, json!({"id": note["id"], "version": note["version"]}), Some(&owner));
+    assert_eq!(signed["status"], "signed");
+    assert!(signed["signed_at"].is_string());
+    let (_, _, rule) = rule_of(
+        &t,
+        m::NOTES_SAVE,
+        json!({"id": signed["id"], "version": signed["version"], "patient_id": patient, "fields": {"diagnosis": "x"}}),
+        &owner,
+    );
+    assert_eq!(rule.as_deref(), Some("note_signed"));
+    let (_, _, rule) =
+        rule_of(&t, m::NOTES_DELETE, json!({"id": signed["id"], "version": signed["version"]}), &owner);
+    assert_eq!(rule.as_deref(), Some("note_signed"));
+    let with = t.ok(
+        m::NOTES_ADD_ADDENDUM,
+        json!({"note_id": signed["id"], "text": "عکس پری‌اپیکال ضایعه را نشان داد."}),
+        Some(&owner),
+    );
+    assert_eq!(with["addenda"].as_array().unwrap().len(), 1);
+    assert_eq!(with["fields"]["diagnosis"], "پالپیت برگشت‌ناپذیر", "the signed text never changes");
+    // A note saved and signed in one step; a draft thrown away.
+    let quick = t.ok(
+        m::NOTES_SAVE,
+        json!({"patient_id": patient, "fields": {"procedure": "جرم‌گیری"}, "sign": true}),
+        Some(&owner),
+    );
+    assert_eq!(quick["status"], "signed");
+    let draft =
+        t.ok(m::NOTES_SAVE, json!({"patient_id": patient, "fields": {"notes": "پیش‌نویس"}}), Some(&owner));
+    t.ok(m::NOTES_DELETE, json!({"id": draft["id"], "version": draft["version"]}), Some(&owner));
+    assert_eq!(
+        t.ok(m::NOTES_LIST, json!({"patient_id": patient}), Some(&owner)).as_array().unwrap().len(),
+        2
+    );
+    let exams =
+        t.ok(m::TIMELINE_LIST, json!({"patient_id": patient, "kinds": ["examination"]}), Some(&owner));
+    assert_eq!(exams.as_array().unwrap().len(), 2);
+
+    // Ready-made notes are the clinic's to rewrite, survive a restart, and can be put back.
+    let templates = t.ok(m::NOTE_TEMPLATES_LIST, json!({}), Some(&owner));
+    let rct = templates.as_array().unwrap().iter().find(|x| x["code"] == "rct_first").unwrap().clone();
+    let mut edit = rct.clone();
+    edit["body"]["fa"]["procedure"] = json!("متن کلینیک");
+    let edited = t.ok(m::NOTE_TEMPLATES_SAVE, edit, Some(&owner));
+    assert_eq!(
+        (edited["customized"].as_bool(), edited["body"]["fa"]["procedure"].as_str()),
+        (Some(true), Some("متن کلینیک"))
+    );
+    let t = t.reopen();
+    let owner = t.login("owner", "owner-pass-1");
+    let kept = t.ok(m::NOTE_TEMPLATES_LIST, json!({}), Some(&owner));
+    let kept = kept.as_array().unwrap().iter().find(|x| x["code"] == "rct_first").unwrap().clone();
+    assert_eq!(kept["body"]["fa"]["procedure"], "متن کلینیک", "a restart never overwrites the clinic's text");
+    let reset =
+        t.ok(m::NOTE_TEMPLATES_RESET, json!({"id": kept["id"], "version": kept["version"]}), Some(&owner));
+    assert_eq!(reset["customized"], false);
+    assert_ne!(reset["body"]["fa"]["procedure"], "متن کلینیک");
+}
+
+#[test]
+fn perio_exams_are_checked_summarised_and_listed_newest_first() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let tooth = |n: u8, d: [u8; 6], bleed: [bool; 6]| {
+        json!({"tooth": n, "depth": d, "recession": [0, 1, 0, 0, 0, 0], "bleeding": bleed, "plaque": [false, false, false, false, false, false],
+               "mobility": 1, "furcation": [null, null]})
+    };
+    let (_, field, rule) = rule_of(
+        t,
+        m::PERIO_SAVE,
+        json!({"patient_id": c.patient, "teeth": [tooth(16, [3, 2, 20, 3, 2, 3], [false; 6])]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("teeth.0.depth"), Some("perio_value")));
+    let gone = json!({"tooth": 18, "missing": true, "depth": [9, 9, 9, 9, 9, 9], "recession": [null, null, null, null, null, null],
+                      "bleeding": [true, true, true, true, true, true], "plaque": [false, false, false, false, false, false], "mobility": null, "furcation": [null, null]});
+    let first = t.ok(
+        m::PERIO_SAVE,
+        json!({"patient_id": c.patient, "exam_date": "2026-01-10",
+               "teeth": [tooth(16, [5, 4, 6, 4, 3, 5], [true, true, false, true, false, false]), tooth(26, [3; 6], [false; 6]), gone]}),
+        Some(owner),
+    );
+    let s = &first["summary"];
+    assert_eq!(
+        (s["teeth"].as_i64(), s["sites_4_plus"].as_i64(), s["sites_6_plus"].as_i64()),
+        (Some(2), Some(5), Some(1))
+    );
+    assert_eq!(s["bleeding_percent"], 25, "3 of 12 sites; the missing tooth is not counted");
+    let second = t.ok(
+        m::PERIO_SAVE,
+        json!({"patient_id": c.patient, "teeth": [tooth(16, [3, 3, 4, 3, 2, 3], [false; 6]), tooth(26, [2; 6], [false; 6])]}),
+        Some(owner),
+    );
+    let list = t.ok(m::PERIO_LIST, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(list[0]["id"], second["id"], "newest first");
+    assert!(list[0]["summary"]["mean_depth_x10"].as_i64() < list[1]["summary"]["mean_depth_x10"].as_i64());
+    t.ok(m::PERIO_DELETE, json!({"id": first["id"], "version": first["version"]}), Some(owner));
+    assert_eq!(
+        t.ok(m::PERIO_LIST, json!({"patient_id": c.patient}), Some(owner)).as_array().unwrap().len(),
+        1
+    );
+}
+
+#[test]
+fn migration_to_the_clinical_core_keeps_documents_and_draws_the_old_catalog() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = Config::new(Environment::Test, dir.path().to_path_buf());
+    let recovery = RecoveryKey::generate();
+    let protector = default_protector();
+    let path = config.db_path();
+    let (cat, svc) =
+        (crate::ids::seed_id("service_category", "END"), crate::ids::seed_id("service", "END-01"));
+    {
+        let (mut conn, _key) = db::create(&path, protector.as_ref(), &recovery).unwrap();
+        let v12: Vec<db::Migration> = db::MIGRATIONS
+            .iter()
+            .filter(|m| m.version <= 12)
+            .map(|m| db::Migration { version: m.version, name: m.name, sql: m.sql })
+            .collect();
+        db::migrate(&mut conn, &v12, &config.backup_dir()).unwrap();
+        conn.execute_batch(&format!(
+            "INSERT INTO db_meta(key, value) VALUES ('clinic_name', 'Old'), ('default_language', 'fa'), ('clinic_id', 'x'),
+                    ('created_at', '2026-01-01T00:00:00.000Z'), ('created_with_version', '0.5.0');
+             INSERT INTO patient(id, patient_number, full_name, registration_date, created_at, updated_at)
+             VALUES ('p1', 'P-000001', 'Old Patient', '2026-01-01', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+             INSERT INTO clinical_document(id, number, kind, patient_id, language, paper, patient_json, content_json, issued_at,
+                 created_at, updated_at)
+             VALUES ('d1', 'RX-1405-000001', 'prescription', 'p1', 'fa', 'a5', '{{}}', '{{}}', '2026-01-02T00:00:00.000Z',
+                 '2026-01-02T00:00:00.000Z', '2026-01-02T00:00:00.000Z');
+             INSERT INTO service_category(id, code, name_fa, name_ps, name_en, is_system, created_at, updated_at)
+             VALUES ('{cat}', 'END', 'اندو', 'اندو', 'Endodontics', 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+             INSERT INTO service(id, code, category_id, name_fa, name_ps, name_en, price, tooth_scope, sessions, is_system,
+                 created_at, updated_at)
+             VALUES ('{svc}', 'END-01', '{cat}', 'عصب‌کشی', 'عصب ایستل', 'Root canal treatment', 250000, 'tooth', 2, 1,
+                 '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');"
+        ))
+        .unwrap();
+    }
+    let core = Core::open(config).unwrap();
+    let (number, symbol, price): (String, String, i64) = core
+        .with_db(|o| {
+            Ok(o.conn.query_row(
+                "SELECT d.number, s.chart_symbol, s.price FROM clinical_document d, service s
+                 WHERE d.id = 'd1' AND s.code = 'END-01'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )?)
+        })
+        .unwrap();
+    assert_eq!(number, "RX-1405-000001", "issued documents survive the table rebuild");
+    assert_eq!(symbol, "root_canal", "the built-in catalog learns how it is drawn");
+    assert_eq!(price, 250000, "the clinic's price is untouched");
+    let widened: i64 = core
+        .with_db(|o| {
+            Ok(o.conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'clinical_document' AND sql LIKE '%treatment_plan%'",
+                [],
+                |r| r.get(0),
+            )?)
+        })
+        .unwrap();
+    assert_eq!(widened, 1, "estimates (TP) can be stored");
+}
+
+#[test]
+fn the_record_summary_prints_the_clinical_visit() {
+    // Phase 5 exit: a whole clinical visit — chart, treatment, note — is in the printed record.
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    t.ok(
+        m::CHART_ADD_FINDINGS,
+        json!({"patient_id": c.patient, "condition_id": condition_id(t, owner, "caries"), "teeth": [36], "surfaces": "OD"}),
+        Some(owner),
+    );
+    t.ok(
+        m::CHART_ADD_FINDINGS,
+        json!({"patient_id": c.patient, "condition_id": condition_id(t, owner, "missing"), "teeth": [18]}),
+        Some(owner),
+    );
+    let item = &t.ok(
+        m::TREATMENT_ITEMS_ADD,
+        json!({"patient_id": c.patient, "service_id": service_id(t, owner, "END-01D"), "teeth": [36], "doctor_id": c.doctor}),
+        Some(owner),
+    )[0];
+    t.ok(
+        m::TREATMENT_ITEMS_RECORD_SESSION,
+        json!({"item_id": item["id"], "version": item["version"], "doctor_id": c.doctor}),
+        Some(owner),
+    );
+    t.ok(
+        m::NOTES_SAVE,
+        json!({"patient_id": c.patient, "doctor_id": c.doctor, "fields": {"diagnosis": "پالپیت", "procedure": "پاکسازی کانال"}, "sign": true}),
+        Some(owner),
+    );
+    t.ok(m::NOTES_SAVE, json!({"patient_id": c.patient, "fields": {"notes": "پیش‌نویس"}}), Some(owner));
+    let doc = t.ok(
+        m::DOCUMENTS_ISSUE,
+        json!({"patient_id": c.patient, "language": "en", "paper": "a4", "content": {"kind": "record_summary"}}),
+        Some(owner),
+    );
+    let snap = &doc["content"]["snapshot"];
+    assert_eq!(snap["numbering"], "fdi");
+    assert_eq!(snap["findings"][0], json!({"tooth": 18, "condition": "Missing", "surfaces": ""}), "by tooth");
+    assert_eq!(snap["findings"][1]["surfaces"], "OD");
+    assert_eq!(snap["treatments"].as_array().unwrap().len(), 1);
+    let rct = &snap["treatments"][0];
+    assert_eq!(rct["service"], "Root canal treatment — Two canals", "in the document's language");
+    assert_eq!((rct["sessions_done"].as_i64(), rct["sessions_planned"].as_i64()), (Some(1), Some(2)));
+    assert_eq!((rct["status"].as_str(), rct["doctor"].as_str()), (Some("in_progress"), Some("دکتر احمد")));
+    assert_eq!(rct["date"], c.today);
+    // Only signed notes are printed.
+    assert_eq!(snap["notes"].as_array().unwrap().len(), 1);
+    assert_eq!(snap["notes"][0]["procedure"], "پاکسازی کانال");
+    // A summary issued before v0.6.0 (no clinical part) still opens.
+    let old: artaveo_shared::RecordSnapshot = serde_json::from_value(
+        json!({"medical": [], "medical_notes": null, "visits": [], "prescriptions": []}),
+    )
+    .unwrap();
+    assert!(old.findings.is_empty() && old.numbering == artaveo_shared::ToothNumbering::Fdi);
+}

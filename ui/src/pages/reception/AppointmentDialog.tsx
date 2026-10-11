@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Printer, Save } from "lucide-react";
-import type { AppointmentInfo, CalendarSystem, ChairInfo, DoctorInfo } from "../../../../shared/ts/contract";
+import type { AppointmentInfo, CalendarSystem, ChairInfo, DoctorInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
 import { fromMinutes, nowMinutes, toMinutes, todayIso } from "../../lib/calendar";
 import { digits, formatTime } from "../../lib/dates";
 import { useForm } from "../../lib/validation";
-import { serviceName, specialtiesText, useCatalog, useSpecialties } from "../../lib/clinical";
+import { serviceName, specialtiesText, useCatalog, useClinicSettings, useSpecialties } from "../../lib/clinical";
+import { SessionDots } from "../patients/clinical/SessionDots";
+import { itemTitle } from "../patients/clinical/labels";
 import { tr } from "../../lib/medical";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
@@ -23,7 +25,19 @@ import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { StatusActions } from "./StatusActions";
 import { MOVABLE, SCHEDULE_RULES, STATUS_TONE } from "./labels";
 
-export type Defaults = { date?: string; start?: string; doctorId?: string; chairId?: string; patient?: PickedPatient | null; recallId?: string | null; reason?: string };
+export type Defaults = {
+  date?: string;
+  start?: string;
+  doctorId?: string;
+  chairId?: string;
+  patient?: PickedPatient | null;
+  recallId?: string | null;
+  reason?: string;
+  /** M4: book a session of this treatment item (and which one; the next one otherwise). */
+  treatmentItemId?: string;
+  sessionNo?: number;
+  duration?: number;
+};
 
 const DURATIONS = [10, 15, 20, 30, 45, 60, 90, 120, 180];
 
@@ -41,14 +55,14 @@ function defaultStartTime(date: string, explicit?: string): string {
   return fromMinutes(Math.min(1425, Math.floor(nowMinutes() / 15) * 15 + 15));
 }
 
-type Values = { doctor_id: string; chair_id: string; date: string; start_time: string; duration: string; reason: string; notes: string; service_id: string };
+type Values = { doctor_id: string; chair_id: string; date: string; start_time: string; duration: string; reason: string; notes: string; service_id: string; treatment_item_id: string; session_no: string };
 
 /**
  * Create or edit one appointment (4.3): patient, doctor, chair, date, time and length. The Core
  * refuses double booking and times outside the doctor's schedule; the exact reason lands under
  * the field it is about, and for a schedule reason reception can book on purpose.
  */
-export function AppointmentDialog({ appointment, defaults, doctors, chairs, calendar, perms, clinicName, solo = false, onOpenAppointment, onClose, onSaved }: {
+export function AppointmentDialog({ appointment, defaults, doctors, chairs, calendar, perms, clinicName, solo = false, onOpenAppointment, onClose, onSaved, onStatusChanged }: {
   appointment?: AppointmentInfo;
   defaults?: Defaults;
   doctors: DoctorInfo[];
@@ -62,13 +76,15 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   onOpenAppointment?: (a: AppointmentInfo) => void;
   onClose: () => void;
   onSaved: () => void;
+  /** A status step done from inside the dialog (completing a session offers the next one, M4). */
+  onStatusChanged?: (a: AppointmentInfo) => void;
 }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const editing = !!appointment;
   const movable = !appointment || MOVABLE.includes(appointment.status);
   const readOnly = !!appointment && !["scheduled", "confirmed", "checked_in", "in_treatment"].includes(appointment.status);
-  const initialDuration = appointment ? toMinutes(appointment.end_time) - toMinutes(appointment.start_time) : 30;
+  const initialDuration = appointment ? toMinutes(appointment.end_time) - toMinutes(appointment.start_time) : (defaults?.duration ?? 30);
   const durations = DURATIONS.includes(initialDuration) ? DURATIONS : [...DURATIONS, initialDuration].sort((a, b) => a - b);
 
   const [patient, setPatient] = useState<PickedPatient | null>(
@@ -86,6 +102,8 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
       reason: appointment?.reason ?? defaults?.reason ?? "",
       notes: appointment?.notes ?? "",
       service_id: appointment?.service_id ?? "",
+      treatment_item_id: appointment?.treatment?.item_id ?? defaults?.treatmentItemId ?? "",
+      session_no: String(appointment?.treatment?.session_no ?? defaults?.sessionNo ?? ""),
     },
     {
       doctor_id: (s) => (s ? null : "rule.required"),
@@ -109,6 +127,23 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
     }
   };
 
+  // M4: the patient's treatments still to do, to book a visit as one of their sessions.
+  const settings = useClinicSettings();
+  const [openItems, setOpenItems] = useState<TreatmentItemInfo[] | null>(null);
+  useEffect(() => {
+    if (!patient) return setOpenItems(null);
+    rpc("treatment_items.open", { patient_id: patient.id }).then(setOpenItems).catch(() => setOpenItems([]));
+  }, [patient?.id]);
+  const linked = openItems?.find((i) => i.id === form.values.treatment_item_id) ?? null;
+  const pickItem = (id: string) => {
+    form.set("treatment_item_id", id);
+    form.set("session_no", "");
+    const item = openItems?.find((i) => i.id === id);
+    if (item) {
+      form.set("service_id", item.service_id);
+      if (!form.values.reason.trim() && catalog) form.set("reason", itemTitle(t, catalog, item, settings?.tooth_numbering ?? "fdi", lang));
+    }
+  };
   const doctor = doctors.find((d) => d.id === form.values.doctor_id);
   const specialties = useSpecialties();
   const catalog = useCatalog();
@@ -155,14 +190,15 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
     if (!patient) return setPatientError(t("rule.required"));
     if (!form.validate()) return;
     const v = form.values;
-    const body = { doctor_id: v.doctor_id, chair_id: v.chair_id || null, date: v.date, start_time: v.start_time, end_time: endTime, override_schedule: override, service_id: v.service_id || null };
+    const link = { treatment_item_id: v.treatment_item_id || null, session_no: v.treatment_item_id && v.session_no ? Number(v.session_no) : null };
+    const body = { doctor_id: v.doctor_id, chair_id: v.chair_id || null, date: v.date, start_time: v.start_time, end_time: endTime, override_schedule: override, service_id: v.service_id || null, ...link };
     setBusy(mode);
     try {
       if (!current) {
         await rpc("appointments.create", { ...body, patient_id: patient.id, reason: v.reason.trim() || null, notes: v.notes.trim() || null, recall_id: defaults?.recallId ?? null });
         toast.success(t("appt.created"));
       } else if (mode === "reschedule") {
-        const { service_id: _, ...move } = body;
+        const { service_id: _, treatment_item_id: _i, session_no: _n, ...move } = body;
         await rpc("appointments.reschedule", { ...move, id: current.id, version: current.version });
         toast.success(t("appt.rescheduled"));
       } else {
@@ -180,7 +216,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
       else if (x instanceof ApiError && x.rule && SCHEDULE_RULES.includes(x.rule)) {
         form.serverError(x, { date: "date", start_time: "start_time" });
         setOfferOverride(mode);
-      } else if (!form.serverError(x, { end_time: "duration" })) setError(x instanceof ApiError && x.rule ? t(`rule.${x.rule}`) : err(x));
+      } else if (!form.serverError(x, { end_time: "duration", session_no: "treatment_item_id" })) setError(x instanceof ApiError && x.rule ? t(`rule.${x.rule}`) : err(x));
     } finally {
       setBusy(null);
     }
@@ -189,6 +225,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   const changed = (a: AppointmentInfo) => {
     setCurrent(a);
     onSaved();
+    onStatusChanged?.(a);
     if (!["scheduled", "confirmed", "checked_in", "in_treatment"].includes(a.status)) onClose();
   };
 
@@ -238,7 +275,31 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
               {onOpenAppointment && <Button variant="link" onClick={() => onOpenAppointment(clash)} data-testid="appt-clash-open">{t("appt.clash.open")}</Button>}
             </Notice>
           )}
-          {catalog && catalog.services.length > 0 && (
+          {(openItems?.length || current?.treatment) ? (
+            <Field label={t("appt.treatment")} hint={t("appt.treatmentHint")} optional error={e("treatment_item_id")}>
+              <Select value={form.values.treatment_item_id} disabled={readOnly} onChange={(x) => pickItem(x.target.value)} data-testid="appt-treatment">
+                <option value="">{t("appt.treatmentNone")}</option>
+                {current?.treatment && !openItems?.some((i) => i.id === current.treatment!.item_id) && <option value={current.treatment.item_id}>{t("appt.treatmentLinked")}</option>}
+                {openItems?.map((i) => <option key={i.id} value={i.id}>{itemTitle(t, catalog, i, settings?.tooth_numbering ?? "fdi", lang)}</option>)}
+              </Select>
+            </Field>
+          ) : null}
+          {form.values.treatment_item_id && (linked || current?.treatment) && (
+            <div className="row appt-session" data-testid="appt-session">
+              {current?.treatment && current.treatment.item_id === form.values.treatment_item_id ? (
+                <>
+                  <SessionDots treatment={current.treatment} />
+                  <span className="t-caption">{t("chart.sessionOf").replace("{n}", digits(current.treatment.session_no, lang)).replace("{of}", digits(current.treatment.sessions_planned, lang))}</span>
+                </>
+              ) : linked ? (
+                <>
+                  <SessionDots item={linked} />
+                  <span className="t-caption">{form.values.session_no ? t("chart.sessionOf").replace("{n}", digits(form.values.session_no, lang)).replace("{of}", digits(linked.sessions_planned, lang)) : t("appt.nextSessionAuto")}</span>
+                </>
+              ) : null}
+            </div>
+          )}
+          {catalog && catalog.services.length > 0 && !form.values.treatment_item_id && (
             <Field label={t("appt.service")} hint={t("appt.serviceHint")} optional error={e("service_id")}>
               <Select value={form.values.service_id} disabled={readOnly} onChange={(x) => pickService(x.target.value)} data-testid="appt-service">
                 <option value="">{t("appt.serviceNone")}</option>

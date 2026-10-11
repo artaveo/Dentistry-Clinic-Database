@@ -4,7 +4,527 @@
 > (`node ui/scripts/export-pashto-review.mjs`). هر بار که متن‌های رابط
 > برنامه تغییر کنند، دوباره ساخته می‌شود. راهنمای بازبینی: [README.md](README.md).
 
-تعداد متن‌ها: 1321
+تعداد متن‌ها: 1758 — تازه در v0.6.0: 437
+
+## ۱. متن‌های تازه v0.6.0 (اول این‌ها را ببینید)
+
+| کلید (فقط برای توسعه‌دهنده) | English (مرجع) | دری (مرجع — تأییدشده) | پښتو (نیازمند بازبینی) | یادداشت بازبینی |
+|---|---|---|---|---|
+| `doc.summary.findings` | Teeth | وضعیت دندان‌ها | د غاښونو حالت | |
+| `doc.summary.condition` | Condition | وضعیت | حالت | |
+| `doc.summary.treatments` | Treatments | درمان‌ها | درملنې | |
+| `doc.summary.notes` | Clinical notes | یادداشت‌های بالینی | باليني یادداښتونه | |
+| `appt.treatment` | Treatment session | جلسه درمان | د درملنې ناسته | |
+| `appt.treatmentHint` | Which treatment is this visit a session of? "Session 2 of 3" | این نوبت یک جلسه از درمان کدام دندان است؟ «جلسه ۲ از ۳» | دا وخت د کوم غاښ د درملنې ناسته ده؟ «۲ ناسته له ۳» | |
+| `appt.treatmentNone` | Not linked to a treatment plan | بدون اتصال به پلان درمان | د درملنې له پلان سره نه تړل کېږي | |
+| `appt.treatmentLinked` | Linked treatment (finished or cancelled) | درمان وصل‌شده (تمام‌شده یا لغوشده) | تړل شوې درملنه (بشپړه یا لغوه) | |
+| `appt.nextSessionAuto` | The next session not yet done or booked | جلسه بعدی که هنوز انجام یا رزرو نشده | راتلونکې ناسته چې لا نه ده شوې یا نیول شوې | |
+| `catalog.chartSymbol` | Shown on the chart as | نمایش در چارت | په چارټ کې ښودل | |
+| `catalog.chartSymbolHint` | How this service is drawn on the dental chart. | این خدمت روی چارت دندان چطور کشیده شود. | دا خدمت د غاښونو په چارټ کې څنګه انځور شي. | |
+| `catalog.interval` | Usual days between sessions | فاصله معمول بین جلسات | د ناستو ترمنځ عادي واټن | |
+| `catalog.intervalHint` | The next session is suggested this long after the last (root canal 7, orthodontics 30). | نوبت جلسه بعد با همین فاصله پیشنهاد می‌شود (مثلاً عصب‌کشی ۷، ارتودنسی ۳۰). | د راتلونکې ناستې وخت په همدې واټن وړاندیز کېږي (لکه عصب ایستل ۷، ارتوډونسي ۳۰). | |
+| `catalog.days` | days | روز | ورځې | |
+| `chart.views` | Chart view | نمای چارت | د چارټ بڼه | |
+| `chart.view.general` | General | عمومی | عمومي | |
+| `chart.view.ortho` | Orthodontics | ارتودنسی | ارتوډونسي | |
+| `chart.view.implant` | Implants | ایمپلنت | ایمپلانټ | |
+| `chart.view.prosth` | Prosthetics | پروتز | پروتز | |
+| `chart.view.perio` | Perio (gums) | پریو (لثه) | پریو (اورۍ) | |
+| `chart.dentition` | Dentition | نوع دندان‌ها | د غاښونو ډول | |
+| `chart.dentition.permanent` | Adult | دائمی | دایمي | |
+| `chart.dentition.mixed` | Mixed | مختلط | ګډ | |
+| `chart.dentition.primary` | Baby | شیری | شیدو | |
+| `chart.labels` | Labels | برچسب‌ها | لېبلونه | |
+| `chart.labels.all` | All labels | همه برچسب‌ها | ټول لېبلونه | |
+| `chart.labels.selected` | Selected only | فقط انتخاب‌شده | یوازې ټاکل شوي | |
+| `chart.quick` | Quick selection | انتخاب سریع دندان‌ها | د غاښونو چټک ټاکل | |
+| `chart.quick.upper` | Upper jaw | فک بالا | پورتنۍ ژامه | |
+| `chart.quick.lower` | Lower jaw | فک پایین | لاندنۍ ژامه | |
+| `chart.quick.q1` | Quadrant 1 | ربع ۱ | ۱ ربع | |
+| `chart.quick.q2` | Quadrant 2 | ربع ۲ | ۲ ربع | |
+| `chart.quick.q3` | Quadrant 3 | ربع ۳ | ۳ ربع | |
+| `chart.quick.q4` | Quadrant 4 | ربع ۴ | ۴ ربع | |
+| `chart.quick.all` | All | همه | ټول | |
+| `chart.selectedN` | Selected: {n} | انتخاب‌شده: {n} | ټاکل شوي: {n} | |
+| `chart.clearSelection` | Clear selection | پاک کردن انتخاب | ټاکنه پاکول | |
+| `chart.showingPlan` | Plan on the chart: | پلان روی چارت: | په چارټ کې پلان: | |
+| `chart.tooth` | Tooth | دندان | غاښ | |
+| `chart.patientRight` | Patient's right | راست بیمار | د ناروغ ښی اړخ | |
+| `chart.patientLeft` | Patient's left | چپ بیمار | د ناروغ کیڼ اړخ | |
+| `chart.wholeMouth` | Whole-mouth work: | کارهای تمام دهان: | د ټولې خولې کارونه: | |
+| `chart.legendHint` | Click a tooth or a label to see its details and history. | روی هر دندان یا برچسب بزنید تا جزئیات و تاریخچه آن را ببینید. | پر هر غاښ یا لېبل کلیک وکړئ چې جزئیات او تاریخچه یې وګورئ. | |
+| `chart.state.existing` | Existing | موجود از قبل | له مخکې موجود | |
+| `chart.state.planned` | Planned | برنامه‌ریزی‌شده | پلان شوی | |
+| `chart.state.progress` | In progress | در حال انجام | روان | |
+| `chart.state.done` | Completed | تمام‌شده | بشپړ شوی | |
+| `chart.state.missing` | Extracted / missing | کشیده / غایب | ایستل شوی / نشته | |
+| `chart.sessionOf` | Session {n} of {of} | جلسه {n} از {of} | {n} ناسته له {of} | |
+| `chart.sessions` | {n} sessions | {n} جلسه | {n} ناستې | |
+| `chart.progressOf` | {done} of {of} sessions done | {done} جلسه از {of} انجام شده | {done} ناستې له {of} شوې | |
+| `chart.actions` | Work on teeth | کار روی دندان | پر غاښ کار | |
+| `chart.actionsFor` | Work on {teeth} | کار روی {teeth} | پر {teeth} کار | |
+| `chart.actionsHint` | Select teeth on the chart (Ctrl for several, Shift for a run), or pick the service first. | دندان‌ها را روی چارت انتخاب کنید (Ctrl برای چند دندان، Shift برای یک ردیف)، یا اول خدمت را انتخاب کنید. | غاښونه په چارټ کې وټاکئ (د څو غاښونو لپاره Ctrl، د یوې لړۍ لپاره Shift)، یا لومړی خدمت وټاکئ. | |
+| `chart.mode.plan` | Add to plan | افزودن به پلان | پلان ته ورزیاتول | |
+| `chart.mode.done` | Done today | انجام‌شده امروز | نن شوی | |
+| `chart.mode.finding` | Existing condition | وضعیت موجود | موجود حالت | |
+| `chart.readOnly` | Recording on the chart needs the "edit clinical records" permission. | برای ثبت روی چارت، دسترسی «ویرایش اطلاعات بالینی» لازم است. | په چارټ کې د ثبت لپاره «د بالیني معلوماتو سمون» لاسرسی پکار دی. | |
+| `chart.detailsTitle` | Tooth details | جزئیات دندان | د غاښ جزئیات | |
+| `chart.detailsHint` | Select one tooth to see its conditions, work and history. | یک دندان را انتخاب کنید تا وضعیت‌ها، کارها و تاریخچه آن را ببینید. | یو غاښ وټاکئ چې حالتونه، کارونه او تاریخچه یې وګورئ. | |
+| `chart.condition` | Tooth condition | وضعیت دندان | د غاښ حالت | |
+| `chart.pickSurfaces` | Pick the surfaces on the biting view of the tooth (M, O, D, B, L). | سطح‌ها را روی نمای جونده دندان انتخاب کنید (M، O، D، B، L). | سطحې د غاښ د ژوولو په بڼه کې وټاکئ (M، O، D، B، L). | |
+| `chart.pickTeeth` | Select the teeth on the chart first. | اول دندان‌ها را روی چارت انتخاب کنید. | لومړی غاښونه په چارټ کې وټاکئ. | |
+| `chart.note` | Note | توضیح | یادښت | |
+| `chart.recordFinding` | Record for {teeth} | ثبت برای {teeth} | د {teeth} لپاره ثبت | |
+| `chart.findingSaved` | Condition recorded. | وضعیت دندان ثبت شد. | د غاښ حالت ثبت شو. | |
+| `chart.findingRemoved` | Condition removed from the chart (kept in the history). | وضعیت از چارت برداشته شد (در تاریخچه می‌ماند). | حالت له چارټ لرې شو (په تاریخچه کې پاتې کېږي). | |
+| `chart.removeFinding` | Remove from chart | برداشتن از چارت | له چارټ لرې کول | |
+| `chart.removeFindingConfirm` | Remove this condition from the chart? It stays in the tooth's history. | این وضعیت از چارت برداشته شود؟ در تاریخچه دندان باقی می‌ماند. | دا حالت له چارټ لرې شي؟ د غاښ په تاریخچه کې پاتې کېږي. | |
+| `chart.serviceSearch` | Search a service or code… | جستجوی خدمت یا کد… | د خدمت یا کوډ لټون… | |
+| `chart.allCategories` | All | همه | ټول | |
+| `chart.service` | Service | خدمت | خدمت | |
+| `chart.noService` | No service found. | خدمتی پیدا نشد. | هیڅ خدمت ونه موندل شو. | |
+| `chart.plan` | Treatment plan | پلان درمان | د درملنې پلان | |
+| `chart.newPlan` | New plan | پلان جدید | نوی پلان | |
+| `chart.newPlanHint` | The patient has no plan yet; a new one is made. | بیمار هنوز پلان ندارد؛ یک پلان تازه ساخته می‌شود. | ناروغ لا پلان نه لري؛ نوی پلان جوړېږي. | |
+| `chart.splitHint` | This service is recorded per tooth ({n} items, each with its own sessions and price). | این خدمت برای هر دندان جدا ثبت می‌شود ({n} مورد، هرکدام با جلسه و قیمت خودش). | دا خدمت د هر غاښ لپاره جلا ثبتېږي ({n} توکي، هر یو خپله ناسته او بیه). | |
+| `chart.addToPlan` | Add to plan | افزودن به پلان | پلان ته ورزیاتول | |
+| `chart.itemAdded` | Added to the treatment plan. | به پلان درمان اضافه شد. | د درملنې پلان ته ورزیات شو. | |
+| `chart.recordDone` | Record treatment done | ثبت درمان انجام‌شده | د شوې درملنې ثبت | |
+| `chart.doneSaved` | Treatment recorded. | درمان انجام‌شده ثبت شد. | شوې درملنه ثبت شوه. | |
+| `chart.history` | Tooth history | تاریخچه دندان | د غاښ تاریخچه | |
+| `chart.historyEmpty` | Nothing recorded for this tooth yet. | برای این دندان هنوز چیزی ثبت نشده است. | د دې غاښ لپاره لا څه نه دي ثبت شوي. | |
+| `chart.findings` | Existing conditions | وضعیت‌های موجود | موجود حالتونه | |
+| `chart.noFindings` | No conditions recorded. | وضعیتی ثبت نشده است. | کوم حالت نه دی ثبت شوی. | |
+| `chart.work` | Planned and completed work | کارهای برنامه‌ریزی‌شده و انجام‌شده | پلان شوي او شوي کارونه | |
+| `chart.noWork` | No work on this tooth. | کاری برای این دندان نیست. | د دې غاښ لپاره کار نشته. | |
+| `chart.showPrimary` | Show the baby tooth here | نمایش دندان شیری در این جایگاه | په دې ځای کې د شیدو غاښ ښودل | |
+| `chart.showPermanent` | Show the adult tooth here | نمایش دندان دائمی در این جایگاه | په دې ځای کې دایمي غاښ ښودل | |
+| `chart.type.central` | Central incisor | پیشین میانی | منځنی مخکینی غاښ | |
+| `chart.type.lateral` | Lateral incisor | پیشین کناری | څنګ ته مخکینی غاښ | |
+| `chart.type.canine` | Canine | نیش | نیش غاښ | |
+| `chart.type.premolar1` | First premolar | آسیای کوچک اول | لومړی کوچنی ژرنده غاښ | |
+| `chart.type.premolar2` | Second premolar | آسیای کوچک دوم | دوهم کوچنی ژرنده غاښ | |
+| `chart.type.molar1` | First molar | آسیای بزرگ اول | لومړی لوی ژرنده غاښ | |
+| `chart.type.molar2` | Second molar | آسیای بزرگ دوم | دوهم لوی ژرنده غاښ | |
+| `chart.type.molar3` | Third molar (wisdom tooth) | دندان عقل | د عقل غاښ | |
+| `chart.type.pA` | Primary central incisor | پیشین میانی شیری | د شیدو منځنی مخکینی غاښ | |
+| `chart.type.pB` | Primary lateral incisor | پیشین کناری شیری | د شیدو څنګ ته مخکینی غاښ | |
+| `chart.type.pC` | Primary canine | نیش شیری | د شیدو نیش غاښ | |
+| `chart.type.pD` | Primary first molar | آسیای اول شیری | د شیدو لومړی ژرنده غاښ | |
+| `chart.type.pE` | Primary second molar | آسیای دوم شیری | د شیدو دوهم ژرنده غاښ | |
+| `chart.quadrant.1` | Upper right | فک بالا، راست | پورتنۍ ژامه، ښی | |
+| `chart.quadrant.2` | Upper left | فک بالا، چپ | پورتنۍ ژامه، کیڼ | |
+| `chart.quadrant.3` | Lower left | فک پایین، چپ | لاندنۍ ژامه، کیڼ | |
+| `chart.quadrant.4` | Lower right | فک پایین، راست | لاندنۍ ژامه، ښی | |
+| `chart.scopeHint.tooth` | Select one or more teeth. | یک یا چند دندان را انتخاب کنید. | یو یا څو غاښونه وټاکئ. | |
+| `chart.scopeHint.teeth` | Select at least two teeth (the abutments and pontics of a bridge). | حداقل دو دندان را انتخاب کنید (مثلاً پایه‌ها و پونتیک بریج). | لږ تر لږه دوه غاښونه وټاکئ (لکه د برج پایې او پونټیک). | |
+| `chart.scopeHint.quadrant` | Select the teeth of the quadrant (quadrant buttons 1–4). | دندان‌های ربع فک را انتخاب کنید (دکمه ربع ۱ تا ۴). | د ژامې د ربع غاښونه وټاکئ (۱ تر ۴ ربع تڼۍ). | |
+| `chart.scopeHint.arch` | Select the teeth of a jaw (upper or lower). | دندان‌های یک فک را انتخاب کنید (فک بالا یا پایین). | د یوې ژامې غاښونه وټاکئ (پورتنۍ یا لاندنۍ). | |
+| `chart.scopeHint.mouth` | For the whole mouth; no teeth needed. | برای تمام دهان است؛ انتخاب دندان لازم نیست. | د ټولې خولې لپاره دی؛ د غاښ ټاکل اړین نه دي. | |
+| `chart.scopeHint.none` | Not about a particular tooth. | به دندان خاصی مربوط نیست. | په ځانګړي غاښ پورې اړه نه لري. | |
+| `chart.symbol.none` | Label only (no drawing) | فقط در برچسب (بدون نماد) | یوازې په لېبل کې (بې نښې) | |
+| `chart.symbol.surface` | Tooth surface (filling / caries) | سطح دندان (پرکاری / پوسیدگی) | د غاښ سطحه (ډکول / خرابوالی) | |
+| `chart.symbol.sealant` | Fissure sealant | فیشورسیل | فیشر سیل | |
+| `chart.symbol.veneer` | Veneer (front surface) | لمینیت (سطح جلو) | لمینیټ (مخکینۍ سطحه) | |
+| `chart.symbol.crown` | Crown | روکش | پوښ | |
+| `chart.symbol.root_canal` | Root canal | عصب‌کشی (کانال ریشه) | عصب ایستل (د ریښې کانال) | |
+| `chart.symbol.pulpotomy` | Pulpotomy | پالپوتومی | پالپوټومي | |
+| `chart.symbol.extraction` | Extraction | کشیدن | ایستل | |
+| `chart.symbol.missing` | Missing | غایب | نشته | |
+| `chart.symbol.implant` | Implant (fixture) | ایمپلنت (فیکسچر) | ایمپلانټ (فکسچر) | |
+| `chart.symbol.abutment` | Abutment | اباتمنت | اباټمنټ | |
+| `chart.symbol.implant_crown` | Implant crown | روکش روی ایمپلنت | پر ایمپلانټ پوښ | |
+| `chart.symbol.bridge` | Bridge | بریج | برج | |
+| `chart.symbol.denture` | Denture | دندان مصنوعی | مصنوعي غاښ | |
+| `chart.symbol.bracket` | Orthodontic bracket | براکت ارتودنسی | د ارتوډونسي براکټ | |
+| `chart.symbol.fracture` | Fracture | شکستگی | ماتېدنه | |
+| `chart.symbol.impacted` | Impacted | نهفته | پټ | |
+| `chart.symbol.lesion` | Periapical lesion | ضایعه ریشه | د ریښې زخم | |
+| `chart.symbol.scaling` | Scaling (gums) | جرم‌گیری (لثه) | پاکول (اورۍ) | |
+| `chart.symbol.marker` | Short badge (letters) | نشان کوتاه (حروف) | لنډه نښه (توري) | |
+| `clinical.tab.conditions` | Tooth conditions | وضعیت‌های دندان | د غاښ حالتونه | |
+| `clinical.tab.notes` | Ready-made notes | یادداشت‌های آماده | چمتو یادښتونه | |
+| `clinical.tab.plans` | Ready-made plans | پلان‌های آماده | چمتو پلانونه | |
+| `clinical.conditions.title` | Tooth conditions | وضعیت‌های دندان | د غاښ حالتونه | |
+| `clinical.conditions.hint` | Conditions recorded on the chart (caries, filling, crown, missing…). The clinic may add its own. | وضعیت‌هایی که روی چارت ثبت می‌شوند (پوسیدگی، پرکاری، روکش، غایب…). کلینیک می‌تواند وضعیت خودش را اضافه کند. | هغه حالتونه چې په چارټ کې ثبتېږي (خرابوالی، ډکول، پوښ، نشته…). کلینیک کولای شي خپل حالت ورزیات کړي. | |
+| `clinical.conditions.add` | New condition | وضعیت جدید | نوی حالت | |
+| `clinical.conditions.edit` | Edit condition | ویرایش وضعیت | د حالت سمون | |
+| `clinical.conditions.name` | Condition | نام وضعیت | د حالت نوم | |
+| `clinical.conditions.surface` | On surfaces | روی سطح | پر سطحه | |
+| `clinical.conditions.surfaceLabel` | Recorded on surfaces (like caries) | روی سطح‌های دندان ثبت شود (مثل پوسیدگی) | د غاښ پر سطحو ثبت شي (لکه خرابوالی) | |
+| `clinical.conditions.symbolHint` | How it is drawn on the chart. | روی چارت چطور کشیده شود. | په چارټ کې څنګه انځور شي. | |
+| `clinical.conditions.abbreviation` | Abbreviation | حروف کوتاه | لنډ توري | |
+| `clinical.conditions.abbreviationHint` | 1–3 letters, for a short badge next to the tooth number. | ۱ تا ۳ حرف، برای «نشان کوتاه» کنار شماره دندان. | له ۱ تر ۳ تورو، د غاښ د شمېرې تر څنګ د «لنډې نښې» لپاره. | |
+| `clinical.conditions.abbrNeeded` | A short badge needs letters. | برای «نشان کوتاه» حروف لازم است. | د «لنډې نښې» لپاره توري اړین دي. | |
+| `clinical.notes.title` | Ready-made clinical notes | یادداشت‌های بالینی آماده | چمتو بالیني یادښتونه | |
+| `clinical.notes.hint` | The doctor starts a visit note from one of these and changes it. The clinic writes the texts. | داکتر یادداشت ویزیت را از این قالب‌ها شروع می‌کند و بعد تغییر می‌دهد. متن را کلینیک می‌نویسد. | ډاکټر د لیدنې یادښت له دې قالبونو پیلوي او بیا یې بدلوي. متن کلینیک لیکي. | |
+| `clinical.notes.add` | New ready-made note | یادداشت آماده جدید | نوی چمتو یادښت | |
+| `clinical.notes.edit` | Edit ready-made note | ویرایش یادداشت آماده | د چمتو یادښت سمون | |
+| `clinical.notes.name` | Name | نام | نوم | |
+| `clinical.notes.parts` | Parts filled in | بخش‌های پرشده | ډک شوې برخې | |
+| `clinical.notes.textIn` | Text in: | متن به زبان: | متن په ژبه: | |
+| `clinical.notes.languagesHint` | A language left empty takes the text of the first one written. | زبانی که خالی بماند، متن اولین زبان نوشته‌شده را می‌گیرد. | هغه ژبه چې تشه پاتې شي، د لومړۍ لیکل شوې ژبې متن اخلي. | |
+| `clinical.plans.title` | Ready-made treatment plans | پلان‌های درمان آماده | چمتو د درملنې پلانونه | |
+| `clinical.plans.hint` | Adds several services, in phases, to a patient's plan in one click (e.g. root canal and crown). | با یک کلیک چند خدمت را با مرحله‌بندی به پلان بیمار اضافه می‌کند (مثلاً عصب‌کشی و روکش). | په یوه کلیک څو خدمتونه د پړاوونو سره د ناروغ پلان ته ورزیاتوي (لکه عصب ایستل او پوښ). | |
+| `clinical.plans.add` | New ready-made plan | پلان آماده جدید | نوی چمتو پلان | |
+| `clinical.plans.edit` | Edit ready-made plan | ویرایش پلان آماده | د چمتو پلان سمون | |
+| `clinical.plans.name` | Name | نام | نوم | |
+| `clinical.plans.lines` | Services | خدمات | خدمتونه | |
+| `clinical.plans.addLine` | Add a service | افزودن خدمت | خدمت ورزیاتول | |
+| `clinical.plans.addLineHint` | Set each service's phase and teeth. | برای هر خدمت مرحله و دندان‌ها را تعیین کنید. | د هر خدمت لپاره پړاو او غاښونه وټاکئ. | |
+| `common.yes` | Yes | بله | هو | |
+| `common.delete` | Delete | حذف | ړنګول | |
+| `course.title` | Treatments under way | درمان‌های در جریان | روانې درملنې | |
+| `course.hint` | Each treatment's progress and next session | پیشرفت هر درمان و جلسه بعدی | د هرې درملنې پرمختګ او راتلونکې ناسته | |
+| `course.open` | Treatment plans | پلان‌های درمان | د درملنې پلانونه | |
+| `course.next` | Next session: {date}, {time} | جلسه بعد: {date}، {time} | راتلونکې ناسته: {date}، {time} | |
+| `course.noNext` | Next session not booked yet | نوبت جلسه بعد هنوز گرفته نشده | د راتلونکې ناستې وخت لا نه دی نیول شوی | |
+| `doc.kind.treatment_plan` | Treatment plan and cost estimate | پلان درمان و برآورد هزینه | د درملنې پلان او د لګښت اټکل | |
+| `doc.plan.choose` | The following options are offered for you to choose from: | گزینه‌های زیر برای انتخاب شما پیشنهاد شده است: | لاندې انتخابونه ستاسو د ټاکلو لپاره وړاندیز شوي: | |
+| `doc.plan.option` | Option {n} | گزینه {n} | {n} انتخاب | |
+| `doc.plan.phase` | Phase | مرحله | پړاو | |
+| `doc.plan.service` | Treatment | درمان | درملنه | |
+| `doc.plan.sessions` | Visits | جلسه | ناستې | |
+| `doc.plan.price` | Cost | هزینه | لګښت | |
+| `doc.plan.total` | Estimated total | جمع برآورد | د اټکل ټولګه | |
+| `doc.plan.done` | done | انجام شد | شوی | |
+| `doc.plan.estimateNote` | These costs are an estimate and may change during treatment. | هزینه‌ها برآورد است و ممکن است در جریان درمان تغییر کند. | لګښتونه اټکل دي او ښايي د درملنې پر مهال بدل شي. | |
+| `doc.plan.validUntil` | This estimate is valid until {date}. | این برآورد تا {date} معتبر است. | دا اټکل تر {date} پورې اعتبار لري. | |
+| `item.status.planned` | Planned | برنامه‌ریزی‌شده | پلان شوی | |
+| `item.status.in_progress` | In progress | در حال انجام | روان | |
+| `item.status.completed` | Completed | تمام‌شده | بشپړ شوی | |
+| `item.status.cancelled` | Cancelled | لغوشده | لغوه شوی | |
+| `item.done.completed` | Treatment completed. | درمان تمام شد. | درملنه بشپړه شوه. | |
+| `item.done.cancelled` | Treatment cancelled. | درمان لغو شد. | درملنه لغوه شوه. | |
+| `item.done.planned` | Treatment back in the plan. | درمان دوباره به پلان برگشت. | درملنه بېرته پلان ته راستنه شوه. | |
+| `item.done.in_progress` | Treatment under way. | درمان در جریان است. | درملنه روانه ده. | |
+| `item.recordSession` | Record session | ثبت جلسه | د ناستې ثبت | |
+| `item.recordTitle` | Record session {n} of {of} | ثبت جلسه {n} از {of} | د {n} ناستې ثبت له {of} | |
+| `item.bookSession` | Book next session | نوبت جلسه بعد | د راتلونکې ناستې وخت | |
+| `item.complete` | Mark completed | تمام شد | بشپړ شو | |
+| `item.completeConfirm` | Mark this treatment completed? | این درمان تمام‌شده ثبت شود؟ | دا درملنه بشپړه ثبت شي؟ | |
+| `item.cancel` | Cancel | لغو | لغوه | |
+| `item.cancelTitle` | Cancel this treatment | لغو این درمان | د دې درملنې لغوه کول | |
+| `item.cancelHint` | Visits booked for it stay as ordinary visits. | نوبت‌های گرفته‌شده برای آن به نوبت معمولی تبدیل می‌شوند. | د دې لپاره نیول شوي وختونه په عادي وختونو بدلېږي. | |
+| `item.restore` | Put back in the plan | برگرداندن به پلان | پلان ته بېرته راوستل | |
+| `item.edit` | Edit treatment | ویرایش درمان | د درملنې سمون | |
+| `item.teethHint` | FDI numbers separated by commas, e.g. {example} | شماره FDI دندان‌ها با کاما، مثلاً {example} | د غاښونو FDI شمېرې په کامې سره، لکه {example} | |
+| `item.surfaces` | Surfaces | سطح‌ها | سطحې | |
+| `item.surfacesHint` | Letters M, O, D, B, L (e.g. MOD) | حروف M، O، D، B، L (مثلاً MOD) | توري M، O، D، B، L (لکه MOD) | |
+| `item.sessionsDone` | {n} sessions done; it cannot be fewer. | {n} جلسه انجام شده؛ کمتر از آن ممکن نیست. | {n} ناستې شوې؛ تر دې کم ممکن نه دي. | |
+| `item.estStart` | Estimated start | شروع تخمینی | اټکلي پیل | |
+| `item.estEnd` | Estimated end | پایان تخمینی | اټکلي پای | |
+| `item.performedOn` | Date of the session | تاریخ جلسه | د ناستې نېټه | |
+| `item.sessionNote` | What was done / result | چه انجام شد / نتیجه | څه وشول / پایله | |
+| `item.sessionNoteHint` | One line; the full visit note goes in Clinical notes. | یک خط؛ یادداشت کامل ویزیت در «یادداشت‌های بالینی». | یوه کرښه؛ د لیدنې بشپړ یادښت په «بالیني یادښتونو» کې. | |
+| `item.sessionDone` | Session {n} recorded. | جلسه {n} ثبت شد. | {n} ناسته ثبت شوه. | |
+| `item.sessionDoneLast` | Last session recorded; the treatment is complete. | جلسه آخر ثبت شد؛ درمان تمام شد. | وروستۍ ناسته ثبت شوه؛ درملنه بشپړه شوه. | |
+| `item.nextTitle` | Next session | نوبت جلسه بعد | د راتلونکې ناستې وخت | |
+| `item.nextSuggestion` | Suggested: session {n} of {of} | پیشنهاد: جلسه {n} از {of} | وړاندیز: {n} ناسته له {of} | |
+| `item.nextHint` | At this treatment's usual interval, around {date}. You can change the day and time in the booking form. | با فاصله معمول این درمان، حدود {date}. تاریخ و ساعت را در فرم نوبت می‌توانید تغییر دهید. | د دې درملنې په عادي واټن، شاوخوا {date}. نېټه او وخت د وخت په فورمه کې بدلولای شئ. | |
+| `item.nextBook` | Book it | گرفتن نوبت | وخت نیول | |
+| `item.nextLater` | Later | بعداً | وروسته | |
+| `item.readyForInvoice` | Ready for an invoice | آماده فاکتور | فاکتور ته چمتو | |
+| `note.subtitle` | One note per visit; locked once signed, later changes only as addenda. | یادداشت هر ویزیت؛ بعد از امضا قفل می‌شود و تغییر بعدی فقط به‌صورت افزودنی است. | د هرې لیدنې یادښت؛ تر لاسلیک وروسته قلفېږي او وروسته بدلون یوازې د ضمیمې په توګه. | |
+| `note.new` | New note | یادداشت جدید | نوی یادښت | |
+| `note.edit` | Continue note | ادامه یادداشت | د یادښت دوام | |
+| `note.none` | No notes yet | هنوز یادداشتی نیست | لا یادښت نشته | |
+| `note.noneHint` | Start a visit note from a ready-made one or from scratch. | یادداشت ویزیت را از یک قالب آماده یا خالی شروع کنید. | د لیدنې یادښت له چمتو قالب یا تش پیل کړئ. | |
+| `note.field.chief_complaint` | Chief complaint | شکایت اصلی | اصلي شکایت | |
+| `note.field.examination` | Examination | معاینه | معاینه | |
+| `note.field.diagnosis` | Diagnosis | تشخیص | تشخیص | |
+| `note.field.findings` | Findings | یافته‌ها | موندنې | |
+| `note.field.procedure` | Procedure | اقدام درمانی | درملیز اقدام | |
+| `note.field.notes` | Notes | توضیحات | یادښتونه | |
+| `note.field.follow_up` | Follow-up | پیگیری | تعقیب | |
+| `note.field.recommendations` | Recommendations | توصیه‌ها | سپارښتنې | |
+| `note.templates` | Ready-made notes | یادداشت‌های آماده | چمتو یادښتونه | |
+| `note.templateReplace` | Replace the current text with the ready-made note? | متن فعلی با یادداشت آماده جایگزین شود؟ | اوسنی متن په چمتو یادښت بدل شي؟ | |
+| `note.visitDate` | Visit date | تاریخ ویزیت | د لیدنې نېټه | |
+| `note.treatment` | Treatment / session | درمان / جلسه | درملنه / ناسته | |
+| `note.treatmentHint` | Which treatment this note is about. | این یادداشت مربوط به کدام درمان است. | دا یادښت د کومې درملنې دی. | |
+| `note.saveDraft` | Save draft | ذخیره پیش‌نویس | د مسودې ساتل | |
+| `note.saveSign` | Save and sign | ذخیره و امضا | ساتل او لاسلیک | |
+| `note.saved` | Draft note saved. | پیش‌نویس یادداشت ذخیره شد. | د یادښت مسوده خوندي شوه. | |
+| `note.signed` | Note signed and locked. | یادداشت امضا و قفل شد. | یادښت لاسلیک او قلف شو. | |
+| `note.sign` | Sign | امضا | لاسلیک | |
+| `note.signConfirm` | Once signed, the note is locked and only addenda can be written. Sign it? | بعد از امضا، یادداشت قفل می‌شود و فقط می‌توان افزودنی نوشت. امضا شود؟ | تر لاسلیک وروسته یادښت قلفېږي او یوازې ضمیمه لیکل کېدای شي. لاسلیک شي؟ | |
+| `note.statusDraft` | Draft | پیش‌نویس | مسوده | |
+| `note.statusSigned` | Signed | امضاشده | لاسلیک شوی | |
+| `note.signedBy` | Signed by {name}, {date} | امضای {name}، {date} | د {name} لاسلیک، {date} | |
+| `note.writtenBy` | Written by {name} | نوشته {name} | لیکوال {name} | |
+| `note.addendum` | Addendum | افزودنی | ضمیمه | |
+| `note.addAddendum` | Add addendum | افزودنی | ضمیمه | |
+| `note.addendumHint` | The signed text stays as it is; this is added below it with the date and your name. | متن امضاشده تغییر نمی‌کند؛ این متن با تاریخ و نام شما زیر آن ثبت می‌شود. | لاسلیک شوی متن نه بدلېږي؛ دا متن ستاسو د نېټې او نوم سره لاندې ثبتېږي. | |
+| `note.saveAddendum` | Add | ثبت افزودنی | د ضمیمې ثبت | |
+| `note.addendumSaved` | Addendum added. | افزودنی ثبت شد. | ضمیمه ثبت شوه. | |
+| `note.deleteDraft` | Delete draft | حذف پیش‌نویس | د مسودې ړنګول | |
+| `note.deleteConfirm` | Delete this draft? | این پیش‌نویس حذف شود؟ | دا مسوده ړنګه شي؟ | |
+| `note.deleted` | Draft deleted. | پیش‌نویس حذف شد. | مسوده ړنګه شوه. | |
+| `note.lockHint` | A signed note is locked; any later change is a dated addendum. | یادداشت امضاشده قفل می‌شود؛ هر تغییر بعدی به‌صورت افزودنی با تاریخ ثبت می‌شود. | لاسلیک شوی یادښت قلفېږي؛ هر وروسته بدلون د نېټې سره د ضمیمې په توګه ثبتېږي. | |
+| `perio.exam` | Perio exam | معاینه لثه | د اوریو معاینه | |
+| `perio.newExam` | New exam | معاینه جدید | نوې معاینه | |
+| `perio.compareWith` | Compare with | مقایسه با | پرتله له | |
+| `perio.noCompare` | No comparison | بدون مقایسه | بې پرتلې | |
+| `perio.buccal` | Buccal | باکال | باکل | |
+| `perio.palatal` | Palatal | پالاتال | پالاتل | |
+| `perio.lingual` | Lingual | لینگوال | لینګول | |
+| `perio.depth` | Pocket depth | عمق پاکت | د جیب ژوروالی | |
+| `perio.recession` | Recession | تحلیل لثه | د اوریو کښته کېدل | |
+| `perio.bleeding` | Bleeding | خونریزی | وینه بهېدل | |
+| `perio.plaque` | Plaque | پلاک | پلاک | |
+| `perio.mobility` | Mobility | لقی | خوځېدنه | |
+| `perio.furcation` | Furcation | فورکیشن | فورکېشن | |
+| `perio.markMissing` | Mark missing | علامت غایب | د نشته نښه | |
+| `perio.markPresent` | Mark present | علامت موجود | د شته نښه | |
+| `perio.meanDepth` | Mean depth | میانگین عمق | منځنی ژوروالی | |
+| `perio.mm` | mm | میلی‌متر | ملي متره | |
+| `perio.sites4` | Sites ≥ 4 mm | نقاط ≥ ۴ میلی‌متر | ټکي ≥ ۴ ملي متره | |
+| `perio.sites6` | Sites ≥ 6 mm | نقاط ≥ ۶ میلی‌متر | ټکي ≥ ۶ ملي متره | |
+| `perio.better` | better | بهتر | ښه | |
+| `perio.worse` | worse | بدتر | بد | |
+| `perio.before` | Previous exam | معاینه قبلی | مخکینۍ معاینه | |
+| `perio.notes` | Exam notes | توضیحات معاینه | د معاینې یادښتونه | |
+| `perio.save` | Save exam | ذخیره معاینه | د معاینې ساتل | |
+| `perio.saved` | Perio exam saved. | معاینه لثه ذخیره شد. | د اوریو معاینه خوندي شوه. | |
+| `perio.deleteConfirm` | Delete this exam? | این معاینه حذف شود؟ | دا معاینه ړنګه شي؟ | |
+| `perio.deleted` | Exam deleted. | معاینه حذف شد. | معاینه ړنګه شوه. | |
+| `perio.none` | No perio exam recorded yet. | هنوز معاینه لثه ثبت نشده است. | لا د اوریو معاینه نه ده ثبت شوې. | |
+| `perio.entryHint` | Type a number; the cursor moves on by itself. Click a tooth number to mark it missing. | عدد را بزنید؛ مکان‌نما خودش به نقطه بعد می‌رود. روی شماره دندان برای «غایب» بزنید. | شمېره ولیکئ؛ کرسر پخپله بل ټکي ته ځي. د «نشته» لپاره د غاښ پر شمېره کلیک وکړئ. | |
+| `plan.subtitle` | Proposed (alternative), accepted and running plans, priced from the catalog. | پلان‌های پیشنهادی (گزینه‌های جایگزین)، پذیرفته‌شده و در جریان، با قیمت از کاتالوگ. | وړاندیز شوي (بدیل انتخابونه)، منل شوي او روان پلانونه، د کتلاګ له بیې سره. | |
+| `plan.new` | New plan | پلان جدید | نوی پلان | |
+| `plan.create` | Create plan | ساختن پلان | د پلان جوړول | |
+| `plan.created` | Treatment plan created. | پلان درمان ساخته شد. | د درملنې پلان جوړ شو. | |
+| `plan.none` | No treatment plan yet | هنوز پلان درمانی نیست | لا د درملنې پلان نشته | |
+| `plan.noneHint` | Select teeth on the chart and add services, or create a new plan. | روی چارت دندان‌ها را انتخاب کنید و خدمت اضافه کنید، یا پلان جدید بسازید. | په چارټ کې غاښونه وټاکئ او خدمت ورزیات کړئ، یا نوی پلان جوړ کړئ. | |
+| `plan.defaultTitle` | Treatment plan {n} | پلان درمان {n} | د درملنې {n} پلان | |
+| `plan.title` | Plan title | عنوان پلان | د پلان سرلیک | |
+| `plan.template` | Ready-made plan | پلان آماده | چمتو پلان | |
+| `plan.templateHint` | Its services are added in phases. | خدمات پلان آماده با مرحله‌بندی اضافه می‌شوند. | د چمتو پلان خدمتونه د پړاوونو سره ورزیاتېږي. | |
+| `plan.emptyPlan` | Empty plan | پلان خالی | تش پلان | |
+| `plan.templateTeethField` | Teeth | دندان‌ها | غاښونه | |
+| `plan.templateTeeth.selected` | selected teeth | دندان‌های انتخاب‌شده | ټاکل شوي غاښونه | |
+| `plan.templateTeeth.upper` | upper jaw | فک بالا | پورتنۍ ژامه | |
+| `plan.templateTeeth.lower` | lower jaw | فک پایین | لاندنۍ ژامه | |
+| `plan.templateTeeth.all` | all teeth | همه دندان‌ها | ټول غاښونه | |
+| `plan.templateTeeth.none` | no teeth | بدون دندان | بې غاښه | |
+| `plan.notes` | Notes | توضیحات | یادښتونه | |
+| `plan.status.proposed` | Proposed | پیشنهادی | وړاندیز شوی | |
+| `plan.status.accepted` | Accepted | پذیرفته‌شده | منل شوی | |
+| `plan.status.in_progress` | In progress | در جریان | روان | |
+| `plan.status.completed` | Completed | تمام‌شده | بشپړ شوی | |
+| `plan.status.cancelled` | Cancelled | لغوشده | لغوه شوی | |
+| `plan.done.accepted` | Plan accepted. | پلان پذیرفته شد. | پلان ومنل شو. | |
+| `plan.done.proposed` | Plan is proposed again. | پلان دوباره پیشنهادی شد. | پلان بیا وړاندیز شو. | |
+| `plan.done.completed` | Plan completed. | پلان تمام شد. | پلان بشپړ شو. | |
+| `plan.done.cancelled` | Plan cancelled. | پلان لغو شد. | پلان لغوه شو. | |
+| `plan.done.in_progress` | Plan in progress. | پلان در جریان است. | پلان روان دی. | |
+| `plan.createdOn` | Created {date} | ساخته‌شده {date} | جوړ شوی {date} | |
+| `plan.superseded` | The patient chose another option | بیمار گزینه دیگری را انتخاب کرد | ناروغ بل انتخاب وټاکه | |
+| `plan.cancelReason` | Reason | دلیل لغو | د لغوې دلیل | |
+| `plan.total` | Estimated total | جمع برآورد | د اټکل ټولګه | |
+| `plan.accept` | Accept plan | پذیرفتن پلان | د پلان منل | |
+| `plan.acceptTitle` | The patient chose this plan | بیمار این پلان را انتخاب کرد | ناروغ دا پلان وټاکه | |
+| `plan.acceptHint` | This patient's other proposed options can be set aside (cancelled, marked "another option chosen"). | گزینه‌های پیشنهادی دیگر این بیمار می‌توانند کنار گذاشته شوند (لغو با برچسب «گزینه دیگری انتخاب شد»). | د دې ناروغ نور وړاندیز شوي انتخابونه یو طرف ته کېدای شي (لغوه د «بل انتخاب وټاکل شو» نښې سره). | |
+| `plan.setAsideOthers` | Set the other options aside | کنار گذاشتن گزینه‌های دیگر | د نورو انتخابونو یو طرف ته کول | |
+| `plan.unaccept` | Back to proposed | برگرداندن به پیشنهادی | بېرته وړاندیز ته | |
+| `plan.complete` | Mark completed | تمام شد | بشپړ شو | |
+| `plan.print` | Print estimate | چاپ برآورد | د اټکل چاپ | |
+| `plan.printCompare` | Print the options side by side | چاپ مقایسه گزینه‌ها | د انتخابونو د پرتلې چاپ | |
+| `plan.edit` | Edit | ویرایش | سمون | |
+| `plan.cancel` | Cancel plan | لغو پلان | د پلان لغوه | |
+| `plan.cancelTitle` | Cancel this plan | لغو این پلان | د دې پلان لغوه | |
+| `plan.cancelHint` | Services not started are cancelled; work done stays in the record. | خدماتی که شروع نشده‌اند لغو می‌شوند؛ کارهای انجام‌شده در پرونده می‌مانند. | هغه خدمتونه چې نه دي پیل شوي لغوه کېږي؛ شوي کارونه په دوسیه کې پاتې کېږي. | |
+| `plan.reopen` | Reopen plan | بازگرداندن پلان | د پلان بېرته راوستل | |
+| `plan.reason` | Reason | دلیل | دلیل | |
+| `plan.alternatives` | {n} proposed options | {n} گزینه پیشنهادی | {n} وړاندیز شوي انتخابونه | |
+| `plan.alternativesHint` | The patient chooses one; you can print the costs side by side. | بیمار یکی را انتخاب کند؛ مقایسه هزینه‌ها را می‌توانید چاپ کنید. | ناروغ دې یو وټاکي؛ د لګښتونو پرتله چاپولای شئ. | |
+| `plan.showClosed` | Show closed plans ({n}) | نمایش پلان‌های بسته‌شده ({n}) | د تړل شویو پلانونو ښودل ({n}) | |
+| `plan.hideClosed` | Hide closed plans | پنهان کردن پلان‌های بسته‌شده | د تړل شویو پلانونو پټول | |
+| `plan.service` | Service | خدمت | خدمت | |
+| `plan.teeth` | Teeth | دندان | غاښ | |
+| `plan.sessionsCol` | Sessions | جلسات | ناستې | |
+| `plan.price` | Cost | هزینه | لګښت | |
+| `plan.statusCol` | Status | وضعیت | حالت | |
+| `plan.phase` | Phase | مرحله | پړاو | |
+| `plan.phaseHint` | Phase 1 work comes first. | کارهای مرحله ۱ اول انجام می‌شوند. | د ۱ پړاو کارونه لومړی کېږي. | |
+| `plan.phaseN` | Phase {n} | مرحله {n} | {n} پړاو | |
+| `plan.noItems` | This plan has no services yet; add them from the dental chart. | این پلان هنوز خدمتی ندارد؛ از چارت دندان اضافه کنید. | دا پلان لا خدمت نه لري؛ د غاښونو له چارټ یې ورزیات کړئ. | |
+| `plan.noPlan` | No plan | بدون پلان | بې پلانه | |
+| `plan.wholeMouth` | Whole mouth | تمام دهان | ټوله خوله | |
+| `plan.nextVisit` | Next visit: {date} | نوبت بعد: {date} | راتلونکی وخت: {date} | |
+| `plan.unitPrice` | Price | قیمت | بیه | |
+| `plan.catalogPrice` | Catalog price {price}; can be changed for this patient. | قیمت کاتالوگ: {price}؛ برای این بیمار قابل تغییر است. | د کتلاګ بیه: {price}؛ د دې ناروغ لپاره بدلېدای شي. | |
+| `plan.noCatalogPrice` | This service has no catalog price. | این خدمت در کاتالوگ قیمت ندارد. | دا خدمت په کتلاګ کې بیه نه لري. | |
+| `plan.sessions` | Sessions | تعداد جلسات | د ناستو شمېر | |
+| `plan.sessionsHint` | From the catalog; changeable for this patient. | از کاتالوگ؛ برای این بیمار قابل تغییر. | له کتلاګ؛ د دې ناروغ لپاره بدلېدای شي. | |
+| `plan.details` | Details | جزئیات | جزئیات | |
+| `plan.detailsHint` | e.g. implant brand and size, bracket type | مثلاً برند و اندازه ایمپلنت، نوع براکت | لکه د ایمپلانټ برانډ او اندازه، د براکټ ډول | |
+| `plan.result` | Result / note | نتیجه / توضیح | پایله / یادښت | |
+| `plan.estimate` | Estimate | برآورد | اټکل | |
+| `plan.issueEstimate` | Issue and print estimate | صدور و چاپ برآورد | د اټکل صادرول او چاپ | |
+| `plan.validDays` | Valid for (days) | اعتبار (روز) | اعتبار (ورځې) | |
+| `plan.validDaysHint` | The validity date is printed under the estimate. | تاریخ اعتبار زیر برآورد چاپ می‌شود. | د اعتبار نېټه د اټکل لاندې چاپېږي. | |
+| `plan.estimateNotes` | Note on the sheet | توضیح روی برگه | پر پاڼه یادښت | |
+| `plan.estimateFrozen` | The estimate is kept with its number (TP-…) in the patient's documents and reprints exactly as today. | برآورد با شماره (TP-…) در اسناد بیمار ذخیره می‌شود و همان‌طور که امروز است چاپ مجدد می‌شود. | اټکل د شمېرې (TP-…) سره د ناروغ په اسنادو کې ساتل کېږي او لکه نن چې دی بیا چاپېږي. | |
+| `settings.toothNumbering` | Tooth numbering | شماره‌گذاری دندان‌ها | د غاښونو شمېرنه | |
+| `settings.toothNumbering.fdi` | FDI (11–48) | FDI (۱۱ تا ۴۸) | FDI (۱۱ تر ۴۸) | |
+| `settings.toothNumbering.universal` | Universal (1–32) | Universal (۱ تا ۳۲) | Universal (۱ تر ۳۲) | |
+| `settings.toothNumbering.palmer` | Palmer (1–8 with quadrant mark) | Palmer (۱ تا ۸ با علامت ربع) | Palmer (۱ تر ۸ د ربع نښې سره) | |
+| `settings.toothNumbering.fdiHint` | International standard (default): first digit the quadrant, second the tooth, e.g. 36. | استاندارد بین‌المللی (پیش‌فرض): رقم اول ربع، رقم دوم دندان؛ مثلاً ۳۶. | نړیوال معیار (ډیفالټ): لومړی رقم ربع، دوهم غاښ؛ لکه ۳۶. | |
+| `settings.toothNumbering.universalHint` | 1–32 from the upper right wisdom tooth; baby teeth A–T. | شماره ۱ تا ۳۲ از دندان عقل بالا راست؛ دندان شیری A تا T. | له پورتني ښي د عقل غاښ ۱ تر ۳۲؛ د شیدو غاښ A تر T. | |
+| `settings.toothNumbering.palmerHint` | 1–8 in each quadrant with a corner mark; baby teeth A–E. Stored as FDI either way. | شماره ۱ تا ۸ در هر ربع با علامت گوشه؛ دندان شیری A تا E. ذخیره همیشه FDI است. | په هر ربع کې ۱ تر ۸ د کونج نښې سره؛ د شیدو غاښ A تر E. ساتنه تل FDI ده. | |
+| `timeline.subtitle` | Everything about the patient in time order, newest first. | همه رویدادهای بیمار به ترتیب زمان، تازه‌ترین بالا. | د ناروغ ټولې پېښې د وخت په ترتیب، نوې پورته. | |
+| `timeline.filter` | Kind of event | نوع رویداد | د پېښې ډول | |
+| `timeline.empty` | No events. | رویدادی نیست. | پېښه نشته. | |
+| `timeline.kind.registered` | Registration | ثبت بیمار | د ناروغ ثبت | |
+| `timeline.kind.appointment` | Visits | نوبت‌ها | وختونه | |
+| `timeline.kind.examination` | Examinations | معاینه و یادداشت | معاینه او یادښت | |
+| `timeline.kind.diagnosis` | Diagnoses (chart) | تشخیص (چارت) | تشخیص (چارټ) | |
+| `timeline.kind.plan` | Treatment plans | پلان درمان | د درملنې پلان | |
+| `timeline.kind.treatment` | Treatments | درمان | درملنه | |
+| `timeline.kind.prescription` | Prescriptions | نسخه | نسخه | |
+| `timeline.kind.document` | Documents | اسناد | اسناد | |
+| `timeline.kind.follow_up` | Follow-ups | پیگیری و فراخوان | تعقیب او بیا رابلل | |
+| `timeline.kind.attachment` | Files | فایل و تصویر | فایل او انځور | |
+| `timeline.kind.medical_history` | Medical history | سوابق پزشکی | طبي سوابق | |
+| `timeline.kind.perio` | Perio exams | معاینه لثه | د اوریو معاینه | |
+| `timeline.action.patient.registered` | Patient registered | بیمار ثبت شد | ناروغ ثبت شو | |
+| `timeline.action.appointment` | Visit with {title} — {status} | نوبت با {title} — {status} | له {title} سره وخت — {status} | |
+| `timeline.action.note.signed` | Examination and clinical note ({title}) | معاینه و یادداشت بالینی ({title}) | معاینه او بالیني یادښت ({title}) | |
+| `timeline.action.finding.added` | {condition} — tooth {teeth} | {condition} — دندان {teeth} | {condition} — {teeth} غاښ | |
+| `timeline.action.finding.removed` | Removed: {condition} — tooth {teeth} | برداشته شد: {condition} — دندان {teeth} | لرې شو: {condition} — {teeth} غاښ | |
+| `timeline.action.plan.created` | Treatment plan created: {title} | پلان درمان ساخته شد: {title} | د درملنې پلان جوړ شو: {title} | |
+| `timeline.action.plan.accepted` | Plan accepted: {title} | پلان پذیرفته شد: {title} | پلان ومنل شو: {title} | |
+| `timeline.action.plan.completed` | Plan completed: {title} | پلان تمام شد: {title} | پلان بشپړ شو: {title} | |
+| `timeline.action.plan.cancelled` | Plan cancelled: {title} | پلان لغو شد: {title} | پلان لغوه شو: {title} | |
+| `timeline.action.plan.superseded` | Another option chosen: {title} | گزینه دیگری انتخاب شد: {title} | بل انتخاب وټاکل شو: {title} | |
+| `timeline.action.item.planned` | Planned: {service} | برنامه‌ریزی شد: {service} | پلان شو: {service} | |
+| `timeline.action.item.cancelled` | Cancelled: {service} | لغو شد: {service} | لغوه شو: {service} | |
+| `timeline.action.item.completed` | Treatment completed: {service} | درمان تمام شد: {service} | درملنه بشپړه شوه: {service} | |
+| `timeline.action.session.recorded` | Treatment session: {service} | جلسه درمان: {service} | د درملنې ناسته: {service} | |
+| `timeline.action.document.issued` | Document issued: {title} | سند صادر شد: {title} | سند صادر شو: {title} | |
+| `timeline.action.document.void` | Document voided: {title} | سند باطل شد: {title} | سند باطل شو: {title} | |
+| `timeline.action.recall` | {kind} — {status} | {kind} — {status} | {kind} — {status} | |
+| `timeline.action.attachment.added` | File added: {title} | فایل اضافه شد: {title} | فایل ورزیات شو: {title} | |
+| `timeline.action.medical.reviewed` | Medical history reviewed | سوابق پزشکی بازبینی شد | طبي سوابق وکتل شول | |
+| `timeline.action.perio.recorded` | Perio exam recorded | معاینه لثه ثبت شد | د اوریو معاینه ثبت شوه | |
+| `timeline.session` | Session {n} of {of} | جلسه {n} از {of} | {n} ناسته له {of} | |
+| `timeline.due` | Due {date} | سررسید: {date} | موده: {date} | |
+| `timeline.perioMean` | Mean pocket depth {mm} mm | میانگین عمق پاکت {mm} میلی‌متر | د جیب منځنی ژوروالی {mm} ملي متره | |
+| `treatments.subtitle` | Treatments done and under way; each completed one is ready for an invoice (Phase 6). | درمان‌های انجام‌شده و در جریان؛ هر درمان تمام‌شده آماده افزودن به فاکتور است (فاز ۶). | شوې او روانې درملنې؛ هره بشپړه درملنه فاکتور ته د ورزیاتولو لپاره چمتو ده (۶ پړاو). | |
+| `treatments.record` | Record on the chart | ثبت درمان روی چارت | په چارټ کې د درملنې ثبت | |
+| `treatments.date` | Date | تاریخ | نېټه | |
+| `treatments.result` | Result | نتیجه | پایله | |
+| `treatments.doneTotal` | Completed treatments total: | جمع درمان‌های تمام‌شده: | د بشپړو درملنو ټولګه: | |
+| `treatments.invoiceHint` | Invoices and payments come in the next version (Phase 6) | فاکتور و پرداخت در نسخه بعدی (فاز ۶) | فاکتور او تادیه په راتلونکې نسخه کې (۶ پړاو) | |
+| `treatments.none` | No treatments yet | هنوز درمانی ثبت نشده | لا کومه درملنه نه ده ثبت شوې | |
+| `treatments.noneHint` | Record a treatment on the dental chart ("Done today") or by completing a session's visit. | درمان انجام‌شده را روی چارت دندان («انجام‌شده امروز») یا با تکمیل نوبت جلسه ثبت کنید. | شوې درملنه د غاښونو په چارټ کې («نن شوی») یا د ناستې د وخت په بشپړولو ثبت کړئ. | |
+| `treatments.writeNote` | Note | یادداشت | یادښت | |
+| `rule.tooth_number` | Not a valid tooth number (FDI 11–48, 51–85). | شماره دندان درست نیست (FDI: ۱۱ تا ۴۸ و ۵۱ تا ۸۵). | د غاښ شمېره سمه نه ده (FDI: ۱۱ تر ۴۸ او ۵۱ تر ۸۵). | |
+| `rule.tooth_surface` | Choose the tooth surfaces (M, O, D, B, L). | سطح دندان را انتخاب کنید (M، O، D، B، L). | د غاښ سطحه وټاکئ (M، O، D، B، L). | |
+| `rule.dentition_slots` | A baby tooth only takes the place of teeth 1–5 of a quadrant. | دندان شیری فقط جای دندان‌های ۱ تا ۵ هر ربع را می‌گیرد. | د شیدو غاښ یوازې د هر ربع د ۱ تر ۵ غاښونو ځای نیسي. | |
+| `rule.condition_not_found` | This tooth condition was not found or is switched off. | این وضعیت دندان پیدا نشد یا غیرفعال است. | دا د غاښ حالت ونه موندل شو یا غیرفعال دی. | |
+| `rule.condition_abbreviation` | An abbreviation is 1–3 letters. | حروف کوتاه ۱ تا ۳ حرف است. | لنډ توري له ۱ تر ۳ تورو دي. | |
+| `rule.plan_not_found` | This plan was not found. | این پلان پیدا نشد. | دا پلان ونه موندل شو. | |
+| `rule.plan_not_editable` | This plan is closed (completed or cancelled). | این پلان بسته شده (تمام یا لغو شده) و تغییر نمی‌کند. | دا پلان تړل شوی (بشپړ یا لغوه) او نه بدلېږي. | |
+| `rule.plan_has_work_in_progress` | Finish or cancel this plan's treatments under way first. | درمان‌های در جریان این پلان را اول تمام یا لغو کنید. | د دې پلان روانې درملنې لومړی بشپړې یا لغوه کړئ. | |
+| `rule.item_not_found` | This treatment was not found. | این درمان پیدا نشد. | دا درملنه ونه موندل شوه. | |
+| `rule.item_not_editable` | This treatment is finished or cancelled. | این درمان تمام یا لغو شده است. | دا درملنه بشپړه یا لغوه شوې ده. | |
+| `rule.item_teeth` | Choose the teeth for this service. | دندان‌های این خدمت را انتخاب کنید. | د دې خدمت غاښونه وټاکئ. | |
+| `rule.item_phase` | The phase is 1 to 5. | مرحله ۱ تا ۵ است. | پړاو له ۱ تر ۵ دی. | |
+| `rule.item_sessions` | 1–60 sessions (and not fewer than done). | تعداد جلسات ۱ تا ۶۰ (و نه کمتر از جلسات انجام‌شده). | د ناستو شمېر ۱ تر ۶۰ (او له شویو ناستو کم نه). | |
+| `rule.item_price` | The price is not valid. | قیمت درست نیست. | بیه سمه نه ده. | |
+| `rule.item_patient` | This belongs to another patient. | این مورد مال بیمار دیگری است. | دا د بل ناروغ دی. | |
+| `rule.session_number` | Every session of this treatment is done or booked (or the session number is wrong). | همه جلسات این درمان انجام یا رزرو شده‌اند (یا شماره جلسه درست نیست). | د دې درملنې ټولې ناستې شوې یا نیول شوې (یا د ناستې شمېره سمه نه ده). | |
+| `rule.session_interval` | 1–365 days between sessions. | فاصله جلسات ۱ تا ۳۶۵ روز است. | د ناستو واټن له ۱ تر ۳۶۵ ورځو دی. | |
+| `rule.note_not_found` | This note was not found. | این یادداشت پیدا نشد. | دا یادښت ونه موندل شو. | |
+| `rule.note_signed` | A signed note does not change; write an addendum. | یادداشت امضاشده تغییر نمی‌کند؛ افزودنی بنویسید. | لاسلیک شوی یادښت نه بدلېږي؛ ضمیمه ولیکئ. | |
+| `rule.note_empty` | Write at least one part of the note. | حداقل یک بخش یادداشت را بنویسید. | لږ تر لږه د یادښت یوه برخه ولیکئ. | |
+| `rule.note_template_not_found` | This ready-made note was not found. | این یادداشت آماده پیدا نشد. | دا چمتو یادښت ونه موندل شو. | |
+| `rule.plan_template_not_found` | This ready-made plan was not found. | این پلان آماده پیدا نشد. | دا چمتو پلان ونه موندل شو. | |
+| `rule.plan_template_items` | A ready-made plan has 1–20 services. | پلان آماده ۱ تا ۲۰ خدمت دارد. | چمتو پلان له ۱ تر ۲۰ خدمتونه لري. | |
+| `rule.perio_value` | Not a valid value (depth 0–15, recession −5–15, mobility and furcation 0–3). | عدد این نقطه درست نیست (عمق ۰ تا ۱۵، تحلیل -۵ تا ۱۵، لقی و فورکیشن ۰ تا ۳). | د دې ټکي شمېره سمه نه ده (ژوروالی ۰ تر ۱۵، کښته کېدل -۵ تر ۱۵، خوځېدنه او فورکېشن ۰ تر ۳). | |
+| `rule.perio_exam_not_found` | This exam was not found. | این معاینه پیدا نشد. | دا معاینه ونه موندل شوه. | |
+| `docs.kind.treatment_plan` | Cost estimate (treatment plan) | برآورد هزینه (پلان درمان) | د لګښت اټکل (د درملنې پلان) | |
+
+## ۲. فهرست‌های اولیه بالینی (وضعیت دندان، قالب یادداشت، پلان آماده)
+
+این متن‌ها نسخه اولیه‌اند و کلینیک در «فهرست‌های بالینی» می‌تواند تغییرشان دهد. اصلاح پشتو در `core/seeds/*.json` اعمال می‌شود.
+
+| کلید (فقط برای توسعه‌دهنده) | English (مرجع) | دری (مرجع — تأییدشده) | پښتو (نیازمند بازبینی) | یادداشت بازبینی |
+|---|---|---|---|---|
+| `condition.caries` | Caries | پوسیدگی | د غاښ خرابوالی | |
+| `condition.filling` | Filling | پرکاری | ډک شوی | |
+| `condition.temporary_filling` | Temporary filling | پرکاری موقت | لنډمهاله ډکول | |
+| `condition.sealant` | Fissure sealant | فیشورسیلانت | فیشر سیلنټ | |
+| `condition.veneer` | Veneer | لمینیت | لمینیټ | |
+| `condition.crown` | Crown | روکش | پوښ | |
+| `condition.root_canal` | Root canal treated | عصب‌کشی‌شده | عصب یې ایستل شوی | |
+| `condition.missing` | Missing | غایب | نشته | |
+| `condition.extracted` | Extracted | کشیده‌شده | ایستل شوی | |
+| `condition.implant` | Implant | ایمپلنت | ایمپلانټ | |
+| `condition.bridge_pontic` | Bridge pontic | بریج (دندان پل) | برج (د پل غاښ) | |
+| `condition.bridge_abutment` | Bridge abutment | پایه بریج | د برج پایه | |
+| `condition.denture` | Denture | دندان مصنوعی | مصنوعي غاښ | |
+| `condition.fracture` | Fracture | شکستگی | ماتېدنه | |
+| `condition.impacted` | Impacted | نهفته | پټ | |
+| `condition.periapical_lesion` | Periapical lesion / abscess | ضایعه یا آبسه ریشه | د ریښې زخم یا آبسه | |
+| `condition.bracket` | Orthodontic bracket | براکت ارتودنسی | د ارتوډونسي براکټ | |
+| `condition.wear` | Tooth wear | سایش | سولېدنه | |
+| `plan_template.rct_crown` | Root canal and crown | عصب‌کشی و روکش | عصب ایستل او پوښ | |
+| `plan_template.single_implant` | Single-tooth implant | ایمپلنت یک دندان | د یو غاښ ایمپلانټ | |
+| `plan_template.extraction_implant` | Extraction and implant | کشیدن و ایمپلنت | ایستل او ایمپلانټ | |
+| `plan_template.bridge` | Bridge | بریج | برج | |
+| `plan_template.fixed_orthodontics` | Fixed orthodontics | ارتودنسی ثابت | ثابته ارتوډونسي | |
+| `plan_template.complete_dentures` | Complete dentures | دندان مصنوعی کامل | بشپړ مصنوعي غاښونه | |
+| `plan_template.checkup_cleaning` | Check-up and cleaning | معاینه و جرم‌گیری | معاینه او پاکول | |
+| `plan_template.child_prevention` | Children's prevention | پیشگیری اطفال | د ماشومانو مخنیوی | |
+| `note_template.first_exam` | First examination | معاینه اول | لومړنۍ معاینه | |
+| `note_template.first_exam.chief_complaint` | Came for a general check-up | مراجعه برای معاینه عمومی | د عمومي معاینې لپاره راغلی | |
+| `note_template.first_exam.examination` | Intra-oral: gums, mucosa, tongue and teeth examined. Extra-oral: nothing abnormal found. | معاینه داخل دهان: لثه‌ها، مخاط، زبان و دندان‌ها بررسی شد. معاینه خارج دهان: نکته غیرطبیعی دیده نشد. | د خولې دننه معاینه: اورۍ، مخاط، ژبه او غاښونه وکتل شول. د خولې بهر معاینه: کوم غیرعادي شی ونه لیدل شو. | |
+| `note_template.first_exam.findings` | Dental findings recorded on the chart. | یافته‌های دندانی روی چارت ثبت شد. | د غاښونو موندنې په چارټ کې ثبت شوې. | |
+| `note_template.first_exam.procedure` | Examination and dental charting | معاینه و ثبت چارت دندان | معاینه او د غاښونو د چارټ ثبتول | |
+| `note_template.first_exam.recommendations` | Brush twice a day and floss daily. | مسواک دو بار در روز و نخ دندان روزانه. | په ورځ کې دوه ځله برس او هره ورځ د غاښونو تار. | |
+| `note_template.toothache` | Toothache (emergency) | دندان‌درد (اورژانس) | د غاښ درد (بیړنی) | |
+| `note_template.toothache.chief_complaint` | Toothache for … days | درد دندان از … روز پیش | د غاښ درد له … ورځو راهیسې | |
+| `note_template.toothache.examination` | Thermal test: … Percussion: … Swelling: … | تست حرارت/سرما: … دق (Percussion): … تورم: … | د تودوخې/یخنۍ ازموینه: … ټکول (Percussion): … پړسوب: … | |
+| `note_template.rct_first` | Root canal — first session | عصب‌کشی — جلسه اول | عصب ایستل — لومړۍ ناسته | |
+| `note_template.rct_first.diagnosis` | Irreversible pulpitis / pulp necrosis | پالپیت برگشت‌ناپذیر / نکروز پالپ | نه راګرځېدونکی پالپیت / د پالپ مړینه | |
+| `note_template.rct_first.procedure` | Local anaesthesia, isolation, access opening, working length, cleaning and shaping of the canals, irrigation, intracanal dressing and temporary filling. | بی‌حسی موضعی، ایزولاسیون، باز کردن حفره دسترسی، تعیین طول کارکرد، پاکسازی و شکل‌دهی کانال‌ها، شستشو، پانسمان داخل کانال و پرکاری موقت. | ځایي بې‌حسي، جلا کول، د لاسرسي سوری خلاصول، د کار اوږدوالی ټاکل، د کانالونو پاکول او شکل ورکول، مینځل، د کانال دننه پانسمان او لنډمهاله ډکول. | |
+| `note_template.rct_first.notes` | Number of canals: … Working length: … | تعداد کانال‌ها: … طول کارکرد: … | د کانالونو شمېر: … د کار اوږدوالی: … | |
+| `note_template.rct_first.follow_up` | Next session: continue root canal treatment | جلسه بعد: ادامه عصب‌کشی | بله ناسته: د عصب ایستلو دوام | |
+| `note_template.rct_first.recommendations` | Avoid chewing hard food on this tooth until the next session. | تا جلسه بعد با این دندان چیز سخت نجوید. | تر بلې ناستې پورې په دې غاښ سخت شیان مه ژووئ. | |
+| `note_template.rct_final` | Root canal — final session | عصب‌کشی — جلسه آخر | عصب ایستل — وروستۍ ناسته | |
+| `note_template.rct_final.examination` | Tooth without pain or symptoms. | دندان بدون درد و علامت. | غاښ بې درده او بې نښې دی. | |
+| `note_template.rct_final.procedure` | Dressing removed, final irrigation, canals dried and obturated, crown restored. | برداشتن پانسمان، شستشوی نهایی، خشک کردن و پرکردن کانال‌ها (Obturation)، ترمیم تاج. | د پانسمان لرې کول، وروستی مینځل، وچول او د کانالونو ډکول (Obturation)، د تاج ترمیم. | |
+| `note_template.rct_final.follow_up` | A crown is recommended. | روکش دندان توصیه می‌شود. | د غاښ پوښ سپارښتنه کېږي. | |
+| `note_template.extraction` | Extraction | کشیدن دندان | د غاښ ایستل | |
+| `note_template.extraction.procedure` | Local anaesthesia, extraction, bleeding controlled with gauze. | بی‌حسی موضعی، کشیدن دندان، کنترل خونریزی با گاز. | ځایي بې‌حسي، د غاښ ایستل، د ګاز په مرسته د وینې بهېدو کنټرول. | |
+| `note_template.extraction.notes` | Complications: none | عارضه: ندارد | اختلاط: نشته | |
+| `note_template.extraction.follow_up` | Review after a week if needed. | در صورت لزوم معاینه بعد از یک هفته. | که اړتیا وي، یوه اونۍ وروسته معاینه. | |
+| `note_template.extraction.recommendations` | After-extraction instructions given. | دستورات بعد از کشیدن دندان داده شد. | د غاښ له ایستلو وروسته لارښوونې ورکړل شوې. | |
+| `note_template.filling` | Filling | پرکاری | ډکول | |
+| `note_template.filling.diagnosis` | Caries | پوسیدگی | د غاښ خرابوالی | |
+| `note_template.filling.procedure` | Local anaesthesia, caries removed, cavity prepared, filled with …, bite adjusted and polished. | بی‌حسی موضعی، برداشتن پوسیدگی، آماده‌سازی حفره، پرکاری با …، تنظیم بایت و پالیش. | ځایي بې‌حسي، د خرابوالي لرې کول، د سوري چمتو کول، د … سره ډکول، د چیچلو برابرول او پالش. | |
+| `note_template.scaling` | Scaling | جرم‌گیری | د غاښونو پاکول | |
+| `note_template.scaling.examination` | Calculus and plaque on the teeth, gingival inflammation. | جرم و پلاک روی دندان‌ها، التهاب لثه. | پر غاښونو جرم او پلاک، د اوریو التهاب. | |
+| `note_template.scaling.diagnosis` | Gingivitis | ژنژیویت | ژنژیویت | |
+| `note_template.scaling.procedure` | Ultrasonic scaling and polishing. | جرم‌گیری با اولتراسونیک و پالیش. | د الټراسونیک په مرسته پاکول او پالش. | |
+| `note_template.scaling.follow_up` | Scaling every 6 months. | جرم‌گیری دوره‌ای هر ۶ ماه. | هر ۶ میاشتې وروسته بیا پاکول. | |
+| `note_template.scaling.recommendations` | Brush twice a day, floss and use a mouthwash. | مسواک دو بار در روز، نخ دندان و دهان‌شویه. | په ورځ کې دوه ځله برس، د غاښونو تار او د خولې مینځونکی. | |
+| `note_template.ortho_adjustment` | Orthodontics — adjustment | ارتودنسی — جلسه تنظیم | ارتوډونسي — د برابرولو ناسته | |
+| `note_template.ortho_adjustment.examination` | Brackets and oral hygiene checked. | وضعیت براکت‌ها و بهداشت دهان بررسی شد. | د براکټونو حالت او د خولې پاکوالی وکتل شو. | |
+| `note_template.ortho_adjustment.procedure` | Wire changed: … Elastics changed and adjusted. | تعویض سیم: … تعویض لاستیک‌ها و تنظیم. | د سیم بدلول: … د لاسټیکونو بدلول او برابرول. | |
+| `note_template.ortho_adjustment.follow_up` | Next adjustment in about a month. | جلسه تنظیم بعدی حدود یک ماه دیگر. | راتلونکې د برابرولو ناسته شاوخوا یوه میاشت وروسته. | |
+| `note_template.implant_surgery` | Implant surgery | جراحی ایمپلنت | د ایمپلانټ جراحي | |
+| `note_template.implant_surgery.diagnosis` | Missing tooth | دندان غایب | ورک غاښ | |
+| `note_template.implant_surgery.procedure` | Local anaesthesia, incision and flap, site preparation, implant placed (brand/diameter/length: …), sutures. | بی‌حسی موضعی، برش و کنار زدن لثه، آماده‌سازی محل، کاشت ایمپلنت (برند/قطر/طول: …)، بخیه. | ځایي بې‌حسي، د اوریو پرې کول او یوې خوا ته کول، د ځای چمتو کول، د ایمپلانټ کېښودل (برانډ/قطر/اوږدوالی: …)، ګنډل. | |
+| `note_template.implant_surgery.notes` | Primary stability: … | ثبات اولیه: … | لومړنی ثبات: … | |
+| `note_template.implant_surgery.follow_up` | Sutures out after 7–10 days; next stage after osseointegration. | کشیدن بخیه بعد از ۷ تا ۱۰ روز؛ مرحله بعد بعد از جوش خوردن با استخوان. | له ۷ تر ۱۰ ورځو وروسته د ګنډو ایستل؛ بل پړاو له هډوکي سره تر نښلېدو وروسته. | |
+| `note_template.implant_surgery.recommendations` | After-implant instructions given. | دستورات بعد از ایمپلنت داده شد. | د ایمپلانټ وروسته لارښوونې ورکړل شوې. | |
+
+## ۳. همه متن‌های رابط
 
 | کلید (فقط برای توسعه‌دهنده) | English (مرجع) | دری (مرجع — تأییدشده) | پښتو (نیازمند بازبینی) | یادداشت بازبینی |
 |---|---|---|---|---|
@@ -1041,6 +1561,10 @@
 | `doc.summary.none` | None. | موردی نیست. | هېڅ نشته. | |
 | `doc.summary.prescriptions` | Prescriptions | نسخه‌ها | نسخې | |
 | `doc.summary.fromRecord` | Filled from the patient's record when issued | هنگام صدور از پرونده بیمار پر می‌شود | د صادرولو پر مهال د ناروغ له دوسیې ډکېږي | |
+| `doc.summary.findings` | Teeth | وضعیت دندان‌ها | د غاښونو حالت | |
+| `doc.summary.condition` | Condition | وضعیت | حالت | |
+| `doc.summary.treatments` | Treatments | درمان‌ها | درملنې | |
+| `doc.summary.notes` | Clinical notes | یادداشت‌های بالینی | باليني یادداښتونه | |
 | `doc.card.title` | Appointment card | کارت نوبت | د نوبت کارت | |
 | `doc.card.note` | Please arrive 10 minutes early. If you cannot come, let the clinic know. | لطفاً ۱۰ دقیقه پیش از وقت نوبت حاضر شوید. در صورت نیامدن، به کلینیک خبر دهید. | مهرباني وکړئ له نوبت ۱۰ دقیقې مخکې حاضر شئ. که نه شئ راتلای، کلینیک ته خبر ورکړئ. | |
 | `rx.sentence.timesPerDay` | {n} times a day | روزانه {n} بار | ورځ کې {n} ځله | |
@@ -1329,3 +1853,436 @@
 | `clinical.templates.resetConfirm` | Remove the clinic's changes to this template and restore the default text? | تغییرات کلینیک در این قالب حذف و متن پیش‌فرض برگردانده شود؟ | د کلینیک بدلونونه پدې قالب کې لرې او اصلي متن بېرته راشي؟ | |
 | `clinical.templates.placeholders` | Automatic placeholders | جاهای خالی خودکار | اتومات تش ځایونه | |
 | `clinical.templates.placeholdersHint` | {patient} patient · {doctor} doctor · {clinic} clinic · {date} date · {procedure} treatment · {teeth} teeth — filled in when a document is written. | {patient} نام بیمار · {doctor} داکتر · {clinic} کلینیک · {date} تاریخ · {procedure} درمان · {teeth} دندان‌ها — هنگام نوشتن سند خودکار پر می‌شوند. | {patient} د ناروغ نوم · {doctor} ډاکټر · {clinic} کلینیک · {date} نېټه · {procedure} درملنه · {teeth} غاښونه — د سند لیکلو پر مهال په خپله ډکېږي. | |
+| `appt.treatment` | Treatment session | جلسه درمان | د درملنې ناسته | |
+| `appt.treatmentHint` | Which treatment is this visit a session of? "Session 2 of 3" | این نوبت یک جلسه از درمان کدام دندان است؟ «جلسه ۲ از ۳» | دا وخت د کوم غاښ د درملنې ناسته ده؟ «۲ ناسته له ۳» | |
+| `appt.treatmentNone` | Not linked to a treatment plan | بدون اتصال به پلان درمان | د درملنې له پلان سره نه تړل کېږي | |
+| `appt.treatmentLinked` | Linked treatment (finished or cancelled) | درمان وصل‌شده (تمام‌شده یا لغوشده) | تړل شوې درملنه (بشپړه یا لغوه) | |
+| `appt.nextSessionAuto` | The next session not yet done or booked | جلسه بعدی که هنوز انجام یا رزرو نشده | راتلونکې ناسته چې لا نه ده شوې یا نیول شوې | |
+| `catalog.chartSymbol` | Shown on the chart as | نمایش در چارت | په چارټ کې ښودل | |
+| `catalog.chartSymbolHint` | How this service is drawn on the dental chart. | این خدمت روی چارت دندان چطور کشیده شود. | دا خدمت د غاښونو په چارټ کې څنګه انځور شي. | |
+| `catalog.interval` | Usual days between sessions | فاصله معمول بین جلسات | د ناستو ترمنځ عادي واټن | |
+| `catalog.intervalHint` | The next session is suggested this long after the last (root canal 7, orthodontics 30). | نوبت جلسه بعد با همین فاصله پیشنهاد می‌شود (مثلاً عصب‌کشی ۷، ارتودنسی ۳۰). | د راتلونکې ناستې وخت په همدې واټن وړاندیز کېږي (لکه عصب ایستل ۷، ارتوډونسي ۳۰). | |
+| `catalog.days` | days | روز | ورځې | |
+| `chart.views` | Chart view | نمای چارت | د چارټ بڼه | |
+| `chart.view.general` | General | عمومی | عمومي | |
+| `chart.view.ortho` | Orthodontics | ارتودنسی | ارتوډونسي | |
+| `chart.view.implant` | Implants | ایمپلنت | ایمپلانټ | |
+| `chart.view.prosth` | Prosthetics | پروتز | پروتز | |
+| `chart.view.perio` | Perio (gums) | پریو (لثه) | پریو (اورۍ) | |
+| `chart.dentition` | Dentition | نوع دندان‌ها | د غاښونو ډول | |
+| `chart.dentition.permanent` | Adult | دائمی | دایمي | |
+| `chart.dentition.mixed` | Mixed | مختلط | ګډ | |
+| `chart.dentition.primary` | Baby | شیری | شیدو | |
+| `chart.labels` | Labels | برچسب‌ها | لېبلونه | |
+| `chart.labels.all` | All labels | همه برچسب‌ها | ټول لېبلونه | |
+| `chart.labels.selected` | Selected only | فقط انتخاب‌شده | یوازې ټاکل شوي | |
+| `chart.quick` | Quick selection | انتخاب سریع دندان‌ها | د غاښونو چټک ټاکل | |
+| `chart.quick.upper` | Upper jaw | فک بالا | پورتنۍ ژامه | |
+| `chart.quick.lower` | Lower jaw | فک پایین | لاندنۍ ژامه | |
+| `chart.quick.q1` | Quadrant 1 | ربع ۱ | ۱ ربع | |
+| `chart.quick.q2` | Quadrant 2 | ربع ۲ | ۲ ربع | |
+| `chart.quick.q3` | Quadrant 3 | ربع ۳ | ۳ ربع | |
+| `chart.quick.q4` | Quadrant 4 | ربع ۴ | ۴ ربع | |
+| `chart.quick.all` | All | همه | ټول | |
+| `chart.selectedN` | Selected: {n} | انتخاب‌شده: {n} | ټاکل شوي: {n} | |
+| `chart.clearSelection` | Clear selection | پاک کردن انتخاب | ټاکنه پاکول | |
+| `chart.showingPlan` | Plan on the chart: | پلان روی چارت: | په چارټ کې پلان: | |
+| `chart.tooth` | Tooth | دندان | غاښ | |
+| `chart.patientRight` | Patient's right | راست بیمار | د ناروغ ښی اړخ | |
+| `chart.patientLeft` | Patient's left | چپ بیمار | د ناروغ کیڼ اړخ | |
+| `chart.wholeMouth` | Whole-mouth work: | کارهای تمام دهان: | د ټولې خولې کارونه: | |
+| `chart.legendHint` | Click a tooth or a label to see its details and history. | روی هر دندان یا برچسب بزنید تا جزئیات و تاریخچه آن را ببینید. | پر هر غاښ یا لېبل کلیک وکړئ چې جزئیات او تاریخچه یې وګورئ. | |
+| `chart.state.existing` | Existing | موجود از قبل | له مخکې موجود | |
+| `chart.state.planned` | Planned | برنامه‌ریزی‌شده | پلان شوی | |
+| `chart.state.progress` | In progress | در حال انجام | روان | |
+| `chart.state.done` | Completed | تمام‌شده | بشپړ شوی | |
+| `chart.state.missing` | Extracted / missing | کشیده / غایب | ایستل شوی / نشته | |
+| `chart.sessionOf` | Session {n} of {of} | جلسه {n} از {of} | {n} ناسته له {of} | |
+| `chart.sessions` | {n} sessions | {n} جلسه | {n} ناستې | |
+| `chart.progressOf` | {done} of {of} sessions done | {done} جلسه از {of} انجام شده | {done} ناستې له {of} شوې | |
+| `chart.actions` | Work on teeth | کار روی دندان | پر غاښ کار | |
+| `chart.actionsFor` | Work on {teeth} | کار روی {teeth} | پر {teeth} کار | |
+| `chart.actionsHint` | Select teeth on the chart (Ctrl for several, Shift for a run), or pick the service first. | دندان‌ها را روی چارت انتخاب کنید (Ctrl برای چند دندان، Shift برای یک ردیف)، یا اول خدمت را انتخاب کنید. | غاښونه په چارټ کې وټاکئ (د څو غاښونو لپاره Ctrl، د یوې لړۍ لپاره Shift)، یا لومړی خدمت وټاکئ. | |
+| `chart.mode.plan` | Add to plan | افزودن به پلان | پلان ته ورزیاتول | |
+| `chart.mode.done` | Done today | انجام‌شده امروز | نن شوی | |
+| `chart.mode.finding` | Existing condition | وضعیت موجود | موجود حالت | |
+| `chart.readOnly` | Recording on the chart needs the "edit clinical records" permission. | برای ثبت روی چارت، دسترسی «ویرایش اطلاعات بالینی» لازم است. | په چارټ کې د ثبت لپاره «د بالیني معلوماتو سمون» لاسرسی پکار دی. | |
+| `chart.detailsTitle` | Tooth details | جزئیات دندان | د غاښ جزئیات | |
+| `chart.detailsHint` | Select one tooth to see its conditions, work and history. | یک دندان را انتخاب کنید تا وضعیت‌ها، کارها و تاریخچه آن را ببینید. | یو غاښ وټاکئ چې حالتونه، کارونه او تاریخچه یې وګورئ. | |
+| `chart.condition` | Tooth condition | وضعیت دندان | د غاښ حالت | |
+| `chart.pickSurfaces` | Pick the surfaces on the biting view of the tooth (M, O, D, B, L). | سطح‌ها را روی نمای جونده دندان انتخاب کنید (M، O، D، B، L). | سطحې د غاښ د ژوولو په بڼه کې وټاکئ (M، O، D، B، L). | |
+| `chart.pickTeeth` | Select the teeth on the chart first. | اول دندان‌ها را روی چارت انتخاب کنید. | لومړی غاښونه په چارټ کې وټاکئ. | |
+| `chart.note` | Note | توضیح | یادښت | |
+| `chart.recordFinding` | Record for {teeth} | ثبت برای {teeth} | د {teeth} لپاره ثبت | |
+| `chart.findingSaved` | Condition recorded. | وضعیت دندان ثبت شد. | د غاښ حالت ثبت شو. | |
+| `chart.findingRemoved` | Condition removed from the chart (kept in the history). | وضعیت از چارت برداشته شد (در تاریخچه می‌ماند). | حالت له چارټ لرې شو (په تاریخچه کې پاتې کېږي). | |
+| `chart.removeFinding` | Remove from chart | برداشتن از چارت | له چارټ لرې کول | |
+| `chart.removeFindingConfirm` | Remove this condition from the chart? It stays in the tooth's history. | این وضعیت از چارت برداشته شود؟ در تاریخچه دندان باقی می‌ماند. | دا حالت له چارټ لرې شي؟ د غاښ په تاریخچه کې پاتې کېږي. | |
+| `chart.serviceSearch` | Search a service or code… | جستجوی خدمت یا کد… | د خدمت یا کوډ لټون… | |
+| `chart.allCategories` | All | همه | ټول | |
+| `chart.service` | Service | خدمت | خدمت | |
+| `chart.noService` | No service found. | خدمتی پیدا نشد. | هیڅ خدمت ونه موندل شو. | |
+| `chart.plan` | Treatment plan | پلان درمان | د درملنې پلان | |
+| `chart.newPlan` | New plan | پلان جدید | نوی پلان | |
+| `chart.newPlanHint` | The patient has no plan yet; a new one is made. | بیمار هنوز پلان ندارد؛ یک پلان تازه ساخته می‌شود. | ناروغ لا پلان نه لري؛ نوی پلان جوړېږي. | |
+| `chart.splitHint` | This service is recorded per tooth ({n} items, each with its own sessions and price). | این خدمت برای هر دندان جدا ثبت می‌شود ({n} مورد، هرکدام با جلسه و قیمت خودش). | دا خدمت د هر غاښ لپاره جلا ثبتېږي ({n} توکي، هر یو خپله ناسته او بیه). | |
+| `chart.addToPlan` | Add to plan | افزودن به پلان | پلان ته ورزیاتول | |
+| `chart.itemAdded` | Added to the treatment plan. | به پلان درمان اضافه شد. | د درملنې پلان ته ورزیات شو. | |
+| `chart.recordDone` | Record treatment done | ثبت درمان انجام‌شده | د شوې درملنې ثبت | |
+| `chart.doneSaved` | Treatment recorded. | درمان انجام‌شده ثبت شد. | شوې درملنه ثبت شوه. | |
+| `chart.history` | Tooth history | تاریخچه دندان | د غاښ تاریخچه | |
+| `chart.historyEmpty` | Nothing recorded for this tooth yet. | برای این دندان هنوز چیزی ثبت نشده است. | د دې غاښ لپاره لا څه نه دي ثبت شوي. | |
+| `chart.findings` | Existing conditions | وضعیت‌های موجود | موجود حالتونه | |
+| `chart.noFindings` | No conditions recorded. | وضعیتی ثبت نشده است. | کوم حالت نه دی ثبت شوی. | |
+| `chart.work` | Planned and completed work | کارهای برنامه‌ریزی‌شده و انجام‌شده | پلان شوي او شوي کارونه | |
+| `chart.noWork` | No work on this tooth. | کاری برای این دندان نیست. | د دې غاښ لپاره کار نشته. | |
+| `chart.showPrimary` | Show the baby tooth here | نمایش دندان شیری در این جایگاه | په دې ځای کې د شیدو غاښ ښودل | |
+| `chart.showPermanent` | Show the adult tooth here | نمایش دندان دائمی در این جایگاه | په دې ځای کې دایمي غاښ ښودل | |
+| `chart.type.central` | Central incisor | پیشین میانی | منځنی مخکینی غاښ | |
+| `chart.type.lateral` | Lateral incisor | پیشین کناری | څنګ ته مخکینی غاښ | |
+| `chart.type.canine` | Canine | نیش | نیش غاښ | |
+| `chart.type.premolar1` | First premolar | آسیای کوچک اول | لومړی کوچنی ژرنده غاښ | |
+| `chart.type.premolar2` | Second premolar | آسیای کوچک دوم | دوهم کوچنی ژرنده غاښ | |
+| `chart.type.molar1` | First molar | آسیای بزرگ اول | لومړی لوی ژرنده غاښ | |
+| `chart.type.molar2` | Second molar | آسیای بزرگ دوم | دوهم لوی ژرنده غاښ | |
+| `chart.type.molar3` | Third molar (wisdom tooth) | دندان عقل | د عقل غاښ | |
+| `chart.type.pA` | Primary central incisor | پیشین میانی شیری | د شیدو منځنی مخکینی غاښ | |
+| `chart.type.pB` | Primary lateral incisor | پیشین کناری شیری | د شیدو څنګ ته مخکینی غاښ | |
+| `chart.type.pC` | Primary canine | نیش شیری | د شیدو نیش غاښ | |
+| `chart.type.pD` | Primary first molar | آسیای اول شیری | د شیدو لومړی ژرنده غاښ | |
+| `chart.type.pE` | Primary second molar | آسیای دوم شیری | د شیدو دوهم ژرنده غاښ | |
+| `chart.quadrant.1` | Upper right | فک بالا، راست | پورتنۍ ژامه، ښی | |
+| `chart.quadrant.2` | Upper left | فک بالا، چپ | پورتنۍ ژامه، کیڼ | |
+| `chart.quadrant.3` | Lower left | فک پایین، چپ | لاندنۍ ژامه، کیڼ | |
+| `chart.quadrant.4` | Lower right | فک پایین، راست | لاندنۍ ژامه، ښی | |
+| `chart.scopeHint.tooth` | Select one or more teeth. | یک یا چند دندان را انتخاب کنید. | یو یا څو غاښونه وټاکئ. | |
+| `chart.scopeHint.teeth` | Select at least two teeth (the abutments and pontics of a bridge). | حداقل دو دندان را انتخاب کنید (مثلاً پایه‌ها و پونتیک بریج). | لږ تر لږه دوه غاښونه وټاکئ (لکه د برج پایې او پونټیک). | |
+| `chart.scopeHint.quadrant` | Select the teeth of the quadrant (quadrant buttons 1–4). | دندان‌های ربع فک را انتخاب کنید (دکمه ربع ۱ تا ۴). | د ژامې د ربع غاښونه وټاکئ (۱ تر ۴ ربع تڼۍ). | |
+| `chart.scopeHint.arch` | Select the teeth of a jaw (upper or lower). | دندان‌های یک فک را انتخاب کنید (فک بالا یا پایین). | د یوې ژامې غاښونه وټاکئ (پورتنۍ یا لاندنۍ). | |
+| `chart.scopeHint.mouth` | For the whole mouth; no teeth needed. | برای تمام دهان است؛ انتخاب دندان لازم نیست. | د ټولې خولې لپاره دی؛ د غاښ ټاکل اړین نه دي. | |
+| `chart.scopeHint.none` | Not about a particular tooth. | به دندان خاصی مربوط نیست. | په ځانګړي غاښ پورې اړه نه لري. | |
+| `chart.symbol.none` | Label only (no drawing) | فقط در برچسب (بدون نماد) | یوازې په لېبل کې (بې نښې) | |
+| `chart.symbol.surface` | Tooth surface (filling / caries) | سطح دندان (پرکاری / پوسیدگی) | د غاښ سطحه (ډکول / خرابوالی) | |
+| `chart.symbol.sealant` | Fissure sealant | فیشورسیل | فیشر سیل | |
+| `chart.symbol.veneer` | Veneer (front surface) | لمینیت (سطح جلو) | لمینیټ (مخکینۍ سطحه) | |
+| `chart.symbol.crown` | Crown | روکش | پوښ | |
+| `chart.symbol.root_canal` | Root canal | عصب‌کشی (کانال ریشه) | عصب ایستل (د ریښې کانال) | |
+| `chart.symbol.pulpotomy` | Pulpotomy | پالپوتومی | پالپوټومي | |
+| `chart.symbol.extraction` | Extraction | کشیدن | ایستل | |
+| `chart.symbol.missing` | Missing | غایب | نشته | |
+| `chart.symbol.implant` | Implant (fixture) | ایمپلنت (فیکسچر) | ایمپلانټ (فکسچر) | |
+| `chart.symbol.abutment` | Abutment | اباتمنت | اباټمنټ | |
+| `chart.symbol.implant_crown` | Implant crown | روکش روی ایمپلنت | پر ایمپلانټ پوښ | |
+| `chart.symbol.bridge` | Bridge | بریج | برج | |
+| `chart.symbol.denture` | Denture | دندان مصنوعی | مصنوعي غاښ | |
+| `chart.symbol.bracket` | Orthodontic bracket | براکت ارتودنسی | د ارتوډونسي براکټ | |
+| `chart.symbol.fracture` | Fracture | شکستگی | ماتېدنه | |
+| `chart.symbol.impacted` | Impacted | نهفته | پټ | |
+| `chart.symbol.lesion` | Periapical lesion | ضایعه ریشه | د ریښې زخم | |
+| `chart.symbol.scaling` | Scaling (gums) | جرم‌گیری (لثه) | پاکول (اورۍ) | |
+| `chart.symbol.marker` | Short badge (letters) | نشان کوتاه (حروف) | لنډه نښه (توري) | |
+| `clinical.tab.conditions` | Tooth conditions | وضعیت‌های دندان | د غاښ حالتونه | |
+| `clinical.tab.notes` | Ready-made notes | یادداشت‌های آماده | چمتو یادښتونه | |
+| `clinical.tab.plans` | Ready-made plans | پلان‌های آماده | چمتو پلانونه | |
+| `clinical.conditions.title` | Tooth conditions | وضعیت‌های دندان | د غاښ حالتونه | |
+| `clinical.conditions.hint` | Conditions recorded on the chart (caries, filling, crown, missing…). The clinic may add its own. | وضعیت‌هایی که روی چارت ثبت می‌شوند (پوسیدگی، پرکاری، روکش، غایب…). کلینیک می‌تواند وضعیت خودش را اضافه کند. | هغه حالتونه چې په چارټ کې ثبتېږي (خرابوالی، ډکول، پوښ، نشته…). کلینیک کولای شي خپل حالت ورزیات کړي. | |
+| `clinical.conditions.add` | New condition | وضعیت جدید | نوی حالت | |
+| `clinical.conditions.edit` | Edit condition | ویرایش وضعیت | د حالت سمون | |
+| `clinical.conditions.name` | Condition | نام وضعیت | د حالت نوم | |
+| `clinical.conditions.surface` | On surfaces | روی سطح | پر سطحه | |
+| `clinical.conditions.surfaceLabel` | Recorded on surfaces (like caries) | روی سطح‌های دندان ثبت شود (مثل پوسیدگی) | د غاښ پر سطحو ثبت شي (لکه خرابوالی) | |
+| `clinical.conditions.symbolHint` | How it is drawn on the chart. | روی چارت چطور کشیده شود. | په چارټ کې څنګه انځور شي. | |
+| `clinical.conditions.abbreviation` | Abbreviation | حروف کوتاه | لنډ توري | |
+| `clinical.conditions.abbreviationHint` | 1–3 letters, for a short badge next to the tooth number. | ۱ تا ۳ حرف، برای «نشان کوتاه» کنار شماره دندان. | له ۱ تر ۳ تورو، د غاښ د شمېرې تر څنګ د «لنډې نښې» لپاره. | |
+| `clinical.conditions.abbrNeeded` | A short badge needs letters. | برای «نشان کوتاه» حروف لازم است. | د «لنډې نښې» لپاره توري اړین دي. | |
+| `clinical.notes.title` | Ready-made clinical notes | یادداشت‌های بالینی آماده | چمتو بالیني یادښتونه | |
+| `clinical.notes.hint` | The doctor starts a visit note from one of these and changes it. The clinic writes the texts. | داکتر یادداشت ویزیت را از این قالب‌ها شروع می‌کند و بعد تغییر می‌دهد. متن را کلینیک می‌نویسد. | ډاکټر د لیدنې یادښت له دې قالبونو پیلوي او بیا یې بدلوي. متن کلینیک لیکي. | |
+| `clinical.notes.add` | New ready-made note | یادداشت آماده جدید | نوی چمتو یادښت | |
+| `clinical.notes.edit` | Edit ready-made note | ویرایش یادداشت آماده | د چمتو یادښت سمون | |
+| `clinical.notes.name` | Name | نام | نوم | |
+| `clinical.notes.parts` | Parts filled in | بخش‌های پرشده | ډک شوې برخې | |
+| `clinical.notes.textIn` | Text in: | متن به زبان: | متن په ژبه: | |
+| `clinical.notes.languagesHint` | A language left empty takes the text of the first one written. | زبانی که خالی بماند، متن اولین زبان نوشته‌شده را می‌گیرد. | هغه ژبه چې تشه پاتې شي، د لومړۍ لیکل شوې ژبې متن اخلي. | |
+| `clinical.plans.title` | Ready-made treatment plans | پلان‌های درمان آماده | چمتو د درملنې پلانونه | |
+| `clinical.plans.hint` | Adds several services, in phases, to a patient's plan in one click (e.g. root canal and crown). | با یک کلیک چند خدمت را با مرحله‌بندی به پلان بیمار اضافه می‌کند (مثلاً عصب‌کشی و روکش). | په یوه کلیک څو خدمتونه د پړاوونو سره د ناروغ پلان ته ورزیاتوي (لکه عصب ایستل او پوښ). | |
+| `clinical.plans.add` | New ready-made plan | پلان آماده جدید | نوی چمتو پلان | |
+| `clinical.plans.edit` | Edit ready-made plan | ویرایش پلان آماده | د چمتو پلان سمون | |
+| `clinical.plans.name` | Name | نام | نوم | |
+| `clinical.plans.lines` | Services | خدمات | خدمتونه | |
+| `clinical.plans.addLine` | Add a service | افزودن خدمت | خدمت ورزیاتول | |
+| `clinical.plans.addLineHint` | Set each service's phase and teeth. | برای هر خدمت مرحله و دندان‌ها را تعیین کنید. | د هر خدمت لپاره پړاو او غاښونه وټاکئ. | |
+| `common.yes` | Yes | بله | هو | |
+| `common.delete` | Delete | حذف | ړنګول | |
+| `course.title` | Treatments under way | درمان‌های در جریان | روانې درملنې | |
+| `course.hint` | Each treatment's progress and next session | پیشرفت هر درمان و جلسه بعدی | د هرې درملنې پرمختګ او راتلونکې ناسته | |
+| `course.open` | Treatment plans | پلان‌های درمان | د درملنې پلانونه | |
+| `course.next` | Next session: {date}, {time} | جلسه بعد: {date}، {time} | راتلونکې ناسته: {date}، {time} | |
+| `course.noNext` | Next session not booked yet | نوبت جلسه بعد هنوز گرفته نشده | د راتلونکې ناستې وخت لا نه دی نیول شوی | |
+| `doc.kind.treatment_plan` | Treatment plan and cost estimate | پلان درمان و برآورد هزینه | د درملنې پلان او د لګښت اټکل | |
+| `doc.plan.choose` | The following options are offered for you to choose from: | گزینه‌های زیر برای انتخاب شما پیشنهاد شده است: | لاندې انتخابونه ستاسو د ټاکلو لپاره وړاندیز شوي: | |
+| `doc.plan.option` | Option {n} | گزینه {n} | {n} انتخاب | |
+| `doc.plan.phase` | Phase | مرحله | پړاو | |
+| `doc.plan.service` | Treatment | درمان | درملنه | |
+| `doc.plan.sessions` | Visits | جلسه | ناستې | |
+| `doc.plan.price` | Cost | هزینه | لګښت | |
+| `doc.plan.total` | Estimated total | جمع برآورد | د اټکل ټولګه | |
+| `doc.plan.done` | done | انجام شد | شوی | |
+| `doc.plan.estimateNote` | These costs are an estimate and may change during treatment. | هزینه‌ها برآورد است و ممکن است در جریان درمان تغییر کند. | لګښتونه اټکل دي او ښايي د درملنې پر مهال بدل شي. | |
+| `doc.plan.validUntil` | This estimate is valid until {date}. | این برآورد تا {date} معتبر است. | دا اټکل تر {date} پورې اعتبار لري. | |
+| `item.status.planned` | Planned | برنامه‌ریزی‌شده | پلان شوی | |
+| `item.status.in_progress` | In progress | در حال انجام | روان | |
+| `item.status.completed` | Completed | تمام‌شده | بشپړ شوی | |
+| `item.status.cancelled` | Cancelled | لغوشده | لغوه شوی | |
+| `item.done.completed` | Treatment completed. | درمان تمام شد. | درملنه بشپړه شوه. | |
+| `item.done.cancelled` | Treatment cancelled. | درمان لغو شد. | درملنه لغوه شوه. | |
+| `item.done.planned` | Treatment back in the plan. | درمان دوباره به پلان برگشت. | درملنه بېرته پلان ته راستنه شوه. | |
+| `item.done.in_progress` | Treatment under way. | درمان در جریان است. | درملنه روانه ده. | |
+| `item.recordSession` | Record session | ثبت جلسه | د ناستې ثبت | |
+| `item.recordTitle` | Record session {n} of {of} | ثبت جلسه {n} از {of} | د {n} ناستې ثبت له {of} | |
+| `item.bookSession` | Book next session | نوبت جلسه بعد | د راتلونکې ناستې وخت | |
+| `item.complete` | Mark completed | تمام شد | بشپړ شو | |
+| `item.completeConfirm` | Mark this treatment completed? | این درمان تمام‌شده ثبت شود؟ | دا درملنه بشپړه ثبت شي؟ | |
+| `item.cancel` | Cancel | لغو | لغوه | |
+| `item.cancelTitle` | Cancel this treatment | لغو این درمان | د دې درملنې لغوه کول | |
+| `item.cancelHint` | Visits booked for it stay as ordinary visits. | نوبت‌های گرفته‌شده برای آن به نوبت معمولی تبدیل می‌شوند. | د دې لپاره نیول شوي وختونه په عادي وختونو بدلېږي. | |
+| `item.restore` | Put back in the plan | برگرداندن به پلان | پلان ته بېرته راوستل | |
+| `item.edit` | Edit treatment | ویرایش درمان | د درملنې سمون | |
+| `item.teethHint` | FDI numbers separated by commas, e.g. {example} | شماره FDI دندان‌ها با کاما، مثلاً {example} | د غاښونو FDI شمېرې په کامې سره، لکه {example} | |
+| `item.surfaces` | Surfaces | سطح‌ها | سطحې | |
+| `item.surfacesHint` | Letters M, O, D, B, L (e.g. MOD) | حروف M، O، D، B، L (مثلاً MOD) | توري M، O، D، B، L (لکه MOD) | |
+| `item.sessionsDone` | {n} sessions done; it cannot be fewer. | {n} جلسه انجام شده؛ کمتر از آن ممکن نیست. | {n} ناستې شوې؛ تر دې کم ممکن نه دي. | |
+| `item.estStart` | Estimated start | شروع تخمینی | اټکلي پیل | |
+| `item.estEnd` | Estimated end | پایان تخمینی | اټکلي پای | |
+| `item.performedOn` | Date of the session | تاریخ جلسه | د ناستې نېټه | |
+| `item.sessionNote` | What was done / result | چه انجام شد / نتیجه | څه وشول / پایله | |
+| `item.sessionNoteHint` | One line; the full visit note goes in Clinical notes. | یک خط؛ یادداشت کامل ویزیت در «یادداشت‌های بالینی». | یوه کرښه؛ د لیدنې بشپړ یادښت په «بالیني یادښتونو» کې. | |
+| `item.sessionDone` | Session {n} recorded. | جلسه {n} ثبت شد. | {n} ناسته ثبت شوه. | |
+| `item.sessionDoneLast` | Last session recorded; the treatment is complete. | جلسه آخر ثبت شد؛ درمان تمام شد. | وروستۍ ناسته ثبت شوه؛ درملنه بشپړه شوه. | |
+| `item.nextTitle` | Next session | نوبت جلسه بعد | د راتلونکې ناستې وخت | |
+| `item.nextSuggestion` | Suggested: session {n} of {of} | پیشنهاد: جلسه {n} از {of} | وړاندیز: {n} ناسته له {of} | |
+| `item.nextHint` | At this treatment's usual interval, around {date}. You can change the day and time in the booking form. | با فاصله معمول این درمان، حدود {date}. تاریخ و ساعت را در فرم نوبت می‌توانید تغییر دهید. | د دې درملنې په عادي واټن، شاوخوا {date}. نېټه او وخت د وخت په فورمه کې بدلولای شئ. | |
+| `item.nextBook` | Book it | گرفتن نوبت | وخت نیول | |
+| `item.nextLater` | Later | بعداً | وروسته | |
+| `item.readyForInvoice` | Ready for an invoice | آماده فاکتور | فاکتور ته چمتو | |
+| `note.subtitle` | One note per visit; locked once signed, later changes only as addenda. | یادداشت هر ویزیت؛ بعد از امضا قفل می‌شود و تغییر بعدی فقط به‌صورت افزودنی است. | د هرې لیدنې یادښت؛ تر لاسلیک وروسته قلفېږي او وروسته بدلون یوازې د ضمیمې په توګه. | |
+| `note.new` | New note | یادداشت جدید | نوی یادښت | |
+| `note.edit` | Continue note | ادامه یادداشت | د یادښت دوام | |
+| `note.none` | No notes yet | هنوز یادداشتی نیست | لا یادښت نشته | |
+| `note.noneHint` | Start a visit note from a ready-made one or from scratch. | یادداشت ویزیت را از یک قالب آماده یا خالی شروع کنید. | د لیدنې یادښت له چمتو قالب یا تش پیل کړئ. | |
+| `note.field.chief_complaint` | Chief complaint | شکایت اصلی | اصلي شکایت | |
+| `note.field.examination` | Examination | معاینه | معاینه | |
+| `note.field.diagnosis` | Diagnosis | تشخیص | تشخیص | |
+| `note.field.findings` | Findings | یافته‌ها | موندنې | |
+| `note.field.procedure` | Procedure | اقدام درمانی | درملیز اقدام | |
+| `note.field.notes` | Notes | توضیحات | یادښتونه | |
+| `note.field.follow_up` | Follow-up | پیگیری | تعقیب | |
+| `note.field.recommendations` | Recommendations | توصیه‌ها | سپارښتنې | |
+| `note.templates` | Ready-made notes | یادداشت‌های آماده | چمتو یادښتونه | |
+| `note.templateReplace` | Replace the current text with the ready-made note? | متن فعلی با یادداشت آماده جایگزین شود؟ | اوسنی متن په چمتو یادښت بدل شي؟ | |
+| `note.visitDate` | Visit date | تاریخ ویزیت | د لیدنې نېټه | |
+| `note.treatment` | Treatment / session | درمان / جلسه | درملنه / ناسته | |
+| `note.treatmentHint` | Which treatment this note is about. | این یادداشت مربوط به کدام درمان است. | دا یادښت د کومې درملنې دی. | |
+| `note.saveDraft` | Save draft | ذخیره پیش‌نویس | د مسودې ساتل | |
+| `note.saveSign` | Save and sign | ذخیره و امضا | ساتل او لاسلیک | |
+| `note.saved` | Draft note saved. | پیش‌نویس یادداشت ذخیره شد. | د یادښت مسوده خوندي شوه. | |
+| `note.signed` | Note signed and locked. | یادداشت امضا و قفل شد. | یادښت لاسلیک او قلف شو. | |
+| `note.sign` | Sign | امضا | لاسلیک | |
+| `note.signConfirm` | Once signed, the note is locked and only addenda can be written. Sign it? | بعد از امضا، یادداشت قفل می‌شود و فقط می‌توان افزودنی نوشت. امضا شود؟ | تر لاسلیک وروسته یادښت قلفېږي او یوازې ضمیمه لیکل کېدای شي. لاسلیک شي؟ | |
+| `note.statusDraft` | Draft | پیش‌نویس | مسوده | |
+| `note.statusSigned` | Signed | امضاشده | لاسلیک شوی | |
+| `note.signedBy` | Signed by {name}, {date} | امضای {name}، {date} | د {name} لاسلیک، {date} | |
+| `note.writtenBy` | Written by {name} | نوشته {name} | لیکوال {name} | |
+| `note.addendum` | Addendum | افزودنی | ضمیمه | |
+| `note.addAddendum` | Add addendum | افزودنی | ضمیمه | |
+| `note.addendumHint` | The signed text stays as it is; this is added below it with the date and your name. | متن امضاشده تغییر نمی‌کند؛ این متن با تاریخ و نام شما زیر آن ثبت می‌شود. | لاسلیک شوی متن نه بدلېږي؛ دا متن ستاسو د نېټې او نوم سره لاندې ثبتېږي. | |
+| `note.saveAddendum` | Add | ثبت افزودنی | د ضمیمې ثبت | |
+| `note.addendumSaved` | Addendum added. | افزودنی ثبت شد. | ضمیمه ثبت شوه. | |
+| `note.deleteDraft` | Delete draft | حذف پیش‌نویس | د مسودې ړنګول | |
+| `note.deleteConfirm` | Delete this draft? | این پیش‌نویس حذف شود؟ | دا مسوده ړنګه شي؟ | |
+| `note.deleted` | Draft deleted. | پیش‌نویس حذف شد. | مسوده ړنګه شوه. | |
+| `note.lockHint` | A signed note is locked; any later change is a dated addendum. | یادداشت امضاشده قفل می‌شود؛ هر تغییر بعدی به‌صورت افزودنی با تاریخ ثبت می‌شود. | لاسلیک شوی یادښت قلفېږي؛ هر وروسته بدلون د نېټې سره د ضمیمې په توګه ثبتېږي. | |
+| `perio.exam` | Perio exam | معاینه لثه | د اوریو معاینه | |
+| `perio.newExam` | New exam | معاینه جدید | نوې معاینه | |
+| `perio.compareWith` | Compare with | مقایسه با | پرتله له | |
+| `perio.noCompare` | No comparison | بدون مقایسه | بې پرتلې | |
+| `perio.buccal` | Buccal | باکال | باکل | |
+| `perio.palatal` | Palatal | پالاتال | پالاتل | |
+| `perio.lingual` | Lingual | لینگوال | لینګول | |
+| `perio.depth` | Pocket depth | عمق پاکت | د جیب ژوروالی | |
+| `perio.recession` | Recession | تحلیل لثه | د اوریو کښته کېدل | |
+| `perio.bleeding` | Bleeding | خونریزی | وینه بهېدل | |
+| `perio.plaque` | Plaque | پلاک | پلاک | |
+| `perio.mobility` | Mobility | لقی | خوځېدنه | |
+| `perio.furcation` | Furcation | فورکیشن | فورکېشن | |
+| `perio.markMissing` | Mark missing | علامت غایب | د نشته نښه | |
+| `perio.markPresent` | Mark present | علامت موجود | د شته نښه | |
+| `perio.meanDepth` | Mean depth | میانگین عمق | منځنی ژوروالی | |
+| `perio.mm` | mm | میلی‌متر | ملي متره | |
+| `perio.sites4` | Sites ≥ 4 mm | نقاط ≥ ۴ میلی‌متر | ټکي ≥ ۴ ملي متره | |
+| `perio.sites6` | Sites ≥ 6 mm | نقاط ≥ ۶ میلی‌متر | ټکي ≥ ۶ ملي متره | |
+| `perio.better` | better | بهتر | ښه | |
+| `perio.worse` | worse | بدتر | بد | |
+| `perio.before` | Previous exam | معاینه قبلی | مخکینۍ معاینه | |
+| `perio.notes` | Exam notes | توضیحات معاینه | د معاینې یادښتونه | |
+| `perio.save` | Save exam | ذخیره معاینه | د معاینې ساتل | |
+| `perio.saved` | Perio exam saved. | معاینه لثه ذخیره شد. | د اوریو معاینه خوندي شوه. | |
+| `perio.deleteConfirm` | Delete this exam? | این معاینه حذف شود؟ | دا معاینه ړنګه شي؟ | |
+| `perio.deleted` | Exam deleted. | معاینه حذف شد. | معاینه ړنګه شوه. | |
+| `perio.none` | No perio exam recorded yet. | هنوز معاینه لثه ثبت نشده است. | لا د اوریو معاینه نه ده ثبت شوې. | |
+| `perio.entryHint` | Type a number; the cursor moves on by itself. Click a tooth number to mark it missing. | عدد را بزنید؛ مکان‌نما خودش به نقطه بعد می‌رود. روی شماره دندان برای «غایب» بزنید. | شمېره ولیکئ؛ کرسر پخپله بل ټکي ته ځي. د «نشته» لپاره د غاښ پر شمېره کلیک وکړئ. | |
+| `plan.subtitle` | Proposed (alternative), accepted and running plans, priced from the catalog. | پلان‌های پیشنهادی (گزینه‌های جایگزین)، پذیرفته‌شده و در جریان، با قیمت از کاتالوگ. | وړاندیز شوي (بدیل انتخابونه)، منل شوي او روان پلانونه، د کتلاګ له بیې سره. | |
+| `plan.new` | New plan | پلان جدید | نوی پلان | |
+| `plan.create` | Create plan | ساختن پلان | د پلان جوړول | |
+| `plan.created` | Treatment plan created. | پلان درمان ساخته شد. | د درملنې پلان جوړ شو. | |
+| `plan.none` | No treatment plan yet | هنوز پلان درمانی نیست | لا د درملنې پلان نشته | |
+| `plan.noneHint` | Select teeth on the chart and add services, or create a new plan. | روی چارت دندان‌ها را انتخاب کنید و خدمت اضافه کنید، یا پلان جدید بسازید. | په چارټ کې غاښونه وټاکئ او خدمت ورزیات کړئ، یا نوی پلان جوړ کړئ. | |
+| `plan.defaultTitle` | Treatment plan {n} | پلان درمان {n} | د درملنې {n} پلان | |
+| `plan.title` | Plan title | عنوان پلان | د پلان سرلیک | |
+| `plan.template` | Ready-made plan | پلان آماده | چمتو پلان | |
+| `plan.templateHint` | Its services are added in phases. | خدمات پلان آماده با مرحله‌بندی اضافه می‌شوند. | د چمتو پلان خدمتونه د پړاوونو سره ورزیاتېږي. | |
+| `plan.emptyPlan` | Empty plan | پلان خالی | تش پلان | |
+| `plan.templateTeethField` | Teeth | دندان‌ها | غاښونه | |
+| `plan.templateTeeth.selected` | selected teeth | دندان‌های انتخاب‌شده | ټاکل شوي غاښونه | |
+| `plan.templateTeeth.upper` | upper jaw | فک بالا | پورتنۍ ژامه | |
+| `plan.templateTeeth.lower` | lower jaw | فک پایین | لاندنۍ ژامه | |
+| `plan.templateTeeth.all` | all teeth | همه دندان‌ها | ټول غاښونه | |
+| `plan.templateTeeth.none` | no teeth | بدون دندان | بې غاښه | |
+| `plan.notes` | Notes | توضیحات | یادښتونه | |
+| `plan.status.proposed` | Proposed | پیشنهادی | وړاندیز شوی | |
+| `plan.status.accepted` | Accepted | پذیرفته‌شده | منل شوی | |
+| `plan.status.in_progress` | In progress | در جریان | روان | |
+| `plan.status.completed` | Completed | تمام‌شده | بشپړ شوی | |
+| `plan.status.cancelled` | Cancelled | لغوشده | لغوه شوی | |
+| `plan.done.accepted` | Plan accepted. | پلان پذیرفته شد. | پلان ومنل شو. | |
+| `plan.done.proposed` | Plan is proposed again. | پلان دوباره پیشنهادی شد. | پلان بیا وړاندیز شو. | |
+| `plan.done.completed` | Plan completed. | پلان تمام شد. | پلان بشپړ شو. | |
+| `plan.done.cancelled` | Plan cancelled. | پلان لغو شد. | پلان لغوه شو. | |
+| `plan.done.in_progress` | Plan in progress. | پلان در جریان است. | پلان روان دی. | |
+| `plan.createdOn` | Created {date} | ساخته‌شده {date} | جوړ شوی {date} | |
+| `plan.superseded` | The patient chose another option | بیمار گزینه دیگری را انتخاب کرد | ناروغ بل انتخاب وټاکه | |
+| `plan.cancelReason` | Reason | دلیل لغو | د لغوې دلیل | |
+| `plan.total` | Estimated total | جمع برآورد | د اټکل ټولګه | |
+| `plan.accept` | Accept plan | پذیرفتن پلان | د پلان منل | |
+| `plan.acceptTitle` | The patient chose this plan | بیمار این پلان را انتخاب کرد | ناروغ دا پلان وټاکه | |
+| `plan.acceptHint` | This patient's other proposed options can be set aside (cancelled, marked "another option chosen"). | گزینه‌های پیشنهادی دیگر این بیمار می‌توانند کنار گذاشته شوند (لغو با برچسب «گزینه دیگری انتخاب شد»). | د دې ناروغ نور وړاندیز شوي انتخابونه یو طرف ته کېدای شي (لغوه د «بل انتخاب وټاکل شو» نښې سره). | |
+| `plan.setAsideOthers` | Set the other options aside | کنار گذاشتن گزینه‌های دیگر | د نورو انتخابونو یو طرف ته کول | |
+| `plan.unaccept` | Back to proposed | برگرداندن به پیشنهادی | بېرته وړاندیز ته | |
+| `plan.complete` | Mark completed | تمام شد | بشپړ شو | |
+| `plan.print` | Print estimate | چاپ برآورد | د اټکل چاپ | |
+| `plan.printCompare` | Print the options side by side | چاپ مقایسه گزینه‌ها | د انتخابونو د پرتلې چاپ | |
+| `plan.edit` | Edit | ویرایش | سمون | |
+| `plan.cancel` | Cancel plan | لغو پلان | د پلان لغوه | |
+| `plan.cancelTitle` | Cancel this plan | لغو این پلان | د دې پلان لغوه | |
+| `plan.cancelHint` | Services not started are cancelled; work done stays in the record. | خدماتی که شروع نشده‌اند لغو می‌شوند؛ کارهای انجام‌شده در پرونده می‌مانند. | هغه خدمتونه چې نه دي پیل شوي لغوه کېږي؛ شوي کارونه په دوسیه کې پاتې کېږي. | |
+| `plan.reopen` | Reopen plan | بازگرداندن پلان | د پلان بېرته راوستل | |
+| `plan.reason` | Reason | دلیل | دلیل | |
+| `plan.alternatives` | {n} proposed options | {n} گزینه پیشنهادی | {n} وړاندیز شوي انتخابونه | |
+| `plan.alternativesHint` | The patient chooses one; you can print the costs side by side. | بیمار یکی را انتخاب کند؛ مقایسه هزینه‌ها را می‌توانید چاپ کنید. | ناروغ دې یو وټاکي؛ د لګښتونو پرتله چاپولای شئ. | |
+| `plan.showClosed` | Show closed plans ({n}) | نمایش پلان‌های بسته‌شده ({n}) | د تړل شویو پلانونو ښودل ({n}) | |
+| `plan.hideClosed` | Hide closed plans | پنهان کردن پلان‌های بسته‌شده | د تړل شویو پلانونو پټول | |
+| `plan.service` | Service | خدمت | خدمت | |
+| `plan.teeth` | Teeth | دندان | غاښ | |
+| `plan.sessionsCol` | Sessions | جلسات | ناستې | |
+| `plan.price` | Cost | هزینه | لګښت | |
+| `plan.statusCol` | Status | وضعیت | حالت | |
+| `plan.phase` | Phase | مرحله | پړاو | |
+| `plan.phaseHint` | Phase 1 work comes first. | کارهای مرحله ۱ اول انجام می‌شوند. | د ۱ پړاو کارونه لومړی کېږي. | |
+| `plan.phaseN` | Phase {n} | مرحله {n} | {n} پړاو | |
+| `plan.noItems` | This plan has no services yet; add them from the dental chart. | این پلان هنوز خدمتی ندارد؛ از چارت دندان اضافه کنید. | دا پلان لا خدمت نه لري؛ د غاښونو له چارټ یې ورزیات کړئ. | |
+| `plan.noPlan` | No plan | بدون پلان | بې پلانه | |
+| `plan.wholeMouth` | Whole mouth | تمام دهان | ټوله خوله | |
+| `plan.nextVisit` | Next visit: {date} | نوبت بعد: {date} | راتلونکی وخت: {date} | |
+| `plan.unitPrice` | Price | قیمت | بیه | |
+| `plan.catalogPrice` | Catalog price {price}; can be changed for this patient. | قیمت کاتالوگ: {price}؛ برای این بیمار قابل تغییر است. | د کتلاګ بیه: {price}؛ د دې ناروغ لپاره بدلېدای شي. | |
+| `plan.noCatalogPrice` | This service has no catalog price. | این خدمت در کاتالوگ قیمت ندارد. | دا خدمت په کتلاګ کې بیه نه لري. | |
+| `plan.sessions` | Sessions | تعداد جلسات | د ناستو شمېر | |
+| `plan.sessionsHint` | From the catalog; changeable for this patient. | از کاتالوگ؛ برای این بیمار قابل تغییر. | له کتلاګ؛ د دې ناروغ لپاره بدلېدای شي. | |
+| `plan.details` | Details | جزئیات | جزئیات | |
+| `plan.detailsHint` | e.g. implant brand and size, bracket type | مثلاً برند و اندازه ایمپلنت، نوع براکت | لکه د ایمپلانټ برانډ او اندازه، د براکټ ډول | |
+| `plan.result` | Result / note | نتیجه / توضیح | پایله / یادښت | |
+| `plan.estimate` | Estimate | برآورد | اټکل | |
+| `plan.issueEstimate` | Issue and print estimate | صدور و چاپ برآورد | د اټکل صادرول او چاپ | |
+| `plan.validDays` | Valid for (days) | اعتبار (روز) | اعتبار (ورځې) | |
+| `plan.validDaysHint` | The validity date is printed under the estimate. | تاریخ اعتبار زیر برآورد چاپ می‌شود. | د اعتبار نېټه د اټکل لاندې چاپېږي. | |
+| `plan.estimateNotes` | Note on the sheet | توضیح روی برگه | پر پاڼه یادښت | |
+| `plan.estimateFrozen` | The estimate is kept with its number (TP-…) in the patient's documents and reprints exactly as today. | برآورد با شماره (TP-…) در اسناد بیمار ذخیره می‌شود و همان‌طور که امروز است چاپ مجدد می‌شود. | اټکل د شمېرې (TP-…) سره د ناروغ په اسنادو کې ساتل کېږي او لکه نن چې دی بیا چاپېږي. | |
+| `settings.toothNumbering` | Tooth numbering | شماره‌گذاری دندان‌ها | د غاښونو شمېرنه | |
+| `settings.toothNumbering.fdi` | FDI (11–48) | FDI (۱۱ تا ۴۸) | FDI (۱۱ تر ۴۸) | |
+| `settings.toothNumbering.universal` | Universal (1–32) | Universal (۱ تا ۳۲) | Universal (۱ تر ۳۲) | |
+| `settings.toothNumbering.palmer` | Palmer (1–8 with quadrant mark) | Palmer (۱ تا ۸ با علامت ربع) | Palmer (۱ تر ۸ د ربع نښې سره) | |
+| `settings.toothNumbering.fdiHint` | International standard (default): first digit the quadrant, second the tooth, e.g. 36. | استاندارد بین‌المللی (پیش‌فرض): رقم اول ربع، رقم دوم دندان؛ مثلاً ۳۶. | نړیوال معیار (ډیفالټ): لومړی رقم ربع، دوهم غاښ؛ لکه ۳۶. | |
+| `settings.toothNumbering.universalHint` | 1–32 from the upper right wisdom tooth; baby teeth A–T. | شماره ۱ تا ۳۲ از دندان عقل بالا راست؛ دندان شیری A تا T. | له پورتني ښي د عقل غاښ ۱ تر ۳۲؛ د شیدو غاښ A تر T. | |
+| `settings.toothNumbering.palmerHint` | 1–8 in each quadrant with a corner mark; baby teeth A–E. Stored as FDI either way. | شماره ۱ تا ۸ در هر ربع با علامت گوشه؛ دندان شیری A تا E. ذخیره همیشه FDI است. | په هر ربع کې ۱ تر ۸ د کونج نښې سره؛ د شیدو غاښ A تر E. ساتنه تل FDI ده. | |
+| `timeline.subtitle` | Everything about the patient in time order, newest first. | همه رویدادهای بیمار به ترتیب زمان، تازه‌ترین بالا. | د ناروغ ټولې پېښې د وخت په ترتیب، نوې پورته. | |
+| `timeline.filter` | Kind of event | نوع رویداد | د پېښې ډول | |
+| `timeline.empty` | No events. | رویدادی نیست. | پېښه نشته. | |
+| `timeline.kind.registered` | Registration | ثبت بیمار | د ناروغ ثبت | |
+| `timeline.kind.appointment` | Visits | نوبت‌ها | وختونه | |
+| `timeline.kind.examination` | Examinations | معاینه و یادداشت | معاینه او یادښت | |
+| `timeline.kind.diagnosis` | Diagnoses (chart) | تشخیص (چارت) | تشخیص (چارټ) | |
+| `timeline.kind.plan` | Treatment plans | پلان درمان | د درملنې پلان | |
+| `timeline.kind.treatment` | Treatments | درمان | درملنه | |
+| `timeline.kind.prescription` | Prescriptions | نسخه | نسخه | |
+| `timeline.kind.document` | Documents | اسناد | اسناد | |
+| `timeline.kind.follow_up` | Follow-ups | پیگیری و فراخوان | تعقیب او بیا رابلل | |
+| `timeline.kind.attachment` | Files | فایل و تصویر | فایل او انځور | |
+| `timeline.kind.medical_history` | Medical history | سوابق پزشکی | طبي سوابق | |
+| `timeline.kind.perio` | Perio exams | معاینه لثه | د اوریو معاینه | |
+| `timeline.action.patient.registered` | Patient registered | بیمار ثبت شد | ناروغ ثبت شو | |
+| `timeline.action.appointment` | Visit with {title} — {status} | نوبت با {title} — {status} | له {title} سره وخت — {status} | |
+| `timeline.action.note.signed` | Examination and clinical note ({title}) | معاینه و یادداشت بالینی ({title}) | معاینه او بالیني یادښت ({title}) | |
+| `timeline.action.finding.added` | {condition} — tooth {teeth} | {condition} — دندان {teeth} | {condition} — {teeth} غاښ | |
+| `timeline.action.finding.removed` | Removed: {condition} — tooth {teeth} | برداشته شد: {condition} — دندان {teeth} | لرې شو: {condition} — {teeth} غاښ | |
+| `timeline.action.plan.created` | Treatment plan created: {title} | پلان درمان ساخته شد: {title} | د درملنې پلان جوړ شو: {title} | |
+| `timeline.action.plan.accepted` | Plan accepted: {title} | پلان پذیرفته شد: {title} | پلان ومنل شو: {title} | |
+| `timeline.action.plan.completed` | Plan completed: {title} | پلان تمام شد: {title} | پلان بشپړ شو: {title} | |
+| `timeline.action.plan.cancelled` | Plan cancelled: {title} | پلان لغو شد: {title} | پلان لغوه شو: {title} | |
+| `timeline.action.plan.superseded` | Another option chosen: {title} | گزینه دیگری انتخاب شد: {title} | بل انتخاب وټاکل شو: {title} | |
+| `timeline.action.item.planned` | Planned: {service} | برنامه‌ریزی شد: {service} | پلان شو: {service} | |
+| `timeline.action.item.cancelled` | Cancelled: {service} | لغو شد: {service} | لغوه شو: {service} | |
+| `timeline.action.item.completed` | Treatment completed: {service} | درمان تمام شد: {service} | درملنه بشپړه شوه: {service} | |
+| `timeline.action.session.recorded` | Treatment session: {service} | جلسه درمان: {service} | د درملنې ناسته: {service} | |
+| `timeline.action.document.issued` | Document issued: {title} | سند صادر شد: {title} | سند صادر شو: {title} | |
+| `timeline.action.document.void` | Document voided: {title} | سند باطل شد: {title} | سند باطل شو: {title} | |
+| `timeline.action.recall` | {kind} — {status} | {kind} — {status} | {kind} — {status} | |
+| `timeline.action.attachment.added` | File added: {title} | فایل اضافه شد: {title} | فایل ورزیات شو: {title} | |
+| `timeline.action.medical.reviewed` | Medical history reviewed | سوابق پزشکی بازبینی شد | طبي سوابق وکتل شول | |
+| `timeline.action.perio.recorded` | Perio exam recorded | معاینه لثه ثبت شد | د اوریو معاینه ثبت شوه | |
+| `timeline.session` | Session {n} of {of} | جلسه {n} از {of} | {n} ناسته له {of} | |
+| `timeline.due` | Due {date} | سررسید: {date} | موده: {date} | |
+| `timeline.perioMean` | Mean pocket depth {mm} mm | میانگین عمق پاکت {mm} میلی‌متر | د جیب منځنی ژوروالی {mm} ملي متره | |
+| `treatments.subtitle` | Treatments done and under way; each completed one is ready for an invoice (Phase 6). | درمان‌های انجام‌شده و در جریان؛ هر درمان تمام‌شده آماده افزودن به فاکتور است (فاز ۶). | شوې او روانې درملنې؛ هره بشپړه درملنه فاکتور ته د ورزیاتولو لپاره چمتو ده (۶ پړاو). | |
+| `treatments.record` | Record on the chart | ثبت درمان روی چارت | په چارټ کې د درملنې ثبت | |
+| `treatments.date` | Date | تاریخ | نېټه | |
+| `treatments.result` | Result | نتیجه | پایله | |
+| `treatments.doneTotal` | Completed treatments total: | جمع درمان‌های تمام‌شده: | د بشپړو درملنو ټولګه: | |
+| `treatments.invoiceHint` | Invoices and payments come in the next version (Phase 6) | فاکتور و پرداخت در نسخه بعدی (فاز ۶) | فاکتور او تادیه په راتلونکې نسخه کې (۶ پړاو) | |
+| `treatments.none` | No treatments yet | هنوز درمانی ثبت نشده | لا کومه درملنه نه ده ثبت شوې | |
+| `treatments.noneHint` | Record a treatment on the dental chart ("Done today") or by completing a session's visit. | درمان انجام‌شده را روی چارت دندان («انجام‌شده امروز») یا با تکمیل نوبت جلسه ثبت کنید. | شوې درملنه د غاښونو په چارټ کې («نن شوی») یا د ناستې د وخت په بشپړولو ثبت کړئ. | |
+| `treatments.writeNote` | Note | یادداشت | یادښت | |
+| `rule.tooth_number` | Not a valid tooth number (FDI 11–48, 51–85). | شماره دندان درست نیست (FDI: ۱۱ تا ۴۸ و ۵۱ تا ۸۵). | د غاښ شمېره سمه نه ده (FDI: ۱۱ تر ۴۸ او ۵۱ تر ۸۵). | |
+| `rule.tooth_surface` | Choose the tooth surfaces (M, O, D, B, L). | سطح دندان را انتخاب کنید (M، O، D، B، L). | د غاښ سطحه وټاکئ (M، O، D، B، L). | |
+| `rule.dentition_slots` | A baby tooth only takes the place of teeth 1–5 of a quadrant. | دندان شیری فقط جای دندان‌های ۱ تا ۵ هر ربع را می‌گیرد. | د شیدو غاښ یوازې د هر ربع د ۱ تر ۵ غاښونو ځای نیسي. | |
+| `rule.condition_not_found` | This tooth condition was not found or is switched off. | این وضعیت دندان پیدا نشد یا غیرفعال است. | دا د غاښ حالت ونه موندل شو یا غیرفعال دی. | |
+| `rule.condition_abbreviation` | An abbreviation is 1–3 letters. | حروف کوتاه ۱ تا ۳ حرف است. | لنډ توري له ۱ تر ۳ تورو دي. | |
+| `rule.plan_not_found` | This plan was not found. | این پلان پیدا نشد. | دا پلان ونه موندل شو. | |
+| `rule.plan_not_editable` | This plan is closed (completed or cancelled). | این پلان بسته شده (تمام یا لغو شده) و تغییر نمی‌کند. | دا پلان تړل شوی (بشپړ یا لغوه) او نه بدلېږي. | |
+| `rule.plan_has_work_in_progress` | Finish or cancel this plan's treatments under way first. | درمان‌های در جریان این پلان را اول تمام یا لغو کنید. | د دې پلان روانې درملنې لومړی بشپړې یا لغوه کړئ. | |
+| `rule.item_not_found` | This treatment was not found. | این درمان پیدا نشد. | دا درملنه ونه موندل شوه. | |
+| `rule.item_not_editable` | This treatment is finished or cancelled. | این درمان تمام یا لغو شده است. | دا درملنه بشپړه یا لغوه شوې ده. | |
+| `rule.item_teeth` | Choose the teeth for this service. | دندان‌های این خدمت را انتخاب کنید. | د دې خدمت غاښونه وټاکئ. | |
+| `rule.item_phase` | The phase is 1 to 5. | مرحله ۱ تا ۵ است. | پړاو له ۱ تر ۵ دی. | |
+| `rule.item_sessions` | 1–60 sessions (and not fewer than done). | تعداد جلسات ۱ تا ۶۰ (و نه کمتر از جلسات انجام‌شده). | د ناستو شمېر ۱ تر ۶۰ (او له شویو ناستو کم نه). | |
+| `rule.item_price` | The price is not valid. | قیمت درست نیست. | بیه سمه نه ده. | |
+| `rule.item_patient` | This belongs to another patient. | این مورد مال بیمار دیگری است. | دا د بل ناروغ دی. | |
+| `rule.session_number` | Every session of this treatment is done or booked (or the session number is wrong). | همه جلسات این درمان انجام یا رزرو شده‌اند (یا شماره جلسه درست نیست). | د دې درملنې ټولې ناستې شوې یا نیول شوې (یا د ناستې شمېره سمه نه ده). | |
+| `rule.session_interval` | 1–365 days between sessions. | فاصله جلسات ۱ تا ۳۶۵ روز است. | د ناستو واټن له ۱ تر ۳۶۵ ورځو دی. | |
+| `rule.note_not_found` | This note was not found. | این یادداشت پیدا نشد. | دا یادښت ونه موندل شو. | |
+| `rule.note_signed` | A signed note does not change; write an addendum. | یادداشت امضاشده تغییر نمی‌کند؛ افزودنی بنویسید. | لاسلیک شوی یادښت نه بدلېږي؛ ضمیمه ولیکئ. | |
+| `rule.note_empty` | Write at least one part of the note. | حداقل یک بخش یادداشت را بنویسید. | لږ تر لږه د یادښت یوه برخه ولیکئ. | |
+| `rule.note_template_not_found` | This ready-made note was not found. | این یادداشت آماده پیدا نشد. | دا چمتو یادښت ونه موندل شو. | |
+| `rule.plan_template_not_found` | This ready-made plan was not found. | این پلان آماده پیدا نشد. | دا چمتو پلان ونه موندل شو. | |
+| `rule.plan_template_items` | A ready-made plan has 1–20 services. | پلان آماده ۱ تا ۲۰ خدمت دارد. | چمتو پلان له ۱ تر ۲۰ خدمتونه لري. | |
+| `rule.perio_value` | Not a valid value (depth 0–15, recession −5–15, mobility and furcation 0–3). | عدد این نقطه درست نیست (عمق ۰ تا ۱۵، تحلیل -۵ تا ۱۵، لقی و فورکیشن ۰ تا ۳). | د دې ټکي شمېره سمه نه ده (ژوروالی ۰ تر ۱۵، کښته کېدل -۵ تر ۱۵، خوځېدنه او فورکېشن ۰ تر ۳). | |
+| `rule.perio_exam_not_found` | This exam was not found. | این معاینه پیدا نشد. | دا معاینه ونه موندل شوه. | |
+| `docs.kind.treatment_plan` | Cost estimate (treatment plan) | برآورد هزینه (پلان درمان) | د لګښت اټکل (د درملنې پلان) | |

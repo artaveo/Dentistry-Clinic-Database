@@ -1,0 +1,83 @@
+[
+  {
+    "code": "first_exam",
+    "name": { "fa": "معاینه اول", "ps": "لومړنۍ معاینه", "en": "First examination" },
+    "body": {
+      "fa": { "chief_complaint": "مراجعه برای معاینه عمومی", "examination": "معاینه داخل دهان: لثه‌ها، مخاط، زبان و دندان‌ها بررسی شد.\nمعاینه خارج دهان: نکته غیرطبیعی دیده نشد.", "diagnosis": "", "findings": "یافته‌های دندانی روی چارت ثبت شد.", "procedure": "معاینه و ثبت چارت دندان", "notes": "", "follow_up": "", "recommendations": "مسواک دو بار در روز و نخ دندان روزانه." },
+      "ps": { "chief_complaint": "د عمومي معاینې لپاره راغلی", "examination": "د خولې دننه معاینه: اورۍ، مخاط، ژبه او غاښونه وکتل شول.\nد خولې بهر معاینه: کوم غیرعادي شی ونه لیدل شو.", "diagnosis": "", "findings": "د غاښونو موندنې په چارټ کې ثبت شوې.", "procedure": "معاینه او د غاښونو د چارټ ثبتول", "notes": "", "follow_up": "", "recommendations": "په ورځ کې دوه ځله برس او هره ورځ د غاښونو تار." },
+      "en": { "chief_complaint": "Came for a general check-up", "examination": "Intra-oral: gums, mucosa, tongue and teeth examined.\nExtra-oral: nothing abnormal found.", "diagnosis": "", "findings": "Dental findings recorded on the chart.", "procedure": "Examination and dental charting", "notes": "", "follow_up": "", "recommendations": "Brush twice a day and floss daily." }
+    }
+  },
+  {
+    "code": "toothache",
+    "name": { "fa": "دندان‌درد (اورژانس)", "ps": "د غاښ درد (بیړنی)", "en": "Toothache (emergency)" },
+    "body": {
+      "fa": { "chief_complaint": "درد دندان از … روز پیش", "examination": "تست حرارت/سرما: …\nدق (Percussion): …\nتورم: …", "diagnosis": "", "findings": "", "procedure": "", "notes": "", "follow_up": "", "recommendations": "" },
+      "ps": { "chief_complaint": "د غاښ درد له … ورځو راهیسې", "examination": "د تودوخې/یخنۍ ازموینه: …\nټکول (Percussion): …\nپړسوب: …", "diagnosis": "", "findings": "", "procedure": "", "notes": "", "follow_up": "", "recommendations": "" },
+      "en": { "chief_complaint": "Toothache for … days", "examination": "Thermal test: …\nPercussion: …\nSwelling: …", "diagnosis": "", "findings": "", "procedure": "", "notes": "", "follow_up": "", "recommendations": "" }
+    }
+  },
+  {
+    "code": "rct_first",
+    "name": { "fa": "عصب‌کشی — جلسه اول", "ps": "عصب ایستل — لومړۍ ناسته", "en": "Root canal — first session" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "", "diagnosis": "پالپیت برگشت‌ناپذیر / نکروز پالپ", "findings": "", "procedure": "بی‌حسی موضعی، ایزولاسیون، باز کردن حفره دسترسی، تعیین طول کارکرد، پاکسازی و شکل‌دهی کانال‌ها، شستشو، پانسمان داخل کانال و پرکاری موقت.", "notes": "تعداد کانال‌ها: …\nطول کارکرد: …", "follow_up": "جلسه بعد: ادامه عصب‌کشی", "recommendations": "تا جلسه بعد با این دندان چیز سخت نجوید." },
+      "ps": { "chief_complaint": "", "examination": "", "diagnosis": "نه راګرځېدونکی پالپیت / د پالپ مړینه", "findings": "", "procedure": "ځایي بې‌حسي، جلا کول، د لاسرسي سوری خلاصول، د کار اوږدوالی ټاکل، د کانالونو پاکول او شکل ورکول، مینځل، د کانال دننه پانسمان او لنډمهاله ډکول.", "notes": "د کانالونو شمېر: …\nد کار اوږدوالی: …", "follow_up": "بله ناسته: د عصب ایستلو دوام", "recommendations": "تر بلې ناستې پورې په دې غاښ سخت شیان مه ژووئ." },
+      "en": { "chief_complaint": "", "examination": "", "diagnosis": "Irreversible pulpitis / pulp necrosis", "findings": "", "procedure": "Local anaesthesia, isolation, access opening, working length, cleaning and shaping of the canals, irrigation, intracanal dressing and temporary filling.", "notes": "Number of canals: …\nWorking length: …", "follow_up": "Next session: continue root canal treatment", "recommendations": "Avoid chewing hard food on this tooth until the next session." }
+    }
+  },
+  {
+    "code": "rct_final",
+    "name": { "fa": "عصب‌کشی — جلسه آخر", "ps": "عصب ایستل — وروستۍ ناسته", "en": "Root canal — final session" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "دندان بدون درد و علامت.", "diagnosis": "", "findings": "", "procedure": "برداشتن پانسمان، شستشوی نهایی، خشک کردن و پرکردن کانال‌ها (Obturation)، ترمیم تاج.", "notes": "", "follow_up": "روکش دندان توصیه می‌شود.", "recommendations": "" },
+      "ps": { "chief_complaint": "", "examination": "غاښ بې درده او بې نښې دی.", "diagnosis": "", "findings": "", "procedure": "د پانسمان لرې کول، وروستی مینځل، وچول او د کانالونو ډکول (Obturation)، د تاج ترمیم.", "notes": "", "follow_up": "د غاښ پوښ سپارښتنه کېږي.", "recommendations": "" },
+      "en": { "chief_complaint": "", "examination": "Tooth without pain or symptoms.", "diagnosis": "", "findings": "", "procedure": "Dressing removed, final irrigation, canals dried and obturated, crown restored.", "notes": "", "follow_up": "A crown is recommended.", "recommendations": "" }
+    }
+  },
+  {
+    "code": "extraction",
+    "name": { "fa": "کشیدن دندان", "ps": "د غاښ ایستل", "en": "Extraction" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "", "diagnosis": "", "findings": "", "procedure": "بی‌حسی موضعی، کشیدن دندان، کنترل خونریزی با گاز.", "notes": "عارضه: ندارد", "follow_up": "در صورت لزوم معاینه بعد از یک هفته.", "recommendations": "دستورات بعد از کشیدن دندان داده شد." },
+      "ps": { "chief_complaint": "", "examination": "", "diagnosis": "", "findings": "", "procedure": "ځایي بې‌حسي، د غاښ ایستل، د ګاز په مرسته د وینې بهېدو کنټرول.", "notes": "اختلاط: نشته", "follow_up": "که اړتیا وي، یوه اونۍ وروسته معاینه.", "recommendations": "د غاښ له ایستلو وروسته لارښوونې ورکړل شوې." },
+      "en": { "chief_complaint": "", "examination": "", "diagnosis": "", "findings": "", "procedure": "Local anaesthesia, extraction, bleeding controlled with gauze.", "notes": "Complications: none", "follow_up": "Review after a week if needed.", "recommendations": "After-extraction instructions given." }
+    }
+  },
+  {
+    "code": "filling",
+    "name": { "fa": "پرکاری", "ps": "ډکول", "en": "Filling" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "", "diagnosis": "پوسیدگی", "findings": "", "procedure": "بی‌حسی موضعی، برداشتن پوسیدگی، آماده‌سازی حفره، پرکاری با …، تنظیم بایت و پالیش.", "notes": "", "follow_up": "", "recommendations": "" },
+      "ps": { "chief_complaint": "", "examination": "", "diagnosis": "د غاښ خرابوالی", "findings": "", "procedure": "ځایي بې‌حسي، د خرابوالي لرې کول، د سوري چمتو کول، د … سره ډکول، د چیچلو برابرول او پالش.", "notes": "", "follow_up": "", "recommendations": "" },
+      "en": { "chief_complaint": "", "examination": "", "diagnosis": "Caries", "findings": "", "procedure": "Local anaesthesia, caries removed, cavity prepared, filled with …, bite adjusted and polished.", "notes": "", "follow_up": "", "recommendations": "" }
+    }
+  },
+  {
+    "code": "scaling",
+    "name": { "fa": "جرم‌گیری", "ps": "د غاښونو پاکول", "en": "Scaling" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "جرم و پلاک روی دندان‌ها، التهاب لثه.", "diagnosis": "ژنژیویت", "findings": "", "procedure": "جرم‌گیری با اولتراسونیک و پالیش.", "notes": "", "follow_up": "جرم‌گیری دوره‌ای هر ۶ ماه.", "recommendations": "مسواک دو بار در روز، نخ دندان و دهان‌شویه." },
+      "ps": { "chief_complaint": "", "examination": "پر غاښونو جرم او پلاک، د اوریو التهاب.", "diagnosis": "ژنژیویت", "findings": "", "procedure": "د الټراسونیک په مرسته پاکول او پالش.", "notes": "", "follow_up": "هر ۶ میاشتې وروسته بیا پاکول.", "recommendations": "په ورځ کې دوه ځله برس، د غاښونو تار او د خولې مینځونکی." },
+      "en": { "chief_complaint": "", "examination": "Calculus and plaque on the teeth, gingival inflammation.", "diagnosis": "Gingivitis", "findings": "", "procedure": "Ultrasonic scaling and polishing.", "notes": "", "follow_up": "Scaling every 6 months.", "recommendations": "Brush twice a day, floss and use a mouthwash." }
+    }
+  },
+  {
+    "code": "ortho_adjustment",
+    "name": { "fa": "ارتودنسی — جلسه تنظیم", "ps": "ارتوډونسي — د برابرولو ناسته", "en": "Orthodontics — adjustment" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "وضعیت براکت‌ها و بهداشت دهان بررسی شد.", "diagnosis": "", "findings": "", "procedure": "تعویض سیم: …\nتعویض لاستیک‌ها و تنظیم.", "notes": "", "follow_up": "جلسه تنظیم بعدی حدود یک ماه دیگر.", "recommendations": "" },
+      "ps": { "chief_complaint": "", "examination": "د براکټونو حالت او د خولې پاکوالی وکتل شو.", "diagnosis": "", "findings": "", "procedure": "د سیم بدلول: …\nد لاسټیکونو بدلول او برابرول.", "notes": "", "follow_up": "راتلونکې د برابرولو ناسته شاوخوا یوه میاشت وروسته.", "recommendations": "" },
+      "en": { "chief_complaint": "", "examination": "Brackets and oral hygiene checked.", "diagnosis": "", "findings": "", "procedure": "Wire changed: …\nElastics changed and adjusted.", "notes": "", "follow_up": "Next adjustment in about a month.", "recommendations": "" }
+    }
+  },
+  {
+    "code": "implant_surgery",
+    "name": { "fa": "جراحی ایمپلنت", "ps": "د ایمپلانټ جراحي", "en": "Implant surgery" },
+    "body": {
+      "fa": { "chief_complaint": "", "examination": "", "diagnosis": "دندان غایب", "findings": "", "procedure": "بی‌حسی موضعی، برش و کنار زدن لثه، آماده‌سازی محل، کاشت ایمپلنت (برند/قطر/طول: …)، بخیه.", "notes": "ثبات اولیه: …", "follow_up": "کشیدن بخیه بعد از ۷ تا ۱۰ روز؛ مرحله بعد بعد از جوش خوردن با استخوان.", "recommendations": "دستورات بعد از ایمپلنت داده شد." },
+      "ps": { "chief_complaint": "", "examination": "", "diagnosis": "ورک غاښ", "findings": "", "procedure": "ځایي بې‌حسي، د اوریو پرې کول او یوې خوا ته کول، د ځای چمتو کول، د ایمپلانټ کېښودل (برانډ/قطر/اوږدوالی: …)، ګنډل.", "notes": "لومړنی ثبات: …", "follow_up": "له ۷ تر ۱۰ ورځو وروسته د ګنډو ایستل؛ بل پړاو له هډوکي سره تر نښلېدو وروسته.", "recommendations": "د ایمپلانټ وروسته لارښوونې ورکړل شوې." },
+      "en": { "chief_complaint": "", "examination": "", "diagnosis": "Missing tooth", "findings": "", "procedure": "Local anaesthesia, incision and flap, site preparation, implant placed (brand/diameter/length: …), sutures.", "notes": "Primary stability: …", "follow_up": "Sutures out after 7–10 days; next stage after osseointegration.", "recommendations": "After-implant instructions given." }
+    }
+  }
+]

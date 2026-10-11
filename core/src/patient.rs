@@ -518,6 +518,26 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         "UPDATE clinical_document SET patient_id = ?1 WHERE patient_id = ?2",
         params![p.keep_id, p.merge_id],
     )?;
+    // The clinical record of Phase 5B follows as well: chart findings, plans, treatments and their
+    // sessions, notes and perio exams. The kept patient's own chart layout wins over the merged one's.
+    for table in [
+        "tooth_finding",
+        "treatment_plan",
+        "treatment_item",
+        "treatment_session",
+        "clinical_note",
+        "perio_exam",
+    ] {
+        conn.execute(
+            &format!("UPDATE {table} SET patient_id = ?1 WHERE patient_id = ?2"),
+            params![p.keep_id, p.merge_id],
+        )?;
+    }
+    conn.execute(
+        "UPDATE OR IGNORE dental_chart SET patient_id = ?1 WHERE patient_id = ?2",
+        params![p.keep_id, p.merge_id],
+    )?;
+    conn.execute("DELETE FROM dental_chart WHERE patient_id = ?1", [&p.merge_id])?;
     // Stays searchable (staff may still look the old name up and need to be
     // redirected to `keep`); only `check_duplicate` excludes merged-away
     // records, via `merged_into_id IS NULL` below.

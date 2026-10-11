@@ -10,6 +10,7 @@ pub mod auth;
 pub mod backup;
 pub mod calendar;
 pub mod catalog;
+pub mod chart;
 pub mod clinic;
 pub mod clock;
 pub mod config;
@@ -24,7 +25,9 @@ pub mod keys;
 pub mod logging;
 pub mod medical;
 pub mod normalize;
+pub mod notes;
 pub mod patient;
+pub mod perio;
 pub mod recall;
 pub mod scheduling;
 pub mod seeds;
@@ -32,6 +35,8 @@ pub mod session;
 pub mod settings;
 pub mod specialty;
 pub mod sysinfo;
+pub mod timeline;
+pub mod treatment;
 
 mod core;
 #[cfg(test)]

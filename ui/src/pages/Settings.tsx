@@ -4,7 +4,8 @@ import { isDesktop, listPrinters, loadProfile, saveProfile, type PrintProfile } 
 import { invalidateLetterhead } from "../print/letterhead";
 import { Select } from "../ui/Field";
 import { Switch } from "../ui/Controls";
-import type { Settings } from "../../../shared/ts/contract";
+import type { Settings, ToothNumbering } from "../../../shared/ts/contract";
+import { invalidateClinicSettings } from "../lib/clinical";
 import { SESSION_CHECK_EVENT, isSessionError, rpc } from "../lib/api";
 import { digits, latinDigits } from "../lib/dates";
 import { useForm, v } from "../lib/validation";
@@ -42,6 +43,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
   const [snap, setSnap] = useState(initial.calendar_snap_minutes);
   const [brandFooter, setBrandFooter] = useState(initial.print_brand_footer);
   const [restrict, setRestrict] = useState(initial.restrict_service_specialty);
+  const [numbering, setNumbering] = useState<ToothNumbering>(initial.tooth_numbering);
   // This computer's printer (ADR-13: printers belong to a computer, not to the clinic).
   const [profile, setProfile] = useState<PrintProfile>(loadProfile());
   const [printers, setPrinters] = useState<string[]>([]);
@@ -69,9 +71,11 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         calendar_snap_minutes: snap,
         print_brand_footer: brandFooter,
         restrict_service_specialty: restrict,
+        tooth_numbering: numbering,
       });
       onSaved(saved);
       invalidateLetterhead();
+      invalidateClinicSettings();
       // A new auto-lock time applies at once, without signing in again (OF-012).
       window.dispatchEvent(new Event(SESSION_CHECK_EVENT));
       toast.success(t("common.saved"));
@@ -144,6 +148,15 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         <Card>
           <CardHeader icon={Stethoscope} title={t("settings.clinicalRules")} description={t("settings.clinicalRulesHint")} />
           <Switch checked={restrict} onChange={setRestrict} label={t("settings.restrictSpecialty")} testId="setting-restrict-specialty" />
+          {/* ADR-14: how tooth numbers are shown on the chart and on documents; stored numbers are always FDI. */}
+          <Field label={t("settings.toothNumbering")} hint={t(`settings.toothNumbering.${numbering}Hint`)} className="setting-numbering">
+            <Segmented<ToothNumbering>
+              value={numbering}
+              onChange={setNumbering}
+              label={t("settings.toothNumbering")}
+              options={(["fdi", "universal", "palmer"] as ToothNumbering[]).map((n) => ({ value: n, label: t(`settings.toothNumbering.${n}`), testId: `setting-numbering-${n}` }))}
+            />
+          </Field>
         </Card>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="settings-save">{t("common.save")}</Button>

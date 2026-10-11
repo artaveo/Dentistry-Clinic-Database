@@ -1,0 +1,76 @@
+[
+  {
+    "code": "rct_crown",
+    "name": { "fa": "عصب‌کشی و روکش", "ps": "عصب ایستل او پوښ", "en": "Root canal and crown" },
+    "items": [
+      { "service": "RAD-01", "teeth": "selected", "phase": 1 },
+      { "service": "END-01", "teeth": "selected", "phase": 1 },
+      { "service": "PRS-01", "teeth": "selected", "phase": 2 }
+    ]
+  },
+  {
+    "code": "single_implant",
+    "name": { "fa": "ایمپلنت یک دندان", "ps": "د یو غاښ ایمپلانټ", "en": "Single-tooth implant" },
+    "items": [
+      { "service": "RAD-03", "teeth": "none", "phase": 1 },
+      { "service": "IMP-01", "teeth": "selected", "phase": 1 },
+      { "service": "IMP-02", "teeth": "selected", "phase": 2 },
+      { "service": "IMP-03", "teeth": "selected", "phase": 3 }
+    ]
+  },
+  {
+    "code": "extraction_implant",
+    "name": { "fa": "کشیدن و ایمپلنت", "ps": "ایستل او ایمپلانټ", "en": "Extraction and implant" },
+    "items": [
+      { "service": "RAD-01", "teeth": "selected", "phase": 1 },
+      { "service": "SRG-01", "teeth": "selected", "phase": 1 },
+      { "service": "IMP-01", "teeth": "selected", "phase": 2 },
+      { "service": "IMP-02", "teeth": "selected", "phase": 3 },
+      { "service": "IMP-03", "teeth": "selected", "phase": 3 }
+    ]
+  },
+  {
+    "code": "bridge",
+    "name": { "fa": "بریج", "ps": "برج", "en": "Bridge" },
+    "items": [
+      { "service": "RAD-01", "teeth": "selected", "phase": 1 },
+      { "service": "PRS-02", "teeth": "selected", "phase": 2 }
+    ]
+  },
+  {
+    "code": "fixed_orthodontics",
+    "name": { "fa": "ارتودنسی ثابت", "ps": "ثابته ارتوډونسي", "en": "Fixed orthodontics" },
+    "items": [
+      { "service": "RAD-02", "teeth": "none", "phase": 1 },
+      { "service": "PER-01", "teeth": "none", "phase": 1 },
+      { "service": "ORT-01", "teeth": "all", "phase": 2 },
+      { "service": "ORT-03", "teeth": "upper", "phase": 3 },
+      { "service": "ORT-03", "teeth": "lower", "phase": 3 }
+    ]
+  },
+  {
+    "code": "complete_dentures",
+    "name": { "fa": "دندان مصنوعی کامل", "ps": "بشپړ مصنوعي غاښونه", "en": "Complete dentures" },
+    "items": [
+      { "service": "PRS-03CU", "teeth": "upper", "phase": 1 },
+      { "service": "PRS-03CL", "teeth": "lower", "phase": 1 }
+    ]
+  },
+  {
+    "code": "checkup_cleaning",
+    "name": { "fa": "معاینه و جرم‌گیری", "ps": "معاینه او پاکول", "en": "Check-up and cleaning" },
+    "items": [
+      { "service": "DX-01", "teeth": "none", "phase": 1 },
+      { "service": "RAD-02", "teeth": "none", "phase": 1 },
+      { "service": "PER-01", "teeth": "none", "phase": 1 }
+    ]
+  },
+  {
+    "code": "child_prevention",
+    "name": { "fa": "پیشگیری اطفال", "ps": "د ماشومانو مخنیوی", "en": "Children's prevention" },
+    "items": [
+      { "service": "DX-01", "teeth": "none", "phase": 1 },
+      { "service": "PED-03", "teeth": "selected", "phase": 1 }
+    ]
+  }
+]

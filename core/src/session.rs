@@ -26,6 +26,14 @@ impl Session {
             Err(CoreError::forbidden(permission))
         }
     }
+
+    /// One of several permissions is enough (e.g. reception or clinical staff booking a session).
+    pub fn require_any(&self, permissions: &[&str]) -> Result<()> {
+        match permissions.iter().find(|p| self.permissions.contains(**p)) {
+            Some(_) => Ok(()),
+            None => Err(CoreError::forbidden(permissions.first().copied().unwrap_or_default())),
+        }
+    }
 }
 
 #[derive(Default)]

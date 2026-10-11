@@ -175,6 +175,9 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         notes: a.notes,
         override_schedule: false,
         service_id: a.service_id,
+        // Full replace (like the service): a moved session keeps its treatment and number (M4).
+        treatment_item_id: a.treatment?.item_id ?? null,
+        session_no: a.treatment?.session_no ?? null,
       });
       toast.success(t("cal.moved"));
     } catch (x) {

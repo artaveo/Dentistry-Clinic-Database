@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import type { AppointmentInfo, CalendarSystem, DocumentInfo, Language, Paper, RxItem } from "../../../shared/ts/contract";
+import type { AppointmentInfo, CalendarSystem, DocumentInfo, Language, Paper, RecordSnapshot, RxItem } from "../../../shared/ts/contract";
 import { formatDate, formatTime } from "../lib/dates";
 import { tr } from "../lib/medical";
+import { formatAmount } from "../lib/money";
+import { surfacesText, teethLabel, toothLabel } from "../chart/numbering";
 import { DentalMark } from "../ui/Brand";
 import { docT, num, rxInstructions } from "./docText";
 import type { Letterhead } from "./letterhead";
@@ -85,6 +87,7 @@ function Signatures({ kind, lang }: { kind: DocumentInfo["kind"]; lang: Language
   if (kind === "post_op") return null;
   return (
     <div className={`doc-signatures ${kind === "consent" ? "three" : ""}`}>
+      {kind === "treatment_plan" && <div className="doc-sign"><span className="doc-sign-line" />{t("doc.sign.patient")}</div>}
       {kind === "consent" && (
         <>
           <div className="doc-sign"><span className="doc-sign-line" />{t("doc.sign.patient")}</div>
@@ -202,6 +205,48 @@ function Body({ doc, calendar }: { doc: DocumentInfo; calendar: CalendarSystem }
           {c.notes && <Row label={t("doc.notes")}>{c.notes}</Row>}
         </div>
       );
+    case "treatment_plan": {
+      const several = c.plans.length > 1;
+      const until = c.valid_days ? addDaysIso(doc.issued_at.slice(0, 10), c.valid_days) : null;
+      return (
+        <div className="doc-fields" data-testid="doc-plan">
+          {several && <p className="doc-muted">{t("doc.plan.choose")}</p>}
+          {c.plans.map((plan, n) => (
+            <section key={plan.plan_id} className="doc-plan">
+              <h2 className="doc-h2">{several ? `${t("doc.plan.option").replace("{n}", num(n + 1, lang))}: ${plan.title}` : plan.title}</h2>
+              <table className="doc-table doc-plan-table">
+                <thead>
+                  <tr>
+                    <th>{t("doc.plan.phase")}</th>
+                    <th>{t("doc.plan.service")}</th>
+                    <th>{t("doc.teeth")}</th>
+                    <th className="num">{t("doc.plan.sessions")}</th>
+                    <th className="num">{t("doc.plan.price")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.items.map((i, k) => (
+                    <tr key={k}>
+                      <td>{num(i.phase, lang)}</td>
+                      <td>{i.service}{i.status === "completed" ? ` (${t("doc.plan.done")})` : ""}</td>
+                      <td><bdi>{[teethLabel(i.teeth, c.numbering, lang), surfacesText(i.surfaces, i.teeth[0])].filter(Boolean).join(" ")}</bdi></td>
+                      <td className="num">{num(i.sessions, lang)}</td>
+                      <td className="num">{i.units > 1 ? `${num(i.units, lang)} × ${formatAmount(i.unit_price, lang)} = ` : ""}{i.total ? formatAmount(i.total, lang) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr><td colSpan={4}>{t("doc.plan.total")}</td><td className="num"><strong>{formatAmount(plan.total, lang)}</strong></td></tr>
+                </tfoot>
+              </table>
+            </section>
+          ))}
+          {c.notes && <p className="doc-note">{c.notes}</p>}
+          <p className="doc-muted">{t("doc.plan.estimateNote")}</p>
+          {until && <p className="doc-muted" data-testid="doc-plan-valid">{t("doc.plan.validUntil").replace("{date}", formatDate(until + "T06:00:00Z", lang, calendar))}</p>}
+        </div>
+      );
+    }
     case "record_summary": {
       const s = c.snapshot;
       return (
@@ -221,10 +266,70 @@ function Body({ doc, calendar }: { doc: DocumentInfo; calendar: CalendarSystem }
           {s?.prescriptions.length ? (
             <ul className="doc-bullets">{s.prescriptions.map((r) => <li key={r.number}><bdi className="ltr">{r.number}</bdi> — {formatDate(r.issued_at, lang, calendar)}: <bdi className="ltr">{r.medicines.join(", ")}</bdi></li>)}</ul>
           ) : <p className="doc-muted">{t("doc.summary.none")}</p>}
+          {s && <ClinicalRecord s={s} draft={doc.id === "draft"} lang={lang} calendar={calendar} />}
         </div>
       );
     }
   }
+}
+
+/** The clinical part of a record summary (Phase 5B): the chart's conditions, the treatments and the signed notes. */
+function ClinicalRecord({ s, draft, lang, calendar }: { s: RecordSnapshot; draft: boolean; lang: Language; calendar: CalendarSystem }) {
+  const t = docT(lang);
+  // The editor's live preview has no record yet: it says where the lines will come from.
+  const none = <p className="doc-muted">{t(draft ? "doc.summary.fromRecord" : "doc.summary.none")}</p>;
+  const sep = lang === "en" ? ", " : "، ";
+  const teeth = [...new Set(s.findings.map((f) => f.tooth))];
+  const where = (teethList: number[], surfaces: string) => [teethLabel(teethList, s.numbering, lang), surfacesText(surfaces, teethList[0])].filter(Boolean).join(" ");
+  return (
+    <>
+      <h2 className="doc-h2">{t("doc.summary.findings")}</h2>
+      {teeth.length ? (
+        <table className="doc-table" data-testid="doc-summary-findings">
+          <thead><tr><th>{t("doc.teeth")}</th><th>{t("doc.summary.condition")}</th></tr></thead>
+          <tbody>
+            {teeth.map((tooth) => (
+              <tr key={tooth}>
+                <td><bdi>{toothLabel(tooth, s.numbering, lang)}</bdi></td>
+                <td>{s.findings.filter((f) => f.tooth === tooth).map((f) => (f.surfaces ? `${f.condition} (${surfacesText(f.surfaces, tooth)})` : f.condition)).join(sep)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : none}
+      <h2 className="doc-h2">{t("doc.summary.treatments")}</h2>
+      {s.treatments.length ? (
+        <table className="doc-table" data-testid="doc-summary-treatments">
+          <thead><tr><th>{t("doc.date")}</th><th>{t("doc.plan.service")}</th><th>{t("doc.teeth")}</th><th>{t("doc.summary.doctor")}</th></tr></thead>
+          <tbody>
+            {s.treatments.map((x, i) => (
+              <tr key={i}>
+                <td>{x.date ? formatDate(x.date + "T06:00:00Z", lang, calendar) : "—"}</td>
+                <td>
+                  {x.service}
+                  {x.status !== "completed" && x.sessions_planned > 1 && <span className="doc-muted"> · {t("chart.sessionOf").replace("{n}", num(x.sessions_done, lang)).replace("{of}", num(x.sessions_planned, lang))}</span>}
+                </td>
+                <td><bdi>{where(x.teeth, x.surfaces) || "—"}</bdi></td>
+                <td>{x.doctor ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : none}
+      <h2 className="doc-h2">{t("doc.summary.notes")}</h2>
+      {s.notes.length ? (
+        <ul className="doc-bullets" data-testid="doc-summary-notes">
+          {s.notes.map((n, i) => (
+            <li key={i}>
+              <strong>{formatDate(n.date + "T06:00:00Z", lang, calendar)}</strong>{n.doctor && ` — ${n.doctor}`}
+              {n.diagnosis && <div>{t("note.field.diagnosis")}: {n.diagnosis}</div>}
+              {n.procedure && <div>{t("note.field.procedure")}: {n.procedure}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : none}
+    </>
+  );
 }
 
 function RxLine({ item, lang }: { item: RxItem; lang: Language }) {

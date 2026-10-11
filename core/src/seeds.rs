@@ -289,6 +289,9 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
     // services point at document templates), and old free-text doctor specialties matched to the list.
     crate::formulary::sync_seeds(&tx)?;
     crate::catalog::sync_seeds(&tx)?;
+    crate::chart::sync_seeds(&tx)?;
+    crate::treatment::sync_seeds(&tx)?;
+    crate::notes::sync_seeds(&tx)?;
     crate::specialty::link_legacy(&tx)?;
     for d in district_rows()? {
         let id = seed_id("district", &d.code);

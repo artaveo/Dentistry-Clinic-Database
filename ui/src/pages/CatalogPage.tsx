@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlaskConical, FolderPlus, Layers, Pencil, Plus, Search, Tags } from "lucide-react";
-import type { CatalogInfo, DocumentTemplateInfo, ServiceCategoryInfo, ServiceInfo, ToothScope, Translations } from "../../../shared/ts/contract";
+import type { CatalogInfo, ChartSymbol, DocumentTemplateInfo, ServiceCategoryInfo, ServiceInfo, ToothScope, Translations } from "../../../shared/ts/contract";
+import { CHART_SYMBOLS } from "../chart/model";
 import { ApiError, isSessionError, rpc } from "../lib/api";
 import { invalidateCatalog, useSpecialties } from "../lib/clinical";
 import { digits, latinDigits } from "../lib/dates";
@@ -208,6 +209,8 @@ function ServiceDialog({ catalog, templates, service, parent, categoryId, onClos
   const [scope, setScope] = useState<ToothScope>(base?.tooth_scope ?? "tooth");
   const [surface, setSurface] = useState(base?.needs_surface ?? false);
   const [sessions, setSessions] = useState(String(base?.sessions ?? 1));
+  const [interval, setInterval_] = useState(String(base?.session_interval_days ?? 7));
+  const [symbol, setSymbol] = useState<ChartSymbol>(base?.chart_symbol ?? "none");
   const [lab, setLab] = useState(base?.lab_required ?? false);
   const [consent, setConsent] = useState(base?.consent_template_id ?? "");
   const [postOp, setPostOp] = useState(base?.post_op_template_id ?? "");
@@ -223,6 +226,7 @@ function ServiceDialog({ catalog, templates, service, parent, categoryId, onClos
     name: !hasName(name) ? "rule.required" : null,
     price: !Number.isFinite(priceNum) || priceNum < 0 || priceNum > 100_000_000 ? "rule.service_price" : null,
     sessions: !/^\d+$/.test(latinDigits(sessions.trim())) || Number(latinDigits(sessions)) < 1 || Number(latinDigits(sessions)) > 60 ? "rule.service_sessions" : null,
+    session_interval_days: !/^\d+$/.test(latinDigits(interval.trim())) || Number(latinDigits(interval)) < 1 || Number(latinDigits(interval)) > 365 ? "rule.session_interval" : null,
   };
   const show = (k: string) => (server[k] ? t(server[k]) : submitted && errors[k] ? t(errors[k]!) : null);
   const inherited = specialties?.find((s) => s.id === catalog.categories.find((c) => c.id === cat)?.specialty_id);
@@ -237,6 +241,7 @@ function ServiceDialog({ catalog, templates, service, parent, categoryId, onClos
         id: service?.id ?? null, version: service?.version ?? 0, code: code.trim(), category_id: cat, parent_id: parentOf?.id ?? null, name,
         price: Math.round(priceNum * 100), specialty_id: specialty || null, tooth_scope: scope, needs_surface: surface, sessions: Number(latinDigits(sessions)),
         lab_required: lab, consent_template_id: consent || null, post_op_template_id: postOp || null, is_active: active,
+        session_interval_days: Number(latinDigits(interval)), chart_symbol: symbol,
       });
       toast.success(t("common.saved"));
       onSaved();
@@ -286,6 +291,14 @@ function ServiceDialog({ catalog, templates, service, parent, categoryId, onClos
           </Field>
           <Field label={t("catalog.sessions")} hint={t("catalog.sessionsHint")} error={show("sessions")}>
             <TextInput inputMode="numeric" value={sessions} onChange={(e) => setSessions(e.target.value)} data-testid="catalog-service-sessions" />
+          </Field>
+          <Field label={t("catalog.interval")} hint={t("catalog.intervalHint")} error={show("session_interval_days")}>
+            <TextInput inputMode="numeric" suffix={t("catalog.days")} value={interval} onChange={(e) => setInterval_(e.target.value)} data-testid="catalog-service-interval" />
+          </Field>
+          <Field label={t("catalog.chartSymbol")} hint={t("catalog.chartSymbolHint")}>
+            <Select value={symbol} onChange={(e) => setSymbol(e.target.value as ChartSymbol)} data-testid="catalog-service-symbol">
+              {CHART_SYMBOLS.map((x) => <option key={x} value={x}>{t(`chart.symbol.${x}`)}</option>)}
+            </Select>
           </Field>
           <Field label={t("catalog.consent")} hint={t("catalog.consentHint")} optional error={show("consent_template_id")}>
             <Select value={consent} onChange={(e) => setConsent(e.target.value)} data-testid="catalog-service-consent">

@@ -5,8 +5,8 @@
 //! each service suggests. Treatment plans and treatments (5B) and invoices (Phase 6) use these rows.
 
 use artaveo_shared::{
-    CatalogInfo, DocumentKind, ErrorCode, SaveServiceCategoryParams, SaveServiceParams, ServiceCategoryInfo,
-    ServiceInfo, ToothScope, Translations, ValidationRule,
+    CatalogInfo, ChartSymbol, DocumentKind, ErrorCode, SaveServiceCategoryParams, SaveServiceParams,
+    ServiceCategoryInfo, ServiceInfo, ToothScope, Translations, ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Deserialize;
@@ -73,6 +73,10 @@ struct ServiceSeed {
     #[serde(default)]
     post_op: Option<String>,
     #[serde(default)]
+    symbol: Option<ChartSymbol>,
+    #[serde(default)]
+    interval: Option<i64>,
+    #[serde(default)]
     variants: Vec<ServiceSeed>,
 }
 
@@ -127,8 +131,9 @@ fn insert_seed(
     let template = |code: Option<&String>| code.map(|c| seed_id("document_template", c));
     conn.execute(
         "INSERT INTO service(id, code, category_id, parent_id, name_fa, name_ps, name_en, price, tooth_scope, needs_surface,
-            sessions, lab_required, consent_template_id, post_op_template_id, sort_order, is_system, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 1, ?15, ?15)
+            sessions, lab_required, consent_template_id, post_op_template_id, sort_order, is_system, created_at, updated_at,
+            chart_symbol, session_interval_days)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 1, ?15, ?15, ?16, ?17)
          ON CONFLICT(id) DO NOTHING",
         params![
             id,
@@ -145,7 +150,9 @@ fn insert_seed(
             template(s.consent.as_ref().or(parent.and_then(|p| p.consent.as_ref()))),
             template(s.post_op.as_ref().or(parent.and_then(|p| p.post_op.as_ref()))),
             sort,
-            now
+            now,
+            crate::chart::symbol_code(s.symbol.or(parent.and_then(|p| p.symbol)).unwrap_or_default()),
+            s.interval.or(parent.and_then(|p| p.interval)).unwrap_or(7)
         ],
     )?;
     Ok(id)
@@ -173,7 +180,8 @@ fn map_category(r: &rusqlite::Row<'_>) -> rusqlite::Result<ServiceCategoryInfo> 
 /// The service's specialty is its own, else its parent service's, else its category's (M2).
 const SERVICE_SELECT: &str = "SELECT s.id, s.code, s.category_id, s.parent_id, s.name_fa, s.name_ps, s.name_en, s.price,
     COALESCE(s.specialty_id, p.specialty_id, c.specialty_id), s.tooth_scope, s.needs_surface, s.sessions, s.lab_required,
-    s.consent_template_id, s.post_op_template_id, s.sort_order, s.is_system, s.is_active, s.version
+    s.consent_template_id, s.post_op_template_id, s.sort_order, s.is_system, s.is_active, s.version,
+    s.session_interval_days, s.chart_symbol
     FROM service s
     JOIN service_category c ON c.id = s.category_id
     LEFT JOIN service p ON p.id = s.parent_id
@@ -191,7 +199,9 @@ fn map_service(r: &rusqlite::Row<'_>) -> rusqlite::Result<ServiceInfo> {
         tooth_scope: scope_from(&r.get::<_, String>(9)?),
         needs_surface: r.get(10)?,
         sessions: r.get(11)?,
+        session_interval_days: r.get(19)?,
         lab_required: r.get(12)?,
+        chart_symbol: crate::chart::symbol_from(&r.get::<_, String>(20)?),
         consent_template_id: r.get(13)?,
         post_op_template_id: r.get(14)?,
         sort_order: r.get(15)?,
@@ -344,6 +354,13 @@ pub fn save_service(conn: &Connection, actor: &Actor, p: &SaveServiceParams) -> 
     if !(1..=60).contains(&p.sessions) {
         return Err(CoreError::invalid("sessions", ValidationRule::ServiceSessions, "1 to 60 visits"));
     }
+    if !(1..=365).contains(&p.session_interval_days) {
+        return Err(CoreError::invalid(
+            "session_interval_days",
+            ValidationRule::SessionInterval,
+            "1 to 365 days between sessions",
+        ));
+    }
     let mut category_id = get_category(conn, &p.category_id)?.id;
     let parent = match p.parent_id.as_deref().filter(|s| !s.is_empty()) {
         None => None,
@@ -390,8 +407,8 @@ pub fn save_service(conn: &Connection, actor: &Actor, p: &SaveServiceParams) -> 
             conn.execute(
                 "INSERT INTO service(id, code, category_id, parent_id, name_fa, name_ps, name_en, price, specialty_id,
                     tooth_scope, needs_surface, sessions, lab_required, consent_template_id, post_op_template_id,
-                    sort_order, is_active, created_at, created_by, updated_at, updated_by)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?18, ?19)",
+                    sort_order, is_active, created_at, created_by, updated_at, updated_by, chart_symbol, session_interval_days)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?18, ?19, ?20, ?21)",
                 params![
                     id,
                     code,
@@ -411,7 +428,9 @@ pub fn save_service(conn: &Connection, actor: &Actor, p: &SaveServiceParams) -> 
                     sort,
                     p.is_active,
                     now,
-                    actor.user_id
+                    actor.user_id,
+                    crate::chart::symbol_code(p.chart_symbol),
+                    p.session_interval_days
                 ],
             )?;
             (id, None)
@@ -422,7 +441,7 @@ pub fn save_service(conn: &Connection, actor: &Actor, p: &SaveServiceParams) -> 
                 "UPDATE service SET code=?1, category_id=?2, parent_id=?3, name_fa=?4, name_ps=?5, name_en=?6, price=?7,
                     specialty_id=?8, tooth_scope=?9, needs_surface=?10, sessions=?11, lab_required=?12,
                     consent_template_id=?13, post_op_template_id=?14, is_active=?15, updated_at=?16, updated_by=?17,
-                    version=version+1
+                    version=version+1, chart_symbol=?20, session_interval_days=?21
                  WHERE id=?18 AND version=?19 AND deleted_at IS NULL",
                 params![
                     code,
@@ -443,7 +462,9 @@ pub fn save_service(conn: &Connection, actor: &Actor, p: &SaveServiceParams) -> 
                     now,
                     actor.user_id,
                     id,
-                    p.version
+                    p.version,
+                    crate::chart::symbol_code(p.chart_symbol),
+                    p.session_interval_days
                 ],
             )?;
             expect_one_row(changed, "service")?;

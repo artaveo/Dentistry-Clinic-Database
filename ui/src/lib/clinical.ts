@@ -63,3 +63,20 @@ export function serviceName(s: ServiceInfo, cat: CatalogInfo | null, lang: Langu
   const parent = s.parent_id ? cat?.services.find((x) => x.id === s.parent_id) : null;
   return parent ? `${tr(parent.name, lang)} — ${tr(s.name, lang)}` : tr(s.name, lang);
 }
+
+// Phase 5B lists, also clinic-editable (fetched once, refreshed after an edit).
+const settings = cached(() => rpc("settings.get", {}));
+const conditions = cached(() => rpc("tooth_conditions.list", { include_inactive: true }));
+const planTemplates = cached(() => rpc("plan_templates.list", { include_inactive: false }));
+const noteTemplates = cached(() => rpc("note_templates.list", { include_inactive: false }));
+
+/** The clinic's settings (tooth numbering, ADR-14, among them). */
+export const useClinicSettings = settings.use;
+export const invalidateClinicSettings = settings.invalidate;
+/** Every tooth condition, switched-off ones included (a finding keeps its condition). */
+export const useToothConditions = conditions.use;
+export const invalidateToothConditions = conditions.invalidate;
+export const usePlanTemplates = planTemplates.use;
+export const invalidatePlanTemplates = planTemplates.invalidate;
+export const useNoteTemplates = noteTemplates.use;
+export const invalidateNoteTemplates = noteTemplates.invalidate;

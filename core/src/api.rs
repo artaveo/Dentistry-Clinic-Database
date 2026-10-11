@@ -30,6 +30,7 @@ use crate::settings;
 use crate::sysinfo;
 use crate::{appointment, recall, scheduling};
 use crate::{catalog, documents, formulary, specialty};
+use crate::{chart, notes, perio, treatment};
 use crate::{APP_VERSION, GIT_COMMIT};
 
 /// Methods still allowed while the screen is locked.
@@ -729,6 +730,170 @@ impl Core {
                 s.require(perm::SETTINGS_MANAGE)?;
                 let p: SaveServiceParams = params(p)?;
                 ok(self.with_tx(|c| catalog::save_service(c, &actor(&s), &p))?)
+            }
+            m::TOOTH_CONDITIONS_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| chart::list_conditions(&o.conn, include_inactive))?)
+            }
+            m::TOOTH_CONDITIONS_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveToothConditionParams = params(p)?;
+                ok(self.with_tx(|c| chart::save_condition(c, &actor(&s), &p))?)
+            }
+            m::CHART_GET => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| chart::get(&o.conn, &patient_id))?)
+            }
+            m::CHART_SET_DENTITION => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: SetDentitionParams = params(p)?;
+                ok(self.with_tx(|c| chart::set_dentition(c, &actor(&s), &p))?)
+            }
+            m::CHART_ADD_FINDINGS => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: AddFindingsParams = params(p)?;
+                ok(self.with_tx(|c| chart::add_findings(c, &actor(&s), &p))?)
+            }
+            m::CHART_REMOVE_FINDING => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let IdVersionParams { id, version } = params(p)?;
+                self.with_tx(|c| chart::remove_finding(c, &actor(&s), &id, version))?;
+                ok(Empty {})
+            }
+            m::CHART_TOOTH_HISTORY => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let ToothHistoryParams { patient_id, tooth } = params(p)?;
+                ok(self.with_db(|o| chart::tooth_history(&o.conn, &patient_id, tooth))?)
+            }
+            m::PLANS_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| treatment::list_plans(&o.conn, &patient_id))?)
+            }
+            m::PLANS_CREATE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: CreatePlanParams = params(p)?;
+                ok(self.with_tx(|c| treatment::create_plan(c, &actor(&s), &p))?)
+            }
+            m::PLANS_UPDATE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: UpdatePlanParams = params(p)?;
+                ok(self.with_tx(|c| treatment::update_plan(c, &actor(&s), &p))?)
+            }
+            m::PLANS_SET_STATUS => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: SetPlanStatusParams = params(p)?;
+                ok(self.with_tx(|c| treatment::set_plan_status(c, &actor(&s), &p))?)
+            }
+            m::TREATMENT_ITEMS_ADD => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: AddItemParams = params(p)?;
+                ok(self.with_tx(|c| treatment::add_items(c, &actor(&s), &p))?)
+            }
+            m::TREATMENT_ITEMS_UPDATE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: UpdateItemParams = params(p)?;
+                ok(self.with_tx(|c| treatment::update_item(c, &actor(&s), &p))?)
+            }
+            m::TREATMENT_ITEMS_SET_STATUS => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: SetItemStatusParams = params(p)?;
+                ok(self.with_tx(|c| treatment::set_item_status(c, &actor(&s), &p))?)
+            }
+            m::TREATMENT_ITEMS_RECORD_SESSION => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: RecordSessionParams = params(p)?;
+                ok(self.with_tx(|c| treatment::record_session(c, &actor(&s), &p))?)
+            }
+            m::TREATMENT_ITEMS_SUGGEST_NEXT => {
+                // Reception books the next session as well as the doctor.
+                s.require_any(&[perm::APPOINTMENTS_VIEW, perm::CLINICAL_VIEW])?;
+                let ItemIdParams { item_id } = params(p)?;
+                ok(self.with_db(|o| treatment::suggest_next(&o.conn, &item_id))?)
+            }
+            m::TREATMENT_ITEMS_OPEN => {
+                s.require_any(&[perm::APPOINTMENTS_VIEW, perm::CLINICAL_VIEW])?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| treatment::open_items(&o.conn, &patient_id))?)
+            }
+            m::TREATMENTS_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| treatment::treatments(&o.conn, &patient_id))?)
+            }
+            m::PLAN_TEMPLATES_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| treatment::list_plan_templates(&o.conn, include_inactive))?)
+            }
+            m::PLAN_TEMPLATES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SavePlanTemplateParams = params(p)?;
+                ok(self.with_tx(|c| treatment::save_plan_template(c, &actor(&s), &p))?)
+            }
+            m::NOTES_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| notes::list(&o.conn, &patient_id))?)
+            }
+            m::NOTES_SAVE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: SaveNoteParams = params(p)?;
+                ok(self.with_tx(|c| notes::save(c, &actor(&s), &p))?)
+            }
+            m::NOTES_SIGN => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let IdVersionParams { id, version } = params(p)?;
+                ok(self.with_tx(|c| notes::sign(c, &actor(&s), &id, version))?)
+            }
+            m::NOTES_ADD_ADDENDUM => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: AddAddendumParams = params(p)?;
+                ok(self.with_tx(|c| notes::add_addendum(c, &actor(&s), &p))?)
+            }
+            m::NOTES_DELETE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let IdVersionParams { id, version } = params(p)?;
+                self.with_tx(|c| notes::delete(c, &actor(&s), &id, version))?;
+                ok(Empty {})
+            }
+            m::NOTE_TEMPLATES_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| notes::list_templates(&o.conn, include_inactive))?)
+            }
+            m::NOTE_TEMPLATES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveNoteTemplateParams = params(p)?;
+                ok(self.with_tx(|c| notes::save_template(c, &actor(&s), &p))?)
+            }
+            m::NOTE_TEMPLATES_RESET => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let IdVersionParams { id, version } = params(p)?;
+                ok(self.with_tx(|c| notes::reset_template(c, &actor(&s), &id, version))?)
+            }
+            m::PERIO_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| perio::list(&o.conn, &patient_id))?)
+            }
+            m::PERIO_SAVE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let p: SavePerioParams = params(p)?;
+                ok(self.with_tx(|c| perio::save(c, &actor(&s), &p))?)
+            }
+            m::PERIO_DELETE => {
+                s.require(perm::CLINICAL_EDIT)?;
+                let IdVersionParams { id, version } = params(p)?;
+                self.with_tx(|c| perio::delete(c, &actor(&s), &id, version))?;
+                ok(Empty {})
+            }
+            m::TIMELINE_LIST => {
+                s.require(perm::CLINICAL_VIEW)?;
+                let TimelineParams { patient_id, kinds, limit } = params(p)?;
+                ok(self.with_db(|o| crate::timeline::events(&o.conn, &patient_id, &kinds, limit, None))?)
             }
             m::MEDICAL_QUESTIONS_LIST => {
                 // Whoever sees a patient's alert banner needs the questions' labels.

@@ -17,7 +17,7 @@
 //! ```
 
 use artaveo_shared::{
-    AppointmentCountsParams, AppointmentInfo, AppointmentListParams, AppointmentStatus,
+    AppointmentCountsParams, AppointmentInfo, AppointmentListParams, AppointmentStatus, AppointmentTreatment,
     CreateAppointmentParams, DayCount, ErrorCode, RescheduleAppointmentParams, SetAppointmentStatusParams,
     UpdateAppointmentParams, ValidationRule, WalkInParams,
 };
@@ -48,11 +48,14 @@ const APPOINTMENT_SELECT: &str = "SELECT a.id, a.patient_id, p.patient_number, p
         a.is_walk_in, a.queue_number, a.checked_in_at, a.treatment_started_at, a.completed_at,
         a.cancelled_at, a.cancel_reason, a.rescheduled_from_id, a.rescheduled_to_id, a.version,
         a.service_id,
-        (SELECT h.reviewed_at FROM patient_medical_history h WHERE h.patient_id = a.patient_id AND h.deleted_at IS NULL)
+        (SELECT h.reviewed_at FROM patient_medical_history h WHERE h.patient_id = a.patient_id AND h.deleted_at IS NULL),
+        a.treatment_item_id, a.session_no, ti.service_id, ti.teeth, ti.sessions_planned, ti.status,
+        (SELECT COUNT(*) FROM treatment_session ts WHERE ts.item_id = a.treatment_item_id)
      FROM appointment a
      JOIN patient p ON p.id = a.patient_id
      JOIN doctor d ON d.id = a.doctor_id
      LEFT JOIN chair c ON c.id = a.chair_id
+     LEFT JOIN treatment_item ti ON ti.id = a.treatment_item_id
      WHERE a.deleted_at IS NULL";
 
 fn map_appointment(r: &rusqlite::Row<'_>) -> rusqlite::Result<AppointmentInfo> {
@@ -88,6 +91,18 @@ fn map_appointment(r: &rusqlite::Row<'_>) -> rusqlite::Result<AppointmentInfo> {
         version: r.get(27)?,
         service_id: r.get(28)?,
         medical_review_due: crate::medical::review_due(r.get::<_, Option<String>>(29)?.as_deref()),
+        treatment: match (r.get::<_, Option<String>>(30)?, r.get::<_, Option<String>>(32)?) {
+            (Some(item_id), Some(service_id)) => Some(AppointmentTreatment {
+                item_id,
+                service_id,
+                teeth: crate::chart::parse_teeth(&r.get::<_, String>(33)?),
+                session_no: r.get::<_, Option<i64>>(31)?.unwrap_or(1),
+                sessions_planned: r.get(34)?,
+                sessions_done: r.get(36)?,
+                item_status: crate::treatment::item_status_from(&r.get::<_, String>(35)?),
+            }),
+            _ => None,
+        },
     })
 }
 
@@ -492,6 +507,8 @@ struct NewAppointment<'a> {
     is_walk_in: bool,
     rescheduled_from_id: Option<&'a str>,
     service_id: Option<&'a str>,
+    /// M4: the plan item and session this visit is for.
+    treatment: Option<(&'a str, i64)>,
 }
 
 fn next_queue_number(conn: &Connection, date: &str) -> Result<i64> {
@@ -511,8 +528,8 @@ fn insert(conn: &Connection, actor: &Actor, n: NewAppointment<'_>) -> Result<Str
     conn.execute(
         "INSERT INTO appointment(id, patient_id, doctor_id, chair_id, start_at, end_at, local_date, start_min, end_min,
             reason, notes, status, is_walk_in, queue_number, checked_in_at, rescheduled_from_id, service_id,
-            created_at, created_by, updated_at, updated_by)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?18,?19)",
+            created_at, created_by, updated_at, updated_by, treatment_item_id, session_no)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?18,?19,?20,?21)",
         params![
             id,
             n.patient_id,
@@ -532,7 +549,9 @@ fn insert(conn: &Connection, actor: &Actor, n: NewAppointment<'_>) -> Result<Str
             n.rescheduled_from_id,
             n.service_id,
             now,
-            actor.user_id
+            actor.user_id,
+            n.treatment.map(|t| t.0),
+            n.treatment.map(|t| t.1)
         ],
     )?;
     Ok(id)
@@ -553,7 +572,18 @@ pub fn create_appointment(
     check_schedule(conn, &p.doctor_id, &slot, p.override_schedule)?;
     let chair = resolve_chair(conn, &p.doctor_id, requested, &slot, None)?;
     check_conflicts(conn, &slot, &p.patient_id, &p.doctor_id, chair.as_deref(), None)?;
-    let service = check_service(conn, p.service_id.as_deref(), &p.doctor_id)?;
+    let link = crate::treatment::check_link(
+        conn,
+        &p.patient_id,
+        p.treatment_item_id.as_deref(),
+        p.session_no,
+        None,
+    )?;
+    // A session of a plan item is a visit for that item's service.
+    let service = match (&link, p.service_id.as_deref().filter(|s| !s.is_empty())) {
+        (Some((_, _, item_service)), None) => Some(item_service.clone()),
+        _ => check_service(conn, p.service_id.as_deref(), &p.doctor_id)?,
+    };
     let id = insert(
         conn,
         actor,
@@ -568,6 +598,7 @@ pub fn create_appointment(
             is_walk_in: false,
             rescheduled_from_id: None,
             service_id: service.as_deref(),
+            treatment: link.as_ref().map(|(i, n, _)| (i.as_str(), *n)),
         },
     )?;
     if let Some(rid) = p.recall_id.as_deref().filter(|s| !s.is_empty()) {
@@ -642,9 +673,23 @@ pub fn update_appointment(
     } else {
         before.service_id.clone()
     };
+    // M4: the link is checked again only when it changes (a visit keeps its session once booked).
+    let new_item = p.treatment_item_id.as_deref().filter(|s| !s.is_empty());
+    let old_link = before.treatment.as_ref().map(|t| (t.item_id.as_str(), t.session_no));
+    let link: Option<(String, i64)> = match new_item {
+        None => None,
+        Some(item) if old_link.is_some_and(|(i, n)| i == item && p.session_no.is_none_or(|s| s == n)) => {
+            old_link.map(|(i, n)| (i.to_string(), n))
+        }
+        Some(_) => {
+            crate::treatment::check_link(conn, &before.patient_id, new_item, p.session_no, Some(&p.id))?
+                .map(|(i, n, _)| (i, n))
+        }
+    };
     let changed = conn.execute(
         "UPDATE appointment SET doctor_id=?1, chair_id=?2, start_at=?3, end_at=?4, local_date=?5, start_min=?6, end_min=?7,
-            reason=?8, notes=?9, updated_at=?10, updated_by=?11, version=version+1, service_id=?14
+            reason=?8, notes=?9, updated_at=?10, updated_by=?11, version=version+1, service_id=?14,
+            treatment_item_id=?15, session_no=?16
          WHERE id=?12 AND version=?13 AND deleted_at IS NULL",
         params![
             p.doctor_id,
@@ -660,7 +705,9 @@ pub fn update_appointment(
             actor.user_id,
             p.id,
             p.version,
-            service
+            service,
+            link.as_ref().map(|l| l.0.as_str()),
+            link.as_ref().map(|l| l.1)
         ],
     )?;
     expect_one_row(changed, "appointment")?;
@@ -715,6 +762,7 @@ pub fn reschedule_appointment(
             is_walk_in: false,
             rescheduled_from_id: Some(&p.id),
             service_id: before.service_id.as_deref(),
+            treatment: before.treatment.as_ref().map(|t| (t.item_id.as_str(), t.session_no)),
         },
     )?;
     let now = now_iso();
@@ -847,6 +895,10 @@ pub fn set_status(
         }
         _ => {}
     }
+    if to == Completed {
+        // M4: a visit booked for a session records that session.
+        crate::treatment::record_for_appointment(conn, actor, &get_appointment(conn, &p.id)?)?;
+    }
     let after = get_appointment(conn, &p.id)?;
     audit::record(
         conn,
@@ -913,6 +965,7 @@ pub fn walk_in(conn: &Connection, actor: &Actor, p: &WalkInParams) -> Result<App
             is_walk_in: true,
             rescheduled_from_id: None,
             service_id: None,
+            treatment: None,
         },
     )?;
     let info = get_appointment(conn, &id)?;

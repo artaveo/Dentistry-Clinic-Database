@@ -21,7 +21,7 @@
     "name": { "fa": "ترمیمی", "ps": "ترمیمي", "en": "Restorative" },
     "services": [
       {
-        "code": "RST-01", "name": { "fa": "پرکاری سطحی", "ps": "سطحي ډکول", "en": "Shallow filling" }, "scope": "tooth", "surface": true, "post_op": "post_op_filling",
+        "code": "RST-01", "symbol": "surface", "name": { "fa": "پرکاری سطحی", "ps": "سطحي ډکول", "en": "Shallow filling" }, "scope": "tooth", "surface": true, "post_op": "post_op_filling",
         "variants": [
           { "code": "RST-01C", "name": { "fa": "کامپوزیت", "ps": "کمپوزیټ", "en": "Composite" } },
           { "code": "RST-01A", "name": { "fa": "آمالگام", "ps": "آمالګم", "en": "Amalgam" } },
@@ -29,7 +29,7 @@
         ]
       },
       {
-        "code": "RST-02", "name": { "fa": "پرکاری عمیق", "ps": "ژور ډکول", "en": "Deep filling" }, "scope": "tooth", "surface": true, "post_op": "post_op_filling",
+        "code": "RST-02", "symbol": "surface", "name": { "fa": "پرکاری عمیق", "ps": "ژور ډکول", "en": "Deep filling" }, "scope": "tooth", "surface": true, "post_op": "post_op_filling",
         "variants": [
           { "code": "RST-02C", "name": { "fa": "کامپوزیت", "ps": "کمپوزیټ", "en": "Composite" } },
           { "code": "RST-02A", "name": { "fa": "آمالگام", "ps": "آمالګم", "en": "Amalgam" } },
@@ -43,23 +43,23 @@
     "name": { "fa": "اندو (عصب‌کشی)", "ps": "اندو (عصب ایستل)", "en": "Endodontics" },
     "services": [
       {
-        "code": "END-01", "name": { "fa": "عصب‌کشی", "ps": "عصب ایستل", "en": "Root canal treatment" }, "scope": "tooth", "sessions": 2, "consent": "consent_root_canal", "post_op": "post_op_root_canal",
+        "code": "END-01", "symbol": "root_canal", "name": { "fa": "عصب‌کشی", "ps": "عصب ایستل", "en": "Root canal treatment" }, "scope": "tooth", "sessions": 2, "consent": "consent_root_canal", "post_op": "post_op_root_canal",
         "variants": [
           { "code": "END-01S", "name": { "fa": "تک‌کاناله", "ps": "یو کانال", "en": "Single canal" } },
           { "code": "END-01D", "name": { "fa": "دوکاناله", "ps": "دوه کاناله", "en": "Two canals" } },
           { "code": "END-01M", "name": { "fa": "چندکاناله", "ps": "څو کاناله", "en": "Multiple canals" }, "sessions": 3 }
         ]
       },
-      { "code": "END-02", "name": { "fa": "درمان مجدد ریشه", "ps": "د ریښې بیا درملنه", "en": "Root canal retreatment" }, "scope": "tooth", "sessions": 3, "consent": "consent_root_canal", "post_op": "post_op_root_canal" }
+      { "code": "END-02", "symbol": "root_canal", "name": { "fa": "درمان مجدد ریشه", "ps": "د ریښې بیا درملنه", "en": "Root canal retreatment" }, "scope": "tooth", "sessions": 3, "consent": "consent_root_canal", "post_op": "post_op_root_canal" }
     ]
   },
   {
     "code": "SRG", "specialty": "oral_surgery",
     "name": { "fa": "جراحی", "ps": "جراحي", "en": "Oral surgery" },
     "services": [
-      { "code": "SRG-01", "name": { "fa": "کشیدن ساده", "ps": "ساده ایستل", "en": "Simple extraction" }, "scope": "tooth", "consent": "consent_extraction", "post_op": "post_op_extraction" },
-      { "code": "SRG-02", "name": { "fa": "کشیدن جراحی", "ps": "جراحي ایستل", "en": "Surgical extraction" }, "scope": "tooth", "consent": "consent_oral_surgery", "post_op": "post_op_extraction" },
-      { "code": "SRG-03", "name": { "fa": "دندان عقل نهفته", "ps": "پټ د عقل غاښ", "en": "Impacted wisdom tooth" }, "scope": "tooth", "consent": "consent_oral_surgery", "post_op": "post_op_extraction" }
+      { "code": "SRG-01", "symbol": "extraction", "name": { "fa": "کشیدن ساده", "ps": "ساده ایستل", "en": "Simple extraction" }, "scope": "tooth", "consent": "consent_extraction", "post_op": "post_op_extraction" },
+      { "code": "SRG-02", "symbol": "extraction", "name": { "fa": "کشیدن جراحی", "ps": "جراحي ایستل", "en": "Surgical extraction" }, "scope": "tooth", "consent": "consent_oral_surgery", "post_op": "post_op_extraction" },
+      { "code": "SRG-03", "symbol": "extraction", "name": { "fa": "دندان عقل نهفته", "ps": "پټ د عقل غاښ", "en": "Impacted wisdom tooth" }, "scope": "tooth", "consent": "consent_oral_surgery", "post_op": "post_op_extraction" }
     ]
   },
   {
@@ -67,7 +67,7 @@
     "name": { "fa": "پروتز", "ps": "پروتز", "en": "Prosthodontics" },
     "services": [
       {
-        "code": "PRS-01", "name": { "fa": "روکش (کراون)", "ps": "پوښ (کراون)", "en": "Crown" }, "scope": "tooth", "sessions": 2, "lab": true,
+        "code": "PRS-01", "symbol": "crown", "name": { "fa": "روکش (کراون)", "ps": "پوښ (کراون)", "en": "Crown" }, "scope": "tooth", "sessions": 2, "lab": true,
         "variants": [
           { "code": "PRS-01P", "name": { "fa": "PFM (فلز-سرامیک)", "ps": "PFM (فلز-سرامیک)", "en": "PFM (porcelain on metal)" } },
           { "code": "PRS-01Z", "name": { "fa": "زیرکونیا", "ps": "زیرکونیا", "en": "Zirconia" } },
@@ -76,14 +76,14 @@
         ]
       },
       {
-        "code": "PRS-02", "name": { "fa": "بریج (هر واحد)", "ps": "برج (هر واحد)", "en": "Bridge (per unit)" }, "scope": "teeth", "sessions": 2, "lab": true,
+        "code": "PRS-02", "symbol": "bridge", "name": { "fa": "بریج (هر واحد)", "ps": "برج (هر واحد)", "en": "Bridge (per unit)" }, "scope": "teeth", "sessions": 2, "lab": true,
         "variants": [
           { "code": "PRS-02P", "name": { "fa": "PFM (فلز-سرامیک)", "ps": "PFM (فلز-سرامیک)", "en": "PFM (porcelain on metal)" } },
           { "code": "PRS-02Z", "name": { "fa": "زیرکونیا", "ps": "زیرکونیا", "en": "Zirconia" } }
         ]
       },
       {
-        "code": "PRS-03", "name": { "fa": "دندان مصنوعی", "ps": "مصنوعي غاښونه", "en": "Denture" }, "scope": "arch", "sessions": 4, "lab": true,
+        "code": "PRS-03", "symbol": "denture", "name": { "fa": "دندان مصنوعی", "ps": "مصنوعي غاښونه", "en": "Denture" }, "scope": "arch", "sessions": 4, "lab": true,
         "variants": [
           { "code": "PRS-03CU", "name": { "fa": "کامل — فک بالا", "ps": "بشپړ — پورتنۍ ژامه", "en": "Complete — upper" } },
           { "code": "PRS-03CL", "name": { "fa": "کامل — فک پایین", "ps": "بشپړ — لاندنۍ ژامه", "en": "Complete — lower" } },
@@ -98,15 +98,15 @@
     "name": { "fa": "ایمپلنت", "ps": "ایمپلانټ", "en": "Implants" },
     "services": [
       {
-        "code": "IMP-01", "name": { "fa": "کاشت ایمپلنت (جراحی)", "ps": "د ایمپلانټ کېښودل (جراحي)", "en": "Implant placement (surgery)" }, "scope": "tooth", "sessions": 1, "consent": "consent_implant", "post_op": "post_op_implant",
+        "code": "IMP-01", "symbol": "implant", "name": { "fa": "کاشت ایمپلنت (جراحی)", "ps": "د ایمپلانټ کېښودل (جراحي)", "en": "Implant placement (surgery)" }, "scope": "tooth", "sessions": 1, "consent": "consent_implant", "post_op": "post_op_implant",
         "variants": [
           { "code": "IMP-01O", "name": { "fa": "Osstem", "ps": "Osstem", "en": "Osstem" } },
           { "code": "IMP-01S", "name": { "fa": "Straumann", "ps": "Straumann", "en": "Straumann" } },
           { "code": "IMP-01D", "name": { "fa": "Dentium", "ps": "Dentium", "en": "Dentium" } }
         ]
       },
-      { "code": "IMP-02", "name": { "fa": "اباتمنت", "ps": "اباټمنټ", "en": "Abutment" }, "scope": "tooth", "lab": true },
-      { "code": "IMP-03", "name": { "fa": "روکش روی ایمپلنت", "ps": "پر ایمپلانټ پوښ", "en": "Implant crown" }, "scope": "tooth", "sessions": 2, "lab": true }
+      { "code": "IMP-02", "symbol": "abutment", "name": { "fa": "اباتمنت", "ps": "اباټمنټ", "en": "Abutment" }, "scope": "tooth", "lab": true },
+      { "code": "IMP-03", "symbol": "implant_crown", "name": { "fa": "روکش روی ایمپلنت", "ps": "پر ایمپلانټ پوښ", "en": "Implant crown" }, "scope": "tooth", "sessions": 2, "lab": true }
     ]
   },
   {
@@ -114,13 +114,13 @@
     "name": { "fa": "ارتودنسی", "ps": "ارتوډونسي", "en": "Orthodontics" },
     "services": [
       {
-        "code": "ORT-01", "name": { "fa": "ارتودنسی ثابت", "ps": "ثابته ارتوډونسي", "en": "Fixed braces" }, "scope": "mouth", "sessions": 20, "consent": "consent_orthodontics",
+        "code": "ORT-01", "symbol": "bracket", "interval": 30, "name": { "fa": "ارتودنسی ثابت", "ps": "ثابته ارتوډونسي", "en": "Fixed braces" }, "scope": "mouth", "sessions": 20, "consent": "consent_orthodontics",
         "variants": [
           { "code": "ORT-01M", "name": { "fa": "براکت فلزی", "ps": "فلزي براکټ", "en": "Metal brackets" } },
           { "code": "ORT-01C", "name": { "fa": "براکت سرامیکی", "ps": "سرامیکي براکټ", "en": "Ceramic brackets" } }
         ]
       },
-      { "code": "ORT-02", "name": { "fa": "ارتودنسی متحرک", "ps": "متحرکه ارتوډونسي", "en": "Removable appliance" }, "scope": "arch", "sessions": 6, "lab": true, "consent": "consent_orthodontics" },
+      { "code": "ORT-02", "interval": 30, "name": { "fa": "ارتودنسی متحرک", "ps": "متحرکه ارتوډونسي", "en": "Removable appliance" }, "scope": "arch", "sessions": 6, "lab": true, "consent": "consent_orthodontics" },
       { "code": "ORT-03", "name": { "fa": "نگهدارنده (ریتینر)", "ps": "ساتونکی (ریټینر)", "en": "Retainer" }, "scope": "arch", "lab": true }
     ]
   },
@@ -128,8 +128,8 @@
     "code": "PER", "specialty": "periodontics",
     "name": { "fa": "پریو (لثه)", "ps": "پریو (اورۍ)", "en": "Periodontics" },
     "services": [
-      { "code": "PER-01", "name": { "fa": "جرم‌گیری (شستن)", "ps": "د غاښونو پاکول (جرم ایستل)", "en": "Scaling and cleaning" }, "scope": "mouth", "post_op": "post_op_scaling" },
-      { "code": "PER-02", "name": { "fa": "کورتاژ", "ps": "کوریټاژ", "en": "Curettage" }, "scope": "quadrant" }
+      { "code": "PER-01", "symbol": "scaling", "name": { "fa": "جرم‌گیری (شستن)", "ps": "د غاښونو پاکول (جرم ایستل)", "en": "Scaling and cleaning" }, "scope": "mouth", "post_op": "post_op_scaling" },
+      { "code": "PER-02", "symbol": "scaling", "name": { "fa": "کورتاژ", "ps": "کوریټاژ", "en": "Curettage" }, "scope": "quadrant" }
     ]
   },
   {
@@ -137,17 +137,17 @@
     "name": { "fa": "زیبایی", "ps": "ښکلا", "en": "Cosmetic" },
     "services": [
       { "code": "COS-01", "name": { "fa": "بلیچینگ (سفید کردن)", "ps": "سپینول (بلیچنګ)", "en": "Whitening" }, "scope": "mouth" },
-      { "code": "COS-02", "name": { "fa": "لمینیت", "ps": "لمینیټ", "en": "Veneer" }, "scope": "tooth", "sessions": 2, "lab": true },
-      { "code": "COS-03", "name": { "fa": "نگین دندان", "ps": "د غاښ نګینه", "en": "Tooth gem" }, "scope": "tooth" }
+      { "code": "COS-02", "symbol": "veneer", "name": { "fa": "لمینیت", "ps": "لمینیټ", "en": "Veneer" }, "scope": "tooth", "sessions": 2, "lab": true },
+      { "code": "COS-03", "symbol": "marker", "name": { "fa": "نگین دندان", "ps": "د غاښ نګینه", "en": "Tooth gem" }, "scope": "tooth" }
     ]
   },
   {
     "code": "PED", "specialty": "pediatric",
     "name": { "fa": "اطفال", "ps": "ماشومان", "en": "Paediatric" },
     "services": [
-      { "code": "PED-01", "name": { "fa": "پالپوتومی", "ps": "پالپوټومي", "en": "Pulpotomy" }, "scope": "tooth" },
-      { "code": "PED-02", "name": { "fa": "روکش استیل", "ps": "سټیل پوښ", "en": "Stainless steel crown" }, "scope": "tooth" },
-      { "code": "PED-03", "name": { "fa": "فیشورسیلانت", "ps": "فیشر سیلنټ", "en": "Fissure sealant" }, "scope": "tooth" }
+      { "code": "PED-01", "symbol": "pulpotomy", "name": { "fa": "پالپوتومی", "ps": "پالپوټومي", "en": "Pulpotomy" }, "scope": "tooth" },
+      { "code": "PED-02", "symbol": "crown", "name": { "fa": "روکش استیل", "ps": "سټیل پوښ", "en": "Stainless steel crown" }, "scope": "tooth" },
+      { "code": "PED-03", "symbol": "sealant", "name": { "fa": "فیشورسیلانت", "ps": "فیشر سیلنټ", "en": "Fissure sealant" }, "scope": "tooth" }
     ]
   }
 ]

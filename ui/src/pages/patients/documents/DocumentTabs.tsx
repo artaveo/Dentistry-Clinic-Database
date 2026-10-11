@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ClipboardCheck, FilePlus2, FileSignature, FileText, FlaskConical, NotebookText, Pill, Plus, ScanLine, Send, Stethoscope } from "lucide-react";
+import { Calculator, ClipboardCheck, FilePlus2, FileSignature, FileText, FlaskConical, NotebookText, Pill, Plus, ScanLine, Send, Stethoscope } from "lucide-react";
 import type { CalendarSystem, DocumentInfo, DocumentKind, PatientInfo } from "../../../../../shared/ts/contract";
 import { useI18n } from "../../../i18n";
 import { Button } from "../../../ui/Button";
@@ -53,6 +53,7 @@ const KIND_ICON: Record<DocumentKind, LucideIcon> = {
   certificate: Stethoscope,
   lab_order: FlaskConical,
   record_summary: NotebookText,
+  treatment_plan: Calculator,
 };
 
 /**
@@ -94,7 +95,7 @@ export function DocumentsTab({ patient, gender, canEdit, canEditFiles, calendar 
     <div className="stack-lg">
       <Card flush>
         <CardHeader icon={FileText} title={t("docs.clinicalTitle")} description={t("docs.clinicalHint")} actions={newMenu} />
-        <DocumentList patientId={patient.id} kinds={OTHER_KINDS} canEdit={canEdit} calendar={calendar} refreshKey={refresh} emptyIcon={FileText} emptyTitle={t("docs.none")} emptyHint={t("docs.noneHint")} open={issued} onOpened={() => setIssued(null)} />
+        <DocumentList patientId={patient.id} kinds={[...OTHER_KINDS, "treatment_plan"]} canEdit={canEdit} calendar={calendar} refreshKey={refresh} emptyIcon={FileText} emptyTitle={t("docs.none")} emptyHint={t("docs.noneHint")} open={issued} onOpened={() => setIssued(null)} />
       </Card>
       <AttachmentsTab patientId={patient.id} canEdit={canEditFiles} />
       {kind && letterhead && (

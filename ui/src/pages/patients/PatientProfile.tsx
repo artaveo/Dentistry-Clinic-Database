@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity, CalendarClock, ClipboardList, FileHeart, FileText, Grid3x3, Images, Merge, NotebookPen,
-  Pencil, Pill, Receipt, ScrollText, Trash2, Wallet,
+  History, Pencil, Pill, Receipt, ScrollText, Trash2, Wallet,
 } from "lucide-react";
-import type { ClinicProfile, PatientInfo } from "../../../../shared/ts/contract";
+import type { ClinicProfile, PatientInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
 import { digits, formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
@@ -22,6 +22,12 @@ import { MergeDialog } from "./MergeDialog";
 import { PatientAppointmentsTab } from "./PatientAppointmentsTab";
 import type { AppointmentPerms, ClinicalPerms } from "./PatientsPage";
 import { useReferenceList } from "./useReferenceList";
+import { ChartTab } from "./clinical/ChartTab";
+import { NotesTab } from "./clinical/NotesTab";
+import { PlansTab } from "./clinical/PlansTab";
+import { TreatmentsTab } from "./clinical/TreatmentsTab";
+import { TimelineTab } from "./clinical/TimelineTab";
+import { CourseCard } from "./clinical/CourseCard";
 
 type TabId = "overview" | "medical" | "appointments" | "chart" | "notes" | "plans" | "treatments" | "prescriptions" | "invoices" | "payments" | "documents" | "timeline" | "audit";
 
@@ -29,15 +35,15 @@ const TABS: { id: TabId; icon: LucideIcon; labelKey: string; ready: boolean }[] 
   { id: "overview", icon: FileText, labelKey: "patients.tab.overview", ready: true },
   { id: "medical", icon: FileHeart, labelKey: "patients.tab.medicalHistory", ready: true },
   { id: "appointments", icon: CalendarClock, labelKey: "patients.tab.appointments", ready: false },
-  { id: "chart", icon: Grid3x3, labelKey: "patients.tab.dentalChart", ready: false },
-  { id: "notes", icon: NotebookPen, labelKey: "patients.tab.clinicalNotes", ready: false },
-  { id: "plans", icon: ClipboardList, labelKey: "patients.tab.treatmentPlans", ready: false },
-  { id: "treatments", icon: Activity, labelKey: "patients.tab.treatments", ready: false },
+  { id: "chart", icon: Grid3x3, labelKey: "patients.tab.dentalChart", ready: true },
+  { id: "notes", icon: NotebookPen, labelKey: "patients.tab.clinicalNotes", ready: true },
+  { id: "plans", icon: ClipboardList, labelKey: "patients.tab.treatmentPlans", ready: true },
+  { id: "treatments", icon: Activity, labelKey: "patients.tab.treatments", ready: true },
   { id: "prescriptions", icon: Pill, labelKey: "patients.tab.prescriptions", ready: true },
   { id: "invoices", icon: Receipt, labelKey: "patients.tab.invoices", ready: false },
   { id: "payments", icon: Wallet, labelKey: "patients.tab.payments", ready: false },
   { id: "documents", icon: Images, labelKey: "patients.tab.documents", ready: true },
-  { id: "timeline", icon: ScrollText, labelKey: "patients.tab.timeline", ready: false },
+  { id: "timeline", icon: History, labelKey: "patients.tab.timeline", ready: true },
   { id: "audit", icon: ScrollText, labelKey: "patients.tab.audit", ready: true },
 ];
 
@@ -49,6 +55,10 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
   const [tab, setTab] = useState<TabId>("overview");
   const [merging, setMerging] = useState(false);
   const [blockedBy, setBlockedBy] = useState<number | null>(null);
+  // A note opened from a treatment (5.6: each session has its own note).
+  const [noteFor, setNoteFor] = useState<TreatmentItemInfo | null>(null);
+  // Bumped when clinical work changes, so the overview's course card reloads.
+  const [clinicalKey, setClinicalKey] = useState(0);
   // Bumped after every medical-history save so the alert banner (mounted
   // once, independently) re-fetches instead of showing stale data.
   const [medicalRefreshKey, setMedicalRefreshKey] = useState(0);
@@ -90,8 +100,9 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
 
   const genderLabel = genders.find((g) => g.id === patient.gender_id)?.label;
   // Clinical tabs need clinical.view (reception sees the visits and the files, not the medical record).
+  const CLINICAL: TabId[] = ["medical", "prescriptions", "chart", "notes", "plans", "treatments", "timeline"];
   const available = (id: TabId, ready: boolean) =>
-    id === "appointments" ? appointments.view : id === "medical" || id === "prescriptions" ? ready && clinical.view : ready;
+    id === "appointments" ? appointments.view : CLINICAL.includes(id) ? ready && clinical.view : ready;
   const referralLabel = referrals.find((r) => r.id === patient.referral_source_id)?.label;
 
   return (
@@ -117,7 +128,7 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
           <Button variant="link" onClick={() => { setBlockedBy(null); setTab("appointments"); }} data-testid="patient-delete-show">{t("patients.delete.show")}</Button>
         </Notice>
       )}
-      {clinical.view && <MedicalAlertBanner key={medicalRefreshKey} patientId={patient.id} hideReview={tab === "medical"} onOpenHistory={() => setTab("medical")} />}
+      {clinical.view && <MedicalAlertBanner key={`alert-${medicalRefreshKey}`} patientId={patient.id} hideReview={tab === "medical"} onOpenHistory={() => setTab("medical")} />}
 
       <div className="profile-tabs" role="tablist">
         {TABS.map(({ id, icon: Icon, labelKey, ready }) => (
@@ -163,6 +174,7 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
           </dl>
         </Card>
       )}
+      {tab === "overview" && clinical.view && <CourseCard key={`course-${clinicalKey}`} patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} onOpen={() => setTab("plans")} />}
       {tab === "medical" && (
         <MedicalHistoryTab patientId={patient.id} female={genders.find((g) => g.id === patient.gender_id)?.code === "female"} canEdit={clinical.edit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
       )}
@@ -173,6 +185,15 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
       ) : (
         <AttachmentsTab patientId={patient.id} canEdit={canEdit} />
       ))}
+      {tab === "chart" && <ChartTab patient={patient} canEdit={clinical.edit} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
+      {tab === "plans" && (
+        <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} />
+      )}
+      {tab === "treatments" && (
+        <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => setTab("chart")} onNote={(i) => { setNoteFor(i); setTab("notes"); }} />
+      )}
+      {tab === "notes" && <NotesTab key={noteFor?.id ?? "notes"} patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} initialItem={noteFor} onChanged={() => setNoteFor(null)} />}
+      {tab === "timeline" && <TimelineTab patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} />}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 
       {merging && patient && (

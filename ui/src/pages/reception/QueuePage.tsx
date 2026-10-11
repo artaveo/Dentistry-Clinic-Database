@@ -16,6 +16,11 @@ import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { StatusActions } from "./StatusActions";
 import { SCHEDULE_RULES, STATUS_TONE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
+import { useCatalog, useClinicSettings } from "../../lib/clinical";
+import { teethLabel } from "../../chart/numbering";
+import { SessionDots } from "../patients/clinical/SessionDots";
+import { NextSessionOffer } from "../patients/clinical/NextSessionOffer";
+import { itemService } from "../patients/clinical/labels";
 
 const POLL_MS = 10_000;
 
@@ -35,6 +40,14 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
   const [walkIn, setWalkIn] = useState(false);
   const [open, setOpen] = useState<AppointmentInfo | null>(null);
   const [today, setToday] = useState(todayIso());
+  // M4: a completed visit of a course offers to book the next session.
+  const [offer, setOffer] = useState<AppointmentInfo | null>(null);
+  const catalog = useCatalog();
+  const settings = useClinicSettings();
+  const statusChanged = (a: AppointmentInfo) => {
+    load();
+    if (a.status === "completed" && a.treatment && perms.edit) setOffer(a);
+  };
 
   const load = useCallback(() => {
     const d = todayIso();
@@ -112,13 +125,22 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
                       {solo ? (a.chair_name ? ` · ${a.chair_name}` : "") : <>{" · "}<span className="dot-swatch" style={{ background: a.doctor_color }} aria-hidden /> {a.doctor_name}{a.chair_name ? ` · ${a.chair_name}` : ""}</>}
                     </span>
                     {a.reason && <span className="t-caption">{a.reason}</span>}
+                    {/* M4: which session of which treatment this visit is, with the course's progress. */}
+                    {a.treatment && (
+                      <span className="queue-course" data-testid={`queue-course-${a.id}`}>
+                        <SessionDots treatment={a.treatment} size="sm" />
+                        <span className="t-caption">
+                          {itemService(catalog, a.treatment, lang)} {teethLabel(a.treatment.teeth, settings?.tooth_numbering ?? "fdi", lang)} — {t("chart.sessionOf").replace("{n}", digits(a.treatment.session_no, lang)).replace("{of}", digits(a.treatment.sessions_planned, lang))}
+                        </span>
+                      </span>
+                    )}
                     {/* M1: never asked, or not for six months — ask the medical history again at this visit. */}
                     {a.medical_review_due && ["scheduled", "confirmed", "checked_in"].includes(a.status) && (
                       <span className="queue-review" data-testid={`queue-review-${a.id}`}><Badge tone="warning" icon={ClipboardClock}>{t("queue.medicalReview")}</Badge></span>
                     )}
                   </button>
                   <div className="row queue-actions">
-                    <StatusActions appt={a} perms={perms} calendar={calendar} onChanged={load} only={["confirmed", "checked_in", "in_treatment", "completed", "no_show"]} />
+                    <StatusActions appt={a} perms={perms} calendar={calendar} onChanged={statusChanged} only={["confirmed", "checked_in", "in_treatment", "completed", "no_show"]} />
                   </div>
                 </article>
               ))}
@@ -138,7 +160,8 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
         </details>
       )}
       {walkIn && <WalkInDialog doctors={doctors.map((d) => ({ id: d.id, name: d.full_name }))} chairs={chairs} defaultDoctor={doctorId || doctors[0]?.id || ""} canCreate={perms.createPatients} solo={solo} onClose={() => setWalkIn(false)} onAdded={() => { setWalkIn(false); load(); }} />}
-      {open && <AppointmentDialog appointment={open} doctors={doctors} chairs={chairs} calendar={calendar} perms={perms} clinicName={clinicName} solo={solo} onClose={() => setOpen(null)} onSaved={load} />}
+      {open && <AppointmentDialog appointment={open} doctors={doctors} chairs={chairs} calendar={calendar} perms={perms} clinicName={clinicName} solo={solo} onClose={() => setOpen(null)} onSaved={load} onStatusChanged={statusChanged} />}
+      {offer && <NextSessionOffer appointment={offer} doctors={doctors} chairs={chairs} calendar={calendar} perms={perms} clinicName={clinicName} solo={solo} onClose={() => setOffer(null)} onBooked={load} />}
     </Page>
   );
 }

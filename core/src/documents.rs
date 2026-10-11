@@ -10,9 +10,9 @@ use std::collections::{HashMap, HashSet};
 use artaveo_shared::{
     AttachDocumentScanParams, CertificateContent, DocumentContent, DocumentDoctor, DocumentInfo,
     DocumentKind, DocumentPatient, DocumentStatus, ErrorCode, ImagingRequestContent, IssueDocumentParams,
-    LabOrderContent, Language, PrescriptionContent, RecordPrescription, RecordSnapshot, RecordSummaryContent,
-    RecordVisit, ReferralContent, RxItem, RxSeverity, RxWarning, TemplateDocContent, ValidationRule,
-    VoidDocumentParams,
+    LabOrderContent, Language, PrescriptionContent, RecordFinding, RecordNote, RecordPrescription,
+    RecordSnapshot, RecordSummaryContent, RecordTreatment, RecordVisit, ReferralContent, RxItem, RxSeverity,
+    RxWarning, TemplateDocContent, TreatmentPlanContent, ValidationRule, VoidDocumentParams,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
@@ -50,6 +50,7 @@ pub(crate) fn kind_code(k: DocumentKind) -> &'static str {
         DocumentKind::Certificate => "certificate",
         DocumentKind::LabOrder => "lab_order",
         DocumentKind::RecordSummary => "record_summary",
+        DocumentKind::TreatmentPlan => "treatment_plan",
     }
 }
 
@@ -62,6 +63,7 @@ pub(crate) fn kind_from(s: &str) -> DocumentKind {
         "imaging_request" => DocumentKind::ImagingRequest,
         "lab_order" => DocumentKind::LabOrder,
         "record_summary" => DocumentKind::RecordSummary,
+        "treatment_plan" => DocumentKind::TreatmentPlan,
         _ => DocumentKind::Certificate,
     }
 }
@@ -77,6 +79,7 @@ fn prefix(k: DocumentKind) -> &'static str {
         DocumentKind::Certificate => "MC",
         DocumentKind::LabOrder => "LO",
         DocumentKind::RecordSummary => "MR",
+        DocumentKind::TreatmentPlan => "TP",
     }
 }
 
@@ -90,6 +93,7 @@ fn content_kind(c: &DocumentContent) -> DocumentKind {
         DocumentContent::Certificate(_) => DocumentKind::Certificate,
         DocumentContent::LabOrder(_) => DocumentKind::LabOrder,
         DocumentContent::RecordSummary(_) => DocumentKind::RecordSummary,
+        DocumentContent::TreatmentPlan(_) => DocumentKind::TreatmentPlan,
     }
 }
 
@@ -449,6 +453,35 @@ fn check_content(conn: &Connection, p: &IssueDocumentParams) -> Result<DocumentC
             purpose: opt_text("purpose", &c.purpose, 200)?,
             snapshot: Some(record_snapshot(conn, &p.patient_id, p.language)?),
         }),
+        DocumentContent::TreatmentPlan(c) => {
+            let mut ids: Vec<&String> = Vec::new();
+            for id in &c.plan_ids {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+            if ids.is_empty() || ids.len() > 4 {
+                return Err(CoreError::invalid(
+                    "plan_ids",
+                    ValidationRule::DocumentItems,
+                    "an estimate shows 1 to 4 plans",
+                ));
+            }
+            if c.valid_days.is_some_and(|d| !(1..=365).contains(&d)) {
+                return Err(CoreError::invalid("valid_days", ValidationRule::RestDaysRange, "1 to 365 days"));
+            }
+            let plans = ids
+                .iter()
+                .map(|id| crate::treatment::plan_snapshot(conn, &p.patient_id, id, p.language))
+                .collect::<Result<Vec<_>>>()?;
+            DocumentContent::TreatmentPlan(TreatmentPlanContent {
+                plan_ids: ids.into_iter().cloned().collect(),
+                plans,
+                numbering: crate::settings::get(conn)?.tooth_numbering,
+                valid_days: c.valid_days,
+                notes: opt_text("notes", &c.notes, 1000)?,
+            })
+        }
     })
 }
 
@@ -512,7 +545,63 @@ fn record_snapshot(conn: &Connection, patient_id: &str, lang: Language) -> Resul
             },
         })
         .collect();
-    Ok(RecordSnapshot { medical, medical_notes: history.notes, visits, prescriptions })
+    // The clinical record of Phase 5B: the chart's conditions, the work done and the signed notes.
+    let conditions: HashMap<String, artaveo_shared::ToothConditionInfo> =
+        crate::chart::list_conditions(conn, true)?.into_iter().map(|c| (c.id.clone(), c)).collect();
+    let mut findings: Vec<RecordFinding> = crate::chart::list_findings(conn, patient_id)?
+        .into_iter()
+        .map(|f| RecordFinding {
+            tooth: f.tooth,
+            condition: conditions.get(&f.condition_id).map(|c| pick(&c.name)).unwrap_or_default(),
+            surfaces: f.surfaces,
+        })
+        .collect();
+    findings.sort_by_key(|f| f.tooth);
+    let mut treatments = Vec::new();
+    for i in crate::treatment::treatments(conn, patient_id)?.into_iter().take(30) {
+        let s = crate::catalog::get_service(conn, &i.service_id)?;
+        let last = i.sessions.iter().max_by_key(|s| s.performed_on.clone());
+        treatments.push(RecordTreatment {
+            date: last
+                .map(|s| s.performed_on.clone())
+                .or_else(|| i.completed_at.as_deref().and_then(local_date))
+                .unwrap_or_default(),
+            service: crate::treatment::service_name(conn, &s, lang)?,
+            teeth: i.teeth,
+            surfaces: i.surfaces,
+            sessions_done: i.sessions_done,
+            sessions_planned: i.sessions_planned,
+            status: i.status,
+            doctor: last.and_then(|s| s.doctor_name.clone()),
+        });
+    }
+    let notes = crate::notes::list(conn, patient_id)?
+        .into_iter()
+        .filter(|n| n.status == artaveo_shared::NoteStatus::Signed)
+        .take(15)
+        .map(|n| RecordNote {
+            date: n.visit_date,
+            doctor: n.doctor_name,
+            diagnosis: n.fields.diagnosis,
+            procedure: n.fields.procedure,
+        })
+        .collect();
+    Ok(RecordSnapshot {
+        medical,
+        medical_notes: history.notes,
+        visits,
+        prescriptions,
+        numbering: crate::settings::get(conn)?.tooth_numbering,
+        findings,
+        treatments,
+        notes,
+    })
+}
+
+/// The clinic-local day of a UTC timestamp.
+fn local_date(at: &str) -> Option<String> {
+    let d = crate::clock::parse(at)?.to_offset(crate::clock::CLINIC_OFFSET).date();
+    Some(format!("{:04}-{:02}-{:02}", d.year(), d.month() as u8, d.day()))
 }
 
 // ───────────────────────────── store ─────────────────────────────

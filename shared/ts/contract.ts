@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -170,7 +170,11 @@ print_brand_footer: boolean,
 /**
  * M2: only doctors of a service's specialty may be booked for it (off: a gentle warning only).
  */
-restrict_service_specialty: boolean, };
+restrict_service_specialty: boolean, 
+/**
+ * ADR-14: how tooth numbers are shown on the chart and on documents (FDI by default).
+ */
+tooth_numbering: ToothNumbering, };
 
 export type DatabaseInfo = { encrypted: boolean, cipher_version: string, sqlite_version: string, 
 /**
@@ -437,6 +441,10 @@ start_at: string, end_at: string, reason: string | null, notes: string | null,
  */
 service_id: string | null, 
 /**
+ * M4: the treatment-plan item and session this visit is for ("root canal 36 — session 2 of 3").
+ */
+treatment: AppointmentTreatment | null, 
+/**
  * M1: the patient's medical history was never recorded or is due for review (ask at this visit).
  */
 medical_review_due: boolean, status: AppointmentStatus, is_walk_in: boolean, 
@@ -457,13 +465,25 @@ recall_id: string | null,
 /**
  * M2/M3: the catalog service the visit is for (optional).
  */
-service_id: string | null, };
+service_id: string | null, 
+/**
+ * M4: book a session of this treatment-plan item (its service becomes the visit's service).
+ */
+treatment_item_id: string | null, 
+/**
+ * Which session; absent = the next one not done or booked yet.
+ */
+session_no: number | null, };
 
 export type UpdateAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, reason: string | null, notes: string | null, override_schedule: boolean, 
 /**
  * Full-replace like the rest of this call: the UI always resends the current service.
  */
-service_id: string | null, };
+service_id: string | null, 
+/**
+ * M4, full-replace too: the plan item and session of this visit (none = not linked).
+ */
+treatment_item_id: string | null, session_no: number | null, };
 
 export type RescheduleAppointmentParams = { id: string, version: number, doctor_id: string, chair_id: string | null, date: string, start_time: string, end_time: string, override_schedule: boolean, };
 
@@ -545,7 +565,7 @@ export type SaveDraftParams = { form_key: string, data_json: string, };
 
 export type DraftInfo = { data_json: string | null, updated_at: string | null, };
 
-export type DocumentKind = "prescription" | "consent" | "post_op" | "referral" | "imaging_request" | "certificate" | "lab_order" | "record_summary";
+export type DocumentKind = "prescription" | "consent" | "post_op" | "referral" | "imaging_request" | "certificate" | "lab_order" | "record_summary" | "treatment_plan";
 
 export type Paper = "a4" | "a5" | "a6";
 
@@ -647,13 +667,55 @@ visits: Array<RecordVisit>,
 /**
  * Latest prescriptions: number, date, medicine names.
  */
-prescriptions: Array<RecordPrescription>, };
+prescriptions: Array<RecordPrescription>, 
+/**
+ * The clinic's tooth numbering on the day of issue (summaries from before v0.6.0: FDI).
+ */
+numbering: ToothNumbering, 
+/**
+ * The chart's existing conditions (5.3), tooth by tooth.
+ */
+findings: Array<RecordFinding>, 
+/**
+ * Treatments done or under way (5.8), newest first.
+ */
+treatments: Array<RecordTreatment>, 
+/**
+ * Signed visit notes (5.6), newest first.
+ */
+notes: Array<RecordNote>, };
 
 export type RecordVisit = { date: string, doctor: string, status: AppointmentStatus, reason: string | null, };
 
 export type RecordPrescription = { number: string, issued_at: string, medicines: Array<string>, };
 
-export type DocumentContent = { "kind": "prescription" } & PrescriptionContent | { "kind": "consent" } & TemplateDocContent | { "kind": "post_op" } & TemplateDocContent | { "kind": "referral" } & ReferralContent | { "kind": "imaging_request" } & ImagingRequestContent | { "kind": "certificate" } & CertificateContent | { "kind": "lab_order" } & LabOrderContent | { "kind": "record_summary" } & RecordSummaryContent;
+export type RecordFinding = { 
+/**
+ * FDI number.
+ */
+tooth: number, 
+/**
+ * The condition's name in the document's language.
+ */
+condition: string, surfaces: string, };
+
+export type RecordTreatment = { 
+/**
+ * Clinic-local ISO date of the last session.
+ */
+date: string, 
+/**
+ * The service's name in the document's language.
+ */
+service: string, teeth: Array<number>, surfaces: string, sessions_done: number, sessions_planned: number, status: ItemStatus, doctor: string | null, };
+
+export type RecordNote = { 
+/**
+ * Clinic-local ISO date of the visit.
+ */
+date: string, doctor: string | null, diagnosis: string, procedure: string, };
+
+export type DocumentContent = { "kind": "prescription" } & PrescriptionContent | { "kind": "consent" } & TemplateDocContent | { "kind": "post_op" } & TemplateDocContent | { "kind": "referral" } & ReferralContent | { "kind": "imaging_request" } & ImagingRequestContent | { "kind": "certificate" } & CertificateContent | { "kind": "lab_order" } & LabOrderContent | { "kind": "record_summary" } & RecordSummaryContent | { "kind": "treatment_plan" } & TreatmentPlanContent;
 
 export type DocumentPatient = { name: string, number: string, father_name: string | null, 
 /**
@@ -775,7 +837,15 @@ needs_surface: boolean,
 /**
  * Usual number of visits (root canal 2, implant 3 …), for planning (M4).
  */
-sessions: number, lab_required: boolean, 
+sessions: number, 
+/**
+ * Usual days between two sessions (M4): the next session is suggested this long after the last.
+ */
+session_interval_days: number, lab_required: boolean, 
+/**
+ * How the service is drawn on the dental chart (M5).
+ */
+chart_symbol: ChartSymbol, 
 /**
  * Consent form suggested before this treatment (5.10) and the sheet handed out after it (5.10b).
  */
@@ -789,7 +859,330 @@ services: Array<ServiceInfo>, };
 
 export type SaveServiceCategoryParams = { id: string | null, version: number, name: Translations, specialty_id: string | null, is_active: boolean, };
 
-export type SaveServiceParams = { id: string | null, version: number, code: string, category_id: string, parent_id: string | null, name: Translations, price: number, specialty_id: string | null, tooth_scope: ToothScope, needs_surface: boolean, sessions: number, lab_required: boolean, consent_template_id: string | null, post_op_template_id: string | null, is_active: boolean, };
+export type SaveServiceParams = { id: string | null, version: number, code: string, category_id: string, parent_id: string | null, name: Translations, price: number, specialty_id: string | null, tooth_scope: ToothScope, needs_surface: boolean, sessions: number, session_interval_days: number, lab_required: boolean, chart_symbol: ChartSymbol, consent_template_id: string | null, post_op_template_id: string | null, is_active: boolean, };
+
+export type AppointmentTreatment = { item_id: string, service_id: string, 
+/**
+ * FDI numbers.
+ */
+teeth: Array<number>, 
+/**
+ * Which session this visit is (1-based).
+ */
+session_no: number, sessions_planned: number, sessions_done: number, item_status: ItemStatus, };
+
+export type TreatmentPlanContent = { plan_ids: Array<string>, plans: Array<PlanSnapshot>, 
+/**
+ * Tooth numbers are printed in the clinic's numbering of the day of issue.
+ */
+numbering: ToothNumbering, 
+/**
+ * How many days the estimate stands ("valid until …").
+ */
+valid_days: number | null, notes: string | null, };
+
+export type PlanSnapshot = { plan_id: string, title: string, items: Array<PlanSnapshotItem>, 
+/**
+ * AFN × 100.
+ */
+total: number, };
+
+export type PlanSnapshotItem = { phase: number, code: string, 
+/**
+ * The service's full name in the document's language.
+ */
+service: string, teeth: Array<number>, surfaces: string, sessions: number, units: number, unit_price: number, total: number, status: ItemStatus, };
+
+export type ToothNumbering = "fdi" | "universal" | "palmer";
+
+export type Dentition = "permanent" | "primary" | "mixed";
+
+export type ChartSymbol = "none" | "surface" | "sealant" | "veneer" | "crown" | "root_canal" | "pulpotomy" | "extraction" | "missing" | "implant" | "abutment" | "implant_crown" | "bridge" | "denture" | "bracket" | "fracture" | "impacted" | "lesion" | "scaling" | "marker";
+
+export type ToothConditionInfo = { id: string, code: string, name: Translations, symbol: ChartSymbol, 
+/**
+ * Recorded on surfaces (caries, filling) rather than on the whole tooth.
+ */
+needs_surface: boolean, 
+/**
+ * Up to 3 letters for a `marker` badge.
+ */
+abbreviation: string | null, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
+
+export type SaveToothConditionParams = { id: string | null, version: number, name: Translations, symbol: ChartSymbol, needs_surface: boolean, abbreviation: string | null, is_active: boolean, };
+
+export type ToothFinding = { id: string, patient_id: string, 
+/**
+ * FDI number.
+ */
+tooth: number, 
+/**
+ * Letters of the surfaces, in the order `MODBL` (empty = the whole tooth): mesial, occlusal or
+ * incisal, distal, buccal or labial, lingual or palatal.
+ */
+surfaces: string, condition_id: string, note: string | null, 
+/**
+ * Clinic-local ISO date.
+ */
+recorded_on: string, recorded_by_name: string | null, version: number, };
+
+export type AddFindingsParams = { patient_id: string, condition_id: string, 
+/**
+ * One finding per tooth.
+ */
+teeth: Array<number>, surfaces: string, note: string | null, };
+
+export type ChartInfo = { patient_id: string, dentition: Dentition, 
+/**
+ * Mixed dentition: the places (as adult FDI numbers 11–15, 21–25, 31–35, 41–45) showing the baby tooth.
+ */
+primary_slots: Array<number>, 
+/**
+ * False until someone chose the dentition (then it follows the patient's age).
+ */
+dentition_chosen: boolean, findings: Array<ToothFinding>, 
+/**
+ * Every treatment item of the patient except cancelled ones (all plans, and treatments without a plan).
+ */
+items: Array<TreatmentItemInfo>, 
+/**
+ * Plan id → status, for the chart's "which plans to show".
+ */
+plans: Array<PlanBrief>, version: number, };
+
+export type PlanBrief = { id: string, title: string, status: PlanStatus, };
+
+export type SetDentitionParams = { patient_id: string, dentition: Dentition, primary_slots: Array<number>, version: number, };
+
+export type ToothHistoryParams = { patient_id: string, tooth: number, };
+
+export type PlanStatus = "proposed" | "accepted" | "in_progress" | "completed" | "cancelled";
+
+export type ItemStatus = "planned" | "in_progress" | "completed" | "cancelled";
+
+export type TreatmentSessionInfo = { id: string, item_id: string, session_no: number, appointment_id: string | null, doctor_id: string | null, doctor_name: string | null, 
+/**
+ * Clinic-local ISO date.
+ */
+performed_on: string, 
+/**
+ * What was done / the result, in a line.
+ */
+note: string | null, created_by_name: string | null, };
+
+export type ItemVisit = { appointment_id: string, date: string, start_time: string, session_no: number, };
+
+export type TreatmentItemInfo = { id: string, 
+/**
+ * None = a treatment recorded without a plan.
+ */
+plan_id: string | null, patient_id: string, service_id: string, 
+/**
+ * FDI numbers (several for a bridge, a quadrant, an arch; none for a whole-mouth service).
+ */
+teeth: Array<number>, 
+/**
+ * `MODBL` letters for a single-tooth item.
+ */
+surfaces: string, doctor_id: string | null, 
+/**
+ * AFN × 100 (ADR-06): the catalog price unless changed for this patient.
+ */
+unit_price: number, 
+/**
+ * How many units are charged (a three-unit bridge, two quadrants …).
+ */
+units: number, 
+/**
+ * Order of work: phase 1 first.
+ */
+phase: number, status: ItemStatus, sessions_planned: number, sessions_done: number, sessions: Array<TreatmentSessionInfo>, 
+/**
+ * Booked visits still to come.
+ */
+upcoming: Array<ItemVisit>, 
+/**
+ * Implant brand and size, bracket type … (shown in the chart label).
+ */
+details: string | null, notes: string | null, 
+/**
+ * Estimated start / end (orthodontics), clinic-local ISO dates.
+ */
+est_start: string | null, est_end: string | null, completed_at: string | null, cancel_reason: string | null, 
+/**
+ * Phase 6: put on an invoice. Until then a completed treatment is "ready for an invoice".
+ */
+billed: boolean, sort_order: number, created_at: string, version: number, };
+
+export type TreatmentPlanInfo = { id: string, patient_id: string, title: string, status: PlanStatus, notes: string | null, created_at: string, created_by_name: string | null, accepted_at: string | null, completed_at: string | null, cancelled_at: string | null, cancel_reason: string | null, 
+/**
+ * Cancelled because the patient chose this other plan (an alternative).
+ */
+superseded_by: string | null, items: Array<TreatmentItemInfo>, 
+/**
+ * Sum of the items not cancelled, AFN × 100.
+ */
+total: number, version: number, };
+
+export type CreatePlanParams = { patient_id: string, title: string, notes: string | null, 
+/**
+ * Start from a ready-made plan; its tooth items go on `teeth`.
+ */
+template_id: string | null, teeth: Array<number>, };
+
+export type UpdatePlanParams = { id: string, version: number, title: string, notes: string | null, };
+
+export type SetPlanStatusParams = { id: string, version: number, status: PlanStatus, reason: string | null, 
+/**
+ * With `accepted`: the patient chose this plan, the other proposed ones are set aside.
+ */
+cancel_alternatives: boolean, };
+
+export type AddItemParams = { patient_id: string, 
+/**
+ * None = a treatment without a plan (normally with `perform_now`).
+ */
+plan_id: string | null, service_id: string, teeth: Array<number>, surfaces: string, doctor_id: string | null, 
+/**
+ * None = the catalog price.
+ */
+unit_price: number | null, phase: number | null, 
+/**
+ * None = the service's usual number of sessions.
+ */
+sessions: number | null, details: string | null, notes: string | null, est_start: string | null, est_end: string | null, 
+/**
+ * Done today (5.8): the first session is recorded at once.
+ */
+perform_now: boolean, 
+/**
+ * The visit it was done at, with `perform_now`.
+ */
+appointment_id: string | null, };
+
+export type UpdateItemParams = { id: string, version: number, teeth: Array<number>, surfaces: string, doctor_id: string | null, unit_price: number, phase: number, sessions_planned: number, details: string | null, notes: string | null, est_start: string | null, est_end: string | null, };
+
+export type SetItemStatusParams = { id: string, version: number, status: ItemStatus, reason: string | null, };
+
+export type RecordSessionParams = { item_id: string, version: number, appointment_id: string | null, doctor_id: string | null, 
+/**
+ * Clinic-local ISO date; today when absent.
+ */
+performed_on: string | null, note: string | null, };
+
+export type NextSessionSuggestion = { item_id: string, session_no: number, sessions_planned: number, 
+/**
+ * Clinic-local ISO date.
+ */
+date: string, interval_days: number, duration_minutes: number, doctor_id: string | null, };
+
+export type RecordSessionResult = { item: TreatmentItemInfo, session: TreatmentSessionInfo, 
+/**
+ * None when the item is finished or a later session is already booked.
+ */
+next: NextSessionSuggestion | null, };
+
+export type ItemIdParams = { item_id: string, };
+
+export type TemplateTeeth = "selected" | "upper" | "lower" | "all" | "none";
+
+export type PlanTemplateItem = { service_id: string, teeth: TemplateTeeth, phase: number, };
+
+export type PlanTemplateInfo = { id: string, code: string, name: Translations, items: Array<PlanTemplateItem>, is_system: boolean, is_active: boolean, version: number, };
+
+export type SavePlanTemplateParams = { id: string | null, version: number, name: Translations, items: Array<PlanTemplateItem>, is_active: boolean, };
+
+export type NoteFields = { chief_complaint: string, examination: string, diagnosis: string, findings: string, procedure: string, notes: string, follow_up: string, recommendations: string, };
+
+export type NoteStatus = "draft" | "signed";
+
+export type NoteAddendum = { id: string, text: string, created_at: string, created_by_name: string | null, };
+
+export type ClinicalNoteInfo = { id: string, patient_id: string, appointment_id: string | null, 
+/**
+ * The treatment item (and so the session) the note is about, if any.
+ */
+item_id: string | null, doctor_id: string | null, doctor_name: string | null, 
+/**
+ * Clinic-local ISO date of the visit.
+ */
+visit_date: string, fields: NoteFields, template_id: string | null, status: NoteStatus, signed_at: string | null, signed_by_name: string | null, addenda: Array<NoteAddendum>, created_at: string, created_by_name: string | null, version: number, };
+
+export type SaveNoteParams = { 
+/**
+ * None = a new note.
+ */
+id: string | null, version: number, patient_id: string, appointment_id: string | null, item_id: string | null, doctor_id: string | null, 
+/**
+ * Today when absent.
+ */
+visit_date: string | null, fields: NoteFields, template_id: string | null, 
+/**
+ * Save and sign off in one step (the note is locked afterwards).
+ */
+sign: boolean, };
+
+export type AddAddendumParams = { note_id: string, text: string, };
+
+export type NoteTemplateTexts = { fa: NoteFields, ps: NoteFields, en: NoteFields, };
+
+export type NoteTemplateInfo = { id: string, code: string, name: Translations, body: NoteTemplateTexts, is_system: boolean, customized: boolean, is_active: boolean, version: number, };
+
+export type SaveNoteTemplateParams = { id: string | null, version: number, name: Translations, body: NoteTemplateTexts, is_active: boolean, };
+
+export type PerioTooth = { 
+/**
+ * FDI number.
+ */
+tooth: number, missing: boolean, implant: boolean, 
+/**
+ * Probing depth, mm (0–15).
+ */
+depth: Array<number | null>, 
+/**
+ * Gingival recession, mm: positive = the margin below the CEJ, negative = overgrowth (−5…15).
+ */
+recession: Array<number | null>, bleeding: Array<boolean>, plaque: Array<boolean>, 
+/**
+ * 0–3.
+ */
+mobility: number | null, 
+/**
+ * Furcation grade 0–3 at the buccal and the lingual (molars).
+ */
+furcation: Array<number | null>, };
+
+export type PerioSummary = { teeth: number, sites: number, 
+/**
+ * Mean probing depth × 10 (2.7 mm = 27).
+ */
+mean_depth_x10: number, sites_4_plus: number, sites_6_plus: number, bleeding_percent: number, plaque_percent: number, };
+
+export type PerioExamInfo = { id: string, patient_id: string, 
+/**
+ * Clinic-local ISO date.
+ */
+exam_date: string, doctor_id: string | null, doctor_name: string | null, teeth: Array<PerioTooth>, notes: string | null, summary: PerioSummary, created_at: string, version: number, };
+
+export type SavePerioParams = { id: string | null, version: number, patient_id: string, exam_date: string | null, doctor_id: string | null, teeth: Array<PerioTooth>, notes: string | null, };
+
+export type TimelineKind = "registered" | "appointment" | "examination" | "diagnosis" | "plan" | "treatment" | "prescription" | "document" | "follow_up" | "attachment" | "medical_history" | "perio";
+
+export type TimelineEvent = { at: string, kind: TimelineKind, action: string, ref_id: string | null, 
+/**
+ * Data to word it with: a document number, a plan title, a doctor's name …
+ */
+title: string | null, service_id: string | null, condition_id: string | null, teeth: Array<number>, surfaces: string | null, 
+/**
+ * Which session of a treatment, "2/3" (a session, a visit booked for one).
+ */
+session: string | null, detail: string | null, by_name: string | null, };
+
+export type TimelineParams = { patient_id: string, 
+/**
+ * Empty = every kind.
+ */
+kinds: Array<TimelineKind>, limit: number, };
 
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
@@ -890,6 +1283,38 @@ export interface Api {
   "catalog.get": { params: IncludeInactiveParams; result: CatalogInfo };
   "catalog.save_category": { params: SaveServiceCategoryParams; result: ServiceCategoryInfo };
   "catalog.save_service": { params: SaveServiceParams; result: ServiceInfo };
+  "tooth_conditions.list": { params: IncludeInactiveParams; result: Array<ToothConditionInfo> };
+  "tooth_conditions.save": { params: SaveToothConditionParams; result: ToothConditionInfo };
+  "chart.get": { params: PatientIdParams; result: ChartInfo };
+  "chart.set_dentition": { params: SetDentitionParams; result: ChartInfo };
+  "chart.add_findings": { params: AddFindingsParams; result: Array<ToothFinding> };
+  "chart.remove_finding": { params: IdVersionParams; result: Empty };
+  "chart.tooth_history": { params: ToothHistoryParams; result: Array<TimelineEvent> };
+  "plans.list": { params: PatientIdParams; result: Array<TreatmentPlanInfo> };
+  "plans.create": { params: CreatePlanParams; result: TreatmentPlanInfo };
+  "plans.update": { params: UpdatePlanParams; result: TreatmentPlanInfo };
+  "plans.set_status": { params: SetPlanStatusParams; result: TreatmentPlanInfo };
+  "treatment_items.add": { params: AddItemParams; result: Array<TreatmentItemInfo> };
+  "treatment_items.update": { params: UpdateItemParams; result: TreatmentItemInfo };
+  "treatment_items.set_status": { params: SetItemStatusParams; result: TreatmentItemInfo };
+  "treatment_items.record_session": { params: RecordSessionParams; result: RecordSessionResult };
+  "treatment_items.suggest_next": { params: ItemIdParams; result: NextSessionSuggestion | null };
+  "treatment_items.open": { params: PatientIdParams; result: Array<TreatmentItemInfo> };
+  "treatments.list": { params: PatientIdParams; result: Array<TreatmentItemInfo> };
+  "plan_templates.list": { params: IncludeInactiveParams; result: Array<PlanTemplateInfo> };
+  "plan_templates.save": { params: SavePlanTemplateParams; result: PlanTemplateInfo };
+  "notes.list": { params: PatientIdParams; result: Array<ClinicalNoteInfo> };
+  "notes.save": { params: SaveNoteParams; result: ClinicalNoteInfo };
+  "notes.sign": { params: IdVersionParams; result: ClinicalNoteInfo };
+  "notes.add_addendum": { params: AddAddendumParams; result: ClinicalNoteInfo };
+  "notes.delete": { params: IdVersionParams; result: Empty };
+  "note_templates.list": { params: IncludeInactiveParams; result: Array<NoteTemplateInfo> };
+  "note_templates.save": { params: SaveNoteTemplateParams; result: NoteTemplateInfo };
+  "note_templates.reset": { params: IdVersionParams; result: NoteTemplateInfo };
+  "perio.list": { params: PatientIdParams; result: Array<PerioExamInfo> };
+  "perio.save": { params: SavePerioParams; result: PerioExamInfo };
+  "perio.delete": { params: IdVersionParams; result: Empty };
+  "timeline.list": { params: TimelineParams; result: Array<TimelineEvent> };
 }
 
 export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;

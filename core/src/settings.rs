@@ -1,6 +1,6 @@
 //! Clinic settings stored in the encrypted DB (audited on change).
 
-use artaveo_shared::{Settings, ValidationRule};
+use artaveo_shared::{Settings, ToothNumbering, ValidationRule};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
 
@@ -15,6 +15,7 @@ pub const DEFAULTS: Settings = Settings {
     calendar_snap_minutes: 5,
     print_brand_footer: true,
     restrict_service_specialty: false,
+    tooth_numbering: ToothNumbering::Fdi,
 };
 
 /// OF-044: the steps an appointment can be dragged in.
@@ -44,6 +45,11 @@ pub fn get(conn: &Connection) -> Result<Settings> {
             "restrict_service_specialty",
             DEFAULTS.restrict_service_specialty,
         )?,
+        tooth_numbering: match read(conn, "tooth_numbering")?.as_deref() {
+            Some("universal") => ToothNumbering::Universal,
+            Some("palmer") => ToothNumbering::Palmer,
+            _ => ToothNumbering::Fdi,
+        },
     })
 }
 
@@ -92,6 +98,16 @@ pub fn update(conn: &Connection, actor: &Actor, new: &Settings) -> Result<Settin
             params![k, v.to_string(), now, actor.user_id],
         )?;
     }
+    let numbering = match new.tooth_numbering {
+        ToothNumbering::Fdi => "fdi",
+        ToothNumbering::Universal => "universal",
+        ToothNumbering::Palmer => "palmer",
+    };
+    conn.execute(
+        "INSERT INTO setting(key, value, updated_at, updated_by) VALUES ('tooth_numbering', ?1, ?2, ?3)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+        params![numbering, now, actor.user_id],
+    )?;
     let after = get(conn)?;
     audit::record(
         conn,

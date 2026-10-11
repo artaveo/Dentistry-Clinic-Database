@@ -22,7 +22,7 @@ import { docPatient, LanguagePick, LivePreview } from "./shared";
 export const OTHER_KINDS: DocumentKind[] = ["consent", "post_op", "referral", "imaging_request", "certificate", "lab_order", "record_summary"];
 const IMAGING = ["opg", "cbct", "periapical", "bitewing", "cephalometric", "occlusal", "blood_cbc", "blood_coagulation", "blood_sugar", "hepatitis_hiv", "other"];
 const SHADES = ["A1", "A2", "A3", "A3.5", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4", "D2", "D3", "D4"];
-const DEFAULT_PAPER: Record<DocumentKind, Paper> = { prescription: "a5", consent: "a4", post_op: "a5", referral: "a4", imaging_request: "a5", certificate: "a5", lab_order: "a5", record_summary: "a4" };
+const DEFAULT_PAPER: Record<DocumentKind, Paper> = { prescription: "a5", consent: "a4", post_op: "a5", referral: "a4", imaging_request: "a5", certificate: "a5", lab_order: "a5", record_summary: "a4", treatment_plan: "a4" };
 
 type V = Record<string, string>;
 
@@ -52,6 +52,7 @@ function content(kind: DocumentKind, v: V): DocumentContent {
       return { kind, lab: opt(v.lab), teeth: v.teeth.trim(), work: v.work.trim(), material: opt(v.material), shade: opt(v.shade), due_date: opt(v.due_date), notes: opt(v.notes) };
     case "record_summary":
     case "prescription":
+    case "treatment_plan":
       return { kind: "record_summary", purpose: opt(v.purpose), snapshot: null };
   }
 }
@@ -191,7 +192,7 @@ export function DocumentEditor({ kind, patient, gender, letterhead, calendar, ap
     id: "draft", number: t("rx.draftNumber"), kind, patient_id: patient.id, patient: docPatient(patient, gender), doctor_id: doctor?.id ?? null,
     doctor: doctor ? { name: doctor.full_name, license_number: doctor.license_number, specialties: [] } : null,
     appointment_id: null, language: lang, paper: v.paper as Paper,
-    content: kind === "record_summary" ? { kind: "record_summary", purpose: opt(v.purpose), snapshot: { medical: [dt("doc.summary.fromRecord")], medical_notes: null, visits: [], prescriptions: [] } } : content(kind, v),
+    content: kind === "record_summary" ? { kind: "record_summary", purpose: opt(v.purpose), snapshot: { medical: [dt("doc.summary.fromRecord")], medical_notes: null, visits: [], prescriptions: [], numbering: "fdi", findings: [], treatments: [], notes: [] } } : content(kind, v),
     issued_at: new Date().toISOString(), issued_by_name: null, print_count: 0, last_printed_at: null, attachment_id: null, status: "issued", void_reason: null, version: 0,
   };
   const labWorks = catalog?.services.filter((s) => s.lab_required) ?? [];

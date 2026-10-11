@@ -166,6 +166,32 @@ pub enum ValidationRule {
     ServiceVariantDepth,
     ServiceSpecialty,
     LicenseLength,
+    // Phase 5B: dental chart, treatment plans and sessions, clinical notes, perio chart.
+    ToothNumber,
+    ToothSurface,
+    DentitionSlots,
+    ConditionNotFound,
+    ConditionAbbreviation,
+    PlanNotFound,
+    PlanNotEditable,
+    PlanHasWorkInProgress,
+    ItemNotFound,
+    ItemNotEditable,
+    ItemTeeth,
+    ItemPhase,
+    ItemSessions,
+    ItemPrice,
+    ItemPatient,
+    SessionNumber,
+    SessionInterval,
+    NoteNotFound,
+    NoteSigned,
+    NoteEmpty,
+    NoteTemplateNotFound,
+    PlanTemplateNotFound,
+    PlanTemplateItems,
+    PerioValue,
+    PerioExamNotFound,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -1178,6 +1204,8 @@ pub struct AppointmentInfo {
     pub notes: Option<String>,
     /// M2/M3: the catalog service this visit is for, if chosen.
     pub service_id: Option<String>,
+    /// M4: the treatment-plan item and session this visit is for ("root canal 36 — session 2 of 3").
+    pub treatment: Option<AppointmentTreatment>,
     /// M1: the patient's medical history was never recorded or is due for review (ask at this visit).
     pub medical_review_due: bool,
     pub status: AppointmentStatus,
@@ -1192,6 +1220,20 @@ pub struct AppointmentInfo {
     pub rescheduled_from_id: Option<String>,
     pub rescheduled_to_id: Option<String>,
     pub version: i64,
+}
+
+/// M4: the plan item a visit belongs to, with its progress, for the calendar, the queue and the card.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct AppointmentTreatment {
+    pub item_id: String,
+    pub service_id: String,
+    /// FDI numbers.
+    pub teeth: Vec<u8>,
+    /// Which session this visit is (1-based).
+    pub session_no: i64,
+    pub sessions_planned: i64,
+    pub sessions_done: i64,
+    pub item_status: ItemStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -1216,6 +1258,12 @@ pub struct CreateAppointmentParams {
     /// M2/M3: the catalog service the visit is for (optional).
     #[serde(default)]
     pub service_id: Option<String>,
+    /// M4: book a session of this treatment-plan item (its service becomes the visit's service).
+    #[serde(default)]
+    pub treatment_item_id: Option<String>,
+    /// Which session; absent = the next one not done or booked yet.
+    #[serde(default)]
+    pub session_no: Option<i64>,
 }
 
 /// Edits an appointment's details and/or moves it (drag & drop uses the same call).
@@ -1238,6 +1286,11 @@ pub struct UpdateAppointmentParams {
     /// Full-replace like the rest of this call: the UI always resends the current service.
     #[serde(default)]
     pub service_id: Option<String>,
+    /// M4, full-replace too: the plan item and session of this visit (none = not linked).
+    #[serde(default)]
+    pub treatment_item_id: Option<String>,
+    #[serde(default)]
+    pub session_no: Option<i64>,
 }
 
 /// Moves an appointment to a new slot, keeping the old one as `rescheduled` and linked (4.4).
@@ -1554,7 +1607,11 @@ pub struct ServiceInfo {
     pub needs_surface: bool,
     /// Usual number of visits (root canal 2, implant 3 …), for planning (M4).
     pub sessions: i64,
+    /// Usual days between two sessions (M4): the next session is suggested this long after the last.
+    pub session_interval_days: i64,
     pub lab_required: bool,
+    /// How the service is drawn on the dental chart (M5).
+    pub chart_symbol: ChartSymbol,
     /// Consent form suggested before this treatment (5.10) and the sheet handed out after it (5.10b).
     pub consent_template_id: Option<String>,
     pub post_op_template_id: Option<String>,
@@ -1603,8 +1660,12 @@ pub struct SaveServiceParams {
     pub needs_surface: bool,
     #[serde(default = "one")]
     pub sessions: i64,
+    #[serde(default = "seven")]
+    pub session_interval_days: i64,
     #[serde(default)]
     pub lab_required: bool,
+    #[serde(default)]
+    pub chart_symbol: ChartSymbol,
     #[serde(default)]
     pub consent_template_id: Option<String>,
     #[serde(default)]
@@ -1615,6 +1676,10 @@ pub struct SaveServiceParams {
 
 fn one() -> i64 {
     1
+}
+
+fn seven() -> i64 {
+    7
 }
 
 // ───────────────────────────── clinical documents & print engine (Phase 5A, ADR-13) ─────────────────────────────
@@ -1640,6 +1705,8 @@ pub enum DocumentKind {
     LabOrder,
     /// MR — summary of the patient's record.
     RecordSummary,
+    /// TP — treatment plan / cost estimate for the patient (5.7), one plan or alternatives side by side.
+    TreatmentPlan,
 }
 
 /// Paper size of a document. A PDF is always exactly this size (ADR-13); how a small document is put
@@ -1811,6 +1878,50 @@ pub struct RecordSnapshot {
     pub visits: Vec<RecordVisit>,
     /// Latest prescriptions: number, date, medicine names.
     pub prescriptions: Vec<RecordPrescription>,
+    /// The clinic's tooth numbering on the day of issue (summaries from before v0.6.0: FDI).
+    #[serde(default)]
+    pub numbering: ToothNumbering,
+    /// The chart's existing conditions (5.3), tooth by tooth.
+    #[serde(default)]
+    pub findings: Vec<RecordFinding>,
+    /// Treatments done or under way (5.8), newest first.
+    #[serde(default)]
+    pub treatments: Vec<RecordTreatment>,
+    /// Signed visit notes (5.6), newest first.
+    #[serde(default)]
+    pub notes: Vec<RecordNote>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordFinding {
+    /// FDI number.
+    pub tooth: u8,
+    /// The condition's name in the document's language.
+    pub condition: String,
+    pub surfaces: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordTreatment {
+    /// Clinic-local ISO date of the last session.
+    pub date: String,
+    /// The service's name in the document's language.
+    pub service: String,
+    pub teeth: Vec<u8>,
+    pub surfaces: String,
+    pub sessions_done: i64,
+    pub sessions_planned: i64,
+    pub status: ItemStatus,
+    pub doctor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct RecordNote {
+    /// Clinic-local ISO date of the visit.
+    pub date: String,
+    pub doctor: Option<String>,
+    pub diagnosis: String,
+    pub procedure: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
@@ -1828,6 +1939,47 @@ pub struct RecordPrescription {
     pub medicines: Vec<String>,
 }
 
+/// A treatment plan / cost estimate (5.7): the plans to print (one, or alternatives for the patient
+/// to choose between). The Core fills `plans` when it is issued, so a reprint shows what was handed out.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct TreatmentPlanContent {
+    pub plan_ids: Vec<String>,
+    #[serde(default)]
+    pub plans: Vec<PlanSnapshot>,
+    /// Tooth numbers are printed in the clinic's numbering of the day of issue.
+    #[serde(default)]
+    pub numbering: ToothNumbering,
+    /// How many days the estimate stands ("valid until …").
+    #[serde(default)]
+    pub valid_days: Option<u16>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PlanSnapshot {
+    pub plan_id: String,
+    pub title: String,
+    pub items: Vec<PlanSnapshotItem>,
+    /// AFN × 100.
+    pub total: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PlanSnapshotItem {
+    pub phase: i64,
+    pub code: String,
+    /// The service's full name in the document's language.
+    pub service: String,
+    pub teeth: Vec<u8>,
+    pub surfaces: String,
+    pub sessions: i64,
+    pub units: i64,
+    pub unit_price: i64,
+    pub total: i64,
+    pub status: ItemStatus,
+}
+
 /// What a document says, by kind.
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -1840,6 +1992,7 @@ pub enum DocumentContent {
     Certificate(CertificateContent),
     LabOrder(LabOrderContent),
     RecordSummary(RecordSummaryContent),
+    TreatmentPlan(TreatmentPlanContent),
 }
 
 /// The patient as printed on a document (kept with it, so a reprint is identical).
@@ -2090,6 +2243,718 @@ pub struct SaveDocumentTemplateParams {
     pub is_active: bool,
 }
 
+// ───────────────────────────── dental chart (Phase 5B: 5.2–5.4, M5) ─────────────────────────────
+
+/// How tooth numbers are shown (ADR-14). Stored numbers are always FDI (ISO 3950).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToothNumbering {
+    #[default]
+    Fdi,
+    Universal,
+    Palmer,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Dentition {
+    /// 32 adult teeth.
+    Permanent,
+    /// 20 baby teeth.
+    Primary,
+    /// Both: each of the front five places of a quadrant shows the baby or the adult tooth.
+    Mixed,
+}
+
+/// How a tooth condition or a catalog service is drawn on the chart (M5). The clinic chooses it for
+/// its own services and conditions; the drawing follows the status colours.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ChartSymbol {
+    /// Not drawn (examination, X-ray, consultation): shown in the label only.
+    #[default]
+    None,
+    /// Fills the chosen surfaces (caries, a filling).
+    Surface,
+    Sealant,
+    Veneer,
+    Crown,
+    RootCanal,
+    Pulpotomy,
+    /// Planned: a cross over the tooth; done: the tooth is gone.
+    Extraction,
+    /// The tooth is absent.
+    Missing,
+    Implant,
+    Abutment,
+    ImplantCrown,
+    /// A pontic or a bridge span between teeth.
+    Bridge,
+    Denture,
+    /// Orthodontic bracket (and the wire between brackets).
+    Bracket,
+    Fracture,
+    Impacted,
+    /// Periapical lesion or abscess at the root tip.
+    Lesion,
+    /// Whole-mouth periodontal treatment (scaling).
+    Scaling,
+    /// The clinic's own: a small coloured badge with an abbreviation.
+    Marker,
+}
+
+/// A tooth condition the chart can record (5.3): caries, filling, crown, missing … — seeded, and the
+/// clinic adds its own ("clinic-definable states").
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ToothConditionInfo {
+    pub id: String,
+    pub code: String,
+    pub name: Translations,
+    pub symbol: ChartSymbol,
+    /// Recorded on surfaces (caries, filling) rather than on the whole tooth.
+    pub needs_surface: bool,
+    /// Up to 3 letters for a `marker` badge.
+    pub abbreviation: Option<String>,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub sort_order: i64,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveToothConditionParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub name: Translations,
+    pub symbol: ChartSymbol,
+    #[serde(default)]
+    pub needs_surface: bool,
+    #[serde(default)]
+    pub abbreviation: Option<String>,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+/// An existing condition of one tooth found at an examination (the chart's blue layer).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ToothFinding {
+    pub id: String,
+    pub patient_id: String,
+    /// FDI number.
+    pub tooth: u8,
+    /// Letters of the surfaces, in the order `MODBL` (empty = the whole tooth): mesial, occlusal or
+    /// incisal, distal, buccal or labial, lingual or palatal.
+    pub surfaces: String,
+    pub condition_id: String,
+    pub note: Option<String>,
+    /// Clinic-local ISO date.
+    pub recorded_on: String,
+    pub recorded_by_name: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AddFindingsParams {
+    pub patient_id: String,
+    pub condition_id: String,
+    /// One finding per tooth.
+    pub teeth: Vec<u8>,
+    #[serde(default)]
+    pub surfaces: String,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// Everything the chart draws for one patient.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ChartInfo {
+    pub patient_id: String,
+    pub dentition: Dentition,
+    /// Mixed dentition: the places (as adult FDI numbers 11–15, 21–25, 31–35, 41–45) showing the baby tooth.
+    pub primary_slots: Vec<u8>,
+    /// False until someone chose the dentition (then it follows the patient's age).
+    pub dentition_chosen: bool,
+    pub findings: Vec<ToothFinding>,
+    /// Every treatment item of the patient except cancelled ones (all plans, and treatments without a plan).
+    pub items: Vec<TreatmentItemInfo>,
+    /// Plan id → status, for the chart's "which plans to show".
+    pub plans: Vec<PlanBrief>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PlanBrief {
+    pub id: String,
+    pub title: String,
+    pub status: PlanStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetDentitionParams {
+    pub patient_id: String,
+    pub dentition: Dentition,
+    #[serde(default)]
+    pub primary_slots: Vec<u8>,
+    #[serde(default)]
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ToothHistoryParams {
+    pub patient_id: String,
+    pub tooth: u8,
+}
+
+// ───────────────────────────── treatment plans, treatments, sessions (5.7, 5.8, M4) ─────────────────────────────
+
+/// ```text
+/// Proposed → Accepted → In progress → Completed
+///        ↘ Cancelled (or replaced by an alternative the patient chose)
+/// ```
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanStatus {
+    Proposed,
+    Accepted,
+    InProgress,
+    Completed,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemStatus {
+    Planned,
+    InProgress,
+    Completed,
+    Cancelled,
+}
+
+/// One session of a treatment item, done at a visit (M4): "root canal 36 — session 2 of 3".
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct TreatmentSessionInfo {
+    pub id: String,
+    pub item_id: String,
+    pub session_no: i64,
+    pub appointment_id: Option<String>,
+    pub doctor_id: Option<String>,
+    pub doctor_name: Option<String>,
+    /// Clinic-local ISO date.
+    pub performed_on: String,
+    /// What was done / the result, in a line.
+    pub note: Option<String>,
+    pub created_by_name: Option<String>,
+}
+
+/// A booked visit of an item (the next session).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct ItemVisit {
+    pub appointment_id: String,
+    pub date: String,
+    pub start_time: String,
+    pub session_no: i64,
+}
+
+/// A procedure of a treatment plan (5.7) — or, once done, a treatment (5.8).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct TreatmentItemInfo {
+    pub id: String,
+    /// None = a treatment recorded without a plan.
+    pub plan_id: Option<String>,
+    pub patient_id: String,
+    pub service_id: String,
+    /// FDI numbers (several for a bridge, a quadrant, an arch; none for a whole-mouth service).
+    pub teeth: Vec<u8>,
+    /// `MODBL` letters for a single-tooth item.
+    pub surfaces: String,
+    pub doctor_id: Option<String>,
+    /// AFN × 100 (ADR-06): the catalog price unless changed for this patient.
+    pub unit_price: i64,
+    /// How many units are charged (a three-unit bridge, two quadrants …).
+    pub units: i64,
+    /// Order of work: phase 1 first.
+    pub phase: i64,
+    pub status: ItemStatus,
+    pub sessions_planned: i64,
+    pub sessions_done: i64,
+    pub sessions: Vec<TreatmentSessionInfo>,
+    /// Booked visits still to come.
+    pub upcoming: Vec<ItemVisit>,
+    /// Implant brand and size, bracket type … (shown in the chart label).
+    pub details: Option<String>,
+    pub notes: Option<String>,
+    /// Estimated start / end (orthodontics), clinic-local ISO dates.
+    pub est_start: Option<String>,
+    pub est_end: Option<String>,
+    pub completed_at: Option<String>,
+    pub cancel_reason: Option<String>,
+    /// Phase 6: put on an invoice. Until then a completed treatment is "ready for an invoice".
+    pub billed: bool,
+    pub sort_order: i64,
+    pub created_at: String,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TreatmentPlanInfo {
+    pub id: String,
+    pub patient_id: String,
+    pub title: String,
+    pub status: PlanStatus,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub created_by_name: Option<String>,
+    pub accepted_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub cancelled_at: Option<String>,
+    pub cancel_reason: Option<String>,
+    /// Cancelled because the patient chose this other plan (an alternative).
+    pub superseded_by: Option<String>,
+    pub items: Vec<TreatmentItemInfo>,
+    /// Sum of the items not cancelled, AFN × 100.
+    pub total: i64,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreatePlanParams {
+    pub patient_id: String,
+    pub title: String,
+    #[serde(default)]
+    pub notes: Option<String>,
+    /// Start from a ready-made plan; its tooth items go on `teeth`.
+    #[serde(default)]
+    pub template_id: Option<String>,
+    #[serde(default)]
+    pub teeth: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdatePlanParams {
+    pub id: String,
+    pub version: i64,
+    pub title: String,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetPlanStatusParams {
+    pub id: String,
+    pub version: i64,
+    pub status: PlanStatus,
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// With `accepted`: the patient chose this plan, the other proposed ones are set aside.
+    #[serde(default)]
+    pub cancel_alternatives: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AddItemParams {
+    pub patient_id: String,
+    /// None = a treatment without a plan (normally with `perform_now`).
+    #[serde(default)]
+    pub plan_id: Option<String>,
+    pub service_id: String,
+    #[serde(default)]
+    pub teeth: Vec<u8>,
+    #[serde(default)]
+    pub surfaces: String,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    /// None = the catalog price.
+    #[serde(default)]
+    pub unit_price: Option<i64>,
+    #[serde(default)]
+    pub phase: Option<i64>,
+    /// None = the service's usual number of sessions.
+    #[serde(default)]
+    pub sessions: Option<i64>,
+    #[serde(default)]
+    pub details: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub est_start: Option<String>,
+    #[serde(default)]
+    pub est_end: Option<String>,
+    /// Done today (5.8): the first session is recorded at once.
+    #[serde(default)]
+    pub perform_now: bool,
+    /// The visit it was done at, with `perform_now`.
+    #[serde(default)]
+    pub appointment_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct UpdateItemParams {
+    pub id: String,
+    pub version: i64,
+    pub teeth: Vec<u8>,
+    #[serde(default)]
+    pub surfaces: String,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    pub unit_price: i64,
+    pub phase: i64,
+    pub sessions_planned: i64,
+    #[serde(default)]
+    pub details: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub est_start: Option<String>,
+    #[serde(default)]
+    pub est_end: Option<String>,
+}
+
+/// Manual moves: complete, cancel (with a reason), or put a cancelled item back to planned.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetItemStatusParams {
+    pub id: String,
+    pub version: i64,
+    pub status: ItemStatus,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct RecordSessionParams {
+    pub item_id: String,
+    pub version: i64,
+    #[serde(default)]
+    pub appointment_id: Option<String>,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    /// Clinic-local ISO date; today when absent.
+    #[serde(default)]
+    pub performed_on: Option<String>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// When to book the next session (M4): the last session + the service's usual interval.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct NextSessionSuggestion {
+    pub item_id: String,
+    pub session_no: i64,
+    pub sessions_planned: i64,
+    /// Clinic-local ISO date.
+    pub date: String,
+    pub interval_days: i64,
+    pub duration_minutes: i64,
+    pub doctor_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct RecordSessionResult {
+    pub item: TreatmentItemInfo,
+    pub session: TreatmentSessionInfo,
+    /// None when the item is finished or a later session is already booked.
+    pub next: Option<NextSessionSuggestion>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ItemIdParams {
+    pub item_id: String,
+}
+
+/// Teeth a ready-made plan's line goes on when it is applied.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateTeeth {
+    /// The teeth selected on the chart.
+    Selected,
+    Upper,
+    Lower,
+    All,
+    /// No teeth (consultation, X-ray of the whole mouth).
+    None,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PlanTemplateItem {
+    pub service_id: String,
+    pub teeth: TemplateTeeth,
+    pub phase: i64,
+}
+
+/// A ready-made plan ("root canal + crown", "single implant") applied with one click; the clinic edits it.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PlanTemplateInfo {
+    pub id: String,
+    pub code: String,
+    pub name: Translations,
+    pub items: Vec<PlanTemplateItem>,
+    pub is_system: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SavePlanTemplateParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub name: Translations,
+    pub items: Vec<PlanTemplateItem>,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+// ───────────────────────────── clinical notes (5.6) ─────────────────────────────
+
+/// The parts of a visit's clinical note (5.6); empty = not written.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+pub struct NoteFields {
+    #[serde(default)]
+    pub chief_complaint: String,
+    #[serde(default)]
+    pub examination: String,
+    #[serde(default)]
+    pub diagnosis: String,
+    #[serde(default)]
+    pub findings: String,
+    #[serde(default)]
+    pub procedure: String,
+    #[serde(default)]
+    pub notes: String,
+    #[serde(default)]
+    pub follow_up: String,
+    #[serde(default)]
+    pub recommendations: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NoteStatus {
+    /// Still being written; can change.
+    Draft,
+    /// Signed off: locked, later changes only as addenda.
+    Signed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct NoteAddendum {
+    pub id: String,
+    pub text: String,
+    pub created_at: String,
+    pub created_by_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ClinicalNoteInfo {
+    pub id: String,
+    pub patient_id: String,
+    pub appointment_id: Option<String>,
+    /// The treatment item (and so the session) the note is about, if any.
+    pub item_id: Option<String>,
+    pub doctor_id: Option<String>,
+    pub doctor_name: Option<String>,
+    /// Clinic-local ISO date of the visit.
+    pub visit_date: String,
+    pub fields: NoteFields,
+    pub template_id: Option<String>,
+    pub status: NoteStatus,
+    pub signed_at: Option<String>,
+    pub signed_by_name: Option<String>,
+    pub addenda: Vec<NoteAddendum>,
+    pub created_at: String,
+    pub created_by_name: Option<String>,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveNoteParams {
+    /// None = a new note.
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub patient_id: String,
+    #[serde(default)]
+    pub appointment_id: Option<String>,
+    #[serde(default)]
+    pub item_id: Option<String>,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    /// Today when absent.
+    #[serde(default)]
+    pub visit_date: Option<String>,
+    pub fields: NoteFields,
+    #[serde(default)]
+    pub template_id: Option<String>,
+    /// Save and sign off in one step (the note is locked afterwards).
+    #[serde(default)]
+    pub sign: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AddAddendumParams {
+    pub note_id: String,
+    pub text: String,
+}
+
+/// The same note-template text in the three languages.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
+pub struct NoteTemplateTexts {
+    pub fa: NoteFields,
+    pub ps: NoteFields,
+    pub en: NoteFields,
+}
+
+/// A ready-made clinical note ("root canal — first session") the doctor starts from; clinic-editable,
+/// a built-in one can be put back to the original.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct NoteTemplateInfo {
+    pub id: String,
+    pub code: String,
+    pub name: Translations,
+    pub body: NoteTemplateTexts,
+    pub is_system: bool,
+    pub customized: bool,
+    pub is_active: bool,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveNoteTemplateParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub name: Translations,
+    pub body: NoteTemplateTexts,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+}
+
+// ───────────────────────────── periodontal chart (5.5) ─────────────────────────────
+
+/// One tooth of a periodontal exam. Six sites, in this order: distobuccal, buccal, mesiobuccal,
+/// distolingual, lingual, mesiolingual (lingual = palatal in the upper jaw).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PerioTooth {
+    /// FDI number.
+    pub tooth: u8,
+    #[serde(default)]
+    pub missing: bool,
+    #[serde(default)]
+    pub implant: bool,
+    /// Probing depth, mm (0–15).
+    pub depth: Vec<Option<u8>>,
+    /// Gingival recession, mm: positive = the margin below the CEJ, negative = overgrowth (−5…15).
+    pub recession: Vec<Option<i8>>,
+    pub bleeding: Vec<bool>,
+    pub plaque: Vec<bool>,
+    /// 0–3.
+    pub mobility: Option<u8>,
+    /// Furcation grade 0–3 at the buccal and the lingual (molars).
+    pub furcation: Vec<Option<u8>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PerioSummary {
+    pub teeth: u32,
+    pub sites: u32,
+    /// Mean probing depth × 10 (2.7 mm = 27).
+    pub mean_depth_x10: u32,
+    pub sites_4_plus: u32,
+    pub sites_6_plus: u32,
+    pub bleeding_percent: u32,
+    pub plaque_percent: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PerioExamInfo {
+    pub id: String,
+    pub patient_id: String,
+    /// Clinic-local ISO date.
+    pub exam_date: String,
+    pub doctor_id: Option<String>,
+    pub doctor_name: Option<String>,
+    pub teeth: Vec<PerioTooth>,
+    pub notes: Option<String>,
+    pub summary: PerioSummary,
+    pub created_at: String,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SavePerioParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub version: i64,
+    pub patient_id: String,
+    #[serde(default)]
+    pub exam_date: Option<String>,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    pub teeth: Vec<PerioTooth>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+// ───────────────────────────── patient timeline (5.11) ─────────────────────────────
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum TimelineKind {
+    Registered,
+    Appointment,
+    /// A signed clinical note (the visit's examination).
+    Examination,
+    /// A finding recorded on the chart.
+    Diagnosis,
+    Plan,
+    Treatment,
+    Prescription,
+    Document,
+    FollowUp,
+    Attachment,
+    MedicalHistory,
+    Perio,
+}
+
+/// One event of a patient's history (5.11), newest first. `action` says what happened
+/// (`appointment.completed`, `plan.accepted`, `session.recorded` …); the UI words it.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct TimelineEvent {
+    pub at: String,
+    pub kind: TimelineKind,
+    pub action: String,
+    pub ref_id: Option<String>,
+    /// Data to word it with: a document number, a plan title, a doctor's name …
+    pub title: Option<String>,
+    pub service_id: Option<String>,
+    pub condition_id: Option<String>,
+    pub teeth: Vec<u8>,
+    pub surfaces: Option<String>,
+    /// Which session of a treatment, "2/3" (a session, a visit booked for one).
+    pub session: Option<String>,
+    pub detail: Option<String>,
+    pub by_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TimelineParams {
+    pub patient_id: String,
+    /// Empty = every kind.
+    #[serde(default)]
+    pub kinds: Vec<TimelineKind>,
+    #[serde(default = "default_timeline_limit")]
+    pub limit: u32,
+}
+
+fn default_timeline_limit() -> u32 {
+    300
+}
+
 // ───────────────────────────── form drafts (OF-020) ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -2222,6 +3087,9 @@ pub struct Settings {
     /// M2: only doctors of a service's specialty may be booked for it (off: a gentle warning only).
     #[serde(default)]
     pub restrict_service_specialty: bool,
+    /// ADR-14: how tooth numbers are shown on the chart and on documents (FDI by default).
+    #[serde(default)]
+    pub tooth_numbering: ToothNumbering,
 }
 
 fn default_calendar_snap() -> u32 {
@@ -2394,6 +3262,38 @@ api! {
     "catalog.get"                => CATALOG_GET(IncludeInactiveParams) -> CatalogInfo;
     "catalog.save_category"      => CATALOG_SAVE_CATEGORY(SaveServiceCategoryParams) -> ServiceCategoryInfo;
     "catalog.save_service"       => CATALOG_SAVE_SERVICE(SaveServiceParams) -> ServiceInfo;
+    "tooth_conditions.list"      => TOOTH_CONDITIONS_LIST(IncludeInactiveParams) -> Vec<ToothConditionInfo>;
+    "tooth_conditions.save"      => TOOTH_CONDITIONS_SAVE(SaveToothConditionParams) -> ToothConditionInfo;
+    "chart.get"                  => CHART_GET(PatientIdParams) -> ChartInfo;
+    "chart.set_dentition"        => CHART_SET_DENTITION(SetDentitionParams) -> ChartInfo;
+    "chart.add_findings"         => CHART_ADD_FINDINGS(AddFindingsParams) -> Vec<ToothFinding>;
+    "chart.remove_finding"       => CHART_REMOVE_FINDING(IdVersionParams) -> Empty;
+    "chart.tooth_history"        => CHART_TOOTH_HISTORY(ToothHistoryParams) -> Vec<TimelineEvent>;
+    "plans.list"                 => PLANS_LIST(PatientIdParams) -> Vec<TreatmentPlanInfo>;
+    "plans.create"               => PLANS_CREATE(CreatePlanParams) -> TreatmentPlanInfo;
+    "plans.update"               => PLANS_UPDATE(UpdatePlanParams) -> TreatmentPlanInfo;
+    "plans.set_status"           => PLANS_SET_STATUS(SetPlanStatusParams) -> TreatmentPlanInfo;
+    "treatment_items.add"        => TREATMENT_ITEMS_ADD(AddItemParams) -> Vec<TreatmentItemInfo>;
+    "treatment_items.update"     => TREATMENT_ITEMS_UPDATE(UpdateItemParams) -> TreatmentItemInfo;
+    "treatment_items.set_status" => TREATMENT_ITEMS_SET_STATUS(SetItemStatusParams) -> TreatmentItemInfo;
+    "treatment_items.record_session" => TREATMENT_ITEMS_RECORD_SESSION(RecordSessionParams) -> RecordSessionResult;
+    "treatment_items.suggest_next" => TREATMENT_ITEMS_SUGGEST_NEXT(ItemIdParams) -> Option<NextSessionSuggestion>;
+    "treatment_items.open"       => TREATMENT_ITEMS_OPEN(PatientIdParams) -> Vec<TreatmentItemInfo>;
+    "treatments.list"            => TREATMENTS_LIST(PatientIdParams) -> Vec<TreatmentItemInfo>;
+    "plan_templates.list"        => PLAN_TEMPLATES_LIST(IncludeInactiveParams) -> Vec<PlanTemplateInfo>;
+    "plan_templates.save"        => PLAN_TEMPLATES_SAVE(SavePlanTemplateParams) -> PlanTemplateInfo;
+    "notes.list"                 => NOTES_LIST(PatientIdParams) -> Vec<ClinicalNoteInfo>;
+    "notes.save"                 => NOTES_SAVE(SaveNoteParams) -> ClinicalNoteInfo;
+    "notes.sign"                 => NOTES_SIGN(IdVersionParams) -> ClinicalNoteInfo;
+    "notes.add_addendum"         => NOTES_ADD_ADDENDUM(AddAddendumParams) -> ClinicalNoteInfo;
+    "notes.delete"               => NOTES_DELETE(IdVersionParams) -> Empty;
+    "note_templates.list"        => NOTE_TEMPLATES_LIST(IncludeInactiveParams) -> Vec<NoteTemplateInfo>;
+    "note_templates.save"        => NOTE_TEMPLATES_SAVE(SaveNoteTemplateParams) -> NoteTemplateInfo;
+    "note_templates.reset"       => NOTE_TEMPLATES_RESET(IdVersionParams) -> NoteTemplateInfo;
+    "perio.list"                 => PERIO_LIST(PatientIdParams) -> Vec<PerioExamInfo>;
+    "perio.save"                 => PERIO_SAVE(SavePerioParams) -> PerioExamInfo;
+    "perio.delete"               => PERIO_DELETE(IdVersionParams) -> Empty;
+    "timeline.list"              => TIMELINE_LIST(TimelineParams) -> Vec<TimelineEvent>;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -2551,6 +3451,9 @@ pub fn typescript_bindings() -> String {
         RecordSnapshot,
         RecordVisit,
         RecordPrescription,
+        RecordFinding,
+        RecordTreatment,
+        RecordNote,
         DocumentContent,
         DocumentPatient,
         DocumentDoctor,
@@ -2579,6 +3482,57 @@ pub fn typescript_bindings() -> String {
         CatalogInfo,
         SaveServiceCategoryParams,
         SaveServiceParams,
+        AppointmentTreatment,
+        TreatmentPlanContent,
+        PlanSnapshot,
+        PlanSnapshotItem,
+        ToothNumbering,
+        Dentition,
+        ChartSymbol,
+        ToothConditionInfo,
+        SaveToothConditionParams,
+        ToothFinding,
+        AddFindingsParams,
+        ChartInfo,
+        PlanBrief,
+        SetDentitionParams,
+        ToothHistoryParams,
+        PlanStatus,
+        ItemStatus,
+        TreatmentSessionInfo,
+        ItemVisit,
+        TreatmentItemInfo,
+        TreatmentPlanInfo,
+        CreatePlanParams,
+        UpdatePlanParams,
+        SetPlanStatusParams,
+        AddItemParams,
+        UpdateItemParams,
+        SetItemStatusParams,
+        RecordSessionParams,
+        NextSessionSuggestion,
+        RecordSessionResult,
+        ItemIdParams,
+        TemplateTeeth,
+        PlanTemplateItem,
+        PlanTemplateInfo,
+        SavePlanTemplateParams,
+        NoteFields,
+        NoteStatus,
+        NoteAddendum,
+        ClinicalNoteInfo,
+        SaveNoteParams,
+        AddAddendumParams,
+        NoteTemplateTexts,
+        NoteTemplateInfo,
+        SaveNoteTemplateParams,
+        PerioTooth,
+        PerioSummary,
+        PerioExamInfo,
+        SavePerioParams,
+        TimelineKind,
+        TimelineEvent,
+        TimelineParams,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

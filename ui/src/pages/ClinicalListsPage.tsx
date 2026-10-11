@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { BookOpenText, FileHeart, FileSignature, GraduationCap, Pencil, Pill, Plus, RotateCcw, Trash2, Wand2 } from "lucide-react";
+import { useState } from "react";
+import { BookOpenText, ClipboardList, FileHeart, FileSignature, GraduationCap, Grid3x3, NotebookPen, Pencil, Pill, Plus, RotateCcw, Trash2, Wand2 } from "lucide-react";
 import type {
   DocumentKind, DocumentTemplateInfo, DrugInfo, MedicalDetailKind, MedicalQuestionInfo, Paper, RxItem, RxTemplateInfo, RxTiming, SpecialtyInfo, Translations,
 } from "../../../shared/ts/contract";
@@ -16,20 +16,16 @@ import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../ui/Feedb
 import { Dialog } from "../ui/Overlay";
 import { TranslationsField } from "../ui/TranslationsField";
 import { useToast } from "../ui/Toast";
+import { emptyTranslations, hasText, useFailure, useList } from "./clinicalListsShared";
+import { ConditionsTab, NoteTemplatesTab, PlanTemplatesTab } from "./ClinicalLists5B";
 
-type Tab = "questions" | "specialties" | "drugs" | "rx" | "templates";
-const empty: Translations = { fa: "", ps: "", en: "" };
-const hasText = (x: Translations) => !!(x.fa.trim() || x.ps.trim() || x.en.trim());
+type Tab = "questions" | "specialties" | "drugs" | "rx" | "templates" | "conditions" | "notes" | "plans";
+const empty = emptyTranslations;
 const GROUPS = ["cardio", "blood", "endocrine", "respiratory", "infectious", "kidney_liver", "neuro", "bone", "cancer", "digestive", "skin", "habits", "women", "allergy", "medication", "surgery", "other"];
 const FORMS = ["tablet", "capsule", "syrup", "suspension", "mouthwash", "gel", "cream", "ointment", "injection", "drops", "spray", "other"];
 const CLASSES = ["penicillin", "cephalosporin", "nsaid", "tetracycline", "metronidazole", "macrolide", "lincosamide", "opioid", "azole", "paracetamol", "steroid", "local_anesthetic", "antiseptic", "antifungal", "antiviral", "ppi"];
 const TIMINGS: RxTiming[] = ["after_food", "before_food", "with_food", "morning", "bedtime"];
 
-/** Error text of a failed save: the rule's message, else the code's. */
-function useFailure() {
-  const { t, err } = useI18n();
-  return (x: unknown) => (x instanceof ApiError && x.rule ? t(`rule.${x.rule}`) : err(x));
-}
 
 /**
  * The clinic's own clinical lists (Phase 5A): every list the Core seeds is a starting point the
@@ -52,6 +48,9 @@ export function ClinicalListsPage() {
           { value: "drugs", label: t("clinical.tab.drugs"), icon: Pill, testId: "clinical-tab-drugs" },
           { value: "rx", label: t("clinical.tab.rx"), icon: Wand2, testId: "clinical-tab-rx" },
           { value: "templates", label: t("clinical.tab.templates"), icon: FileSignature, testId: "clinical-tab-templates" },
+          { value: "conditions", label: t("clinical.tab.conditions"), icon: Grid3x3, testId: "clinical-tab-conditions" },
+          { value: "notes", label: t("clinical.tab.notes"), icon: NotebookPen, testId: "clinical-tab-notes" },
+          { value: "plans", label: t("clinical.tab.plans"), icon: ClipboardList, testId: "clinical-tab-plans" },
         ]}
       />
       {tab === "questions" && <QuestionsTab />}
@@ -59,20 +58,13 @@ export function ClinicalListsPage() {
       {tab === "drugs" && <DrugsTab />}
       {tab === "rx" && <RxTemplatesTab />}
       {tab === "templates" && <TemplatesTab />}
+      {tab === "conditions" && <ConditionsTab />}
+      {tab === "notes" && <NoteTemplatesTab />}
+      {tab === "plans" && <PlanTemplatesTab />}
     </Page>
   );
 }
 
-function useList<T>(load: () => Promise<T[]>) {
-  const { err } = useI18n();
-  const [items, setItems] = useState<T[] | null>(null);
-  const [error, setError] = useState("");
-  const reload = () => load().then((v) => { setItems(v); setError(""); }).catch((e) => !isSessionError(e) && setError(err(e)));
-  useEffect(() => {
-    reload();
-  }, []);
-  return { items, error, reload };
-}
 
 // ───────────────────────────── checklist questions (M1) ─────────────────────────────
 
