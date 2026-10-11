@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarOff, Clock, Pencil, Plus, Stethoscope, Trash2, Armchair } from "lucide-react";
 import type { CalendarSystem, ChairInfo, ClinicProfile, DoctorInfo, ScheduleSlot, UserInfo } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "../lib/api";
@@ -33,12 +33,24 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
   const [schedule, setSchedule] = useState<string | null>(null);
   const [chairDialog, setChairDialog] = useState<{ chair?: ChairInfo } | null>(null);
 
+  // Every reload and every saved doctor bumps this, so an older reload still in flight (started by,
+  // say, removing a leave) can never put an outdated doctor back after a newer save.
+  const seq = useRef(0);
   const load = useCallback(() => {
+    const mine = ++seq.current;
     Promise.all([rpc("doctors.list", { include_inactive: true }), rpc("chairs.list", { include_inactive: true })])
-      .then(([d, c]) => { setDoctors(d); setChairs(c); setError(""); })
-      .catch((e) => !isSessionError(e) && setError(err(e)));
+      .then(([d, c]) => { if (mine !== seq.current) return; setDoctors(d); setChairs(c); setError(""); })
+      .catch((e) => mine === seq.current && !isSessionError(e) && setError(err(e)));
   }, []);
   useEffect(load, [load]);
+  /** A save's answer goes into the list at once: the schedule reopened right after shows it, with its new version. */
+  const saved = (d?: DoctorInfo) => {
+    if (d) {
+      seq.current++;
+      setDoctors((list) => list?.map((x) => (x.id === d.id ? d : x)) ?? null);
+    }
+    load();
+  };
 
   const scheduled = doctors?.find((d) => d.id === schedule) ?? null;
   const summary = (d: DoctorInfo) => {
@@ -97,14 +109,14 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
         </div>
       </Card>
 
-      {doctorDialog && <DoctorDialog doctor={doctorDialog.doctor} onClose={() => setDoctorDialog(null)} onSaved={load} />}
+      {doctorDialog && <DoctorDialog doctor={doctorDialog.doctor} onClose={() => setDoctorDialog(null)} onSaved={saved} />}
       {chairDialog && <ChairDialog chair={chairDialog.chair} onClose={() => setChairDialog(null)} onSaved={load} />}
-      {scheduled && chairs && <ScheduleDialog doctor={scheduled} chairs={chairs.filter((c) => c.status === "active")} calendar={calendar} onClose={() => setSchedule(null)} onSaved={load} />}
+      {scheduled && chairs && <ScheduleDialog doctor={scheduled} chairs={chairs.filter((c) => c.status === "active")} calendar={calendar} onClose={() => setSchedule(null)} onSaved={saved} />}
     </Page>
   );
 }
 
-function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClose: () => void; onSaved: () => void }) {
+function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClose: () => void; onSaved: (d?: DoctorInfo) => void }) {
   const { t, err, lang } = useI18n();
   const specialties = useSpecialties();
   const [specialtyIds, setSpecialtyIds] = useState<string[]>(doctor?.specialty_ids ?? []);
@@ -139,10 +151,11 @@ function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClo
       user_id: form.values.user_id || null,
     };
     try {
-      if (doctor) await rpc("doctors.update", { ...base, id: doctor.id, version: doctor.version, status: active ? "active" : "inactive" });
-      else await rpc("doctors.create", base);
+      const d = doctor
+        ? await rpc("doctors.update", { ...base, id: doctor.id, version: doctor.version, status: active ? "active" : "inactive" })
+        : await rpc("doctors.create", base);
       toast.success(t("common.saved"));
-      onSaved();
+      onSaved(d);
       onClose();
     } catch (x) {
       if (!form.serverError(x)) setError(ruleText(t, x, err));
@@ -256,7 +269,7 @@ function ChairDialog({ chair, onClose, onSaved }: { chair?: ChairInfo; onClose: 
 type Slots = ScheduleSlot[];
 
 /** Weekly working hours, breaks, usable chairs and leave of one doctor. */
-function ScheduleDialog({ doctor, chairs, calendar, onClose, onSaved }: { doctor: DoctorInfo; chairs: ChairInfo[]; calendar: CalendarSystem; onClose: () => void; onSaved: () => void }) {
+function ScheduleDialog({ doctor, chairs, calendar, onClose, onSaved }: { doctor: DoctorInfo; chairs: ChairInfo[]; calendar: CalendarSystem; onClose: () => void; onSaved: (d?: DoctorInfo) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const [hours, setHours] = useState<Slots>(doctor.hours);
@@ -279,7 +292,7 @@ function ScheduleDialog({ doctor, chairs, calendar, onClose, onSaved }: { doctor
       const d = await rpc("doctors.set_schedule", { doctor_id: doctor.id, version, hours, breaks, chair_ids: chairIds });
       setVersion(d.version);
       toast.success(t("common.saved"));
-      onSaved();
+      onSaved(d);
       onClose();
     } catch (x) {
       if (!isSessionError(x)) setError(ruleText(t, x, err));
