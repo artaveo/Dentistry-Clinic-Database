@@ -25,7 +25,7 @@ export function PrescriptionsTab({ patient, canEdit, calendar }: { patient: Pati
   return (
     <Card flush>
       <CardHeader icon={Pill} title={t("patients.tab.prescriptions")} description={t("rx.subtitle")} actions={action} />
-      <DocumentList patientId={patient.id} kinds={["prescription"]} canEdit={canEdit} calendar={calendar} refreshKey={refresh} emptyIcon={Pill} emptyTitle={t("rx.none")} emptyHint={t("rx.noneHint")} emptyAction={action} open={issued} onOpened={() => setIssued(null)} />
+      <DocumentList patientId={patient.id} kinds={["prescription"]} canEdit={canEdit} calendar={calendar} refreshKey={refresh} emptyIcon={Pill} emptyTitle={t("rx.none")} emptyHint={t("rx.noneHint")} emptyAction={action && <Button variant="primary" icon={Plus} onClick={() => setEditing(true)}>{t("rx.new")}</Button>} open={issued} onOpened={() => setIssued(null)} />
       {editing && letterhead && (
         <PrescriptionEditor
           patient={patient}

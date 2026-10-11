@@ -16,6 +16,9 @@ import { Dialog } from "../../ui/Overlay";
 import { TimePicker12 } from "../../ui/TimePicker";
 import { useToast } from "../../ui/Toast";
 import { AppointmentCardDialog } from "./AppointmentCard";
+import type { PatientInfo } from "../../../../shared/ts/contract";
+import { useLetterhead } from "../../print/letterhead";
+import { DocumentEditor } from "../patients/documents/DocumentEditor";
 import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { StatusActions } from "./StatusActions";
 import { MOVABLE, SCHEDULE_RULES, STATUS_TONE } from "./labels";
@@ -94,6 +97,17 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   const [offerOverride, setOfferOverride] = useState<string | null>(null);
   const [clash, setClash] = useState<AppointmentInfo | null>(null);
   const [card, setCard] = useState(false);
+  // 5.10: a service with a consent form suggests writing it for this visit.
+  const [consentFor, setConsentFor] = useState<PatientInfo | null>(null);
+  const letterhead = useLetterhead();
+  const openConsent = async () => {
+    if (!current) return;
+    try {
+      setConsentFor(await rpc("patients.get", { patient_id: current.patient_id }));
+    } catch (x) {
+      if (!isSessionError(x)) setError(err(x));
+    }
+  };
 
   const doctor = doctors.find((d) => d.id === form.values.doctor_id);
   const specialties = useSpecialties();
@@ -281,6 +295,14 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
               <TextInput value={form.values.reason} maxLength={200} disabled={readOnly} onChange={(x) => form.set("reason", x.target.value)} data-testid="appt-reason" />
             </Field>
           </div>
+          {service?.consent_template_id && (
+            <Notice tone="info" title={t("appt.consentSuggested")} testId="appt-consent-suggestion">
+              <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+                <span>{current ? t("appt.consentHint") : t("appt.consentAfterBooking")}</span>
+                {current && <Button size="sm" onClick={openConsent} data-testid="appt-consent-open">{t("appt.consentWrite")}</Button>}
+              </div>
+            </Notice>
+          )}
           {!solo && service && doctor && !fits(doctor) && (
             <Notice tone="warning" testId="appt-specialty-warning">{t("appt.specialtyWarning").replace("{specialty}", specialtyName)}</Notice>
           )}
@@ -296,6 +318,21 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
         </div>
       </Dialog>
       {card && current && <AppointmentCardDialog appointment={current} clinicName={clinicName} calendar={calendar} onClose={() => setCard(false)} />}
+      {consentFor && letterhead && service && current && (
+        <DocumentEditor
+          kind="consent"
+          patient={consentFor}
+          letterhead={letterhead}
+          calendar={calendar}
+          appointmentId={current.id}
+          initial={{ template_id: service.consent_template_id ?? "", procedure: serviceName(service, catalog, lang), doctor_id: current.doctor_id }}
+          onClose={() => setConsentFor(null)}
+          onIssued={(d) => {
+            setConsentFor(null);
+            toast.success(t("docs.issued").replace("{number}", d.number));
+          }}
+        />
+      )}
     </>
   );
 }

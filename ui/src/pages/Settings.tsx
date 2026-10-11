@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { Archive, CalendarDays, DatabaseBackup, Save, ShieldCheck, Timer } from "lucide-react";
+import { Archive, CalendarDays, DatabaseBackup, Printer, Save, ShieldCheck, Stethoscope, Timer } from "lucide-react";
+import { isDesktop, listPrinters, loadProfile, saveProfile, type PrintProfile } from "../print/engine";
+import { invalidateLetterhead } from "../print/letterhead";
+import { Select } from "../ui/Field";
+import { Switch } from "../ui/Controls";
 import type { Settings } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, isSessionError, rpc } from "../lib/api";
 import { digits, latinDigits } from "../lib/dates";
@@ -36,6 +40,18 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
   const [hour, setHour] = useState(initial.daily_backup_hour);
   const [hourError, setHourError] = useState("");
   const [snap, setSnap] = useState(initial.calendar_snap_minutes);
+  const [brandFooter, setBrandFooter] = useState(initial.print_brand_footer);
+  const [restrict, setRestrict] = useState(initial.restrict_service_specialty);
+  // This computer's printer (ADR-13: printers belong to a computer, not to the clinic).
+  const [profile, setProfile] = useState<PrintProfile>(loadProfile());
+  const [printers, setPrinters] = useState<string[]>([]);
+  useEffect(() => {
+    listPrinters().then((l) => setPrinters(l.printers)).catch(() => {});
+  }, []);
+  const updateProfile = (p: PrintProfile) => {
+    setProfile(p);
+    saveProfile(p);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const e = (k: "session_timeout_minutes" | "backup_keep_daily") => form.error(k) && t(form.error(k)!);
@@ -51,10 +67,11 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         daily_backup_hour: hour,
         backup_keep_daily: Number(latinDigits(form.values.backup_keep_daily)),
         calendar_snap_minutes: snap,
-        print_brand_footer: initial.print_brand_footer,
-        restrict_service_specialty: initial.restrict_service_specialty,
+        print_brand_footer: brandFooter,
+        restrict_service_specialty: restrict,
       });
       onSaved(saved);
+      invalidateLetterhead();
       // A new auto-lock time applies at once, without signing in again (OF-012).
       window.dispatchEvent(new Event(SESSION_CHECK_EVENT));
       toast.success(t("common.saved"));
@@ -101,6 +118,32 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
               options={[1, 5, 10, 15].map((n) => ({ value: String(n), label: `${digits(n, lang)} ${t("common.minutes")}`, testId: `setting-calendar-snap-${n}` }))}
             />
           </Field>
+        </Card>
+        <Card>
+          <CardHeader icon={Printer} title={t("settings.print")} description={t("settings.printHint")} />
+          <div className="grid-2">
+            <Field label={t("print.printer")} hint={isDesktop() ? t("settings.printerHint") : t("print.browserHint")}>
+              <Select value={profile.printer ?? ""} disabled={!isDesktop()} onChange={(e) => updateProfile({ ...profile, printer: e.target.value || null })} data-testid="setting-printer">
+                <option value="">{t("print.noPrinter")}</option>
+                {printers.map((p) => <option key={p} value={p}>{p}</option>)}
+              </Select>
+            </Field>
+            <Field label={t("print.smallPaper")} hint={profile.smallPaper === "compact_a4" ? t("print.compactHint") : t("print.nativeHint")}>
+              <Segmented<PrintProfile["smallPaper"]>
+                value={profile.smallPaper}
+                onChange={(v) => updateProfile({ ...profile, smallPaper: v })}
+                label={t("print.smallPaper")}
+                options={[{ value: "native", label: t("settings.smallNative"), testId: "setting-small-native" }, { value: "compact_a4", label: t("print.compactA4"), testId: "setting-small-compact" }]}
+              />
+            </Field>
+          </div>
+          <div style={{ marginTop: "var(--space-5)" }}>
+            <Switch checked={brandFooter} onChange={setBrandFooter} label={t("settings.brandFooter")} testId="setting-brand-footer" />
+          </div>
+        </Card>
+        <Card>
+          <CardHeader icon={Stethoscope} title={t("settings.clinicalRules")} description={t("settings.clinicalRulesHint")} />
+          <Switch checked={restrict} onChange={setRestrict} label={t("settings.restrictSpecialty")} testId="setting-restrict-specialty" />
         </Card>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="settings-save">{t("common.save")}</Button>

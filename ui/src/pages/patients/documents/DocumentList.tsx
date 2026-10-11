@@ -58,7 +58,8 @@ export function DocumentList({ patientId, kinds, canEdit, calendar, refreshKey, 
 
   const printed = async (d: DocumentInfo, pdf: boolean) => {
     const after = await rpc("documents.mark_printed", { id: d.id, pdf });
-    setViewing(after);
+    // Closed meanwhile? Stay closed — only refresh a preview that is still open on this document.
+    setViewing((v) => (v && v.id === after.id ? after : v));
     load();
   };
 

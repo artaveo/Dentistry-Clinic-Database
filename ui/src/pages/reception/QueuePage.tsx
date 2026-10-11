@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clock, DoorOpen, Footprints, Stethoscope, UserRoundCheck } from "lucide-react";
+import { Clock, DoorOpen, Footprints, Stethoscope, UserRoundCheck, ClipboardClock } from "lucide-react";
 import type { AppointmentInfo, CalendarSystem, ClinicProfile } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
 import { todayIso } from "../../lib/calendar";
@@ -112,6 +112,10 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
                       {solo ? (a.chair_name ? ` · ${a.chair_name}` : "") : <>{" · "}<span className="dot-swatch" style={{ background: a.doctor_color }} aria-hidden /> {a.doctor_name}{a.chair_name ? ` · ${a.chair_name}` : ""}</>}
                     </span>
                     {a.reason && <span className="t-caption">{a.reason}</span>}
+                    {/* M1: never asked, or not for six months — ask the medical history again at this visit. */}
+                    {a.medical_review_due && ["scheduled", "confirmed", "checked_in"].includes(a.status) && (
+                      <span className="queue-review" data-testid={`queue-review-${a.id}`}><Badge tone="warning" icon={ClipboardClock}>{t("queue.medicalReview")}</Badge></span>
+                    )}
                   </button>
                   <div className="row queue-actions">
                     <StatusActions appt={a} perms={perms} calendar={calendar} onChanged={load} only={["confirmed", "checked_in", "in_treatment", "completed", "no_show"]} />

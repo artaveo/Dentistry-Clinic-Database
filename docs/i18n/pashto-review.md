@@ -4,7 +4,7 @@
 > (`node ui/scripts/export-pashto-review.mjs`). هر بار که متن‌های رابط
 > برنامه تغییر کنند، دوباره ساخته می‌شود. راهنمای بازبینی: [README.md](README.md).
 
-تعداد متن‌ها: 832
+تعداد متن‌ها: 1321
 
 | کلید (فقط برای توسعه‌دهنده) | English (مرجع) | دری (مرجع — تأییدشده) | پښتو (نیازمند بازبینی) | یادداشت بازبینی |
 |---|---|---|---|---|
@@ -150,7 +150,7 @@
 | `system.key.windows_dpapi_machine` | Windows DPAPI (this computer) | Windows DPAPI (همین کامپیوتر) | Windows DPAPI (همدا کمپیوټر) | |
 | `system.key.insecure_dev_file` | Test file (development only) | فایل آزمایشی (فقط محیط توسعه) | ازمېښتي فایل (یوازې د پراختیا لپاره) | |
 | `system.schema` | Database schema version | نسخه ساختار دیتابیس | د ډیټابیس جوړښت نسخه | |
-| `system.dbSize` | Database size | حجم دیتابیس | د ډیټابیس اندازه | |
+| `system.dbSize` | Data size | حجم داده | د ډیټا اندازه | |
 | `system.integrity` | Database health check | بررسی سلامت دیتابیس | د ډیټابیس روغتیا ازموینه | |
 | `system.integrity.pending` | Pending | در انتظار | انتظار | |
 | `system.integrity.running` | Checking… | در حال بررسی… | ازمویل کېږي… | |
@@ -395,10 +395,10 @@
 | `patients.add` | Add patient | افزودن بیمار | ناروغ اضافه کول | |
 | `patients.addHint` | Enter the patient's details; only the full name is required. | اطلاعات بیمار را وارد کنید؛ فقط نام کامل الزامی است. | د ناروغ معلومات ولیکئ؛ یوازې بشپړ نوم اړین دی. | |
 | `patients.editTitle` | Edit patient | ویرایش بیمار | د ناروغ سمون | |
-| `patients.search.placeholder` | Search by name, father's name, patient number or phone… | جستجو بر اساس نام، نام پدر، شماره بیمار یا شماره تماس… | د نوم، د پلار نوم، د ناروغ شمېره یا د اړیکې شمېره په اساس لټون… | |
+| `patients.search.placeholder` | Search by name, father's name, patient ID or phone… | جستجو بر اساس نام، نام پدر، ID بیمار یا شماره تماس… | د نوم، د پلار نوم، د ناروغ ID یا د اړیکې شمېره په اساس لټون… | |
 | `patients.empty` | No patients registered yet | هنوز بیماری ثبت نشده است | تر اوسه هیڅ ناروغ نه دی ثبت شوی | |
 | `patients.emptySearch` | No patient matches this search | بیماری با این مشخصات پیدا نشد | د دې مشخصاتو سره ناروغ ونه موندل شو | |
-| `patients.column.number` | Patient # | شماره بیمار | د ناروغ شمېره | |
+| `patients.column.number` | Patient ID | ID بیمار | د ناروغ ID | |
 | `patients.column.name` | Full name | نام کامل | بشپړ نوم | |
 | `patients.column.father` | Father's name | نام پدر | د پلار نوم | |
 | `patients.column.phone` | Phone | شماره تماس | د اړیکې شمېره | |
@@ -459,16 +459,9 @@
 | `patients.tab.audit` | Audit History | تاریخچه تغییرات | د بدلونونو تاریخچه | |
 | `patients.tab.comingSoon` | Available in a later phase | در فاز بعدی برنامه فعال می‌شود | په راتلونکې مرحله کې به فعال شي | |
 | `medicalHistory.title` | Medical History | سوابق پزشکی | طبي سوابق | |
-| `medicalHistory.subtitle` | Allergies, medications, chronic conditions and dental history | حساسیت، داروها، بیماری‌های مزمن و سوابق دندان‌پزشکی بیمار | د ناروغ حساسیت، درمل، مزمن ناروغۍ او د غاښونو سوابق | |
-| `medicalHistory.allergies` | Allergies | حساسیت‌های دارویی/غذایی | د درملو/خوراکي حساسیتونه | |
-| `medicalHistory.currentMedications` | Current medications | داروهای مصرفی فعلی | اوسني مصرفېدونکي درمل | |
-| `medicalHistory.chronicConditions` | Chronic conditions | بیماری‌های مزمن | مزمنې ناروغۍ | |
-| `medicalHistory.dentalHistory` | Dental history | سوابق دندان‌پزشکی | د غاښونو درملنې سوابق | |
-| `medicalHistory.previousSurgeries` | Previous surgeries | جراحی‌های قبلی | پخوانۍ جراحۍ | |
-| `medicalHistory.notes` | Relevant notes | یادداشت‌های مرتبط | اړونده یادداښتونه | |
-| `medicalHistory.empty` | No medical history recorded for this patient | سابقه پزشکی برای این بیمار ثبت نشده | د دې ناروغ لپاره طبي سوابق نه دي ثبت شوي | |
+| `medicalHistory.subtitle` | A checklist of conditions, allergies and medicines; every important “yes” is flagged at the top of the record. | چک‌لیست بیماری‌ها، حساسیت‌ها و داروها؛ هر «بله» مهم در بالای پرونده هشدار داده می‌شود. | د ناروغیو، حساسیتونو او درملو چک‌لیست؛ هر مهم «هو» د دوسیې په سر کې د خبرتیا په توګه ښودل کېږي. | |
+| `medicalHistory.notes` | Other notes | سایر توضیحات | نور توضیحات | |
 | `medicalHistory.saved` | Medical history saved. | سوابق پزشکی ذخیره شد. | طبي سوابق وساتل شول. | |
-| `medicalHistory.alertEmpty` | No medical alert on record | هشدار پزشکی ثبت نشده | طبي خبرداری نه دی ثبت شوی | |
 | `attachments.title` | Documents & Images | اسناد و تصاویر | اسناد او انځورونه | |
 | `attachments.subtitle` | X-rays, photos, scans and documents | تصویر رادیوگرافی، عکس، اسکن و اسناد بیمار | د ناروغ رادیوګرافي انځور، عکس، سکن او اسناد | |
 | `attachments.add` | Add attachment | افزودن پیوست | ضمیمه اضافه کول | |
@@ -539,7 +532,7 @@
 | `appt.rescheduled` | Appointment moved to the new time. | نوبت به زمان جدید منتقل شد. | وخت نوي مهال ته ولېږدول شو. | |
 | `appt.reschedule` | Reschedule | انتقال به زمان جدید | نوي مهال ته لېږدول | |
 | `appt.patient` | Patient | بیمار | ناروغ | |
-| `appt.patient.hint` | Search by name, patient number or phone. | با نام، شماره بیمار یا شماره تماس جستجو کنید. | د نوم، ناروغ شمېرې یا د اړیکې شمېرې له مخې ولټوئ. | |
+| `appt.patient.hint` | Search by name, patient ID or phone. | با نام، ID بیمار یا شماره تماس جستجو کنید. | د نوم، ناروغ ID یا د اړیکې شمېرې له مخې ولټوئ. | |
 | `appt.patient.change` | Change patient | تغییر بیمار | ناروغ بدلول | |
 | `appt.patient.new` | Register a new patient | ثبت بیمار جدید | نوی ناروغ ثبتول | |
 | `appt.patient.newTitle` | New patient | بیمار جدید | نوی ناروغ | |
@@ -656,7 +649,7 @@
 | `recall.kind.other` | Other | سایر | نور | |
 | `recall.due` | Due date | تاریخ مراجعه | د راتګ نېټه | |
 | `recall.repeat` | Repeat every (months) | تکرار هر چند ماه | هر څو میاشتې تکرار | |
-| `recall.repeatHint` | Optional; 1 to 60. After each visit the next one is added to the call list automatically. | اختیاری؛ عدد ۱ تا ۶۰. پس از هر ویزیت، نوبت بعدی خودکار در لیست تماس ثبت می‌شود. | اختیاري؛ ۱ تر ۶۰ شمېره. له هرې لیدنې وروسته راتلونکی په اتومات ډول د اړیکې لیست ته ځي. | |
+| `recall.repeatHint` | Empty = a one-time follow-up (e.g. one week after an extraction). 1 to 60 = a recall every few months (e.g. scaling every 6 months); the next date is counted from the last visit. | خالی = پیگیری یک‌بار (مثلاً یک هفته بعد از کشیدن). عدد ۱ تا ۶۰ = فراخوان هر چند ماه (جرم‌گیری هر ۶ ماه)؛ تاریخ بعدی خودکار از آخرین ویزیت حساب می‌شود. | تش = یو ځل پیگیري (د ویستلو یوه اونۍ وروسته). ۱ تر ۶۰ = هر څو میاشتې بیا راوبلل؛ راتلونکې نېټه د وروستي لیدنې څخه حسابېږي. | |
 | `recall.note` | Note | یادداشت | یادښت | |
 | `recall.every` | every | هر | هر | |
 | `recall.months` | months | ماه | میاشتې | |
@@ -840,3 +833,499 @@
 | `rule.import_file_read` | The file could not be read; make sure it is a valid .xlsx or .csv. | فایل خوانده نشد؛ مطمئن شوید .xlsx یا .csv سالم است. | فایل ونه لوستل شو؛ ډاډ ترلاسه کړئ چې .xlsx یا .csv سالم دی. | |
 | `rule.import_no_name_column` | One column must be matched to the patient's name. | یک ستون باید به «نام و تخلص» نگاشت شود. | یو ستون باید «نوم او تخلص» ته وټاکل شي. | |
 | `rule.import_column` | Match each field only once, to an existing column. | هر فیلد را فقط یک‌بار و ستون موجود را انتخاب کنید. | هر ځای یوازې یو ځل او شته ستون وټاکئ. | |
+| `patient.birth.exactKnown` | I know the exact date of birth | تاریخ تولد دقیق را می‌دانم | زه د زېږېدو دقیقه نېټه پیژنم | |
+| `patient.birth.estimatedYear` | Estimated birth year: {year} | سال تولد تقریبی: {year} | اټکلې د زېږېدو کال: {year} | |
+| `patient.birth.ageFromDate` | Age is calculated from the date of birth | سن از روی تاریخ تولد محاسبه شد | عمر د زېږېدو له نېټې حساب شو | |
+| `form.errorsSummary` | {n} field(s) need fixing; the first one is marked. | {n} کادر نیاز به اصلاح دارد؛ اولین مورد علامت‌گذاری شد. | {n} ځایونه سمون ته اړتیا لري؛ لومړی یې نښه شوی دی. | |
+| `patients.export.done` | Excel file saved: {name} ({n} patients). | فایل Excel ذخیره شد: {name} ({n} بیمار). | د Excel فایل وساتل شو: {name} ({n} ناروغان). | |
+| `patients.export.openFolder` | Open folder | باز کردن پوشه | پوښه پرانیستل | |
+| `patients.import.firstRowIsTitle` | The first row holds column titles | ردیف اول عنوان ستون‌ها است | لومړۍ کرښه د ستونونو سرلیکونه دي | |
+| `patients.import.blockNoFile` | First choose an Excel or CSV file. | ابتدا یک فایل Excel یا CSV انتخاب کنید. | لومړی یو Excel یا CSV فایل وټاکئ. | |
+| `patients.import.blockChecking` | Checking the rows… please wait. | در حال بررسی ردیف‌ها… لطفاً صبر کنید. | کرښې کتل کېږي… مهرباني وکړئ انتظار وباسئ. | |
+| `patients.import.blockNoValid` | No valid row was found; fix the errors below. | هیچ ردیف معتبری پیدا نشد؛ خطاهای زیر را اصلاح کنید. | هیڅ سمه کرښه ونه موندل شوه؛ لاندې تېروتنې سمې کړئ. | |
+| `rule.appointment_in_past` | A new appointment can only be booked for a future time. Use the visit record for past visits. | نوبت جدید فقط برای زمان آینده ممکن است. | نوې نوبت یوازې د راتلونکي وخت لپاره کېدای شي. تېر ویزیت د سوابقو له برخې ثبت کړئ. | |
+| `appt.clash.text` | This patient already has an appointment with Dr. {doctor} at {time}. | این بیمار در این زمان با داکتر {doctor} نوبت دارد ({time}). | دا ناروغ په همدې وخت د ډاکټر {doctor} سره نوبت لري ({time}). | |
+| `appt.clash.open` | Open that appointment | باز کردن آن نوبت | هغه نوبت پرانیستل | |
+| `appt.transfer.pickNew` | To transfer, choose a new time, doctor or chair. | برای انتقال، زمان، داکتر یا چوکی جدید را انتخاب کنید. | د لېږدولو لپاره نوی وخت، ډاکټر یا څوکۍ وټاکئ. | |
+| `appt.chair.auto` | Automatic (first free chair) | خودکار (اولین چوکی آزاد) | خودکار (لومړۍ خالۍ څوکۍ) | |
+| `appt.chair.hint` | If left empty, the first chair free at that time is used. | اگر خالی بماند، اولین چوکی آزاد در همان زمان گرفته می‌شود. | که خالي پاتې شي، په همدې وخت کې لومړۍ خالۍ څوکۍ اخیستل کېږي. | |
+| `recall.type.follow` | Follow-up · once | پیگیری · یک‌بار | پیگیري · یو ځل | |
+| `recall.type.recall` | Recall · repeating | فراخوان · تکرارشونده | بیا راوبلل · تکراري | |
+| `recall.visit.manage` | Visit: cancel or move | نوبت: لغو یا انتقال | نوبت: لغوه یا لېږدول | |
+| `patients.delete.blocked` | This patient has {n} open appointment(s). Cancel or move them first. | این بیمار {n} نوبت فعال دارد؛ اول آن‌ها را لغو یا منتقل کنید. | دې ناروغ {n} فعال نوبت لري؛ لومړی یې لغوه یا لېږد کړئ. | |
+| `patients.delete.show` | Show appointments | نمایش نوبت‌ها | نوبتونه ښودل | |
+| `draft.found.title` | You have an unfinished form | یک فرم نیمه‌تمام دارید | تاسو یوه نیمه بشپړه فورمه لرئ | |
+| `draft.found.hint` | You can continue where you left off, or discard the draft. | می‌توانید از همان جا ادامه دهید یا پیش‌نویس را حذف کنید. | کولی شئ همدلته دوام ورکړئ یا مسوده لرې کړئ. | |
+| `draft.found.restore` | Continue | ادامه بده | دوام ورکول | |
+| `draft.found.discard` | Discard draft | حذف پیش‌نویس | مسوده لرې کول | |
+| `users.lockedHint` | This account was locked after too many wrong passwords. Unlock it to open it at once. | این حساب بعد از چند بار رمز اشتباه قفل شده است. «رفع قفل حساب» آن را فوراً باز می‌کند. | دا حساب د ډېرو غلطو پټنومونو وروسته بند شوی. «د حساب بندېدل خلاص کول» یې سمدلاسه خلاصوي. | |
+| `roles.resetDone` | The role is back to its default permissions. | نقش به تنظیمات پیش‌فرض برگشت. | رول بېرته د خپل اصلي واک ته راغی. | |
+| `roles.resetDefaults` | Back to default permissions | بازگشت به تنظیمات پیش‌فرض | اصلي واکونو ته بیرته ستنېدل | |
+| `settings.calendar` | Appointment calendar | تقویم نوبت‌ها | د نوبتونو جنتري | |
+| `settings.calendarHint` | How the calendar behaves when appointments are moved with the mouse. | رفتار تقویم هنگام جابه‌جا کردن نوبت‌ها با موس. | کله چې نوبتونه د موږک په مرسته ځای پر ځای کېږي، د جنتري چلند. | |
+| `settings.snap` | Drag step | گام جابه‌جایی نوبت | د نوبت د ځای پر ځای کولو ګام | |
+| `hint.snap` | A dragged appointment lands exactly on steps of this size (default 5 minutes). | نوبتی که کشیده می‌شود دقیقاً روی همین گام‌ها می‌نشیند (پیش‌فرض ۵ دقیقه). | کش شوی نوبت په همدې ګامونو کېني (اصلي ۵ دقیقې). | |
+| `rule.calendar_snap_range` | The calendar step must be 1, 5, 10 or 15 minutes. | گام تقویم باید ۱، ۵، ۱۰ یا ۱۵ دقیقه باشد. | د جنتري ګام باید ۱، ۵، ۱۰ یا ۱۵ دقیقې وي. | |
+| `cal.drop.time_range` | Runs past midnight | از نیمه‌شب می‌گذرد | له نیمې شپې اوړي | |
+| `cal.drop.appointment_in_past` | That time has passed | زمان گذشته است | وخت تېر شوی | |
+| `cal.drop.doctor_on_leave` | Doctor on leave | داکتر رخصت است | ډاکټر رخصت دی | |
+| `cal.drop.outside_working_hours` | Outside the doctor's hours | خارج از ساعت کاری داکتر | د ډاکټر له کاري ساعتونو بهر | |
+| `cal.drop.doctor_on_break` | Doctor's break | وقت استراحت داکتر | د ډاکټر د آرام وخت | |
+| `cal.drop.chair_not_allowed` | Doctor doesn't use this chair | این داکتر از این چوکی استفاده نمی‌کند | دا ډاکټر دا څوکۍ نه کاروي | |
+| `cal.drop.doctor_busy` | Clashes with the doctor's other visit | تداخل با نوبت دیگر داکتر | د ډاکټر له بل وخت سره ټکر | |
+| `cal.drop.chair_busy` | Chair is busy then | چوکی در این زمان مشغول است | څوکۍ پدې وخت بوخته ده | |
+| `cal.drop.patient_busy` | Patient has another visit then | بیمار در این زمان نوبت دیگری دارد | ناروغ پدې وخت بل وخت لري | |
+| `medicalHistory.notesHint` | Anything the checklist does not cover (earlier free-text history was moved here too). | هر چیزی که در چک‌لیست نیست (متن‌های قبلی سوابق پزشکی هم اینجا منتقل شده‌اند). | هر څه چې په چک‌لیست کې نشته (د طبي سوابقو پخواني متنونه هم دلته راوړل شوي). | |
+| `medicalHistory.lastReview` | Last reviewed {date} by {name} | آخرین بازبینی: {date} — {name} | وروستۍ کتنه: {date} — {name} | |
+| `medicalHistory.never` | Not recorded yet | هنوز ثبت نشده | لا نه دی ثبت شوی | |
+| `medicalHistory.neverHint` | This patient's medical history has not been asked yet; fill in the checklist before treatment. | سوابق پزشکی این بیمار هنوز پرسیده نشده؛ پیش از درمان چک‌لیست را پر کنید. | د دې ناروغ طبي سوابق لا نه دي پوښتل شوي؛ له درملنې مخکې چک‌لیست ډک کړئ. | |
+| `medicalHistory.reviewDue` | Time to review the medical history | زمان بازبینی سوابق پزشکی | د طبي سوابقو د بیا کتنې وخت | |
+| `medicalHistory.reviewDueHint` | More than 6 months since the last review; ask the patient again at this visit. | بیش از ۶ ماه از آخرین بازبینی گذشته؛ در این ویزیت دوباره از بیمار بپرسید. | له وروستۍ کتنې څخه له ۶ میاشتو زیات تېر شوي؛ پدې لیدنه کې بیا له ناروغ وپوښتئ. | |
+| `medicalHistory.reviewNoChange` | Asked again — no change | پرسیده شد — تغییری نیست | وپوښتل شو — بدلون نشته | |
+| `medicalHistory.reviewed` | Medical history review recorded. | بازبینی سوابق پزشکی ثبت شد. | د طبي سوابقو کتنه ثبت شوه. | |
+| `medicalHistory.conflict` | Someone else changed this medical history meanwhile; open it again. | سوابق پزشکی هم‌زمان توسط کاربر دیگری تغییر کرد؛ صفحه را دوباره باز کنید. | طبي سوابق په همدې وخت کې بل کارن بدل کړل؛ پاڼه بیا پرانیزئ. | |
+| `medicalHistory.progress` | {done} of {all} questions answered · {yes} “yes” | {done} از {all} سؤال پاسخ داده شده · {yes} «بله» | {done} له {all} پوښتنو ځواب شوي · {yes} «هو» | |
+| `medicalHistory.restNo` | Mark the rest “no” | بقیه سؤال‌ها: نخیر | پاتې پوښتنې: نه | |
+| `medicalHistory.undo` | Undo changes | برگرداندن تغییرات | بدلونونه بېرته واخلئ | |
+| `medicalHistory.alertQuestion` | A “yes” shows in the alert banner | پاسخ «بله» در بنر هشدار نمایش داده می‌شود | «هو» ځواب د خبرتیا په بنر کې ښودل کېږي | |
+| `medicalHistory.answer.yes` | Yes | بله | هو | |
+| `medicalHistory.answer.no` | No | نخیر | نه | |
+| `medicalHistory.answer.unknown` | Unknown | نامعلوم | نامعلوم | |
+| `medicalHistory.monthsHint` | A number from 1 to 10 | عدد بین ۱ تا ۱۰ | له ۱ تر ۱۰ پورې عدد | |
+| `medicalHistory.months` | months | ماه | میاشتې | |
+| `medicalHistory.route` | Taken as | نوع مصرف | د کارولو ډول | |
+| `medicalHistory.open` | Open medical history | باز کردن سوابق پزشکی | طبي سوابق پرانیزئ | |
+| `mh.group.cardio` | Heart and blood vessels | قلب و عروق | زړه او رګونه | |
+| `mh.group.blood` | Blood | خون | وینه | |
+| `mh.group.endocrine` | Hormones and metabolism | غدد و متابولیک | غدې او متابولیزم | |
+| `mh.group.respiratory` | Breathing | تنفسی | تنفسي | |
+| `mh.group.infectious` | Infections | بیماری‌های عفونی | ساري ناروغۍ | |
+| `mh.group.kidney_liver` | Kidney and liver | کلیه و کبد | پښتورګي او ځیګر | |
+| `mh.group.neuro` | Nervous system | عصبی | عصبي | |
+| `mh.group.bone` | Bones and joints | استخوان و مفاصل | هډوکي او بندونه | |
+| `mh.group.cancer` | Cancer | سرطان | سرطان | |
+| `mh.group.digestive` | Digestion | گوارش | هاضمه | |
+| `mh.group.skin` | Skin | پوست | پوستکی | |
+| `mh.group.habits` | Habits | عادات | عادتونه | |
+| `mh.group.women` | Women | زنان | ښځې | |
+| `mh.group.allergy` | Allergies | حساسیت‌ها | حساسیتونه | |
+| `mh.group.medication` | Medicines | داروها | درمل | |
+| `mh.group.surgery` | Surgery and hospital stays | جراحی و بستری | جراحي او بستر | |
+| `mh.group.other` | Other | سایر | نور | |
+| `mh.choice.controlled` | Controlled | کنترل‌شده | کنټرول شوې | |
+| `mh.choice.uncontrolled` | Uncontrolled | کنترل‌نشده | نا کنټرول شوې | |
+| `mh.choice.active` | Active | فعال | فعال | |
+| `mh.choice.treated` | Treated | درمان‌شده | درملنه شوې | |
+| `mh.choice.oral` | By mouth | خوراکی | خوراکي | |
+| `mh.choice.injection` | Injected | تزریقی | پیچکاري | |
+| `rule.medical_question_not_found` | This question was not found. | این سؤال پیدا نشد. | دا پوښتنه ونه موندل شوه. | |
+| `rule.medical_question_group` | The question group is not valid. | گروه سؤال معتبر نیست. | د پوښتنې ډله سمه نه ده. | |
+| `rule.medical_question_label` | The question needs a text (up to 200 characters). | متن سؤال لازم است (حداکثر ۲۰۰ حرف). | د پوښتنې متن اړین دی (تر ۲۰۰ تورو پورې). | |
+| `rule.medical_detail_kind` | A question the clinic adds can only ask for a text detail. | سؤالی که کلینیک اضافه می‌کند فقط می‌تواند توضیح متنی داشته باشد. | هغه پوښتنه چې کلینیک یې زیاتوي یوازې متني تشریح لرلی شي. | |
+| `rule.medical_detail_length` | This text is too long (up to 300 characters; other notes up to 4000). | این متن طولانی است (حداکثر ۳۰۰ حرف؛ سایر توضیحات ۴۰۰۰). | دا متن اوږد دی (تر ۳۰۰ تورو؛ نور توضیحات تر ۴۰۰۰). | |
+| `rule.medical_choice` | Pick one of the given options. | یکی از گزینه‌های داده‌شده را انتخاب کنید. | له ورکړل شویو انتخابونو یو وټاکئ. | |
+| `rule.medical_months_range` | The number of months must be from 1 to 10. | تعداد ماه باید عددی بین ۱ تا ۱۰ باشد. | د میاشتو شمېر باید له ۱ تر ۱۰ پورې وي. | |
+| `rule.medical_system_question` | Built-in questions can only be switched off or moved. | سؤال‌های پیش‌فرض را فقط می‌توان غیرفعال یا جابه‌جا کرد. | اصلي پوښتنې یوازې غیر فعالېدای یا ځای پر ځای کېدای شي. | |
+| `rule.document_not_found` | This document was not found. | این سند پیدا نشد. | دا سند ونه موندل شو. | |
+| `rule.document_void` | This document was voided; it can no longer be printed or changed. | این سند باطل شده و دیگر چاپ یا تغییر نمی‌شود. | دا سند باطل شوی او نور نه چاپېږي او نه بدلېږي. | |
+| `rule.document_text` | This text is too long. | این متن طولانی است. | دا متن اوږد دی. | |
+| `rule.document_items` | At least one item is needed (up to 15). | دست‌کم یک مورد لازم است (حداکثر ۱۵). | لږ تر لږه یو توکی اړین دی (تر ۱۵ پورې). | |
+| `rule.doctor_required` | A prescription needs its doctor. | نسخه باید داکتر داشته باشد. | نسخه باید ډاکټر ولري. | |
+| `rule.rx_form` | Pick the dosage form from the list. | شکل دارو را از فهرست انتخاب کنید. | د درمل بڼه له لېست څخه وټاکئ. | |
+| `rule.rx_dose_range` | Times a day is 1–12 and days is 1–365. | تعداد بار در روز ۱ تا ۱۲ و تعداد روز ۱ تا ۳۶۵ است. | په ورځ کې ځله له ۱ تر ۱۲ او ورځې له ۱ تر ۳۶۵ پورې دي. | |
+| `rule.rx_warning_not_acknowledged` | This medicine has a warning; read it and confirm. | برای این دارو هشدار وجود دارد؛ آن را بخوانید و تأیید کنید. | د دې درمل لپاره خبرتیا شته؛ هغه ولولئ او تایید یې کړئ. | |
+| `rule.imaging_test_unknown` | This X-ray or test is not known. | این نوع عکس یا آزمایش شناخته نشد. | دا ډول عکس یا ازموینه ونه پېژندل شوه. | |
+| `rule.rest_days_range` | Rest must be from 1 to 60 days. | تعداد روزهای استراحت باید بین ۱ تا ۶۰ باشد. | د آرام ورځې باید له ۱ تر ۶۰ پورې وي. | |
+| `rule.drug_not_found` | This medicine was not found. | این دارو پیدا نشد. | دا درمل ونه موندل شو. | |
+| `rule.drug_class_unknown` | Unknown medicine class. | گروه دارویی شناخته نشد. | د درملو ډله ونه پېژندل شوه. | |
+| `rule.template_not_found` | This template was not found. | این قالب پیدا نشد. | دا قالب ونه موندل شو. | |
+| `rule.template_kind` | This template is not for this kind of document. | این قالب برای این نوع سند نیست. | دا قالب د دې ډول سند لپاره نه دی. | |
+| `rule.specialty_not_found` | This specialty was not found. | این تخصص پیدا نشد. | دا تخصص ونه موندل شو. | |
+| `rule.service_not_found` | This service was not found or is switched off. | این خدمت پیدا نشد یا غیرفعال است. | دا خدمت ونه موندل شو یا غیر فعال دی. | |
+| `rule.service_category_not_found` | This category was not found. | این دسته پیدا نشد. | دا ډله ونه موندل شوه. | |
+| `rule.service_code_taken` | Another service already has this code. | خدمت دیگری همین کد را دارد. | بل خدمت همدا کوډ لري. | |
+| `rule.service_code_format` | A code is 1–20 Latin letters, digits or - _ . (e.g. END-02). | کد ۱ تا ۲۰ حرف انگلیسی، عدد یا - _ . است (مثلاً END-02). | کوډ له ۱ تر ۲۰ انګلیسي توري، عدد یا - _ . دی (لکه END-02). | |
+| `rule.service_price` | The price is not valid. | قیمت معتبر نیست. | بیه سمه نه ده. | |
+| `rule.service_sessions` | Visits must be from 1 to 60. | تعداد جلسات باید بین ۱ تا ۶۰ باشد. | د ناستو شمېر باید له ۱ تر ۶۰ پورې وي. | |
+| `rule.service_variant_depth` | A variant belongs to a service, not to another variant. | نوع فقط زیر یک خدمت قرار می‌گیرد، نه زیر نوع دیگر. | ډول یوازې د یو خدمت لاندې راځي، نه د بل ډول لاندې. | |
+| `rule.service_specialty` | By the clinic's settings, only doctors of this service's specialty can do it. | طبق تنظیمات کلینیک، این خدمت فقط توسط داکترهای همان تخصص انجام می‌شود. | د کلینیک د تنظیماتو له مخې، دا خدمت یوازې د همدې تخصص ډاکټران ترسره کوي. | |
+| `rule.license_length` | The licence number is at most 50 characters. | شماره جواز حداکثر ۵۰ حرف است. | د جواز شمېره تر ۵۰ تورو پورې ده. | |
+| `doctors.specialties` | Specialties | تخصص‌ها | تخصصونه | |
+| `doctors.specialtiesHint` | One or more; when a service is chosen, doctors of its specialty are listed first. | یک یا چند تخصص؛ هنگام انتخاب خدمت، داکترهای همان تخصص اول نمایش داده می‌شوند. | یو یا څو تخصصونه؛ د خدمت د ټاکلو پر مهال د همدې تخصص ډاکټران لومړی ښودل کېږي. | |
+| `doctors.oldSpecialty` | Typed before: “{text}” — pick a specialty from the list. | قبلاً نوشته شده: «{text}» — یک تخصص از فهرست انتخاب کنید. | مخکې لیکل شوی: «{text}» — له لېست څخه یو تخصص وټاکئ. | |
+| `doctors.license` | Licence / registration no. | شماره جواز / ثبت | د جواز / ثبت شمېره | |
+| `doctors.licenseHint` | Printed on the prescription letterhead. | روی سربرگ نسخه چاپ می‌شود. | د نسخې پر سرلیک چاپېږي. | |
+| `appt.service` | Service | خدمت | خدمت | |
+| `appt.serviceHint` | Optional; doctors of its specialty are listed first. | اختیاری؛ داکترهای همان تخصص اول نمایش داده می‌شوند. | اختیاري؛ د همدې تخصص ډاکټران لومړی ښودل کېږي. | |
+| `appt.serviceNone` | — No particular service — | — بدون خدمت مشخص — | — بې ټاکلي خدمت — | |
+| `appt.doctorsOfSpecialty` | {specialty} doctors | داکترهای {specialty} | د {specialty} ډاکټران | |
+| `appt.otherDoctors` | Other doctors | سایر داکترها | نور ډاکټران | |
+| `appt.specialtyWarning` | This doctor is not listed under “{specialty}”; continue if that is intended. | این داکتر تخصص «{specialty}» را ندارد؛ اگر عمداً انتخاب شده، ادامه دهید. | دا ډاکټر د «{specialty}» تخصص نه لري؛ که په قصد ټاکل شوی، دوام ورکړئ. | |
+| `print.paper` | Paper | کاغذ | کاغذ | |
+| `print.paper.a4` | A4 | A4 | A4 | |
+| `print.paper.a5` | A5 | A5 | A5 | |
+| `print.paper.a6` | A6 | A6 | A6 | |
+| `print.printer` | Printer on this computer | پرینتر این کامپیوتر | د دې کمپیوټر پرینټر | |
+| `print.noPrinter` | No printer — PDF only | بدون پرینتر — فقط PDF | بې پرینټره — یوازې PDF | |
+| `print.browserHint` | In a browser, Print opens the browser's print window. | در مرورگر، «چاپ» پنجره چاپ مرورگر را باز می‌کند. | په براوزر کې، «چاپ» د براوزر د چاپ کړکۍ پرانیزي. | |
+| `print.smallPaper` | Small paper on this printer | کاغذ کوچک روی این پرینتر | پر دې پرینټر کوچنی کاغذ | |
+| `print.compactA4` | On A4 (with cut line) | روی A4 (با خط برش) | پر A4 (د پرې کولو کرښې سره) | |
+| `print.compactHint` | The document prints at real size at the top of an A4 sheet, with a cut line around it. | سند در اندازه واقعی بالای یک برگ A4 چاپ می‌شود و دور آن خط برش دارد. | سند په اصلي اندازه د A4 پاڼې پر سر چاپېږي او شاوخوا یې د پرې کولو کرښه لري. | |
+| `print.nativeHint` | Put the small paper in the printer's tray; Windows picks the tray. | کاغذ کوچک را در سینی پرینتر بگذارید؛ ویندوز سینی را انتخاب می‌کند. | کوچنی کاغذ د پرینټر په پتنوس کې کېږدئ؛ وینډوز پتنوس ټاکي. | |
+| `print.noSmallPaper` | This printer has no {paper} paper; choose “On A4”. | این پرینتر کاغذ {paper} ندارد؛ «روی A4» را انتخاب کنید. | دا پرینټر {paper} کاغذ نه لري؛ «پر A4» وټاکئ. | |
+| `print.print` | Print | چاپ | چاپ | |
+| `print.pdf` | Save PDF | ذخیره PDF | PDF خوندي کول | |
+| `print.openFolder` | Open folder | باز کردن پوشه | فولډر پرانیستل | |
+| `print.pdfOnlyHint` | Choose this computer's printer to print; PDF is always available. | برای چاپ، پرینتر این کامپیوتر را انتخاب کنید؛ PDF همیشه در دسترس است. | د چاپ لپاره د دې کمپیوټر پرینټر وټاکئ؛ PDF تل شته. | |
+| `print.sent` | Sent to the printer. | به پرینتر فرستاده شد. | پرینټر ته ولېږل شو. | |
+| `print.pdfSaved` | PDF saved at the document's real size. | PDF در اندازه واقعی سند ذخیره شد. | PDF د سند په اصلي اندازه خوندي شو. | |
+| `print.failed` | Printing failed: {detail} | چاپ انجام نشد: {detail} | چاپ ونه شو: {detail} | |
+| `doc.kind.prescription` | Prescription | نسخه | نسخه | |
+| `doc.kind.consent` | Consent form | رضایت‌نامه | رضایت‌لیک | |
+| `doc.kind.post_op` | After-treatment instructions | دستورات بعد از درمان | له درملنې وروسته لارښوونې | |
+| `doc.kind.referral` | Referral letter | معرفی‌نامه | معرفي‌لیک | |
+| `doc.kind.imaging_request` | Imaging and test request | درخواست عکس و آزمایش | د عکس او ازموینې غوښتنه | |
+| `doc.kind.certificate` | Medical certificate | تصدیق طبی | طبي تصدیق | |
+| `doc.kind.lab_order` | Dental laboratory order | فرمایش لابراتوار دندان | د غاښونو لابراتوار ته فرمایش | |
+| `doc.kind.record_summary` | Patient record summary | خلاصه پرونده بیمار | د ناروغ د دوسیې لنډیز | |
+| `doc.number` | No. | شماره | شمېره | |
+| `doc.date` | Date | تاریخ | نېټه | |
+| `doc.patient` | Patient | بیمار | ناروغ | |
+| `doc.patientId` | ID | ID | ID | |
+| `doc.age` | Age | سن | عمر | |
+| `doc.father` | Father | نام پدر | د پلار نوم | |
+| `doc.gender.male` | Male | مرد | نارینه | |
+| `doc.gender.female` | Female | زن | ښځینه | |
+| `doc.license` | Licence | شماره جواز | د جواز شمېره | |
+| `doc.void` | VOID | باطل | باطل | |
+| `doc.sign.patient` | Patient or guardian signature | امضای بیمار یا ولی | د ناروغ یا سرپرست لاسلیک | |
+| `doc.sign.thumb` | Thumbprint | اثر انگشت | د ګوتې نښه | |
+| `doc.sign.doctor` | Doctor's signature and stamp | امضا و مهر داکتر | د ډاکټر لاسلیک او مهر | |
+| `doc.procedure` | Treatment | درمان | درملنه | |
+| `doc.teeth` | Tooth / teeth | دندان | غاښ | |
+| `doc.notes` | Notes | توضیحات | توضیحات | |
+| `doc.referral.urgent` | Urgent | فوری | بیړنی | |
+| `doc.referral.to` | To | به | ته | |
+| `doc.referral.reason` | Reason for referral | دلیل ارجاع | د لېږلو لامل | |
+| `doc.referral.summary` | Findings and treatment so far | خلاصه یافته‌ها و درمان | د موندنو او درملنې لنډیز | |
+| `doc.referral.closing` | Please examine and treat this patient as needed. Thank you. | لطفاً بیمار را معاینه و درمان لازم را انجام دهید. با تشکر. | مهرباني وکړئ ناروغ معاینه او اړینه درملنه یې وکړئ. مننه. | |
+| `doc.imaging.center` | Centre | مرکز | مرکز | |
+| `doc.imaging.tests` | Requested | درخواست | غوښتنه | |
+| `doc.test.opg` | OPG (panoramic) | عکس OPG (پانورامیک) | OPG (پانورامیک) عکس | |
+| `doc.test.cbct` | CBCT (3D) | CBCT (عکس سه‌بعدی) | CBCT (درې اړخیز عکس) | |
+| `doc.test.periapical` | Periapical X-ray | عکس پری‌اپیکال | پېری اپیکل عکس | |
+| `doc.test.bitewing` | Bitewing X-ray | عکس بایت‌وینگ | بایټ وینګ عکس | |
+| `doc.test.cephalometric` | Cephalometric X-ray | عکس سفالومتری | سیفالومټري عکس | |
+| `doc.test.occlusal` | Occlusal X-ray | عکس اکلوزال | اکلوزل عکس | |
+| `doc.test.blood_cbc` | Complete blood count (CBC) | آزمایش کامل خون (CBC) | د وینې بشپړه ازموینه (CBC) | |
+| `doc.test.blood_coagulation` | Clotting test (PT / INR) | آزمایش انعقاد خون (PT / INR) | د وینې د ټینګېدو ازموینه (PT / INR) | |
+| `doc.test.blood_sugar` | Blood sugar | آزمایش قند خون | د وینې د شکرې ازموینه | |
+| `doc.test.hepatitis_hiv` | Hepatitis and HIV test | آزمایش هپاتیت و HIV | د هیپاټایټس او HIV ازموینه | |
+| `doc.test.other` | Other (see notes) | سایر (در توضیحات) | نور (په توضیحاتو کې) | |
+| `doc.certificate.to` | To | به | ته | |
+| `doc.certificate.visit` | This is to certify that {patient} {father} attended this clinic on {date} for dental examination and treatment. | بدین‌وسیله تصدیق می‌شود که {patient} {father}، در تاریخ {date} به این کلینیک مراجعه کرده و تحت معاینه و درمان دندان قرار گرفته است. | پدې سره تصدیقېږي چې {patient} {father}، په {date} نېټه دې کلینیک ته راغلی او د غاښونو معاینه او درملنه یې شوې ده. | |
+| `doc.certificate.childOf` | child of {father} | فرزند {father} | د {father} زوی/لور | |
+| `doc.certificate.rest` | The patient needs rest for {days} days, from {from} to {to}. | بیمار به مدت {days} روز، از {from} تا {to}، به استراحت نیاز دارد. | ناروغ ته د {days} ورځو لپاره، له {from} څخه تر {to} پورې، آرام ته اړتیا ده. | |
+| `doc.certificate.closing` | Issued at the patient's request. | این تصدیق بنا به درخواست بیمار صادر شد. | دا تصدیق د ناروغ په غوښتنه صادر شو. | |
+| `doc.lab.lab` | Laboratory | لابراتوار | لابراتوار | |
+| `doc.lab.work` | Work | نوع کار | د کار ډول | |
+| `doc.lab.material` | Material | مواد | مواد | |
+| `doc.lab.shade` | Shade | رنگ (Shade) | رنګ (Shade) | |
+| `doc.lab.due` | Due date | تاریخ تحویل | د سپارلو نېټه | |
+| `doc.summary.purpose` | For | برای | لپاره | |
+| `doc.summary.medical` | Important medical history | سوابق پزشکی مهم | مهم طبي سوابق | |
+| `doc.summary.noMedical` | Nothing important recorded. | مورد مهمی ثبت نشده است. | کوم مهم مورد نه دی ثبت شوی. | |
+| `doc.summary.visits` | Visits | مراجعه‌ها | مراجعې | |
+| `doc.summary.doctor` | Doctor | داکتر | ډاکټر | |
+| `doc.summary.reason` | Reason | دلیل | لامل | |
+| `doc.summary.none` | None. | موردی نیست. | هېڅ نشته. | |
+| `doc.summary.prescriptions` | Prescriptions | نسخه‌ها | نسخې | |
+| `doc.summary.fromRecord` | Filled from the patient's record when issued | هنگام صدور از پرونده بیمار پر می‌شود | د صادرولو پر مهال د ناروغ له دوسیې ډکېږي | |
+| `doc.card.title` | Appointment card | کارت نوبت | د نوبت کارت | |
+| `doc.card.note` | Please arrive 10 minutes early. If you cannot come, let the clinic know. | لطفاً ۱۰ دقیقه پیش از وقت نوبت حاضر شوید. در صورت نیامدن، به کلینیک خبر دهید. | مهرباني وکړئ له نوبت ۱۰ دقیقې مخکې حاضر شئ. که نه شئ راتلای، کلینیک ته خبر ورکړئ. | |
+| `rx.sentence.timesPerDay` | {n} times a day | روزانه {n} بار | ورځ کې {n} ځله | |
+| `rx.sentence.asNeededUpTo` | when needed, up to {n} times a day | در صورت نیاز، حداکثر روزانه {n} بار | د اړتیا پر مهال، په ورځ کې تر {n} ځله پورې | |
+| `rx.sentence.asNeeded` | when needed | در صورت نیاز | د اړتیا پر مهال | |
+| `rx.sentence.each` | {dose} each time | هر بار {dose} | هر ځل {dose} | |
+| `rx.sentence.days` | for {n} days | {n} روز | {n} ورځې | |
+| `rx.unit.tablet` | tablet(s) | قرص | ګولۍ | |
+| `rx.unit.capsule` | capsule(s) | کپسول | کپسول | |
+| `rx.timing.after_food` | after meals | بعد از غذا | له ډوډۍ وروسته | |
+| `rx.timing.before_food` | before meals | قبل از غذا | له ډوډۍ مخکې | |
+| `rx.timing.with_food` | with meals | همراه غذا | له ډوډۍ سره | |
+| `rx.timing.morning` | in the morning | صبح | سهار | |
+| `rx.timing.bedtime` | at bedtime | قبل از خواب | له خوب مخکې | |
+| `rx.form.tablet` | Tablet | قرص | ګولۍ | |
+| `rx.form.capsule` | Capsule | کپسول | کپسول | |
+| `rx.form.syrup` | Syrup | شربت | شربت | |
+| `rx.form.suspension` | Suspension | سوسپانسیون | سوسپنشن | |
+| `rx.form.mouthwash` | Mouthwash | دهان‌شویه | د خولې مینځونکی | |
+| `rx.form.gel` | Gel | ژل | جیل | |
+| `rx.form.cream` | Cream | کریم | کریم | |
+| `rx.form.ointment` | Ointment | پماد | مرهم | |
+| `rx.form.injection` | Injection | تزریقی | پیچکاري | |
+| `rx.form.drops` | Drops | قطره | څاڅکي | |
+| `rx.form.spray` | Spray | اسپری | سپری | |
+| `rx.form.other` | Other | سایر | نور | |
+| `rx.quantity` | Qty | تعداد | شمېر | |
+| `rx.new` | New prescription | نسخه جدید | نوې نسخه | |
+| `rx.subtitle` | Issued prescriptions; a reprint is the same prescription with the same number. | نسخه‌های صادرشده؛ چاپ مجدد همان نسخه با همان شماره است. | صادرې شوې نسخې؛ بیا چاپ همغه نسخه په همغه شمېره ده. | |
+| `rx.none` | No prescriptions yet | هنوز نسخه‌ای صادر نشده | لا کومه نسخه نه ده صادره شوې | |
+| `rx.noneHint` | Write one from the clinic's medicines or a ready-made prescription; it prints in the patient's language. | نسخه با داروهای کلینیک یا نسخه‌های آماده نوشته و به زبان بیمار چاپ می‌شود. | نسخه د کلینیک له درملو یا چمتو نسخو لیکل کېږي او د ناروغ په ژبه چاپېږي. | |
+| `rx.issued` | Prescription {number} issued. | نسخه {number} صادر شد. | نسخه {number} صادره شوه. | |
+| `rx.templateReplace` | Replace the current medicines with this ready-made prescription? | داروهای فعلی با نسخه آماده جایگزین شوند؟ | اوسني درمل په چمتو نسخه بدل شي؟ | |
+| `rx.draftNumber` | Preview | پیش‌نمایش | مخکتنه | |
+| `rx.ackFirst` | Read and confirm the medicine warnings. | هشدارهای داروها را بخوانید و تأیید کنید. | د درملو خبرتیاوې ولولئ او تایید یې کړئ. | |
+| `rx.issue` | Issue prescription | صدور نسخه | نسخه صادرول | |
+| `rx.doctor` | Doctor (letterhead) | داکتر (سربرگ نسخه) | ډاکټر (د نسخې سرلیک) | |
+| `rx.languageHint` | Instructions are written in this language; medicine names stay in Latin. | دستور مصرف به این زبان نوشته می‌شود؛ نام دارو لاتین می‌ماند. | د کارولو لارښوونه په دې ژبه لیکل کېږي؛ د درمل نوم لاتین پاتې کېږي. | |
+| `rx.templates` | Ready-made prescriptions | نسخه‌های آماده | چمتو نسخې | |
+| `rx.empty` | No medicines yet; search above or use a ready-made prescription. | دارویی اضافه نشده؛ از جستجو یا نسخه‌های آماده استفاده کنید. | کوم درمل نه دی زیات شوی؛ له لټون یا چمتو نسخو کار واخلئ. | |
+| `rx.medicine` | Medicine (Latin name) | دارو (نام لاتین) | درمل (لاتین نوم) | |
+| `rx.strength` | Strength | قوت | زور | |
+| `rx.remove` | Remove medicine | حذف دارو | درمل لرې کول | |
+| `rx.formLabel` | Form | شکل دارو | د درمل بڼه | |
+| `rx.dose` | Each time | هر بار | هر ځل | |
+| `rx.timesPerDay` | Times a day | بار در روز | ځله په ورځ | |
+| `rx.timing` | When | زمان مصرف | د کارولو وخت | |
+| `rx.days` | For | مدت | موده | |
+| `rx.daysUnit` | days | روز | ورځې | |
+| `rx.asNeeded` | Only when needed | فقط در صورت نیاز | یوازې د اړتیا پر مهال | |
+| `rx.notePlaceholder` | More for this medicine (in the patient's language) | توضیح بیشتر برای این دارو (به زبان بیمار) | د دې درمل لپاره نور توضیح (د ناروغ په ژبه) | |
+| `rx.ack` | Seen; prescribing knowingly | دیدم؛ با آگاهی تجویز می‌کنم | ومې لید؛ په پوهې سره یې ورکوم | |
+| `rx.notes` | Prescription notes | توضیحات نسخه | د نسخې توضیحات | |
+| `rx.notesHint` | Printed under the medicines. | زیر داروها چاپ می‌شود. | د درملو لاندې چاپېږي. | |
+| `rx.searchPlaceholder` | Search the clinic's medicines… (e.g. Amox) | جستجوی دارو در فهرست کلینیک… (مثلاً Amox) | د کلینیک په لېست کې درمل لټول… (لکه Amox) | |
+| `rx.addTyped` | Add “{name}” as a medicine | افزودن «{name}» به‌عنوان دارو | «{name}» د درمل په توګه زیاتول | |
+| `rxw.penicillin_allergy` | Penicillin allergy recorded ({detail}) — {drug} is in this group. | حساسیت به پنی‌سیلین ثبت شده ({detail}) — {drug} از همین گروه است. | پنسلین ته حساسیت ثبت شوی ({detail}) — {drug} له همدې ډلې دی. | |
+| `rxw.cephalosporin_cross_allergy` | Penicillin allergy recorded; {drug} may cross-react. | حساسیت به پنی‌سیلین ثبت شده؛ {drug} ممکن است حساسیت متقابل داشته باشد. | پنسلین ته حساسیت ثبت شوی؛ {drug} ښايي متقابل حساسیت ولري. | |
+| `rxw.nsaid_allergy` | Painkiller (aspirin / ibuprofen) allergy recorded — {drug} is in this group. | حساسیت به مسکن‌ها (آسپرین / ایبوپروفن) ثبت شده — {drug} از همین گروه است. | د درد ضد درملو ته حساسیت ثبت شوی — {drug} له همدې ډلې دی. | |
+| `rxw.anesthetic_allergy` | Local anaesthetic allergy recorded — {drug}. | حساسیت به داروی بی‌حسی ثبت شده — {drug}. | بې‌حسه کوونکو درملو ته حساسیت ثبت شوی — {drug}. | |
+| `rxw.nsaid_pregnancy` | The patient is pregnant ({detail} months) — {drug} is not advised in pregnancy. | بیمار حامله است ({detail} ماه) — {drug} در بارداری توصیه نمی‌شود. | ناروغه امیندواره ده ({detail} میاشتې) — {drug} په امیندوارۍ کې نه سپارښتل کېږي. | |
+| `rxw.tetracycline_pregnancy` | The patient is pregnant — {drug} must not be used in pregnancy. | بیمار حامله است — {drug} در بارداری ممنوع است. | ناروغه امیندواره ده — {drug} په امیندوارۍ کې منع دی. | |
+| `rxw.nsaid_bleeding` | Blood thinner or bleeding disorder recorded — {drug} raises bleeding risk. | رقیق‌کننده خون یا اختلال خونریزی ثبت شده — {drug} خطر خونریزی را بیشتر می‌کند. | د وینې نریوونکي یا د وینې بهېدنې ستونزه ثبت شوې — {drug} د وینې بهېدنې خطر زیاتوي. | |
+| `rxw.anticoagulant_interaction` | The patient takes a blood thinner ({detail}) — {drug} may increase its effect. | بیمار رقیق‌کننده خون مصرف می‌کند ({detail}) — {drug} ممکن است اثر آن را بیشتر کند. | ناروغ د وینې نریوونکي کاروي ({detail}) — {drug} ښايي اغېز یې زیات کړي. | |
+| `rxw.nsaid_stomach` | Stomach ulcer recorded — use {drug} with care (with food or stomach protection). | زخم یا بیماری معده ثبت شده — {drug} با احتیاط (همراه غذا یا با محافظ معده). | د معدې زخم یا ناروغي ثبت شوې — {drug} په احتیاط (له ډوډۍ سره یا د معدې ساتونکي سره). | |
+| `rxw.nsaid_kidney` | Kidney disease recorded — use {drug} with care. | بیماری کلیه ثبت شده — {drug} با احتیاط. | د پښتورګو ناروغي ثبت شوې — {drug} په احتیاط. | |
+| `rxw.nsaid_asthma` | Asthma recorded — {drug} can trigger an attack. | آسم ثبت شده — {drug} ممکن است حمله آسم را تحریک کند. | استما ثبت شوې — {drug} ښايي د استما حمله راپاروي. | |
+| `rxw.nsaid_blood_pressure` | High blood pressure recorded — use {drug} with care, short term. | فشار خون بالا ثبت شده — {drug} با احتیاط و کوتاه‌مدت. | لوړ فشار ثبت شوی — {drug} په احتیاط او لنډ وخت. | |
+| `rxw.breastfeeding_caution` | The patient is breastfeeding — use {drug} with care. | بیمار شیر می‌دهد — {drug} با احتیاط. | ناروغه شیدې ورکوي — {drug} په احتیاط. | |
+| `rxw.pregnancy_caution` | The patient is pregnant ({detail} months) — {drug} only if needed. | بیمار حامله است ({detail} ماه) — {drug} فقط در صورت ضرورت. | ناروغه امیندواره ده ({detail} میاشتې) — {drug} یوازې د اړتیا پر مهال. | |
+| `rxw.liver_dose` | Liver disease recorded — lower the dose of {drug}. | بیماری کبد ثبت شده — دوز {drug} را کم کنید. | د ځیګر ناروغي ثبت شوې — د {drug} دوز کم کړئ. | |
+| `rxw.seizure_risk` | Epilepsy recorded — {drug} may raise seizure risk. | صرع ثبت شده — {drug} ممکن است خطر تشنج را بیشتر کند. | مرګي ثبت شوې — {drug} ښايي د اختلاج خطر زیات کړي. | |
+| `rxw.steroid_diabetes` | Diabetes recorded — {drug} raises blood sugar. | مرض شکر ثبت شده — {drug} قند خون را بالا می‌برد. | د شکرې ناروغي ثبت شوې — {drug} د وینې شکره لوړوي. | |
+| `rxw.named_allergy` | Allergy to “{detail}” recorded — {drug}. | حساسیت به «{detail}» ثبت شده — {drug}. | «{detail}» ته حساسیت ثبت شوی — {drug}. | |
+| `docs.number` | No. | شماره | شمېره | |
+| `docs.kind` | Document | سند | سند | |
+| `docs.date` | Date | تاریخ | نېټه | |
+| `docs.doctor` | Doctor | داکتر | ډاکټر | |
+| `docs.printed` | Printed | چاپ | چاپ | |
+| `docs.actions` | Actions | کارها | کړنې | |
+| `docs.kind.prescription` | Prescription | نسخه | نسخه | |
+| `docs.kind.consent` | Consent form | رضایت‌نامه | رضایت‌لیک | |
+| `docs.kind.post_op` | After-treatment sheet | دستورات بعد از درمان | له درملنې وروسته لارښوونې | |
+| `docs.kind.referral` | Referral letter | معرفی‌نامه | معرفي‌لیک | |
+| `docs.kind.imaging_request` | Imaging / test request | درخواست عکس / آزمایش | د عکس / ازموینې غوښتنه | |
+| `docs.kind.certificate` | Medical certificate | تصدیق طبی / رخصتی | طبي تصدیق / رخصتي | |
+| `docs.kind.lab_order` | Lab work order | فرمایش لابراتوار | لابراتوار ته فرمایش | |
+| `docs.kind.record_summary` | Record summary | گزارش پرونده بیمار | د ناروغ د دوسیې راپور | |
+| `docs.void` | Voided | باطل‌شده | باطل شوی | |
+| `docs.printedTimes` | {n}× | {n} بار | {n} ځله | |
+| `docs.notPrinted` | Not printed | چاپ نشده | نه دی چاپ شوی | |
+| `docs.signedAttached` | Signed copy attached | نسخه امضاشده پیوست است | لاسلیک شوې نسخه نښتې ده | |
+| `docs.view` | View | نمایش | ښودل | |
+| `docs.print` | Print / PDF | چاپ / PDF | چاپ / PDF | |
+| `docs.attachSigned` | Attach the signed copy | پیوست نسخه امضاشده | د لاسلیک شوې نسخې نښلول | |
+| `docs.voidAction` | Void | باطل کردن | باطلول | |
+| `docs.voidNotice` | This document was voided: {reason} | این سند باطل شده است: {reason} | دا سند باطل شوی: {reason} | |
+| `docs.reprintHint` | A reprint is the same document with the same number; no new document is made. | چاپ مجدد همان سند با همان شماره است و سند جدید ساخته نمی‌شود. | بیا چاپ همغه سند په همغه شمېره دی او نوی سند نه جوړېږي. | |
+| `docs.voided` | Document voided. | سند باطل شد. | سند باطل شو. | |
+| `docs.signedSaved` | Signed copy attached to the document. | نسخه امضاشده به سند پیوست شد. | لاسلیک شوې نسخه له سند سره ونښلول شوه. | |
+| `docs.voidTitle` | Void {number} | باطل کردن {number} | د {number} باطلول | |
+| `docs.voidHint` | Nothing is deleted: it stays in the record marked void, with the reason. Issue a new one to correct it. | سند پاک نمی‌شود؛ با برچسب «باطل» و دلیل در پرونده می‌ماند. برای اصلاح، سند جدید صادر کنید. | سند نه پاکېږي؛ د «باطل» نښې او لامل سره په دوسیه کې پاتې کېږي. د سمون لپاره نوی سند صادر کړئ. | |
+| `docs.voidReason` | Reason | دلیل باطل کردن | د باطلولو لامل | |
+| `docs.language` | Document language | زبان سند | د سند ژبه | |
+| `docs.livePreview` | Print preview | پیش‌نمایش چاپ | د چاپ مخکتنه | |
+| `docs.new.consent` | New consent form | رضایت‌نامه جدید | نوی رضایت‌لیک | |
+| `docs.new.post_op` | After-treatment sheet | دستورات بعد از درمان | له درملنې وروسته لارښوونې | |
+| `docs.new.referral` | New referral letter | معرفی‌نامه جدید | نوی معرفي‌لیک | |
+| `docs.new.imaging_request` | Imaging / test request | درخواست عکس / آزمایش | د عکس / ازموینې غوښتنه | |
+| `docs.new.certificate` | Medical certificate | تصدیق طبی / رخصتی | طبي تصدیق / رخصتي | |
+| `docs.new.lab_order` | Lab work order | فرمایش لابراتوار | لابراتوار ته فرمایش | |
+| `docs.new.record_summary` | Record summary | گزارش پرونده بیمار | د ناروغ د دوسیې راپور | |
+| `docs.issue` | Issue and print | صدور و چاپ | صادرول او چاپ | |
+| `docs.issued` | Document {number} issued. | سند {number} صادر شد. | سند {number} صادر شو. | |
+| `docs.template` | Template | قالب | قالب | |
+| `docs.templateHint` | Template texts are edited in Clinical lists. | متن قالب‌ها در «فهرست‌های بالینی» قابل ویرایش است. | د قالبونو متن په «کلینیکي لېستونو» کې سمېدای شي. | |
+| `docs.procedure` | Treatment | درمان | درملنه | |
+| `docs.teeth` | Tooth / teeth | دندان(ها) | غاښ(ونه) | |
+| `docs.teethHint` | FDI numbers, e.g. 36 or 11 21 | شماره FDI، مثلاً 36 یا 11 21 | د FDI شمېره، لکه 36 یا 11 21 | |
+| `docs.title` | Title | عنوان | سرلیک | |
+| `docs.text` | Text | متن | متن | |
+| `docs.textHint` | Filled from the template; you can change it for this patient. | از قالب پر شده؛ می‌توانید برای همین بیمار تغییر دهید. | له قالب ډک شوی؛ د همدې ناروغ لپاره یې بدلولی شئ. | |
+| `docs.refill` | Refill from the template | دوباره از قالب | بیا له قالب | |
+| `docs.referral.to` | Refer to | ارجاع به | لېږل ته | |
+| `docs.referral.toHint` | Doctor, clinic or hospital | نام داکتر، کلینیک یا شفاخانه | د ډاکټر، کلینیک یا روغتون نوم | |
+| `docs.referral.specialty` | Specialty | تخصص | تخصص | |
+| `docs.referral.reason` | Reason for referral | دلیل ارجاع | د لېږلو لامل | |
+| `docs.referral.summary` | Findings and treatment so far | خلاصه یافته‌ها و درمان | د موندنو او درملنې لنډیز | |
+| `docs.referral.summaryHint` | Include the important medical history. | سوابق پزشکی مهم را هم بنویسید. | مهم طبي سوابق هم ولیکئ. | |
+| `docs.referral.urgent` | Urgent referral | ارجاع فوری | بیړنی لېږل | |
+| `docs.imaging.tests` | X-rays and tests | عکس‌ها و آزمایش‌ها | عکسونه او ازموینې | |
+| `docs.imaging.center` | Radiology centre / lab | مرکز رادیولوژی / لابراتوار | د رادیولوژي مرکز / لابراتوار | |
+| `docs.notes` | Notes | توضیحات | توضیحات | |
+| `docs.certificate.visit` | Visit date | تاریخ مراجعه | د مراجعې نېټه | |
+| `docs.certificate.restDays` | Rest days | روزهای استراحت | د آرام ورځې | |
+| `docs.certificate.restHint` | Empty = the visit only | خالی = فقط تصدیق مراجعه | تش = یوازې د مراجعې تصدیق | |
+| `docs.certificate.restFrom` | Rest from | استراحت از | آرام له | |
+| `docs.certificate.addressee` | For | برای | لپاره | |
+| `docs.certificate.addresseeHint` | e.g. employer or school | مثلاً اداره یا مکتب | لکه اداره یا ښوونځی | |
+| `docs.lab.lab` | Laboratory | لابراتوار | لابراتوار | |
+| `docs.lab.work` | Work | نوع کار | د کار ډول | |
+| `docs.lab.workHint` | Suggested from the service catalog. | از خدمات کاتالوگ پیشنهاد می‌شود. | د کتلاګ له خدماتو وړاندیز کېږي. | |
+| `docs.lab.material` | Material | مواد | مواد | |
+| `docs.lab.shade` | Shade | رنگ (Shade) | رنګ (Shade) | |
+| `docs.lab.due` | Due date | تاریخ تحویل | د سپارلو نېټه | |
+| `docs.summary.hint` | The medical history, visits and recent prescriptions are taken from the record when issued and kept with the document. | سوابق پزشکی، مراجعه‌ها و نسخه‌های اخیر هنگام صدور از پرونده گرفته و با سند ثبت می‌شوند. | طبي سوابق، مراجعې او وروستۍ نسخې د صادرولو پر مهال له دوسیې اخیستل کېږي او له سند سره ثبتېږي. | |
+| `docs.summary.purpose` | For | برای | لپاره | |
+| `docs.summary.purposeHint` | e.g. “For Dr Karimi” or “For the patient” | مثلاً «برای داکتر کریمی» یا «برای خود بیمار» | لکه «د ډاکټر کریمي لپاره» یا «د ناروغ لپاره» | |
+| `docs.newDocument` | New document | سند جدید | نوی سند | |
+| `docs.clinicalTitle` | Clinical documents | اسناد بالینی | کلینیکي اسناد | |
+| `docs.clinicalHint` | Consent forms, after-treatment sheets, referrals, imaging requests, certificates, lab orders and record summaries. | رضایت‌نامه، دستورات بعد از درمان، معرفی‌نامه، درخواست عکس، تصدیق طبی، فرمایش لابراتوار و گزارش پرونده. | رضایت‌لیک، له درملنې وروسته لارښوونې، معرفي‌لیک، د عکس غوښتنه، طبي تصدیق، لابراتوار ته فرمایش او د دوسیې راپور. | |
+| `docs.none` | No documents yet | هنوز سندی صادر نشده | لا کوم سند نه دی صادر شوی | |
+| `docs.noneHint` | Use New document to write and print one on the clinic's letterhead. | با «سند جدید» یک سند با سربرگ کلینیک بسازید و چاپ کنید. | د «نوی سند» په مرسته د کلینیک له سرلیک سره سند جوړ او چاپ کړئ. | |
+| `nav.catalog` | Services and prices | خدمات و تعرفه‌ها | خدمتونه او بیې | |
+| `nav.clinical` | Clinical lists | فهرست‌های بالینی | کلینیکي لېستونه | |
+| `appt.consentSuggested` | A consent form is suggested | رضایت‌نامه پیشنهاد می‌شود | رضایت‌لیک وړاندیز کېږي | |
+| `appt.consentHint` | Print and sign the consent form before this treatment. | برای این درمان قبل از شروع، رضایت‌نامه را چاپ و امضا کنید. | د دې درملنې له پیل مخکې رضایت‌لیک چاپ او لاسلیک کړئ. | |
+| `appt.consentAfterBooking` | After booking you can write this treatment's consent form. | بعد از ثبت نوبت می‌توانید رضایت‌نامه این درمان را بنویسید. | د نوبت له ثبت وروسته د دې درملنې رضایت‌لیک لیکلی شئ. | |
+| `appt.consentWrite` | Write consent form | نوشتن رضایت‌نامه | رضایت‌لیک لیکل | |
+| `queue.medicalReview` | Ask the medical history | سوابق پزشکی را بپرسید | طبي سوابق وپوښتئ | |
+| `settings.print` | Printing and documents | چاپ و اسناد | چاپ او اسناد | |
+| `settings.printHint` | This computer's printer and paper; each computer of the clinic has its own. | پرینتر و کاغذ این کامپیوتر؛ هر کامپیوتر کلینیک تنظیم خودش را دارد. | د دې کمپیوټر پرینټر او کاغذ؛ د کلینیک هر کمپیوټر خپل تنظیم لري. | |
+| `settings.printerHint` | Documents print on this printer without a print window. | اسناد بدون پنجره چاپ روی همین پرینتر چاپ می‌شوند. | اسناد د چاپ له کړکۍ پرته پر همدې پرینټر چاپېږي. | |
+| `settings.smallNative` | A5 / A6 paper | کاغذ A5 / A6 | A5 / A6 کاغذ | |
+| `settings.brandFooter` | Small “Artaveo Dental” mark at the foot of printed documents | نشان کوچک «Artaveo Dental» پایین اسناد چاپی | د چاپي اسنادو لاندې د «Artaveo Dental» کوچنۍ نښه | |
+| `settings.clinicalRules` | Clinical rules | قواعد بالینی | کلینیکي قاعدې | |
+| `settings.clinicalRulesHint` | In a multi-doctor clinic: who may do which service. | در کلینیک چند داکتر: چه کسی کدام خدمت را انجام دهد. | په څو ډاکټره کلینیک کې: څوک کوم خدمت ترسره کړي. | |
+| `settings.restrictSpecialty` | Only doctors of a service's specialty may do it (default: a warning only) | فقط داکترهای همان تخصص بتوانند یک خدمت را انجام دهند (پیش‌فرض: فقط هشدار) | یوازې د همدې تخصص ډاکټران یو خدمت ترسره کړای شي (اصلي: یوازې خبرتیا) | |
+| `catalog.subtitle` | Categories, services and their variants with prices; the clinic sets the prices. | دسته‌ها، خدمات و انواع آن‌ها با قیمت؛ قیمت‌ها را کلینیک تعیین می‌کند. | ډلې، خدمتونه او د هغوی ډولونه له بیې سره؛ بیې کلینیک ټاکي. | |
+| `catalog.categories` | Categories | دسته‌ها | ډلې | |
+| `catalog.services` | Services and variants | خدمات و انواع | خدمتونه او ډولونه | |
+| `catalog.unpriced` | Without a price | بدون قیمت | بې بیې | |
+| `catalog.unpricedHint` | Enter these services' prices. | قیمت این خدمات را وارد کنید. | د دې خدمتونو بیې ولیکئ. | |
+| `catalog.all` | All categories | همه دسته‌ها | ټولې ډلې | |
+| `catalog.search` | Search code or service name… | جستجوی کد یا نام خدمت… | د کوډ یا خدمت نوم لټول… | |
+| `catalog.code` | Code | کد | کوډ | |
+| `catalog.codeHint` | Latin letters, digits and - (e.g. END-02) | حروف انگلیسی، عدد و - (مثلاً END-02) | انګلیسي توري، عدد او - (لکه END-02) | |
+| `catalog.name` | Name | نام | نوم | |
+| `catalog.specialty` | Specialty | تخصص | تخصص | |
+| `catalog.scope` | Tooth scope | دامنه دندانی | د غاښونو ساحه | |
+| `catalog.scope.tooth` | One tooth | یک دندان | یو غاښ | |
+| `catalog.scope.teeth` | Several teeth | چند دندان | څو غاښونه | |
+| `catalog.scope.quadrant` | Quadrant | ربع فک | د ژامې څلورمه برخه | |
+| `catalog.scope.arch` | One jaw | یک فک | یوه ژامه | |
+| `catalog.scope.mouth` | Whole mouth | تمام دهان | ټوله خوله | |
+| `catalog.scope.none` | No tooth | بدون دندان | بې غاښه | |
+| `catalog.price` | Price | قیمت | بیه | |
+| `catalog.priceAfn` | Default price | قیمت پیش‌فرض | اصلي بیه | |
+| `catalog.priceHint` | In AFN; can be changed on the invoice (Phase 6). | به افغانی؛ هنگام فاکتور قابل تغییر است (فاز ۶). | په افغانیو؛ د بل پر مهال بدلېدای شي (۶ پړاو). | |
+| `catalog.noPrice` | Not set | تعیین نشده | نه ده ټاکل شوې | |
+| `catalog.byVariant` | By variant | طبق نوع | د ډول له مخې | |
+| `catalog.sessionsN` | {n} visits | {n} جلسه | {n} ناستې | |
+| `catalog.lab` | Lab | لابراتوار | لابراتوار | |
+| `catalog.surface` | Surface | سطح دندان | د غاښ سطحه | |
+| `catalog.addVariant` | Add a variant | افزودن نوع | ډول زیاتول | |
+| `catalog.none` | No services found | خدمتی پیدا نشد | کوم خدمت ونه موندل شو | |
+| `catalog.newCategory` | New category | دسته جدید | نوې ډله | |
+| `catalog.editCategory` | Edit category | ویرایش دسته | د ډلې سمول | |
+| `catalog.categorySpecialtyHint` | Services in this category belong to this specialty unless they say otherwise. | خدمات این دسته به این تخصص تعلق دارند مگر خودشان تخصص دیگری داشته باشند. | د دې ډلې خدمتونه دې تخصص پورې اړه لري، مګر دا چې پخپله بل تخصص ولري. | |
+| `catalog.active` | Active | فعال | فعال | |
+| `catalog.newService` | New service | خدمت جدید | نوی خدمت | |
+| `catalog.editService` | Edit service | ویرایش خدمت | د خدمت سمول | |
+| `catalog.newVariantOf` | New variant of “{name}” | نوع جدید «{name}» | د «{name}» نوی ډول | |
+| `catalog.variantHint` | This is a variant of “{name}” and lives in its category. | این یک نوع از «{name}» است و در همان دسته قرار می‌گیرد. | دا د «{name}» یو ډول دی او په همغه ډله کې راځي. | |
+| `catalog.category` | Category | دسته | ډله | |
+| `catalog.specialtyFromCategory` | The category's specialty | همان تخصص دسته | د ډلې همغه تخصص | |
+| `catalog.specialtyInherited` | Category specialty: {name} | تخصص دسته: {name} | د ډلې تخصص: {name} | |
+| `catalog.sessions` | Usual number of visits | تعداد جلسات تخمینی | د ناستو اټکلي شمېر | |
+| `catalog.sessionsHint` | e.g. root canal 2, implant 3 | مثلاً عصب‌کشی ۲، ایمپلنت ۳ | لکه عصب ایستل ۲، ایمپلانټ ۳ | |
+| `catalog.consent` | Suggested consent form | رضایت‌نامه پیشنهادی | وړاندیز شوی رضایت‌لیک | |
+| `catalog.consentHint` | Suggested when this service is booked. | هنگام نوبت این خدمت پیشنهاد می‌شود. | د دې خدمت د نوبت پر مهال وړاندیز کېږي. | |
+| `catalog.postOp` | After-treatment sheet | دستورات بعد از درمان | له درملنې وروسته لارښوونې | |
+| `catalog.surfaceLabel` | A tooth surface must be chosen | نیاز به انتخاب سطح دندان | د غاښ د سطحې ټاکلو ته اړتیا | |
+| `catalog.labLabel` | Needs a dental laboratory | نیاز به لابراتوار | لابراتوار ته اړتیا | |
+| `clinical.subtitle` | Every list the app starts with is the clinic's to edit here. | همه فهرست‌هایی که برنامه با نسخه اولیه آورده، اینجا توسط کلینیک ویرایش می‌شوند. | ټول هغه لېستونه چې پروګرام یې لومړنۍ بڼه راوړې، دلته د کلینیک له خوا سمېږي. | |
+| `clinical.tab.questions` | Medical history | سؤال‌های سوابق پزشکی | د طبي سوابقو پوښتنې | |
+| `clinical.tab.specialties` | Specialties | تخصص‌ها | تخصصونه | |
+| `clinical.tab.drugs` | Medicines | داروها | درمل | |
+| `clinical.tab.rx` | Ready-made prescriptions | نسخه‌های آماده | چمتو نسخې | |
+| `clinical.tab.templates` | Document templates | قالب اسناد | د اسنادو قالبونه | |
+| `clinical.active` | Active | فعال | فعال | |
+| `clinical.own` | Clinic's own | کلینیک | کلینیک | |
+| `clinical.none` | Nothing here | موردی نیست | هېڅ نشته | |
+| `clinical.oneLanguage` | One language is enough; empty languages get the same text. | نوشتن به یک زبان کافی است؛ زبان‌های خالی همان متن را می‌گیرند. | په یوه ژبه لیکل بس دي؛ تشې ژبې همغه متن اخلي. | |
+| `clinical.questions.title` | Medical history checklist | چک‌لیست سوابق پزشکی | د طبي سوابقو چک‌لیست | |
+| `clinical.questions.hint` | Built-in questions can be switched off; add your own too. | سؤال‌های پیش‌فرض را می‌توان غیرفعال کرد؛ سؤال جدید هم اضافه کنید. | اصلي پوښتنې غیر فعالېدای شي؛ نوې پوښتنه هم زیاته کړئ. | |
+| `clinical.questions.add` | New question | سؤال جدید | نوې پوښتنه | |
+| `clinical.questions.edit` | Edit question | ویرایش سؤال | د پوښتنې سمول | |
+| `clinical.questions.label` | Question | متن سؤال | د پوښتنې متن | |
+| `clinical.questions.group` | Group | گروه | ډله | |
+| `clinical.questions.detail` | Detail on “yes” | توضیح در صورت «بله» | د «هو» پر مهال توضیح | |
+| `clinical.questions.alert` | Alert | هشدار | خبرتیا | |
+| `clinical.questions.women` | Women only | فقط زنان | یوازې ښځې | |
+| `clinical.questions.alertLabel` | Show a “yes” in the record's alert banner | پاسخ «بله» در بنر هشدار پرونده نمایش داده شود | «هو» ځواب د دوسیې د خبرتیا په بنر کې وښودل شي | |
+| `clinical.questions.womenLabel` | Ask women patients only | فقط از بیماران زن پرسیده شود | یوازې له ښځینه ناروغانو وپوښتل شي | |
+| `clinical.detail.none` | None | هیچ | هېڅ | |
+| `clinical.detail.text` | Short text | متن کوتاه | لنډ متن | |
+| `clinical.detail.choice` | Choice | انتخاب | انتخاب | |
+| `clinical.detail.text_choice` | Text and choice | متن و انتخاب | متن او انتخاب | |
+| `clinical.detail.months` | Months | تعداد ماه | د میاشتو شمېر | |
+| `clinical.specialties.title` | Dental specialties | تخصص‌های دندان‌پزشکی | د غاښونو طب تخصصونه | |
+| `clinical.specialties.hint` | Doctors have one or more; every service belongs to one. | داکترها یک یا چند تخصص دارند و هر خدمت به یک تخصص تعلق دارد. | ډاکټران یو یا څو تخصصونه لري او هر خدمت یو تخصص پورې اړه لري. | |
+| `clinical.specialties.add` | New specialty | تخصص جدید | نوی تخصص | |
+| `clinical.specialties.edit` | Edit specialty | ویرایش تخصص | د تخصص سمول | |
+| `clinical.specialties.name` | Specialty | نام تخصص | د تخصص نوم | |
+| `clinical.specialties.systemHint` | Built-in specialty names come with the app; you can only switch one off. | نام تخصص‌های پیش‌فرض با برنامه به‌روز می‌شود؛ فقط می‌توانید آن را غیرفعال کنید. | د اصلي تخصصونو نوم له پروګرام سره تازه کېږي؛ یوازې یې غیر فعالولی شئ. | |
+| `clinical.drugs.title` | Clinic medicine list | فهرست داروهای کلینیک | د کلینیک د درملو لېست | |
+| `clinical.drugs.hint` | A starting list of common dental medicines; the doctor completes and corrects it. | نسخه اولیه از داروهای پرکاربرد دندان‌پزشکی؛ داکتر آن را تکمیل و اصلاح می‌کند. | لومړنۍ بڼه د غاښونو د طب له ډېرو کارېدونکو درملو؛ ډاکټر یې بشپړوي او سموي. | |
+| `clinical.drugs.add` | New medicine | داروی جدید | نوی درمل | |
+| `clinical.drugs.edit` | Edit medicine | ویرایش دارو | د درمل سمول | |
+| `clinical.drugs.defaults` | Default instructions | دستور پیش‌فرض | اصلي لارښوونه | |
+| `clinical.drugs.classes` | Medicine class | گروه دارویی | د درملو ډله | |
+| `clinical.drugs.classesHint` | Prescription warnings (allergy, pregnancy, blood thinners …) use these classes. | هشدارهای نسخه (حساسیت، بارداری، رقیق‌کننده خون …) بر اساس این گروه‌هاست. | د نسخې خبرتیاوې (حساسیت، امیندواري، د وینې نریوونکي …) د همدې ډلو پر بنسټ دي. | |
+| `clinical.drugs.nameHint` | Latin scientific or brand name, as the pharmacy reads it. | نام علمی یا تجاری لاتین، همان که دواخانه می‌خواند. | لاتین علمي یا تجارتي نوم، هغه چې درملتون یې لولي. | |
+| `clinical.class.penicillin` | Penicillin | پنی‌سیلین | پنسلین | |
+| `clinical.class.cephalosporin` | Cephalosporin | سفالوسپورین | سیفالوسپورین | |
+| `clinical.class.nsaid` | NSAID painkiller | مسکن ضدالتهاب (NSAID) | د التهاب ضد درد وژونکی (NSAID) | |
+| `clinical.class.tetracycline` | Tetracycline | تتراسایکلین | ټیټراسایکلین | |
+| `clinical.class.metronidazole` | Metronidazole | مترونیدازول | مترونیډازول | |
+| `clinical.class.macrolide` | Macrolide | ماکرولید | ماکرولایډ | |
+| `clinical.class.lincosamide` | Lincosamide (clindamycin) | لینکوزامید (کلیندامایسین) | لینکوزامایډ (کلینډامایسین) | |
+| `clinical.class.opioid` | Opioid | اپیوئید | اپیوئید | |
+| `clinical.class.azole` | Azole antifungal | ضدقارچ آزول | د فنګس ضد ازول | |
+| `clinical.class.paracetamol` | Paracetamol | پاراستامول | پاراسیټامول | |
+| `clinical.class.steroid` | Steroid | کورتون (استروئید) | کورټون (سټرایډ) | |
+| `clinical.class.local_anesthetic` | Local anaesthetic | بی‌حسی موضعی | موضعي بې‌حسي | |
+| `clinical.class.antiseptic` | Antiseptic | ضدعفونی‌کننده | ضد عفوني | |
+| `clinical.class.antifungal` | Antifungal | ضدقارچ | د فنګس ضد | |
+| `clinical.class.antiviral` | Antiviral | ضدویروس | د ویروس ضد | |
+| `clinical.class.ppi` | Stomach protection (PPI) | محافظ معده (PPI) | د معدې ساتونکی (PPI) | |
+| `clinical.rx.title` | Ready-made prescriptions | نسخه‌های آماده | چمتو نسخې | |
+| `clinical.rx.hint` | Filled into a new prescription with one click, then editable. | با یک کلیک در نسخه جدید پر می‌شوند و قابل ویرایش‌اند. | په یوه کلیک په نوې نسخه کې ډکېږي او سمېدای شي. | |
+| `clinical.rx.add` | New ready-made prescription | نسخه آماده جدید | نوې چمتو نسخه | |
+| `clinical.rx.edit` | Edit ready-made prescription | ویرایش نسخه آماده | د چمتو نسخې سمول | |
+| `clinical.rx.name` | Name | نام | نوم | |
+| `clinical.rx.medicines` | Medicines | داروها | درمل | |
+| `clinical.rx.addMedicine` | Add a medicine | افزودن دارو | درمل زیاتول | |
+| `clinical.rx.addHint` | Medicines come from the clinic list with their default instructions. | داروها از فهرست کلینیک با دستور پیش‌فرض خود اضافه می‌شوند. | درمل د کلینیک له لېست سره د خپلې اصلي لارښوونې زیاتېږي. | |
+| `clinical.templates.consent` | Consent form templates | قالب رضایت‌نامه‌ها | د رضایت‌لیکونو قالبونه | |
+| `clinical.templates.post_op` | After-treatment templates | قالب دستورات بعد از درمان | له درملنې وروسته د لارښوونو قالبونه | |
+| `clinical.templates.hint` | A starting text in three languages; the doctor adapts it for the clinic. | متن اولیه در سه زبان؛ داکتر متن را برای کلینیک خود اصلاح می‌کند. | لومړنی متن په درې ژبو؛ ډاکټر متن د خپل کلینیک لپاره سموي. | |
+| `clinical.templates.add` | New template | قالب جدید | نوی قالب | |
+| `clinical.templates.edit` | Edit template | ویرایش قالب | د قالب سمول | |
+| `clinical.templates.customized` | Edited | ویرایش‌شده | سم شوی | |
+| `clinical.templates.reset` | Back to the default text | بازگشت به متن پیش‌فرض | اصلي متن ته ستنېدل | |
+| `clinical.templates.resetConfirm` | Remove the clinic's changes to this template and restore the default text? | تغییرات کلینیک در این قالب حذف و متن پیش‌فرض برگردانده شود؟ | د کلینیک بدلونونه پدې قالب کې لرې او اصلي متن بېرته راشي؟ | |
+| `clinical.templates.placeholders` | Automatic placeholders | جاهای خالی خودکار | اتومات تش ځایونه | |
+| `clinical.templates.placeholdersHint` | {patient} patient · {doctor} doctor · {clinic} clinic · {date} date · {procedure} treatment · {teeth} teeth — filled in when a document is written. | {patient} نام بیمار · {doctor} داکتر · {clinic} کلینیک · {date} تاریخ · {procedure} درمان · {teeth} دندان‌ها — هنگام نوشتن سند خودکار پر می‌شوند. | {patient} د ناروغ نوم · {doctor} ډاکټر · {clinic} کلینیک · {date} نېټه · {procedure} درملنه · {teeth} غاښونه — د سند لیکلو پر مهال په خپله ډکېږي. | |

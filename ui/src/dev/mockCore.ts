@@ -20,7 +20,7 @@ const fail = (code: ErrorCode, detail: string, field?: string, rule?: Validation
 };
 const invalid = (field: string, rule: ValidationRule, detail = rule) => fail("validation", detail, field, rule);
 
-const VERSION = "0.4.1";
+const VERSION = "0.5.0";
 const PROVINCES: [string, string, string, string][] = [
   ["KBL", "کابل", "کابل", "Kabul"],
   ["HRT", "هرات", "هرات", "Herat"],

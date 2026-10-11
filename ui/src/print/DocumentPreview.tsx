@@ -60,7 +60,10 @@ export function Scaled({ paper, children }: { paper: Paper; children: ReactNode 
   const scale = Math.min(1, (width - 24) / (w * PX_PER_MM));
   return (
     <div className="doc-preview" ref={box} data-testid="doc-preview">
-      <div className="doc-preview-paper" style={{ width: w * PX_PER_MM * scale, height: h * PX_PER_MM * scale }}>
+      {/* Scaled from its top-left corner inside a left-to-right frame: an over-wide child overflows by
+          its parent's direction, so in an RTL page it would hang off the left edge. The sheet keeps
+          its own direction. */}
+      <div className="doc-preview-paper" dir="ltr" style={{ width: w * PX_PER_MM * scale, height: h * PX_PER_MM * scale }}>
         <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: `${w}mm` }}>{children}</div>
       </div>
     </div>
@@ -134,7 +137,9 @@ export function DocumentPreview({ title, paper, fileStem, sheet, onPrinted, onCl
     setBusy("pdf");
     setPdfLayout(true);
     try {
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // Let React lay the sheet out at its own size before the page is captured (a timer, not
+      // animation frames, which a hidden window or a test clock may never deliver).
+      await new Promise((r) => setTimeout(r, 60));
       const path = await savePdf(fileStem, paper);
       await onPrinted?.(true);
       if (path) {

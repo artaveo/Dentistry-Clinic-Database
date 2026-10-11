@@ -126,7 +126,9 @@ test("the appointment card shows the visit and can be printed", async () => {
   await page.locator('[data-testid^="cal-appt-"]').first().click();
   await expect(page.getByTestId("appointment-dialog")).toBeVisible();
   await page.getByTestId("appt-print").click();
-  await expect(page.getByTestId("appointment-card")).toContainText("بیمار آزمایشی یکم");
+  // Phase 5A: the card is an A6 document on the print engine (the print-only copy has the same test id).
+  await expect(page.getByTestId("doc-preview").getByTestId("appointment-card")).toContainText("بیمار آزمایشی یکم");
+  await expect(page.getByTestId("doc-paper")).toHaveText("A6");
   await page.getByTestId("appt-card-close").click();
   await expect(page.getByTestId("appointment-card-dialog")).toHaveCount(0);
   await expect(page.getByTestId("appointment-dialog")).toBeVisible();

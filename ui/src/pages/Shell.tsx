@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, Building2, CalendarDays, DatabaseBackup, Info, ListOrdered, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Unlock, UserRound, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Info, ListOrdered, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -14,6 +14,8 @@ import { UsersPage } from "./Users";
 import { PatientsPage } from "./patients/PatientsPage";
 import { AuditPage } from "./Audit";
 import { DoctorsPage } from "./Doctors";
+import { CatalogPage } from "./CatalogPage";
+import { ClinicalListsPage } from "./ClinicalListsPage";
 import { CalendarPage } from "./reception/CalendarPage";
 import { QueuePage } from "./reception/QueuePage";
 import { RecallsPage } from "./reception/RecallsPage";
@@ -30,8 +32,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "patients" | "appointments" | "queue" | "recalls" | "doctors" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
-const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, doctors: Stethoscope, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
+type Tab = "patients" | "appointments" | "queue" | "recalls" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
+const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -66,7 +68,7 @@ export function Shell({
     { label: t("nav.group.reception"), tabs: can("appointments.view") ? (["appointments", "queue", "recalls"] as Tab[]) : [] },
     {
       label: t("nav.group.clinic"),
-      tabs: [...(can("doctors.manage") ? (["doctors"] as Tab[]) : []), ...(can("settings.manage") ? (["clinic"] as Tab[]) : [])],
+      tabs: [...(can("doctors.manage") ? (["doctors"] as Tab[]) : []), ...(can("settings.manage") ? (["catalog", "clinical", "clinic"] as Tab[]) : [])],
     },
     {
       label: t("nav.group.admin"),
@@ -239,6 +241,8 @@ export function Shell({
         {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "recalls" && <RecallsPage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "doctors" && <DoctorsPage clinic={clinic} />}
+        {tab === "catalog" && <CatalogPage />}
+        {tab === "clinical" && <ClinicalListsPage />}
         {tab === "system" && <SystemInfoPage version={version} />}
         {tab === "backup" && <BackupPage canCreate={can("backup.create")} calendar={clinic?.calendar_system} />}
         {tab === "users" && <UsersPage currentUserId={session.user.id} />}

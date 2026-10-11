@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "artaveo-app"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "artaveo-core",
  "artaveo-shared",
@@ -109,7 +109,7 @@ dependencies = [
 
 [[package]]
 name = "artaveo-core"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "argon2",
  "artaveo-shared",
@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "artaveo-shared"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",

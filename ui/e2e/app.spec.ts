@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { newClinicPage } from "./clinicClock";
+import fs from "node:fs";
 
 // One clinic, walked through end to end against the real Core: the full Setup
 // Wizard, every Shell page in three languages and two themes, and the owner
@@ -8,6 +9,8 @@ import { newClinicPage } from "./clinicClock";
 test.describe.configure({ mode: "serial" });
 
 let page: Page;
+// The product version (roadmap 1.1: one SemVer, kept equal to Cargo by scripts/check-version.mjs).
+const VERSION: string = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 let recoveryKey = "";
 const OWNER = { user: "owner", pass: "owner-pass-123" };
 
@@ -137,7 +140,7 @@ test("header status and command palette", async () => {
 });
 
 test("About shows version, processor build and an encrypted, healthy database", async () => {
-  await expect(page.getByTestId("si-version")).toHaveText("0.4.1");
+  await expect(page.getByTestId("si-version")).toHaveText(VERSION);
   await expect(page.getByTestId("si-build-arch")).toHaveText(/^(x64|x86|arm64)$/);
   await expect(page.getByTestId("si-encryption")).toHaveText("رمزنگاری‌شده");
   await expect(page.getByTestId("si-integrity")).toHaveText("سالم", { timeout: 15_000 });

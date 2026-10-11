@@ -22,3 +22,12 @@
 ## پیامدها
 * کیفیت و چیدمان رسید روی همه پرینترها یکسان است و فقط به WebView2 وابسته است.
 * Raster در WebView به دلیل لود ناهمزمان فونت در تصویر SVG، تا پایدار شدن رندر تکرار می‌شود (تست خودکار دارد).
+
+## پیاده‌سازی در فاز 5A (v0.5.0)
+
+* **سند:** `ui/src/print/DocumentSheet.tsx` هر سند را با واحد mm و اندازه واقعی کاغذ می‌سازد (A4/A5/A6، حاشیه از `MARGIN_MM`)؛ پیش‌نمایش همان سند است که با `transform: scale` کوچک شده (`DocumentPreview.tsx`).
+* **چاپ و PDF:** سند در `#print-root` رندر می‌شود که فقط در `@media print` و با `@page { size: Wmm Hmm; margin: 0 }` دیده می‌شود. فرمان‌های Tauri در `app/src/print.rs`: `print_page` (چاپ بی‌صدا با WebView2 روی پرینتر انتخاب‌شده، اندازه کاغذ از سند) و `save_pdf` (`PrintToPdf` در اندازه سند، در پوشه `exports/documents`). در مرورگر (حالت توسعه) پنجره چاپ مرورگر باز می‌شود.
+* **Output Profile هر کامپیوتر:** `localStorage` با کلید `artaveo.print` = `{ printer, smallPaper: "native" | "compact_a4" }`؛ «بدون پرینتر» = `printer: null` (فقط PDF). `compact_a4` همان A4 Compact بالا برای A5/A6 است، با خط برش. پشتیبانی اندازه کاغذ پرینتر با فرمان `printer_papers` (`DeviceCapabilitiesW`) بررسی و هشدار داده می‌شود.
+* **اسناد بالینی:** شماره سری سالانه برای هر نوع (`RX`، `CF`، `PO`، `RF`، `IR`، `MC`، `LO`، `MR`)، محتوای منجمد هنگام صدور، شمارش چاپ و PDF، باطل کردن با دلیل (`core/src/documents.rs`).
+* **باقی‌مانده برای فاز ۶:** پرینتر حرارتی (بند ۴ و ۵) و N-up؛ رسید و فاکتور فاز ۶ همین `DocumentSheet`/`DocumentPreview` را با کاغذ تازه استفاده می‌کنند.
+* **تست:** E2E اندازه صفحه PDF (MediaBox) را برای A5، A4 و A4 Compact بررسی می‌کند (`ui/e2e/v050.spec.ts`).

@@ -1,50 +1,38 @@
-import { Printer } from "lucide-react";
-import type { AppointmentInfo, CalendarSystem } from "../../../../shared/ts/contract";
-import { formatDate, formatTime, digits } from "../../lib/dates";
+import { useState } from "react";
+import { X } from "lucide-react";
+import type { AppointmentInfo, CalendarSystem, Language } from "../../../../shared/ts/contract";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
-import { Dialog } from "../../ui/Overlay";
+import { Loading } from "../../ui/Feedback";
+import { DocumentPreview } from "../../print/DocumentPreview";
+import { AppointmentCardSheet } from "../../print/DocumentSheet";
+import { useLetterhead } from "../../print/letterhead";
+import { LanguagePick } from "../patients/documents/shared";
 
 /**
- * The appointment card the patient takes home (4.6). Plain browser printing for now; the
- * real print engine with paper sizes and thermal printers is Phase 6 (ADR-13).
+ * The appointment card the patient takes home (4.6), on the shared print engine (ADR-13): A6 at real
+ * size, on this computer's printer (or compactly on A4) or as a PDF, in the language chosen for it.
+ * It is not a clinical document, so it has no number and is not kept in the record.
  */
-export function AppointmentCardDialog({ appointment: a, clinicName, calendar, onClose }: { appointment: AppointmentInfo; clinicName: string; calendar: CalendarSystem; onClose: () => void }) {
-  const { t, lang } = useI18n();
-  const print = () => {
-    document.body.classList.add("printing-card");
-    const done = () => {
-      document.body.classList.remove("printing-card");
-      window.removeEventListener("afterprint", done);
-    };
-    window.addEventListener("afterprint", done);
-    window.print();
-  };
+export function AppointmentCardDialog({ appointment: a, calendar, onClose }: { appointment: AppointmentInfo; clinicName?: string; calendar: CalendarSystem; onClose: () => void }) {
+  const { t, lang: uiLang } = useI18n();
+  const letterhead = useLetterhead();
+  const [lang, setLang] = useState<Language>(uiLang);
+  if (!letterhead) return <Loading />;
   return (
-    <Dialog
+    <DocumentPreview
       title={t("appt.card.title")}
-      onClose={onClose}
+      paper="a6"
+      fileStem={`CARD-${a.date}-${a.patient_number}`.replace(/[^A-Za-z0-9_-]/g, "")}
       testId="appointment-card-dialog"
-      footer={
+      sheet={<AppointmentCardSheet appt={a} letterhead={letterhead} calendar={calendar} lang={lang} />}
+      onClose={onClose}
+      extra={
         <>
-          <Button onClick={onClose} data-testid="appt-card-close">{t("common.close")}</Button>
-          <Button variant="primary" icon={Printer} onClick={print} data-testid="appt-card-print">{t("appt.card.print")}</Button>
+          <LanguagePick value={lang} onChange={setLang} testId="card-language" />
+          <Button variant="subtle" icon={X} onClick={onClose} data-testid="appt-card-close">{t("common.close")}</Button>
         </>
       }
-    >
-      <div className="print-card" data-testid="appointment-card">
-        <div className="print-card-clinic">{clinicName}</div>
-        <div className="print-card-title">{t("appt.card.title")}</div>
-        <dl className="kv">
-          <div><dt>{t("appt.patient")}</dt><dd>{a.patient_name} <bdi className="ltr num">({a.patient_number})</bdi></dd></div>
-          <div><dt>{t("appt.doctor")}</dt><dd>{a.doctor_name}</dd></div>
-          <div><dt>{t("appt.date")}</dt><dd data-testid="appointment-card-date">{formatDate(a.start_at, lang, calendar)}</dd></div>
-          <div><dt>{t("appt.time")}</dt><dd>{formatTime(a.start_time, lang)} – {formatTime(a.end_time, lang)}</dd></div>
-          {a.chair_name && <div><dt>{t("appt.chair")}</dt><dd>{a.chair_name}</dd></div>}
-          {a.reason && <div><dt>{t("appt.reason")}</dt><dd>{a.reason}</dd></div>}
-        </dl>
-        <div className="print-card-foot">{t("appt.card.note")} · {digits(a.date, lang)}</div>
-      </div>
-    </Dialog>
+    />
   );
 }
