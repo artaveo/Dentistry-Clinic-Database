@@ -45,8 +45,8 @@ test("setup wizard: welcome through clinic info", async () => {
   await expect(page.getByTestId("setup-step-language")).toBeVisible();
   await page.getByTestId("wizard-next").click();
 
-  // Install mode: single is the only enabled option.
-  await expect(page.getByTestId("install-server")).toBeDisabled();
+  // Install mode: single and server work everywhere; "connect to a server" needs the desktop app (Phase 7).
+  await expect(page.getByTestId("install-server")).toBeEnabled();
   await expect(page.getByTestId("install-client")).toBeDisabled();
   await page.getByTestId("install-single").click();
   await expect(page.getByTestId("install-single")).toHaveAttribute("aria-pressed", "true");
