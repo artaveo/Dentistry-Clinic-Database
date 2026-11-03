@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "ui-mock", "runtimeExecutable": "cmd", "runtimeArgs": ["/c", "cd ui && set VITE_MOCK=1&& npx vite --port 8640 --strictPort"], "port": 8640 }
+  ]
+}
