@@ -71,7 +71,11 @@ fn instance_name() -> String {
 }
 
 impl LanServer {
-    pub async fn start(core: Arc<Core>, identity: ServerIdentity, opts: ServerOptions) -> anyhow::Result<Self> {
+    pub async fn start(
+        core: Arc<Core>,
+        identity: ServerIdentity,
+        opts: ServerOptions,
+    ) -> anyhow::Result<Self> {
         let mut bound = None;
         for port in &opts.ports {
             match TcpListener::bind(SocketAddr::new(opts.bind_ip, *port)).await {

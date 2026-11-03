@@ -40,7 +40,8 @@ async fn clinic() -> Clinic {
         }),
         None,
     );
-    let owner = local(&core, m::AUTH_LOGIN, json!({"username": "owner", "password": "owner-pass-1"}), None)["token"]
+    let owner = local(&core, m::AUTH_LOGIN, json!({"username": "owner", "password": "owner-pass-1"}), None)
+        ["token"]
         .as_str()
         .unwrap()
         .to_string();
@@ -94,7 +95,8 @@ async fn rpc(c: &LanClient, method: &str, params: Value, token: Option<&str>) ->
 }
 
 async fn login(c: &LanClient, user: &str) -> String {
-    rpc(c, m::AUTH_LOGIN, json!({"username": user, "password": "staff-pass-12"}), None).await.unwrap()["token"]
+    rpc(c, m::AUTH_LOGIN, json!({"username": user, "password": "staff-pass-12"}), None).await.unwrap()
+        ["token"]
         .as_str()
         .unwrap()
         .to_string()
@@ -110,8 +112,11 @@ async fn one_server_and_three_clients_run_a_working_day() {
     let reception = clinic.add_computer("Reception").await;
     let doctor1 = clinic.add_computer("Doctor 1").await;
     let doctor2 = clinic.add_computer("Doctor 2").await;
-    let (rt, d1t, d2t) =
-        (login(&reception, "reception").await, login(&doctor1, "admin1").await, login(&doctor2, "admin2").await);
+    let (rt, d1t, d2t) = (
+        login(&reception, "reception").await,
+        login(&doctor1, "admin1").await,
+        login(&doctor2, "admin2").await,
+    );
 
     // Real-time: the patient the reception registers is announced to the other screens.
     let mut seen_by_doctor = doctor1.subscribe();
@@ -149,7 +154,12 @@ async fn one_server_and_three_clients_run_a_working_day() {
 
     // "Who has this record open".
     let rec = json!({"entity": "patient", "id": p["id"]});
-    assert!(rpc(&doctor1, m::PRESENCE_ENTER, rec.clone(), Some(&d1t)).await.unwrap().as_array().unwrap().is_empty());
+    assert!(rpc(&doctor1, m::PRESENCE_ENTER, rec.clone(), Some(&d1t))
+        .await
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .is_empty());
     let others = rpc(&doctor2, m::PRESENCE_ENTER, rec.clone(), Some(&d2t)).await.unwrap();
     assert_eq!(others.as_array().unwrap().len(), 1);
     assert_eq!(others[0]["user_name"], "admin1");
@@ -235,7 +245,10 @@ async fn a_revoked_computer_is_cut_off_and_cannot_come_back() {
     let t = login(&pc, "reception").await;
     assert!(rpc(&pc, m::PATIENTS_LIST, json!({}), Some(&t)).await.is_ok());
 
-    let id = local(&clinic.core, m::LAN_DEVICES, json!({}), Some(&clinic.owner))[0]["id"].as_str().unwrap().to_string();
+    let id = local(&clinic.core, m::LAN_DEVICES, json!({}), Some(&clinic.owner))[0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
     local(&clinic.core, m::LAN_REVOKE, json!({"id": id}), Some(&clinic.owner));
 
     for _ in 0..50 {

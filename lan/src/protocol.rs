@@ -6,21 +6,49 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Frame {
-    PairStart { device_name: String, spake: String },
-    PairReply { spake: String },
-    PairConfirm { mac: String },
-    PairOk { mac: String, device_id: String, token: String, server_name: String },
+    PairStart {
+        device_name: String,
+        spake: String,
+    },
+    PairReply {
+        spake: String,
+    },
+    PairConfirm {
+        mac: String,
+    },
+    PairOk {
+        mac: String,
+        device_id: String,
+        token: String,
+        server_name: String,
+    },
     /// `reason`: `wrong_code` | `closed` | `limit_reached`.
-    PairFailed { reason: String, attempts_left: u32 },
+    PairFailed {
+        reason: String,
+        attempts_left: u32,
+    },
 
-    Auth { device_id: String, token: String },
-    AuthOk { server_name: String },
+    Auth {
+        device_id: String,
+        token: String,
+    },
+    AuthOk {
+        server_name: String,
+    },
     AuthFailed,
 
-    Rpc { id: u64, request: RpcRequest },
-    RpcResult { id: u64, response: RpcResponse },
+    Rpc {
+        id: u64,
+        request: RpcRequest,
+    },
+    RpcResult {
+        id: u64,
+        response: RpcResponse,
+    },
     /// A change somewhere in the clinic: the screen reloads what it shows.
-    Event { event: LiveEvent },
+    Event {
+        event: LiveEvent,
+    },
     /// Heartbeat: a silent connection is declared dead and re-established.
     Ping,
     Pong,

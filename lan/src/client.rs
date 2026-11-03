@@ -120,7 +120,8 @@ impl ClientStore {
     pub fn save(&self, p: &PairedServer) -> anyhow::Result<()> {
         let mut token = [0u8; 32];
         token.copy_from_slice(&hex::decode(&p.token)?);
-        let protected = default_protector().protect(&DataKey::from_bytes(token)).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let protected =
+            default_protector().protect(&DataKey::from_bytes(token)).map_err(|e| anyhow::anyhow!("{e}"))?;
         let stored = StoredPairing {
             server_name: p.server_name.clone(),
             addr: p.addr.clone(),
@@ -179,14 +180,16 @@ pub async fn pair(addr: &str, code: &str, device_name: &str) -> Result<PairedSer
     let fp = verifier.seen_fingerprint().ok_or_else(|| anyhow::anyhow!("no server certificate"))?;
 
     let (state, a) = pairing::start_client(code);
-    let b = match roundtrip(&mut ws, Frame::PairStart { device_name: device_name.into(), spake: hex::encode(a) })
-        .await?
-    {
-        Frame::PairReply { spake } => spake,
-        Frame::PairFailed { .. } => return Err(ClientError::Closed),
-        other => return Err(anyhow::anyhow!("unexpected {other:?}").into()),
-    };
-    let key = state.finish(&hex::decode(b).map_err(anyhow::Error::from)?).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let b =
+        match roundtrip(&mut ws, Frame::PairStart { device_name: device_name.into(), spake: hex::encode(a) })
+            .await?
+        {
+            Frame::PairReply { spake } => spake,
+            Frame::PairFailed { .. } => return Err(ClientError::Closed),
+            other => return Err(anyhow::anyhow!("unexpected {other:?}").into()),
+        };
+    let key =
+        state.finish(&hex::decode(b).map_err(anyhow::Error::from)?).map_err(|e| anyhow::anyhow!("{e:?}"))?;
     let mac = hex::encode(pairing::confirm_mac(&key, b"client", &fp));
     match roundtrip(&mut ws, Frame::PairConfirm { mac }).await? {
         Frame::PairOk { mac, device_id, token, server_name } => {

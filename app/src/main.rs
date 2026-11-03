@@ -89,7 +89,9 @@ async fn rpc(state: tauri::State<'_, Arc<Shell>>, request: RpcRequest) -> Result
         Backend::Ready(core) => {
             let core = core.clone();
             // Argon2id and backups take real CPU time: keep them off the UI thread.
-            tauri::async_runtime::spawn_blocking(move || core.handle(request)).await.map_err(|e| e.to_string())
+            tauri::async_runtime::spawn_blocking(move || core.handle(request))
+                .await
+                .map_err(|e| e.to_string())
         }
         Backend::Failed(detail) => Ok(RpcResponse::Error {
             error: RpcError {
@@ -149,7 +151,9 @@ fn forward_server_events(app: tauri::AppHandle, core: Arc<Core>) -> tauri::async
 #[tauri::command]
 fn app_mode(state: tauri::State<'_, Arc<Shell>>) -> Value {
     match state.current().as_ref() {
-        Backend::Client(c) => json!({"mode": "client", "server_name": c.server_name(), "online": c.is_online()}),
+        Backend::Client(c) => {
+            json!({"mode": "client", "server_name": c.server_name(), "online": c.is_online()})
+        }
         _ => json!({"mode": "local"}),
     }
 }
@@ -196,7 +200,9 @@ async fn lan_pair(
             ClientError::Closed => json!({"ok": false, "reason": "closed"}),
             ClientError::LimitReached => json!({"ok": false, "reason": "limit_reached"}),
             ClientError::ServerNotAuthentic => json!({"ok": false, "reason": "not_authentic"}),
-            ClientError::NotPaired | ClientError::Unreachable(_) => json!({"ok": false, "reason": "unreachable"}),
+            ClientError::NotPaired | ClientError::Unreachable(_) => {
+                json!({"ok": false, "reason": "unreachable"})
+            }
         }),
     }
 }
@@ -260,7 +266,12 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 show_main(tray.app_handle());
             }
         });
@@ -289,7 +300,8 @@ fn main() {
 
     // A computer paired with a clinic server has no database of its own.
     let store = ClientStore::new(&config.data_dir);
-    let client = store.exists().then(|| store.load()).flatten().map(|p| LanClient::new(p, Some(store.clone())));
+    let client =
+        store.exists().then(|| store.load()).flatten().map(|p| LanClient::new(p, Some(store.clone())));
 
     let backend = match &client {
         Some(c) => {
@@ -317,7 +329,8 @@ fn main() {
             }
         },
     };
-    let shell = Arc::new(Shell { backend: RwLock::new(Arc::new(backend)), config, tasks: Mutex::new(Vec::new()) });
+    let shell =
+        Arc::new(Shell { backend: RwLock::new(Arc::new(backend)), config, tasks: Mutex::new(Vec::new()) });
 
     tauri::Builder::default()
         // A second start only brings the running one (and its server) to the front.

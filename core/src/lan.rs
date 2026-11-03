@@ -193,7 +193,10 @@ impl LanHub {
 
     // ── presence (7.3) ──
 
-    fn viewers(map: &mut HashMap<(String, String), Vec<Viewer>>, key: &(String, String)) -> Vec<PresenceViewer> {
+    fn viewers(
+        map: &mut HashMap<(String, String), Vec<Viewer>>,
+        key: &(String, String),
+    ) -> Vec<PresenceViewer> {
         let Some(list) = map.get_mut(key) else { return Vec::new() };
         list.retain(|v| v.seen.elapsed() < PRESENCE_TTL);
         let out = list
@@ -279,8 +282,19 @@ impl LanHub {
 /// drafts and the LAN pages themselves never fan out.
 pub fn is_change(method: &str) -> bool {
     let Some((topic, action)) = method.split_once('.') else { return false };
-    const QUIET_TOPICS: &[&str] =
-        &["app", "auth", "session", "drafts", "presence", "lan", "system", "geo", "permissions", "reference", "audit"];
+    const QUIET_TOPICS: &[&str] = &[
+        "app",
+        "auth",
+        "session",
+        "drafts",
+        "presence",
+        "lan",
+        "system",
+        "geo",
+        "permissions",
+        "reference",
+        "audit",
+    ];
     const READS: &[&str] = &[
         "list",
         "get",
@@ -417,7 +431,12 @@ impl Core {
     }
 
     /// A paired computer connects: returns its name when the token is right and it is not revoked.
-    pub fn lan_authenticate(&self, device_id: &str, token_hash: &str, address: &str) -> Result<Option<String>> {
+    pub fn lan_authenticate(
+        &self,
+        device_id: &str,
+        token_hash: &str,
+        address: &str,
+    ) -> Result<Option<String>> {
         self.with_db(|o| {
             let row: Option<(String, String, Option<String>)> = o
                 .conn
@@ -442,13 +461,11 @@ impl Core {
     /// Still paired and not revoked (checked before every request of a connection).
     pub fn lan_device_active(&self, device_id: &str) -> bool {
         self.with_db(|o| {
-            Ok(o.conn
-                .query_row(
-                    "SELECT COUNT(*) FROM lan_device WHERE id = ?1 AND revoked_at IS NULL",
-                    [device_id],
-                    |r| r.get::<_, u32>(0),
-                )?
-                > 0)
+            Ok(o.conn.query_row(
+                "SELECT COUNT(*) FROM lan_device WHERE id = ?1 AND revoked_at IS NULL",
+                [device_id],
+                |r| r.get::<_, u32>(0),
+            )? > 0)
         })
         .unwrap_or(false)
     }
@@ -468,7 +485,9 @@ impl Core {
         let (enabled, limit, paired, fingerprint) = self.with_db(|o| {
             let enabled = read_setting(&o.conn, "lan_server_enabled")?.as_deref() == Some("1");
             let paired: u32 =
-                o.conn.query_row("SELECT COUNT(*) FROM lan_device WHERE revoked_at IS NULL", [], |r| r.get(0))?;
+                o.conn.query_row("SELECT COUNT(*) FROM lan_device WHERE revoked_at IS NULL", [], |r| {
+                    r.get(0)
+                })?;
             let cert: Option<Vec<u8>> = o
                 .conn
                 .query_row("SELECT cert_der FROM lan_identity WHERE id = 1", [], |r| r.get(0))
@@ -677,7 +696,8 @@ mod tests {
 
     fn clinic_core() -> (tempfile::TempDir, Core) {
         let dir = tempfile::tempdir().unwrap();
-        let core = Core::open(crate::Config::new(crate::Environment::Test, dir.path().to_path_buf())).unwrap();
+        let core =
+            Core::open(crate::Config::new(crate::Environment::Test, dir.path().to_path_buf())).unwrap();
         let r = core.handle(artaveo_shared::RpcRequest {
             method: m::APP_SETUP.into(),
             params: serde_json::json!({
