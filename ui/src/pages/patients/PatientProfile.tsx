@@ -24,6 +24,8 @@ import { MergeDialog } from "./MergeDialog";
 import { PatientAppointmentsTab } from "./PatientAppointmentsTab";
 import type { AppointmentPerms, ClinicalPerms } from "./PatientsPage";
 import { useReferenceList } from "./useReferenceList";
+import { useLive } from "../../lib/lan";
+import { PresenceBanner, usePresence } from "../../shell/Presence";
 import { ChartTab } from "./clinical/ChartTab";
 import { NotesTab } from "./clinical/NotesTab";
 import { PlansTab } from "./clinical/PlansTab";
@@ -77,6 +79,13 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
   useEffect(() => {
     load();
   }, [patientId]);
+  // Roadmap 7.3: who else has this record open, and changes made on other computers.
+  const others = usePresence("patient", patientId);
+  useLive(["patients"], load);
+  useLive(["chart", "notes", "plans", "treatment_items", "medical_history", "invoices", "payments", "documents", "attachments", "perio", "prescriptions", "appointments"], () => {
+    setClinicalKey((k) => k + 1);
+    setMedicalRefreshKey((k) => k + 1);
+  });
 
   // OF-041: a patient with open visits is not deleted; say how many, and where to cancel them.
   const remove = async () => {
@@ -123,6 +132,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
         }
       />
       <BackButton onBack={onBack} label={t("patients.back")} testId="patient-back" />
+      <PresenceBanner others={others} />
 
       {blockedBy !== null && (
         <Notice tone="warning" testId="patient-delete-blocked">

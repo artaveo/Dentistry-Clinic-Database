@@ -26,7 +26,7 @@ rule: ValidationRule | null, };
 
 export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range";
 
-export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
+export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "server_unreachable" | "internal";
 
 export type Empty = Record<symbol, never>;
 
@@ -1452,6 +1452,18 @@ profit: number, by_method: Array<MethodTotal>, by_category: Array<CategoryTotal>
 
 export type ExpenseListParams = { from: string | null, to: string | null, };
 
+export type LanPairingInfo = { code: string, expires_in_seconds: number, attempts_left: number, };
+
+export type LanStatus = { enabled: boolean, running: boolean, port: number | null, addresses: Array<string>, computer_name: string, fingerprint: string | null, client_limit: number, paired_count: number, connected_count: number, pairing: LanPairingInfo | null, };
+
+export type LanDevice = { id: string, name: string, paired_at: string, last_seen_at: string | null, last_user: string | null, last_address: string | null, connected: boolean, revoked: boolean, };
+
+export type PresenceParams = { entity: string, id: string, };
+
+export type PresenceViewer = { user_id: string, user_name: string, device: string, seconds: number, };
+
+export type LiveEvent = { topic: string, method: string, };
+
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
@@ -1617,6 +1629,16 @@ export interface Api {
   "cash.day": { params: DateParams; result: CashDay };
   "cash.close": { params: CloseCashParams; result: CashClosingInfo };
   "cash.closings": { params: ExpenseListParams; result: Array<CashClosingInfo> };
+  "lan.status": { params: Empty; result: LanStatus };
+  "lan.enable": { params: Empty; result: LanStatus };
+  "lan.disable": { params: Empty; result: LanStatus };
+  "lan.pairing_open": { params: Empty; result: LanPairingInfo };
+  "lan.pairing_cancel": { params: Empty; result: Empty };
+  "lan.devices": { params: Empty; result: Array<LanDevice> };
+  "lan.revoke": { params: UserIdParams; result: Empty };
+  "presence.enter": { params: PresenceParams; result: Array<PresenceViewer> };
+  "presence.leave": { params: PresenceParams; result: Empty };
+  "presence.who": { params: PresenceParams; result: Array<PresenceViewer> };
 }
 
 export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;

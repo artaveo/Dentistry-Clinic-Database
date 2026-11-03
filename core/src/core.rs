@@ -13,6 +13,7 @@ use crate::config::Config;
 use crate::db;
 use crate::error::{CoreError, Result};
 use crate::keys::{default_protector, DataKey, KeyProtector};
+use crate::lan::{self, LanHub};
 use crate::session::SessionStore;
 use crate::settings;
 
@@ -29,6 +30,7 @@ pub struct Core {
     pub(crate) sessions: Mutex<SessionStore>,
     pub(crate) timeout_minutes: AtomicU32,
     pub(crate) integrity: Arc<Mutex<IntegrityInfo>>,
+    pub(crate) lan: LanHub,
 }
 
 impl Core {
@@ -52,6 +54,7 @@ impl Core {
                 checked_at: None,
                 detail: None,
             })),
+            lan: LanHub::new(),
         };
         let path = core.config.db_path();
         if path.exists() {
@@ -141,9 +144,23 @@ impl Core {
 
     /// Single entry point for every transport.
     pub fn handle(&self, req: RpcRequest) -> RpcResponse {
+        self.handle_from(req, crate::audit::computer_name())
+    }
+
+    /// Like [`handle`](Self::handle), for a request that arrived from the computer called `origin`
+    /// (the LAN server passes the name of the paired computer). A change is announced to every
+    /// connected screen so they can refresh (roadmap 7.3).
+    pub fn handle_from(&self, req: RpcRequest, origin: &str) -> RpcResponse {
         let method = req.method.clone();
-        match self.call(req) {
-            Ok(result) => RpcResponse::Ok { result },
+        match self.call(req, origin) {
+            Ok(result) => {
+                if lan::is_change(&method) {
+                    if let Some((topic, _)) = method.split_once('.') {
+                        self.lan.publish(topic, &method);
+                    }
+                }
+                RpcResponse::Ok { result }
+            }
             Err(e) => {
                 if e.code() == ErrorCode::Internal {
                     tracing::error!(%method, error = %e, "request failed");

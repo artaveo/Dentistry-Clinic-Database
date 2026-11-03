@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AppStatus, Language, SessionInfo } from "../../shared/ts/contract";
-import { rpc, setToken } from "./lib/api";
+import { ApiError, rpc, setToken } from "./lib/api";
+import { appMode, type AppMode } from "./lib/lan";
 import { applyBrand, storedBrand } from "./lib/color";
 import { LangContext, dirOf, errorText } from "./i18n";
 import { ThemeContext, applyPerf, applyTheme, savePerf, saveTheme, storedPerf, storedTheme } from "./theme";
@@ -10,6 +11,7 @@ import { Login } from "./pages/Login";
 import { Shell } from "./pages/Shell";
 import { ToastProvider } from "./ui/Toast";
 import { ErrorState } from "./ui/Feedback";
+import { ServerOffline } from "./shell/ServerOffline";
 import { brandAssets } from "./ui/Brand";
 
 const LANG_KEY = "artaveo.lang";
@@ -34,6 +36,8 @@ export function App() {
   const [bootError, setBootError] = useState<unknown>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [splash, setSplash] = useState<"on" | "fading" | "off">("on");
+  // Whether this computer works on its own database or through the clinic server (roadmap 7.2).
+  const [mode, setMode] = useState<AppMode>({ mode: "local" });
 
   const setLang = (l: Language) => {
     setLangState(l);
@@ -68,8 +72,9 @@ export function App() {
     };
   }, []);
 
-  const refresh = () =>
-    rpc("app.status", {})
+  const refresh = () => {
+    appMode().then(setMode);
+    return rpc("app.status", {})
       .then((s) => {
         setStatus(s);
         setBootError(null);
@@ -77,6 +82,7 @@ export function App() {
         if (s.state === "ready") rpc("app.clinic_logo", {}).then((l) => setLogo(l.data_url)).catch(() => setLogo(null));
       })
       .catch(setBootError);
+  };
 
   useEffect(() => {
     refresh();
@@ -88,7 +94,8 @@ export function App() {
   };
 
   let page;
-  if (bootError)
+  if (bootError instanceof ApiError && bootError.code === "server_unreachable") page = <ServerOffline onRetry={refresh} />;
+  else if (bootError)
     page = (
       <div className="auth">
         <div className="glass auth-card" data-testid="boot-error">
@@ -102,7 +109,7 @@ export function App() {
     page = <Login clinicName={status.clinic_name} logo={logo} version={status.version} onLogin={(s) => { setToken(s.token); setSession(s); }} />;
   else
     page = (
-      <Shell session={session} clinicName={status.clinic_name ?? ""} logo={logo} version={status.version} onLogoChange={setLogo} onSignOut={signOut} />
+      <Shell session={session} clientOf={mode.mode === "client" ? mode.server_name : null} clinicName={status.clinic_name ?? ""} logo={logo} version={status.version} onLogoChange={setLogo} onSignOut={signOut} />
     );
 
   return (

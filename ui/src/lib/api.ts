@@ -77,6 +77,8 @@ export async function rpc<M extends Method>(method: M, params: Params<M>): Promi
   }
   const { code, detail, field, rule } = response.error;
   const err = new ApiError(code, detail, field, rule);
+  // LAN client: the clinic server computer is off or unreachable; the screen says so and waits.
+  if (code === "server_unreachable") window.dispatchEvent(new Event("artaveo:server-unreachable"));
   if ((code === "session_locked" || code === "session_expired") && sentEpoch === sessionEpoch) {
     listeners.forEach((fn) => fn(err));
   }

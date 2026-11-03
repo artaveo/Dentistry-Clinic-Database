@@ -31,14 +31,14 @@ jobs:
       - name: Version is consistent (SemVer)
         run: node scripts/check-version.mjs
       - run: cargo fmt --all --check
-      - name: Run cargo clippy -p artaveo-core -p artaveo-shared --all-targets --features artaveo-core/dev-server -- -D warnings
+      - name: Run cargo clippy -p artaveo-core -p artaveo-shared -p artaveo-lan --all-targets --features artaveo-core/dev-server -- -D warnings
         run: |
           set -o pipefail
-          cargo clippy -p artaveo-core -p artaveo-shared --all-targets --features artaveo-core/dev-server --message-format=json -- -D warnings | node .github/scripts/cargo-annotate.mjs
+          cargo clippy -p artaveo-core -p artaveo-shared -p artaveo-lan --all-targets --features artaveo-core/dev-server --message-format=json -- -D warnings | node .github/scripts/cargo-annotate.mjs
       - name: Unit + integration tests (Core, contract)
         run: |
           set -o pipefail
-          cargo test -p artaveo-core -p artaveo-shared --message-format=json | node .github/scripts/cargo-annotate.mjs
+          cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --message-format=json | node .github/scripts/cargo-annotate.mjs
       - name: TypeScript contract is up to date
         run: |
           if ! git diff --exit-code shared/ts; then
@@ -113,11 +113,11 @@ jobs:
           "OPENSSL_SRC_PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Tests on ${{ matrix.arch }} (real DPAPI, SQLCipher, Argon2id)
         id: core_tests
-        run: cargo test -p artaveo-core -p artaveo-shared --target ${{ matrix.target }}
+        run: cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --target ${{ matrix.target }}
       - name: Annotate compile errors (core/shared tests, ${{ matrix.arch }})
         if: failure() && steps.core_tests.outcome == 'failure'
         continue-on-error: true
-        run: cargo test -p artaveo-core -p artaveo-shared --target ${{ matrix.target }} --message-format=json | node .github/scripts/cargo-annotate.mjs
+        run: cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --target ${{ matrix.target }} --message-format=json | node .github/scripts/cargo-annotate.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -209,6 +209,11 @@ jobs:
           if ($text -notmatch '"arch":"${{ matrix.arch }}"') { throw "wrong architecture build" }
           $acl = (Get-Acl "$env:ProgramData\ArtaveoDental").Access | Where-Object { $_.IdentityReference -match "Users" }
           if (-not $acl) { throw "data folder ACL for Users missing" }
+          # Phase 7: the installer opened the Windows Firewall for LAN mode (TCP) and mDNS discovery (UDP).
+          foreach ($rule in "Artaveo Dental LAN", "Artaveo Dental LAN discovery") {
+            netsh advfirewall firewall show rule name="$rule" | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "firewall rule '$rule' missing" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.arch }}

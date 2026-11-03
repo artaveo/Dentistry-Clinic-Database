@@ -1,0 +1,27 @@
+name: Format (temporary)
+
+# rustfmt is not installed on the owner's laptop (roadmap rule 15), so code written there is formatted here:
+# a push to a `fmt/*` branch runs `cargo fmt --all` and commits the result back to that branch.
+on:
+  push:
+    branches: ["fmt/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all
+      - name: Commit the formatting
+        run: |
+          if git diff --quiet; then echo "already formatted"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "cargo fmt"
+          git push

@@ -20,8 +20,10 @@ import { Checkbox, OptionCards, Segmented } from "../ui/Controls";
 import { Field, PasswordInput, TextInput } from "../ui/Field";
 import { Badge, Notice } from "../ui/Feedback";
 import { ClinicMark, DentalLockup } from "../ui/Brand";
+import { isDesktop } from "../print/engine";
+import { ConnectServer } from "./ConnectServer";
 
-type Step = "welcome" | "language" | "install_mode" | "clinic_info" | "hours" | "clinic_type" | "branding" | "trial" | "backup" | "owner" | "recovery";
+type Step = "connect" | "welcome" | "language" | "install_mode" | "clinic_info" | "hours" | "clinic_type" | "branding" | "trial" | "backup" | "owner" | "recovery";
 const STEPS: Step[] = ["welcome", "language", "install_mode", "clinic_info", "hours", "clinic_type", "branding", "trial", "backup", "owner", "recovery"];
 
 /** First-run wizard (roadmap 2.5): clinic identity, geography, calendar,
@@ -30,7 +32,9 @@ export function Setup({ onDone }: { onDone: () => void }) {
   const { t, err, lang, setLang } = useI18n();
   const { setTheme: applyGlobalTheme } = useTheme();
   const [stepIndex, setStepIndex] = useState(0);
-  const step = STEPS[stepIndex];
+  // "Connect to a clinic server" (roadmap 7.2) replaces the rest of the wizard: the clinic already exists on the server.
+  const [connecting, setConnecting] = useState(false);
+  const step: Step = connecting ? "connect" : STEPS[stepIndex];
   const go = (delta: number) => setStepIndex((i) => Math.max(0, Math.min(STEPS.length - 1, i + delta)));
 
   const [installMode, setInstallMode] = useState<InstallMode>("single");
@@ -70,6 +74,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
 
   const next = () => {
     if (step === "clinic_info" && !info.validate()) return;
+    if (step === "install_mode" && installMode === "client") return setConnecting(true);
     if (step === "hours" && badHours(workingHours)) return setHoursError(t("rule.working_hours"));
     go(1);
   };
@@ -156,6 +161,8 @@ export function Setup({ onDone }: { onDone: () => void }) {
 
       <main className="setup-main">
         <div className="glass setup-card" data-testid={`setup-step-${step}`} key={step}>
+          {step === "connect" && <ConnectServer onBack={() => setConnecting(false)} onDone={onDone} />}
+
           {step === "welcome" && (
             <div className="welcome">
               <div className="welcome-hero">
@@ -200,8 +207,8 @@ export function Setup({ onDone }: { onDone: () => void }) {
                 label={t("wizard.installMode.title")}
                 options={[
                   { value: "single", title: t("wizard.installMode.single.title"), hint: t("wizard.installMode.single.hint"), icon: Laptop, testId: "install-single" },
-                  { value: "server", title: t("wizard.installMode.server.title"), hint: t("wizard.installMode.server.hint"), icon: Server, disabled: true, badge: <Badge tone="info">{t("wizard.installMode.comingSoon")}</Badge>, testId: "install-server" },
-                  { value: "client", title: t("wizard.installMode.client.title"), hint: t("wizard.installMode.client.hint"), icon: Network, disabled: true, badge: <Badge tone="info">{t("wizard.installMode.comingSoon")}</Badge>, testId: "install-client" },
+                  { value: "server", title: t("wizard.installMode.server.title"), hint: t("wizard.installMode.server.hint"), icon: Server, testId: "install-server" },
+                  { value: "client", title: t("wizard.installMode.client.title"), hint: t("wizard.installMode.client.hint"), icon: Network, disabled: !isDesktop(), badge: isDesktop() ? undefined : <Badge tone="info">{t("wizard.installMode.desktopOnly")}</Badge>, testId: "install-client" },
                 ]}
               />
               {nav()}

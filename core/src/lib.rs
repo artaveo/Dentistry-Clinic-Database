@@ -23,6 +23,7 @@ pub mod formulary;
 pub mod ids;
 pub mod import;
 pub mod keys;
+pub mod lan;
 pub mod logging;
 pub mod medical;
 pub mod normalize;

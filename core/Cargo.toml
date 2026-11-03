@@ -26,6 +26,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+tokio = { version = "1", default-features = false, features = ["sync"] }
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 tracing-appender = "0.2"
 rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }

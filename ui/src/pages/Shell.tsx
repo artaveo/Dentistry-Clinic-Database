@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Info, ListOrdered, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Info, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -24,6 +24,8 @@ import type { BillingPerms } from "./billing/common";
 import { roleText } from "./reception/labels";
 import { ClinicPage } from "./Clinic";
 import { SettingsPage } from "./Settings";
+import { NetworkPage } from "./Network";
+import { ConnectionBanner } from "../shell/ConnectionBanner";
 import { PasswordDialog } from "./Password";
 import { CommandPalette } from "../shell/CommandPalette";
 import type { PaletteItem } from "../shell/CommandPalette";
@@ -34,8 +36,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "patients" | "appointments" | "queue" | "recalls" | "billing" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
-const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
+type Tab = "patients" | "appointments" | "queue" | "recalls" | "billing" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "network" | "system";
+const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -50,6 +52,7 @@ const MAX_CHECK_MS = 15_000;
 
 export function Shell({
   session,
+  clientOf,
   clinicName,
   logo,
   version,
@@ -57,6 +60,8 @@ export function Shell({
   onSignOut,
 }: {
   session: SessionInfo;
+  /** Name of the clinic server when this computer is a client (Phase 7), else null. */
+  clientOf: string | null;
   clinicName: string;
   logo: string | null;
   version: string;
@@ -79,7 +84,7 @@ export function Shell({
         ...(can("users.manage") ? (["users"] as Tab[]) : []),
         ...(can("backup.view") ? (["backup"] as Tab[]) : []),
         ...(can("audit.view") ? (["audit"] as Tab[]) : []),
-        ...(can("settings.manage") ? (["settings"] as Tab[]) : []),
+        ...(can("settings.manage") ? (["settings", "network"] as Tab[]) : []),
       ],
     },
     { label: t("nav.group.system"), tabs: ["system"] as Tab[] },
@@ -189,7 +194,7 @@ export function Shell({
           <ClinicMark name={clinicName} logo={logo} />
           <div className="clinic-text">
             <span className="clinic-name" data-testid="shell-clinic-name">{clinicName}</span>
-            {clinic && <span className="clinic-sub" data-testid="status-install-mode">{t(`shell.status.installMode.${clinic.install_mode}`)}</span>}
+            {clinic && <span className="clinic-sub" data-testid="status-install-mode">{t(`shell.status.installMode.${clientOf ? "client" : clinic.install_mode}`)}</span>}
           </div>
         </div>
         <button type="button" className="search-trigger" onClick={() => setPaletteOpen(true)} data-testid="command-palette-open" title={t("shell.commandPalette.hint")}>
@@ -240,6 +245,7 @@ export function Shell({
       </aside>
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
+        {clientOf && <ConnectionBanner onReconnected={() => setGeneration((g) => g + 1)} />}
         {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
         {tab === "appointments" && <CalendarPage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
@@ -254,6 +260,7 @@ export function Shell({
         {tab === "audit" && <AuditPage calendar={clinic?.calendar_system} />}
         {tab === "clinic" && <ClinicPage logo={logo} onLogoChange={onLogoChange} onSaved={loadClinic} />}
         {tab === "settings" && <SettingsPage />}
+        {tab === "network" && <NetworkPage calendar={clinic?.calendar_system} onChanged={loadClinic} />}
       </main>
 
       {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}

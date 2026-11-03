@@ -161,7 +161,7 @@ fn guess_mime(file_name: &str) -> &'static str {
 }
 
 impl Core {
-    pub(crate) fn call(&self, req: RpcRequest) -> Result<Value> {
+    pub(crate) fn call(&self, req: RpcRequest, origin: &str) -> Result<Value> {
         let RpcRequest { method, params: p, token } = req;
         let method = method.as_str();
         if PUBLIC_METHODS.contains(&method) {
@@ -182,6 +182,9 @@ impl Core {
         }
         let token = token.unwrap_or_default();
         let session = self.authorize(&token, method)?;
+        if crate::lan::is_lan_method(method) {
+            return self.call_lan(method, p, &session, origin);
+        }
         self.call_private(method, p, &token, session)
     }
 
@@ -287,6 +290,7 @@ impl Core {
         match method {
             m::AUTH_LOGOUT => {
                 self.lock_sessions().remove(token);
+                self.lan.presence_drop_user(&s.user.id);
                 self.with_db(|o| {
                     audit::record(
                         &o.conn,

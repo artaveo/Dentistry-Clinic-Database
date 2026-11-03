@@ -17,6 +17,7 @@ import { layoutLanes } from "./layout";
 import { LIVE, MOVABLE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
 import { specialtiesText, useSpecialties } from "../../lib/clinical";
+import { useLive } from "../../lib/lan";
 
 type View = "day" | "week" | "month";
 type Group = "doctor" | "chair";
@@ -123,6 +124,8 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     const id = window.setInterval(() => !document.hidden && setTick((x) => x + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
+  // Roadmap 7.3: and at once when another computer changes an appointment.
+  useLive(["appointments", "doctors", "chairs"], () => setTick((x) => x + 1));
 
   const shownDoctors = doctorId ? (doctors ?? []).filter((d) => d.id === doctorId) : (doctors ?? []);
   const solo = isSolo(clinic, doctors);

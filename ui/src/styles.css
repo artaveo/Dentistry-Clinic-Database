@@ -1501,3 +1501,31 @@ fieldset.translations > legend { padding: 0; margin-bottom: var(--space-2); }
 @media (max-width: 760px) { .inv-pick-row, .inv-extra { grid-template-columns: 1fr; } .inst-row { grid-template-columns: 24px 1fr; } }
 .dialog.wide:has(.inv-pick), .dialog.wide:has([data-testid="invoice-detail-body"]), .dialog.wide:has(.inst-rows) { width: min(980px, calc(100vw - 48px)); }
 [data-testid="invoice-detail-payments"] td, [data-testid="invoice-detail-installments"] td { white-space: nowrap; }
+
+/* ───────────── LAN mode (Phase 7) ───────────── */
+/* The pairing code: read out across a room, so large tabular figures with generous spacing. */
+.pair-code { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-6) var(--space-5); border-radius: var(--radius-xl); background: var(--fill-subtle); border: 1px dashed var(--line-strong); text-align: center; }
+.pair-code .pair-digits { font-size: 44px; line-height: 56px; font-weight: 650; letter-spacing: .28em; padding-inline-start: .28em; font-variant-numeric: tabular-nums; color: var(--accent-text); direction: ltr; unicode-bidi: isolate; }
+.pair-code .pair-meta { color: var(--text-2); font-size: var(--text-caption); }
+.code-input input { font-size: 28px; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; direction: ltr; }
+.lan-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); }
+.lan-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lan-fact .lan-fact-label { font-size: var(--text-caption); color: var(--text-3); }
+.lan-fact .lan-fact-value { font-weight: 600; overflow-wrap: anywhere; }
+.server-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.server-pick { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--fill-subtle); text-align: start; min-height: 56px; }
+.server-pick:hover { background: var(--fill-hover); }
+.server-pick[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.server-pick > svg { width: 22px; height: 22px; flex: none; color: var(--text-3); }
+.server-pick .server-name { font-weight: 600; }
+.server-pick .server-addr { font-size: var(--text-caption); color: var(--text-3); }
+/* Connection state of a client computer: a calm bar under the header, never a blocking dialog. */
+.conn-banner { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-5); background: var(--warning-soft); color: var(--text); border-bottom: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); font-size: 13.5px; }
+.conn-banner > svg { width: 18px; height: 18px; flex: none; color: var(--warning); }
+.conn-banner.danger { background: var(--danger-soft); border-bottom-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.conn-banner.danger > svg { color: var(--danger); }
+.conn-banner .spacer { flex: 1; }
+.presence-banner { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-radius: var(--radius-lg); background: var(--info-soft); border: 1px solid color-mix(in srgb, var(--info) 22%, transparent); font-size: 13.5px; }
+.presence-banner > svg { width: 18px; height: 18px; flex: none; color: var(--info); }
+.server-offline { max-width: 460px; }
+@media (prefers-reduced-motion: no-preference) { .conn-banner { animation: page-in var(--dur-slow) var(--ease); } }

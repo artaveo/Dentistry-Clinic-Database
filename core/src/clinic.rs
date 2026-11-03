@@ -58,10 +58,12 @@ pub fn get(conn: &Connection) -> Result<ClinicProfile> {
             Some("multi") => ClinicMode::Multi,
             _ => ClinicMode::Solo,
         },
-        install_mode: match read(conn, "clinic.install_mode")?.as_deref() {
-            Some("server") => InstallMode::Server,
-            Some("client") => InstallMode::Client,
-            _ => InstallMode::Single,
+        // Phase 7: this computer is the clinic server exactly while server mode is on (it can be
+        // switched on and off from the Network page; a client computer has no database at all).
+        install_mode: if read(conn, "lan_server_enabled")?.as_deref() == Some("1") {
+            InstallMode::Server
+        } else {
+            InstallMode::Single
         },
         theme: match read(conn, "clinic.theme")?.as_deref() {
             Some("light") => ThemePreference::Light,
@@ -281,6 +283,13 @@ pub fn init_from_setup(
         conn.execute(
             "INSERT INTO setting(key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, NULL)",
             params![k, v, now],
+        )?;
+    }
+    // "This computer is the clinic server" chosen in the wizard: the LAN server starts at once.
+    if p.install_mode == InstallMode::Server {
+        conn.execute(
+            "INSERT INTO setting(key, value, updated_at, updated_by) VALUES ('lan_server_enabled', '1', ?1, NULL)",
+            params![now],
         )?;
     }
     Ok(())

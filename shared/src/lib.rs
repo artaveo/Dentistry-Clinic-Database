@@ -238,6 +238,8 @@ pub enum ErrorCode {
     Conflict,
     NotFound,
     UnknownMethod,
+    // LAN client: the clinic server computer cannot be reached (Phase 7).
+    ServerUnreachable,
     Internal,
 }
 
@@ -3195,6 +3197,62 @@ macro_rules! api {
     };
 }
 
+// ───────────────────────────── LAN mode (Phase 7) ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct LanPairingInfo {
+    pub code: String,
+    pub expires_in_seconds: u32,
+    pub attempts_left: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct LanStatus {
+    pub enabled: bool,
+    pub running: bool,
+    pub port: Option<u16>,
+    pub addresses: Vec<String>,
+    pub computer_name: String,
+    pub fingerprint: Option<String>,
+    pub client_limit: u32,
+    pub paired_count: u32,
+    pub connected_count: u32,
+    pub pairing: Option<LanPairingInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct LanDevice {
+    pub id: String,
+    pub name: String,
+    pub paired_at: String,
+    pub last_seen_at: Option<String>,
+    pub last_user: Option<String>,
+    pub last_address: Option<String>,
+    pub connected: bool,
+    pub revoked: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PresenceParams {
+    pub entity: String,
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PresenceViewer {
+    pub user_id: String,
+    pub user_name: String,
+    pub device: String,
+    pub seconds: u32,
+}
+
+// Pushed to every connected screen after a change (the UI reloads what it shows).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+pub struct LiveEvent {
+    pub topic: String,
+    pub method: String,
+}
+
 api! {
     "app.status"             => APP_STATUS(Empty) -> AppStatus;
     "app.setup"              => APP_SETUP(SetupParams) -> SetupResult;
@@ -3360,6 +3418,16 @@ api! {
     "cash.day"                   => CASH_DAY(DateParams) -> CashDay;
     "cash.close"                 => CASH_CLOSE(CloseCashParams) -> CashClosingInfo;
     "cash.closings"              => CASH_CLOSINGS(ExpenseListParams) -> Vec<CashClosingInfo>;
+    "lan.status"             => LAN_STATUS(Empty) -> LanStatus;
+    "lan.enable"             => LAN_ENABLE(Empty) -> LanStatus;
+    "lan.disable"            => LAN_DISABLE(Empty) -> LanStatus;
+    "lan.pairing_open"       => LAN_PAIRING_OPEN(Empty) -> LanPairingInfo;
+    "lan.pairing_cancel"     => LAN_PAIRING_CANCEL(Empty) -> Empty;
+    "lan.devices"            => LAN_DEVICES(Empty) -> Vec<LanDevice>;
+    "lan.revoke"             => LAN_REVOKE(UserIdParams) -> Empty;
+    "presence.enter"         => PRESENCE_ENTER(PresenceParams) -> Vec<PresenceViewer>;
+    "presence.leave"         => PRESENCE_LEAVE(PresenceParams) -> Empty;
+    "presence.who"           => PRESENCE_WHO(PresenceParams) -> Vec<PresenceViewer>;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -3655,6 +3723,12 @@ pub fn typescript_bindings() -> String {
         CategoryTotal,
         FinanceSummary,
         ExpenseListParams,
+        LanPairingInfo,
+        LanStatus,
+        LanDevice,
+        PresenceParams,
+        PresenceViewer,
+        LiveEvent,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

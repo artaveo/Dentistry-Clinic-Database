@@ -17,6 +17,7 @@ import { StatusActions } from "./StatusActions";
 import { SCHEDULE_RULES, STATUS_TONE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
 import { useCatalog, useClinicSettings } from "../../lib/clinical";
+import { useLive } from "../../lib/lan";
 import { teethLabel } from "../../chart/numbering";
 import { SessionDots } from "../patients/clinical/SessionDots";
 import { NextSessionOffer } from "../patients/clinical/NextSessionOffer";
@@ -28,7 +29,7 @@ const POLL_MS = 10_000;
  * "Today's queue" (4.5) for reception and doctors: who is expected, waiting, in treatment and done,
  * with one-tap next steps and walk-in registration. It refreshes every few seconds; on a network
  * of several computers a change made at the front desk shows up at the doctor's computer the same
- * way (instant push over the network is Phase 7).
+ * way, and instantly over the clinic network (Phase 7: the server pushes every change).
  */
 export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile | null; perms: Perms; clinicName: string }) {
   const { t, err, lang } = useI18n();
@@ -62,6 +63,9 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
     const id = window.setInterval(() => !document.hidden && load(), POLL_MS);
     return () => window.clearInterval(id);
   }, [load]);
+
+  // Roadmap 7.3: a patient checked in at the front desk shows up at the doctor's computer at once.
+  useLive(["appointments", "patients", "treatment_items", "notes"], load);
 
   const groups = useMemo(() => {
     const by = (s: AppointmentInfo["status"][]) => (items ?? []).filter((a) => s.includes(a.status));
