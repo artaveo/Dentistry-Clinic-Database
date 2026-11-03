@@ -15,7 +15,7 @@ pub const DEFAULTS: Settings = Settings {
     calendar_snap_minutes: 5,
     print_brand_footer: true,
     restrict_service_specialty: false,
-    tooth_numbering: ToothNumbering::Fdi,
+    tooth_numbering: ToothNumbering::Quadrant,
 };
 
 /// OF-044: the steps an appointment can be dragged in.
@@ -48,7 +48,9 @@ pub fn get(conn: &Connection) -> Result<Settings> {
         tooth_numbering: match read(conn, "tooth_numbering")?.as_deref() {
             Some("universal") => ToothNumbering::Universal,
             Some("palmer") => ToothNumbering::Palmer,
-            _ => ToothNumbering::Fdi,
+            Some("fdi") => ToothNumbering::Fdi,
+            Some("quadrant") => ToothNumbering::Quadrant,
+            _ => DEFAULTS.tooth_numbering,
         },
     })
 }
@@ -102,6 +104,7 @@ pub fn update(conn: &Connection, actor: &Actor, new: &Settings) -> Result<Settin
         ToothNumbering::Fdi => "fdi",
         ToothNumbering::Universal => "universal",
         ToothNumbering::Palmer => "palmer",
+        ToothNumbering::Quadrant => "quadrant",
     };
     conn.execute(
         "INSERT INTO setting(key, value, updated_at, updated_by) VALUES ('tooth_numbering', ?1, ?2, ?3)

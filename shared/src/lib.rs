@@ -2246,13 +2246,18 @@ pub struct SaveDocumentTemplateParams {
 // ───────────────────────────── dental chart (Phase 5B: 5.2–5.4, M5) ─────────────────────────────
 
 /// How tooth numbers are shown (ADR-14). Stored numbers are always FDI (ISO 3950).
+/// The enum's own default (FDI) is only for documents issued before the setting existed; a clinic
+/// without the setting gets `settings::DEFAULTS` (quadrant).
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ToothNumbering {
     #[default]
     Fdi,
     Universal,
+    /// Palmer: 1–8 in each quadrant, baby teeth A–E.
     Palmer,
+    /// Zsigmondy (v0.6.1, the clinic doctor's request): 1–8 in each quadrant, baby teeth Roman I–V.
+    Quadrant,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]

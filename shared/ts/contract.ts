@@ -893,7 +893,7 @@ export type PlanSnapshotItem = { phase: number, code: string,
  */
 service: string, teeth: Array<number>, surfaces: string, sessions: number, units: number, unit_price: number, total: number, status: ItemStatus, };
 
-export type ToothNumbering = "fdi" | "universal" | "palmer";
+export type ToothNumbering = "fdi" | "universal" | "palmer" | "quadrant";
 
 export type Dentition = "permanent" | "primary" | "mixed";
 

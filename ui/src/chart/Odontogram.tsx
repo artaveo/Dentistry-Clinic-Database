@@ -32,6 +32,8 @@ type Props = {
   numberOf: (fdi: number) => string;
   titleOf: (fdi: number) => string;
   sideLabels: { right: string; left: string };
+  /** Quadrants 1–4 named at the chart's corners, for the numberings that count 1–8 in each quadrant. */
+  quadrantLabels?: string[];
   ariaLabel: string;
   onTooth: (fdi: number, mode: "single" | "toggle" | "range") => void;
   onSurface: (fdi: number, s: Surface) => void;
@@ -185,7 +187,7 @@ export function Odontogram(p: Props) {
         </g>
 
         <g transform={`translate(0 ${topBand}) scale(${s})`}>
-          <Guides uid={uid} sideLabels={p.sideLabels} />
+          <Guides uid={uid} sideLabels={p.sideLabels} quadrantLabels={p.quadrantLabels} />
           <GumBand uid={uid} slots={upper} />
           <GumBand uid={uid} slots={lower} />
           {[...upper, ...lower].map((slot) => (
@@ -313,14 +315,29 @@ function Defs({ uid }: { uid: string }) {
   );
 }
 
-/** Midline, occlusal plane and which side is the patient's right. */
-function Guides({ sideLabels }: { uid: string; sideLabels: { right: string; left: string } }) {
+/**
+ * Midline, occlusal plane and which side is the patient's right; with a 1–8 numbering, the quadrant of
+ * each corner beside the midline (the Zsigmondy cross: 1 | 2 over 4 | 3).
+ */
+function Guides({ sideLabels, quadrantLabels }: { uid: string; sideLabels: { right: string; left: string }; quadrantLabels?: string[] }) {
+  const cx = CHART_W / 2;
+  const q = (i: number, x: number, y: number, anchor: "start" | "end") => (
+    <text x={x} y={y} className="odo-quadrant" textAnchor={anchor}>{quadrantLabels![i]}</text>
+  );
   return (
     <g className="odo-guides" aria-hidden>
-      <line x1={CHART_W / 2} x2={CHART_W / 2} y1={BANDS.upperSideTop - 4} y2={BANDS.lowerNum + 4} className="odo-midline" />
+      <line x1={cx} x2={cx} y1={BANDS.upperSideTop - 4} y2={BANDS.lowerNum + 4} className="odo-midline" />
       <line x1={14} x2={CHART_W - 14} y1={BANDS.midY} y2={BANDS.midY} className="odo-occlusal-plane" />
       <text x={22} y={BANDS.midY + 4} className="odo-side" textAnchor="start" direction="ltr">{sideLabels.right}</text>
       <text x={CHART_W - 22} y={BANDS.midY + 4} className="odo-side" textAnchor="end" direction="ltr">{sideLabels.left}</text>
+      {quadrantLabels && (
+        <g>
+          {q(0, cx - 8, BANDS.upperSideTop + 14, "end")}
+          {q(1, cx + 8, BANDS.upperSideTop + 14, "start")}
+          {q(3, cx - 8, BANDS.lowerNum - 6, "end")}
+          {q(2, cx + 8, BANDS.lowerNum - 6, "start")}
+        </g>
+      )}
     </g>
   );
 }

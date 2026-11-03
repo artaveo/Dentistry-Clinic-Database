@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarCheck2, ClipboardPlus, History, MousePointerClick, Plus, Stethoscope, Trash2, Undo2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { CalendarCheck2, Check, ChevronDown, ClipboardPlus, History, Plus, Stethoscope, Trash2, Undo2, X } from "lucide-react";
 import type { ChartInfo, ClinicProfile, PatientInfo, ServiceInfo, ToothConditionInfo, ToothNumbering } from "../../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../../lib/api";
 import { formatDate, latinDigits, digits } from "../../../lib/dates";
@@ -11,7 +12,7 @@ import { Button, IconButton } from "../../../ui/Button";
 import { Card, CardHeader } from "../../../ui/Card";
 import { Segmented } from "../../../ui/Controls";
 import { Field, Select, TextInput } from "../../../ui/Field";
-import { Badge, EmptyState, Notice } from "../../../ui/Feedback";
+import { Badge, Notice } from "../../../ui/Feedback";
 import { useToast } from "../../../ui/Toast";
 import { toothInfo } from "../../../chart/geometry";
 import type { Surface } from "../../../chart/geometry";
@@ -22,12 +23,20 @@ import { ServicePicker } from "./ServicePicker";
 import { ITEM_TONE, amountInput, itemService, parseAmount, sessionText, surfacesText } from "./labels";
 import { SessionDots } from "./SessionDots";
 
-type Mode = "finding" | "plan" | "done";
+export type ChartMode = "finding" | "plan" | "done";
+export type QuickPick = "upper" | "lower" | "q1" | "q2" | "q3" | "q4" | "all" | "none";
+
+const MODES: { value: ChartMode; icon: LucideIcon; state: "existing" | "planned" | "done" }[] = [
+  { value: "finding", icon: Stethoscope, state: "existing" },
+  { value: "plan", icon: ClipboardPlus, state: "planned" },
+  { value: "done", icon: CalendarCheck2, state: "done" },
+];
 
 /**
- * Under the chart: what to do with the selected teeth — record an existing condition (the blue layer),
- * add a service to a plan (red), or record a treatment done today (green) — and, for one tooth, what is
- * on it and its history.
+ * Beside the chart (v0.6.1): recording on the chart as three numbered steps — ① which teeth, ② what kind
+ * of record (an existing condition = blue, work for the plan = red, work done today = green, the chart's
+ * own colours), ③ which condition or service, then one clearly worded save button. The rarely changed
+ * options (plan, phase, doctor, details) wait behind «گزینه‌های بیشتر».
  */
 export function ChartPanel(p: {
   patient: PatientInfo;
@@ -37,55 +46,128 @@ export function ChartPanel(p: {
   selected: number[];
   surfaces: Surface[];
   numbering: ToothNumbering;
+  mode: ChartMode;
+  onMode: (m: ChartMode) => void;
   workingPlanId: string | null;
   onWorkingPlan: (id: string | null) => void;
   onServicePicked: (s: ServiceInfo) => void;
+  onQuick: (k: QuickPick) => void;
+  onSurface: (fdi: number, s: Surface) => void;
   onChanged: () => void;
-  onHistory: (fdi: number) => void;
-  onToggleSlot: (fdi: number) => void;
 }) {
   const { t, lang } = useI18n();
-  const [mode, setMode] = useState<Mode>("plan");
-  const one = p.selected.length === 1 ? p.selected[0] : null;
+  const has = p.selected.length > 0;
   return (
-    <div className="chart-panels">
-      <Card className="chart-actions" data-testid="chart-actions">
-        <CardHeader
-          icon={MousePointerClick}
-          title={p.selected.length ? t("chart.actionsFor").replace("{teeth}", teethLabel(p.selected, p.numbering, lang)) : t("chart.actions")}
-          description={p.selected.length ? undefined : t("chart.actionsHint")}
-        />
-        {p.canEdit ? (
-          <div className="stack">
-            <Segmented<Mode>
-              value={mode}
-              onChange={setMode}
-              label={t("chart.actions")}
-              block
-              options={[
-                { value: "plan", label: t("chart.mode.plan"), icon: ClipboardPlus, testId: "chart-mode-plan" },
-                { value: "done", label: t("chart.mode.done"), icon: CalendarCheck2, testId: "chart-mode-done" },
-                { value: "finding", label: t("chart.mode.finding"), icon: Stethoscope, testId: "chart-mode-finding" },
-              ]}
-            />
-            {mode === "finding" ? <FindingForm {...p} /> : <ItemForm key={mode} {...p} done={mode === "done"} />}
+    <Card className="chart-bench" data-testid="chart-actions" id="chart-bench">
+      <ol className="bench-steps">
+        <Step n={1} done={has} title={t("chart.step.teeth")}>
+          {has ? (
+            <div className="chart-selection" data-testid="chart-selection">
+              <span className="bench-teeth"><bdi>{teethLabel(p.selected, p.numbering, lang)}</bdi></span>
+              {p.surfaces.length > 0 && <Badge tone="accent">{surfacesText(p.surfaces.join(""), p.selected[0])}</Badge>}
+              <span className="grow" />
+              <IconButton icon={X} size="sm" label={t("chart.clearSelection")} onClick={() => p.onQuick("none")} data-testid="chart-clear" />
+            </div>
+          ) : (
+            <p className="bench-hint">{t("chart.step.teethHint")}</p>
+          )}
+          <div className="chart-quick" role="group" aria-label={t("chart.quick")}>
+            {(["upper", "lower", "q1", "q2", "q3", "q4", "all"] as const).map((k) => (
+              <button key={k} type="button" className="chip-toggle" onClick={() => p.onQuick(k)} data-testid={`chart-quick-${k}`}>{t(`chart.quick.${k}`)}</button>
+            ))}
           </div>
+        </Step>
+        {p.canEdit ? (
+          <>
+            <Step n={2} done title={t("chart.step.mode")}>
+              <div className="bench-modes" role="radiogroup" aria-label={t("chart.step.mode")}>
+                {MODES.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={p.mode === m.value}
+                    className={`bench-mode st-${m.state}`}
+                    onClick={() => p.onMode(m.value)}
+                    data-testid={`chart-mode-${m.value}`}
+                  >
+                    <span className="bench-mode-icon" aria-hidden><m.icon size={18} /></span>
+                    <span className="bench-mode-text">
+                      <span className="bench-mode-title">{t(`chart.mode.${m.value}`)}</span>
+                      <span className="bench-mode-desc">{t(`chart.mode.${m.value}Desc`)}</span>
+                    </span>
+                    <span className="chart-swatch" aria-hidden />
+                  </button>
+                ))}
+              </div>
+            </Step>
+            <Step n={3} done={false} title={t(p.mode === "finding" ? "chart.step.condition" : "chart.step.service")} last>
+              {p.mode === "finding" ? <FindingForm {...p} /> : <ItemForm key={p.mode} {...p} done={p.mode === "done"} />}
+            </Step>
+          </>
         ) : (
-          <Notice tone="info">{t("chart.readOnly")}</Notice>
+          <li className="bench-readonly"><Notice tone="info">{t("chart.readOnly")}</Notice></li>
         )}
-      </Card>
-      <Card className="chart-details" data-testid="chart-details">
-        {one ? (
-          <ToothDetails {...p} tooth={one} />
-        ) : (
-          <EmptyState icon={MousePointerClick} title={t("chart.detailsTitle")}>{t("chart.detailsHint")}</EmptyState>
-        )}
-      </Card>
+      </ol>
+    </Card>
+  );
+}
+
+function Step({ n, done, title, last, children }: { n: number; done: boolean; title: string; last?: boolean; children: React.ReactNode }) {
+  const { lang } = useI18n();
+  return (
+    <li className={`bench-step ${done ? "done" : ""} ${last ? "last" : ""}`}>
+      <span className="bench-step-n" aria-hidden>{done ? <Check size={14} strokeWidth={3} /> : digits(n, lang)}</span>
+      <div className="bench-step-body">
+        <h3 className="bench-step-title">{title}</h3>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+const SURFACES: Surface[] = ["B", "M", "O", "D", "L"];
+
+/**
+ * The tooth's five surfaces as a small cross, the way the biting surface is drawn on the chart: buccal on
+ * top, lingual below, mesial towards the midline. The same selection as clicking the chart.
+ */
+function SurfacePicker({ tooth, surfaces, onSurface }: { tooth: number; surfaces: Surface[]; onSurface: (fdi: number, s: Surface) => void }) {
+  const { t } = useI18n();
+  const info = toothInfo(tooth);
+  // On the chart the patient's right is on the left: mesial points right in quadrants 1 and 4.
+  const mesialRight = info.quadrant === 1 || info.quadrant === 4;
+  return (
+    <div className={`surface-cross ${mesialRight ? "m-right" : "m-left"}`} role="group" aria-label={t("chart.surfaces")} dir="ltr" data-testid="surface-picker">
+      {SURFACES.map((s) => (
+        <button
+          key={s}
+          type="button"
+          className={`surface-btn s-${s}`}
+          aria-pressed={surfaces.includes(s)}
+          title={t(`chart.surface.${s}`)}
+          onClick={() => onSurface(tooth, s)}
+          data-testid={`surface-pick-${s}`}
+        >
+          {surfacesText(s, tooth)}
+        </button>
+      ))}
     </div>
   );
 }
 
-function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Surface[]; numbering: ToothNumbering; onChanged: () => void }) {
+/** Surfaces needed: the hint and, for one tooth, the picker; several teeth pick on the chart one by one. */
+function SurfaceNeed({ testId, selected, surfaces, onSurface }: { testId: string; selected: number[]; surfaces: Surface[]; onSurface: (fdi: number, s: Surface) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="surface-need" data-testid={testId}>
+      {selected.length === 1 && <SurfacePicker tooth={selected[0]} surfaces={surfaces} onSurface={onSurface} />}
+      <p className="bench-hint">{t(surfaces.length ? "chart.surfacesHint" : "chart.pickSurfaces")}</p>
+    </div>
+  );
+}
+
+function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Surface[]; numbering: ToothNumbering; onSurface: (fdi: number, s: Surface) => void; onChanged: () => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const conditions = useToothConditions();
@@ -120,18 +202,24 @@ function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Su
           </button>
         ))}
       </div>
-      {condition && needSurface && <Notice tone="info" testId="finding-need-surface">{t("chart.pickSurfaces")}</Notice>}
-      {!p.selected.length && <Notice tone="info">{t("chart.pickTeeth")}</Notice>}
-      <Field label={t("chart.note")} optional>
-        <TextInput value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} data-testid="finding-note" />
-      </Field>
+      {condition?.needs_surface && (needSurface ? (
+        <SurfaceNeed testId="finding-need-surface" selected={p.selected} surfaces={p.surfaces} onSurface={p.onSurface} />
+      ) : (
+        <SurfaceNeed testId="finding-surfaces" selected={p.selected} surfaces={p.surfaces} onSurface={p.onSurface} />
+      ))}
+      {condition && (
+        <Field label={t("chart.note")} optional>
+          <TextInput value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} data-testid="finding-note" />
+        </Field>
+      )}
       {error && <Notice tone="danger" testId="finding-error">{error}</Notice>}
-      <div className="row">
-        <span className="grow" />
-        <Button variant="primary" icon={Plus} loading={busy} disabled={!condition || !p.selected.length || needSurface} onClick={save} data-testid="finding-save">
-          {t("chart.recordFinding").replace("{teeth}", teethLabel(p.selected, p.numbering, lang) || "—")}
-        </Button>
-      </div>
+      <Button variant="primary" block icon={Plus} loading={busy} disabled={!condition || !p.selected.length || needSurface} onClick={save} data-testid="finding-save">
+        {!p.selected.length
+          ? t("chart.pickTeeth")
+          : condition
+            ? t("chart.recordFindingAs").replace("{what}", tr(condition.name, lang)).replace("{teeth}", teethLabel(p.selected, p.numbering, lang))
+            : t("chart.pickCondition")}
+      </Button>
     </div>
   );
 }
@@ -146,6 +234,7 @@ function ItemForm(p: {
   workingPlanId: string | null;
   onWorkingPlan: (id: string | null) => void;
   onServicePicked: (s: ServiceInfo) => void;
+  onSurface: (fdi: number, s: Surface) => void;
   onChanged: () => void;
   done: boolean;
 }) {
@@ -180,7 +269,8 @@ function ItemForm(p: {
   };
   const scope = service?.tooth_scope;
   const teethProblem = service && !scopeFits(service.tooth_scope, p.selected) ? t(`chart.scopeHint.${service.tooth_scope}`) : null;
-  const surfaceProblem = service?.needs_surface && service.tooth_scope === "tooth" && !p.surfaces.length ? t("chart.pickSurfaces") : null;
+  const needSurface = !!service?.needs_surface && service.tooth_scope === "tooth";
+  const surfaceProblem = needSurface && !p.surfaces.length;
   const priceMinor = parseAmount(price, latinDigits);
   const sessionsN = Number(latinDigits(sessions));
   const errors = {
@@ -189,25 +279,33 @@ function ItemForm(p: {
   };
   const splits = scope === "tooth" && p.selected.length > 1;
   const total = (priceMinor ?? 0) * (scope === "tooth" ? Math.max(1, p.selected.length) : scope === "teeth" ? Math.max(1, p.selected.length) : 1);
+  const plan = plans.find((x) => x.id === planId);
+  const doctor = doctors?.find((d) => d.id === doctorId);
+  const moreSummary = [
+    !p.done && (plan ? plan.title : t("chart.newPlan")),
+    !p.done && t("chart.phaseN").replace("{n}", digits(phase, lang)),
+    !solo && doctors && doctors.length > 1 && doctor?.full_name,
+    details.trim(),
+  ].filter(Boolean).join(" · ");
 
   const add = async () => {
     setError("");
     if (!service || teethProblem || surfaceProblem || errors.price || errors.sessions) return;
     setBusy(true);
     try {
-      let plan: string | null = null;
+      let planFor: string | null = null;
       if (!p.done) {
-        plan = planId || null;
-        if (!plan) {
+        planFor = planId || null;
+        if (!planFor) {
           const created = await rpc("plans.create", { patient_id: p.patient.id, title: t("plan.defaultTitle").replace("{n}", digits(p.chart.plans.length + 1, lang)), notes: null, template_id: null, teeth: [] });
-          plan = created.id;
-          p.onWorkingPlan(plan);
+          planFor = created.id;
+          p.onWorkingPlan(planFor);
         }
       }
       const teeth = scope === "mouth" || scope === "none" ? (service.chart_symbol === "bracket" || service.chart_symbol === "denture" ? p.selected : []) : p.selected;
       await rpc("treatment_items.add", {
         patient_id: p.patient.id,
-        plan_id: plan,
+        plan_id: planFor,
         service_id: service.id,
         teeth,
         surfaces: service.needs_surface ? p.surfaces.join("") : "",
@@ -233,73 +331,89 @@ function ItemForm(p: {
     }
   };
 
+  const name = service ? serviceName(service, catalog, lang) : "";
+  const where = teethLabel(p.selected, p.numbering, lang);
   return (
     <div className="stack" data-testid={p.done ? "done-form" : "item-form"}>
       <ServicePicker catalog={catalog} selectedTeeth={p.selected} value={service?.id ?? null} onPick={pick} testId={p.done ? "done-service" : "item-service"} />
       {service && (
         <div className="item-form-body stack">
           <div className="picked-service" data-testid="picked-service">
-            <span className="cell-strong">{serviceName(service, catalog, lang)}</span>
+            <span className="cell-strong">{name}</span>
             <span className="subtle t-caption">
               {t(`catalog.scope.${service.tooth_scope}`)}
-              {p.selected.length > 0 && ` · ${teethLabel(p.selected, p.numbering, lang)}`}
+              {p.selected.length > 0 && <> · <bdi>{where}</bdi></>}
               {p.surfaces.length > 0 && ` · ${surfacesText(p.surfaces.join(""), p.selected[0])}`}
             </span>
           </div>
           {teethProblem && <Notice tone="warning" testId="item-teeth-problem">{teethProblem}</Notice>}
-          {surfaceProblem && <Notice tone="warning" testId="item-surface-problem">{surfaceProblem}</Notice>}
+          {needSurface && !teethProblem && (
+            <SurfaceNeed testId={surfaceProblem ? "item-surface-problem" : "item-surfaces"} selected={p.selected} surfaces={p.surfaces} onSurface={p.onSurface} />
+          )}
           {splits && <Notice tone="info">{t("chart.splitHint").replace("{n}", digits(p.selected.length, lang))}</Notice>}
           <div className="grid-2">
-            {!p.done && (
-              <Field label={t("chart.plan")} hint={plans.length ? undefined : t("chart.newPlanHint")}>
-                <Select value={planId} onChange={(e) => { setPlanId(e.target.value); p.onWorkingPlan(e.target.value || null); }} data-testid="item-plan">
-                  <option value="">{t("chart.newPlan")}</option>
-                  {plans.map((x) => <option key={x.id} value={x.id}>{x.title} · {t(`plan.status.${x.status}`)}</option>)}
-                </Select>
-              </Field>
-            )}
-            {!p.done && (
-              <Field label={t("plan.phase")} hint={t("plan.phaseHint")}>
-                <Segmented value={phase} onChange={setPhase} label={t("plan.phase")} options={["1", "2", "3", "4", "5"].map((n) => ({ value: n, label: digits(n, lang), testId: `item-phase-${n}` }))} />
-              </Field>
-            )}
             <Field label={t("plan.unitPrice")} hint={service.price ? t("plan.catalogPrice").replace("{price}", formatAmount(service.price, lang)) : t("plan.noCatalogPrice")} error={errors.price}>
               <TextInput inputMode="numeric" suffix={lang === "en" ? "AFN" : "افغانی"} value={price} onChange={(e) => setPrice(e.target.value)} data-testid="item-price" />
             </Field>
             <Field label={t("plan.sessions")} hint={t("plan.sessionsHint")} error={errors.sessions}>
               <TextInput inputMode="numeric" dir="ltr" value={sessions} onChange={(e) => setSessions(e.target.value)} data-testid="item-sessions" />
             </Field>
-            {!solo && doctors && doctors.length > 1 && (
-              <Field label={t("appt.doctor")}>
-                <Select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} data-testid="item-doctor">
-                  {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                </Select>
-              </Field>
-            )}
-            <Field label={t("plan.details")} hint={t("plan.detailsHint")} optional>
-              <TextInput value={details} maxLength={80} onChange={(e) => setDetails(e.target.value)} data-testid="item-details" />
+          </div>
+          {p.done && (
+            <Field label={t("plan.result")} optional>
+              <TextInput value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} data-testid="item-note" />
             </Field>
-            {p.done && (
-              <Field label={t("plan.result")} optional>
-                <TextInput value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} data-testid="item-note" />
+          )}
+          <details className="bench-more" data-testid="item-more">
+            <summary>
+              <ChevronDown size={16} aria-hidden className="bench-more-chevron" />
+              <span className="bench-more-title">{t("chart.more")}</span>
+              {moreSummary && <span className="bench-more-summary">{moreSummary}</span>}
+            </summary>
+            <div className="grid-2">
+              {!p.done && (
+                <Field label={t("chart.plan")} hint={plans.length ? undefined : t("chart.newPlanHint")}>
+                  <Select value={planId} onChange={(e) => { setPlanId(e.target.value); p.onWorkingPlan(e.target.value || null); }} data-testid="item-plan">
+                    <option value="">{t("chart.newPlan")}</option>
+                    {plans.map((x) => <option key={x.id} value={x.id}>{x.title} · {t(`plan.status.${x.status}`)}</option>)}
+                  </Select>
+                </Field>
+              )}
+              {!p.done && (
+                <Field label={t("plan.phase")} hint={t("plan.phaseHint")}>
+                  <Segmented value={phase} onChange={setPhase} label={t("plan.phase")} options={["1", "2", "3", "4", "5"].map((n) => ({ value: n, label: digits(n, lang), testId: `item-phase-${n}` }))} />
+                </Field>
+              )}
+              {!solo && doctors && doctors.length > 1 && (
+                <Field label={t("appt.doctor")}>
+                  <Select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} data-testid="item-doctor">
+                    {doctors.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                  </Select>
+                </Field>
+              )}
+              <Field label={t("plan.details")} hint={t("plan.detailsHint")} optional>
+                <TextInput value={details} maxLength={80} onChange={(e) => setDetails(e.target.value)} data-testid="item-details" />
               </Field>
-            )}
-          </div>
+            </div>
+          </details>
           {error && <Notice tone="danger" testId="item-error">{error}</Notice>}
-          <div className="row">
-            {total > 0 && <span className="subtle">{t("plan.estimate")}: <b className="num">{formatAmount(total, lang)}</b></span>}
-            <span className="grow" />
-            <Button variant="primary" icon={p.done ? CalendarCheck2 : Plus} loading={busy} onClick={add} data-testid={p.done ? "done-save" : "item-add"}>
-              {p.done ? t("chart.recordDone") : t("chart.addToPlan")}
-            </Button>
-          </div>
+          {total > 0 && (
+            <div className="bench-total">
+              <span className="subtle">{t("plan.estimate")}</span>
+              <b className="num">{formatAmount(total, lang)}</b>
+            </div>
+          )}
+          <Button variant="primary" block icon={p.done ? CalendarCheck2 : Plus} loading={busy} onClick={add} data-testid={p.done ? "done-save" : "item-add"}>
+            {(p.done ? t("chart.recordDoneAs") : t("chart.addToPlanAs")).replace("{what}", name).replace("{teeth}", where ? ` — ${where}` : "")}
+          </Button>
         </div>
       )}
     </div>
   );
 }
 
-function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdit: boolean; tooth: number; numbering: ToothNumbering; onChanged: () => void; onHistory: (fdi: number) => void; onToggleSlot: (fdi: number) => void }) {
+/** What is on one tooth now — its conditions and its work — with its history and, in a mixed mouth, baby or adult. */
+export function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdit: boolean; tooth: number; numbering: ToothNumbering; onChanged: () => void; onHistory: (fdi: number) => void; onToggleSlot: (fdi: number) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const catalog = useCatalog();
@@ -320,58 +434,60 @@ function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdit: bool
     }
   };
   return (
-    <div className="stack" data-testid={`tooth-details-${p.tooth}`}>
-      <CardHeader
-        title={`${t("chart.tooth")} ${toothLabel(p.tooth, p.numbering, lang)}`}
-        description={t(`chart.type.${info.type}`) + " · " + t(`chart.quadrant.${info.quadrant}`)}
-        actions={<Button size="sm" icon={History} onClick={() => p.onHistory(p.tooth)} data-testid="tooth-history-open">{t("chart.history")}</Button>}
-      />
-      {mixedSlot && p.canEdit && (
-        <Button size="sm" variant="subtle" icon={Undo2} onClick={() => p.onToggleSlot(p.tooth)} data-testid="tooth-toggle-primary">
-          {info.primary ? t("chart.showPermanent") : t("chart.showPrimary")}
-        </Button>
-      )}
-      <section>
-        <h3 className="t-subtitle">{t("chart.findings")}</h3>
-        {findings.length ? (
-          <ul className="plain-list tooth-list">
-            {findings.map((f) => {
-              const c = conditions?.find((x) => x.id === f.condition_id);
-              return (
-                <li key={f.id} className="row" data-testid={`finding-${f.id}`}>
-                  <span className="chart-swatch st-existing" aria-hidden />
-                  <span className="cell-strong">{tr(c?.name, lang)}</span>
-                  {f.surfaces && <Badge>{surfacesText(f.surfaces, f.tooth)}</Badge>}
-                  <span className="subtle t-caption">{formatDate(`${f.recorded_on}T06:30:00Z`, lang)}</span>
-                  {f.note && <span className="t-caption">{f.note}</span>}
-                  <span className="grow" />
-                  {p.canEdit && <IconButton icon={Trash2} size="sm" label={t("chart.removeFinding")} onClick={() => remove(f.id, f.version)} data-testid={`finding-remove-${f.id}`} />}
+    <Card className="chart-details" data-testid="chart-details">
+      <div className="stack" data-testid={`tooth-details-${p.tooth}`}>
+        <CardHeader
+          title={<>{t("chart.tooth")} <bdi>{toothLabel(p.tooth, p.numbering, lang)}</bdi></>}
+          description={t(`chart.type.${info.type}`) + " · " + t(`chart.quadrant.${info.quadrant}`)}
+          actions={<Button size="sm" icon={History} onClick={() => p.onHistory(p.tooth)} data-testid="tooth-history-open">{t("chart.history")}</Button>}
+        />
+        {mixedSlot && p.canEdit && (
+          <Button size="sm" variant="subtle" icon={Undo2} onClick={() => p.onToggleSlot(p.tooth)} data-testid="tooth-toggle-primary">
+            {info.primary ? t("chart.showPermanent") : t("chart.showPrimary")}
+          </Button>
+        )}
+        <section>
+          <h3 className="t-subtitle">{t("chart.findings")}</h3>
+          {findings.length ? (
+            <ul className="plain-list tooth-list">
+              {findings.map((f) => {
+                const c = conditions?.find((x) => x.id === f.condition_id);
+                return (
+                  <li key={f.id} className="row" data-testid={`finding-${f.id}`}>
+                    <span className="chart-swatch st-existing" aria-hidden />
+                    <span className="cell-strong">{tr(c?.name, lang)}</span>
+                    {f.surfaces && <Badge>{surfacesText(f.surfaces, f.tooth)}</Badge>}
+                    <span className="subtle t-caption">{formatDate(`${f.recorded_on}T06:30:00Z`, lang)}</span>
+                    {f.note && <span className="t-caption">{f.note}</span>}
+                    <span className="grow" />
+                    {p.canEdit && <IconButton icon={Trash2} size="sm" label={t("chart.removeFinding")} onClick={() => remove(f.id, f.version)} data-testid={`finding-remove-${f.id}`} />}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="subtle t-caption">{t("chart.noFindings")}</p>
+          )}
+        </section>
+        <section>
+          <h3 className="t-subtitle">{t("chart.work")}</h3>
+          {items.length ? (
+            <ul className="plain-list tooth-list">
+              {items.map((i) => (
+                <li key={i.id} className="row" data-testid={`tooth-item-${i.id}`}>
+                  <Badge tone={ITEM_TONE[i.status]} dot>{t(`item.status.${i.status}`)}</Badge>
+                  <span className="cell-strong">{itemService(catalog, i, lang)}</span>
+                  {i.surfaces && <Badge>{surfacesText(i.surfaces, p.tooth)}</Badge>}
+                  {i.sessions_planned > 1 && <SessionDots item={i} />}
+                  <span className="subtle t-caption">{[sessionText(t, lang, i), i.plan_id ? plans.get(i.plan_id)?.title : t("plan.noPlan")].filter(Boolean).join(" · ")}</span>
                 </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="subtle t-caption">{t("chart.noFindings")}</p>
-        )}
-      </section>
-      <section>
-        <h3 className="t-subtitle">{t("chart.work")}</h3>
-        {items.length ? (
-          <ul className="plain-list tooth-list">
-            {items.map((i) => (
-              <li key={i.id} className="row" data-testid={`tooth-item-${i.id}`}>
-                <Badge tone={ITEM_TONE[i.status]} dot>{t(`item.status.${i.status}`)}</Badge>
-                <span className="cell-strong">{itemService(catalog, i, lang)}</span>
-                {i.surfaces && <Badge>{surfacesText(i.surfaces, p.tooth)}</Badge>}
-                {i.sessions_planned > 1 && <SessionDots item={i} />}
-                <span className="subtle t-caption">{[sessionText(t, lang, i), i.plan_id ? plans.get(i.plan_id)?.title : t("plan.noPlan")].filter(Boolean).join(" · ")}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="subtle t-caption">{t("chart.noWork")}</p>
-        )}
-      </section>
-    </div>
+              ))}
+            </ul>
+          ) : (
+            <p className="subtle t-caption">{t("chart.noWork")}</p>
+          )}
+        </section>
+      </div>
+    </Card>
   );
 }

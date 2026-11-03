@@ -1142,6 +1142,7 @@ fieldset.translations > legend { padding: 0; margin-bottom: var(--space-2); }
 .odo-midline { stroke: var(--line-strong); stroke-dasharray: 3 4; }
 .odo-occlusal-plane { stroke: var(--line); stroke-dasharray: 6 5; }
 .odo-side { font-size: 12px; font-weight: 600; fill: var(--text-3); }
+.odo-quadrant { font-size: 11px; font-weight: 700; fill: var(--accent-text); opacity: .8; }
 .odo-num { cursor: pointer; }
 .odo-num rect { fill: var(--fill-subtle); stroke: var(--line); }
 .odo-num text { font-size: 12px; font-weight: 600; fill: var(--text-2); font-variant-numeric: tabular-nums; }
@@ -1168,11 +1169,85 @@ fieldset.translations > legend { padding: 0; margin-bottom: var(--space-2); }
 /* chart tab layout */
 .chart-card { overflow: visible; }
 .chart-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5) 0; }
-.chart-quick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); padding: var(--space-3) var(--space-5) 0; }
-.chart-selection { display: inline-flex; align-items: center; gap: var(--space-2); margin-inline-start: var(--space-3); }
-.chart-plan-pick { display: inline-flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; min-width: 240px; }
-.chart-canvas { padding: var(--space-2) var(--space-4) 0; }
-.chart-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--hairline); margin-top: var(--space-2); }
+/* v0.6.1: the chart and the recording steps side by side when the tab is wide enough, stacked otherwise. */
+.chart-tab { container-type: inline-size; }
+.chart-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.chart-aside { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+@container (min-width: 1120px) {
+  .chart-workspace:not(.perio) { grid-template-columns: minmax(0, 1fr) clamp(340px, 30%, 400px); }
+  .chart-selbar { display: none !important; }
+}
+.chart-plan-pick { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 220px; }
+.chart-canvas { padding: var(--space-3) var(--space-4) 0; }
+.chart-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--hairline); margin-top: var(--space-2); }
+.chart-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.chart-selbar { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) var(--space-4) 0; padding: var(--space-2) var(--space-3); min-height: 44px; border-radius: var(--radius-lg); background: var(--fill-subtle); color: var(--text-2); font-size: 13px; }
+.chart-selbar b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* the recording steps (bench) */
+.chart-bench { padding: var(--space-5); }
+.bench-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bench-step { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: var(--space-3); padding-bottom: var(--space-5); }
+.bench-step.last { padding-bottom: 0; }
+/* the rail joining the step numbers */
+.bench-step:not(.last)::before { content: ""; position: absolute; inset-inline-start: 13px; top: 32px; bottom: 6px; width: 2px; border-radius: 1px; background: var(--line); }
+.bench-step.done:not(.last)::before { background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.bench-step-n { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--fill-subtle); border: 1.5px solid var(--line-strong); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.bench-step.done .bench-step-n { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.bench-step-body { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); padding-top: 3px; }
+.bench-step-title { margin: 0; font-size: 15px; font-weight: 700; line-height: 22px; color: var(--text); }
+.bench-hint { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-3); }
+.bench-readonly { list-style: none; }
+.chart-selection { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 4px 4px 4px var(--space-3); border-radius: var(--radius-lg); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+[dir="rtl"] .chart-selection { padding: 4px var(--space-3) 4px 4px; }
+.bench-teeth { font-weight: 700; font-size: 15px; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.chart-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.chart-quick .chip-toggle { height: 28px; padding: 0 10px; font-size: 12px; }
+
+/* ② the kind of record — in the chart's own colours, so the legend is learnt here */
+.bench-modes { display: flex; flex-direction: column; gap: var(--space-2); }
+.bench-mode { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 56px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--fill-subtle); color: var(--text); font: inherit; text-align: start; cursor: pointer; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
+.bench-mode:hover { background: var(--fill-hover); }
+.bench-mode:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bench-mode-icon { flex: none; width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--mode-c); background: color-mix(in srgb, var(--mode-c) 13%, transparent); }
+.bench-mode-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bench-mode-title { font-weight: 600; font-size: 14px; }
+.bench-mode-desc { font-size: 12px; line-height: 1.5; color: var(--text-3); }
+.bench-mode .chart-swatch { opacity: .9; }
+.bench-mode.st-existing { --mode-c: var(--st-existing); }
+.bench-mode.st-planned { --mode-c: var(--st-planned); }
+.bench-mode.st-done { --mode-c: var(--st-done); }
+.bench-mode[aria-checked="true"] { background: color-mix(in srgb, var(--mode-c) 8%, var(--glass-card, transparent)); border-color: var(--mode-c); box-shadow: inset 0 0 0 1px var(--mode-c); }
+.bench-mode[aria-checked="true"] .bench-mode-icon { background: var(--mode-c); color: #fff; }
+
+/* the five surfaces as a cross: buccal on top, lingual below, mesial towards the midline */
+.surface-need { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); border: 1px dashed var(--line-strong); }
+.surface-cross { flex: none; display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(3, 34px); gap: 3px; }
+.surface-cross.m-right { grid-template-areas: ". b ." "d o m" ". l ."; }
+.surface-cross.m-left { grid-template-areas: ". b ." "m o d" ". l ."; }
+.surface-btn { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--tooth-stroke); background: var(--tooth-e2); color: #5b4a2c; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; border-radius: 8px; transition: background var(--dur-fast) var(--ease); }
+.surface-btn:hover { background: var(--tooth-e1); }
+.surface-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.surface-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.surface-btn.s-B { grid-area: b; border-radius: 12px 12px 6px 6px; }
+.surface-btn.s-L { grid-area: l; border-radius: 6px 6px 12px 12px; }
+.surface-btn.s-M { grid-area: m; }
+.surface-btn.s-D { grid-area: d; }
+.surface-btn.s-O { grid-area: o; border-radius: 50%; }
+
+/* ③ more options and the total */
+.bench-more { border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.bench-more > summary { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-3); cursor: pointer; list-style: none; font-size: 13px; }
+.bench-more > summary::-webkit-details-marker { display: none; }
+.bench-more-chevron { flex: none; color: var(--text-3); transition: transform var(--dur-fast) var(--ease); }
+.bench-more[open] .bench-more-chevron { transform: rotate(180deg); }
+.bench-more-title { font-weight: 600; }
+.bench-more-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+.bench-more > .grid-2 { padding: var(--space-2) var(--space-3) var(--space-3); }
+
+@container (min-width: 1120px) { .chart-aside .grid-2 { grid-template-columns: 1fr; } }
+.bench-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-1); border-top: 1px solid var(--hairline); }
+.bench-total b { font-size: 18px; }
 .chart-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-caption); color: var(--text-2); font-weight: 500; }
 .chart-legend-hint { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 4px; }
 .chart-swatch { flex: none; width: 16px; height: 12px; border-radius: 3px; display: inline-block; border: 1.5px solid transparent; }
@@ -1188,8 +1263,6 @@ fieldset.translations > legend { padding: 0; margin-bottom: var(--space-2); }
 .chart-mouth-chip.st-planned .odo-callout-dot { box-shadow: inset 0 0 0 1.5px var(--st-planned); background: repeating-linear-gradient(45deg, var(--st-planned) 0 2px, transparent 2px 4px); }
 .chart-mouth-chip.st-progress .odo-callout-dot { background: linear-gradient(90deg, var(--st-progress) 50%, transparent 50%); box-shadow: inset 0 0 0 1.5px var(--st-progress); }
 .chart-mouth-chip.st-done .odo-callout-dot { background: var(--st-done); }
-.chart-panels { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
-@media (max-width: 1100px) { .chart-panels { grid-template-columns: 1fr; } }
 .tooth-list li { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 .condition-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); }
 .condition-option { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--fill-subtle); color: var(--text); font: inherit; font-size: 13px; text-align: start; cursor: pointer; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease); }

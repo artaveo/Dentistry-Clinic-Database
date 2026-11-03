@@ -19,12 +19,18 @@ export function universal(fdi: number): string {
   }
 }
 
-/** Palmer: the tooth's number in its quadrant (A–E for baby teeth) with the quadrant's corner mark. */
-export function palmer(fdi: number): string {
-  const q = Math.floor(fdi / 10);
+const ROMAN = ["I", "II", "III", "IV", "V"];
+
+/** The tooth's place in its quadrant, counted from the midline: 1–8, baby teeth A–E (Palmer) or I–V (Zsigmondy). */
+function inQuadrant(fdi: number, roman: boolean): string {
   const n = fdi % 10;
-  const mark = q >= 5 ? String.fromCharCode(64 + n) : String(n);
-  switch (q) {
+  if (fdi < 50) return String(n);
+  return roman ? ROMAN[n - 1] : String.fromCharCode(64 + n);
+}
+
+/** The quadrant's corner mark around a tooth's place, as dentists write it: 6┘ └6 ┌6 6┐. */
+function cornered(fdi: number, mark: string): string {
+  switch (Math.floor(fdi / 10)) {
     case 1: case 5: return `${mark}┘`;
     case 2: case 6: return `└${mark}`;
     case 3: case 7: return `┌${mark}`;
@@ -32,11 +38,31 @@ export function palmer(fdi: number): string {
   }
 }
 
+/** Palmer: the tooth's number in its quadrant (A–E for baby teeth) with the quadrant's corner mark. */
+export function palmer(fdi: number): string {
+  return cornered(fdi, inQuadrant(fdi, false));
+}
+
+/** Zsigmondy: 1–8 in each quadrant, baby teeth in Roman numerals I–V, with the quadrant's corner mark. */
+export function quadrant(fdi: number): string {
+  return cornered(fdi, inQuadrant(fdi, true));
+}
+
 /** One tooth's label in the clinic's numbering, with the interface's digits. */
 export function toothLabel(fdi: number, numbering: ToothNumbering, lang: Language): string {
   if (numbering === "universal") return digits(universal(fdi), lang);
-  if (numbering === "palmer") return palmer(fdi);
+  if (numbering === "palmer") return digits(palmer(fdi), lang);
+  if (numbering === "quadrant") return digits(quadrant(fdi), lang);
   return digits(String(fdi), lang);
+}
+
+/**
+ * The number printed over a tooth on the chart. Its position already says the quadrant, so the
+ * quadrant systems drop the corner mark: 8 … 1 | 1 … 8 on each jaw.
+ */
+export function chartNumber(fdi: number, numbering: ToothNumbering, lang: Language): string {
+  if (numbering === "palmer" || numbering === "quadrant") return digits(inQuadrant(fdi, numbering === "quadrant"), lang);
+  return toothLabel(fdi, numbering, lang);
 }
 
 /** Several teeth: "۲۴–۲۶" for neighbours in one quadrant, else a list. */
@@ -50,8 +76,12 @@ export function teethLabel(teeth: number[], numbering: ToothNumbering, lang: Lan
     if (last && t === last[last.length - 1] + 1 && Math.floor(t / 10) === Math.floor(last[0] / 10)) last.push(t);
     else runs.push([t]);
   }
+  const range = (a: number, b: number) =>
+    numbering === "palmer" || numbering === "quadrant"
+      ? digits(cornered(a, `${inQuadrant(a, numbering === "quadrant")}–${inQuadrant(b, numbering === "quadrant")}`), lang)
+      : `${toothLabel(a, numbering, lang)}–${toothLabel(b, numbering, lang)}`;
   return runs
-    .map((r) => (r.length > 2 ? `${toothLabel(r[0], numbering, lang)}–${toothLabel(r[r.length - 1], numbering, lang)}` : r.map((t) => toothLabel(t, numbering, lang)).join(sep)))
+    .map((r) => (r.length > 2 ? range(r[0], r[r.length - 1]) : r.map((t) => toothLabel(t, numbering, lang)).join(sep)))
     .join(sep);
 }
 

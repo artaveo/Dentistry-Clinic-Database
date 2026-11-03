@@ -154,7 +154,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
               value={numbering}
               onChange={setNumbering}
               label={t("settings.toothNumbering")}
-              options={(["fdi", "universal", "palmer"] as ToothNumbering[]).map((n) => ({ value: n, label: t(`settings.toothNumbering.${n}`), testId: `setting-numbering-${n}` }))}
+              options={(["quadrant", "fdi", "palmer", "universal"] as ToothNumbering[]).map((n) => ({ value: n, label: t(`settings.toothNumbering.${n}`), testId: `setting-numbering-${n}` }))}
             />
           </Field>
         </Card>

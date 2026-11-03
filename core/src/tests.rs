@@ -2342,6 +2342,20 @@ fn calendar_drag_step_is_a_setting_and_moves_never_go_into_the_past() {
 }
 
 #[test]
+fn tooth_numbering_defaults_to_quadrant_and_keeps_the_clinics_choice() {
+    // v0.6.1: a clinic that never chose sees 1–8 per quadrant (baby teeth I–V); FDI stays one choice away.
+    let c = clinic4();
+    let mut s = c.t.ok(m::SETTINGS_GET, json!({}), Some(&c.owner));
+    assert_eq!(s["tooth_numbering"], "quadrant");
+    for n in ["fdi", "palmer", "universal", "quadrant"] {
+        s["tooth_numbering"] = json!(n);
+        s = c.t.ok(m::SETTINGS_UPDATE, s, Some(&c.owner));
+        assert_eq!(s["tooth_numbering"], n);
+        assert_eq!(c.t.ok(m::SETTINGS_GET, json!({}), Some(&c.owner))["tooth_numbering"], n);
+    }
+}
+
+#[test]
 fn walk_in_outside_working_hours_needs_confirmation() {
     // OF-037: a walk-in outside the doctor's hours is refused until reception confirms it, and the
     // confirmation is audited. The doctor's hours are set to one minute a day, so "now" is always outside.
