@@ -44,6 +44,8 @@ const ROW_H = 26;
 const LABEL_FONT = '500 12px "AfghaniSign", "Artaveo Sans", Vazirmatn, "Segoe UI", sans-serif';
 const HEAD_FONT = '700 12px "AfghaniSign", "Artaveo Sans", Vazirmatn, "Segoe UI", sans-serif';
 const MAX_ROWS = 4;
+const QUAD_H = 26;
+const QUAD_FONT = '700 11px "AfghaniSign", "Artaveo Sans", Vazirmatn, "Segoe UI", sans-serif';
 
 let probe: HTMLSpanElement | null = null;
 /** Width of a text in the label's own font, measured in the page (the web fonts are the ones on screen). */
@@ -144,8 +146,10 @@ export function Odontogram(p: Props) {
     })
     .filter((c): c is Callout & { anchor: number; upper: boolean } => !!c);
   const { placed, rows, hidden } = useMemo(() => placeLabels(shown, width), [JSON.stringify(shown.map((c) => [c.key, c.anchor, c.text, c.head])), width, fontsReady]);
-  const topBand = rows.upper ? rows.upper * ROW_H + 18 : 8;
-  const bottomBand = rows.lower ? rows.lower * ROW_H + 18 : 8;
+  // With a 1–8 numbering, a row naming the quadrants sits between the tooth numbers and the labels.
+  const quadH = p.quadrantLabels ? QUAD_H : 0;
+  const topBand = (rows.upper ? rows.upper * ROW_H + 18 : 8) + quadH;
+  const bottomBand = (rows.lower ? rows.lower * ROW_H + 18 : 8) + quadH;
   const chartH = BANDS.height * s;
   const height = topBand + chartH + bottomBand;
   const y = (v: number) => topBand + v * s;
@@ -167,7 +171,7 @@ export function Odontogram(p: Props) {
         {/* Leader lines first: the labels' solid chips are drawn over them. */}
         <g className="odo-leaders">
           {placed.map((c) => {
-            const labelY = c.upper ? topBand - 12 - (c.row + 1) * ROW_H + ROW_H / 2 : topBand + chartH + 12 + c.row * ROW_H + ROW_H / 2 - 2;
+            const labelY = c.upper ? topBand - quadH - 12 - (c.row + 1) * ROW_H + ROW_H / 2 : topBand + chartH + quadH + 12 + c.row * ROW_H + ROW_H / 2 - 2;
             const startY = c.upper ? y(BANDS.upperNum) + 2 : y(BANDS.lowerNum + NUM_H) - 2;
             const inside = c.anchor >= c.x + 8 && c.anchor <= c.x + c.w - 8;
             const edge = c.anchor < c.x ? c.x : c.x + c.w;
@@ -187,7 +191,7 @@ export function Odontogram(p: Props) {
         </g>
 
         <g transform={`translate(0 ${topBand}) scale(${s})`}>
-          <Guides uid={uid} sideLabels={p.sideLabels} quadrantLabels={p.quadrantLabels} />
+          <Guides uid={uid} sideLabels={p.sideLabels} />
           <GumBand uid={uid} slots={upper} />
           <GumBand uid={uid} slots={lower} />
           {[...upper, ...lower].map((slot) => (
@@ -235,9 +239,27 @@ export function Odontogram(p: Props) {
           })}
         </g>
 
+        {p.quadrantLabels && (
+          <g className="odo-quadrants" aria-hidden>
+            {/* 1 upper right and 4 lower right on the left half (the patient's right), 2 and 3 on the right half. */}
+            {([[0, 0.25, true], [1, 0.75, true], [3, 0.25, false], [2, 0.75, false]] as const).map(([i, fx, up]) => {
+              const cy = up ? topBand - quadH / 2 - 2 : topBand + chartH + quadH / 2 + 2;
+              const label = p.quadrantLabels![i];
+              const w = textWidth(label, QUAD_FONT) + 22;
+              return (
+                <g key={i}>
+                  <line x1={fx < 0.5 ? 10 : width / 2 + 10} x2={fx < 0.5 ? width / 2 - 10 : width - 10} y1={cy} y2={cy} className="odo-quadrant-rule" />
+                  <rect x={width * fx - w / 2} y={cy - 9} width={w} height={18} rx={9} className="odo-quadrant-chip" />
+                  <text x={width * fx} y={cy + 4} textAnchor="middle" className="odo-quadrant">{label}</text>
+                </g>
+              );
+            })}
+          </g>
+        )}
+
         <g className="odo-labels">
           {placed.map((c) => {
-            const top = c.upper ? topBand - 12 - (c.row + 1) * ROW_H + 2 : topBand + chartH + 12 + c.row * ROW_H;
+            const top = c.upper ? topBand - quadH - 12 - (c.row + 1) * ROW_H + 2 : topBand + chartH + quadH + 12 + c.row * ROW_H;
             return (
               <foreignObject key={c.key} x={c.x} y={top} width={c.w} height={ROW_H - 4}>
                 <div
@@ -315,29 +337,15 @@ function Defs({ uid }: { uid: string }) {
   );
 }
 
-/**
- * Midline, occlusal plane and which side is the patient's right; with a 1–8 numbering, the quadrant of
- * each corner beside the midline (the Zsigmondy cross: 1 | 2 over 4 | 3).
- */
-function Guides({ sideLabels, quadrantLabels }: { uid: string; sideLabels: { right: string; left: string }; quadrantLabels?: string[] }) {
+/** Midline, occlusal plane and which side is the patient's right. */
+function Guides({ sideLabels }: { uid: string; sideLabels: { right: string; left: string } }) {
   const cx = CHART_W / 2;
-  const q = (i: number, x: number, y: number, anchor: "start" | "end") => (
-    <text x={x} y={y} className="odo-quadrant" textAnchor={anchor}>{quadrantLabels![i]}</text>
-  );
   return (
     <g className="odo-guides" aria-hidden>
       <line x1={cx} x2={cx} y1={BANDS.upperSideTop - 4} y2={BANDS.lowerNum + 4} className="odo-midline" />
       <line x1={14} x2={CHART_W - 14} y1={BANDS.midY} y2={BANDS.midY} className="odo-occlusal-plane" />
       <text x={22} y={BANDS.midY + 4} className="odo-side" textAnchor="start" direction="ltr">{sideLabels.right}</text>
       <text x={CHART_W - 22} y={BANDS.midY + 4} className="odo-side" textAnchor="end" direction="ltr">{sideLabels.left}</text>
-      {quadrantLabels && (
-        <g>
-          {q(0, cx - 8, BANDS.upperSideTop + 14, "end")}
-          {q(1, cx + 8, BANDS.upperSideTop + 14, "start")}
-          {q(3, cx - 8, BANDS.lowerNum - 6, "end")}
-          {q(2, cx + 8, BANDS.lowerNum - 6, "start")}
-        </g>
-      )}
     </g>
   );
 }

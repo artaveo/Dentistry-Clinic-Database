@@ -5,6 +5,7 @@
 // needs: the same methods, validation rules, field errors and lock rules.
 // `?mock=seeded` starts with a configured clinic and some history.
 import questionsPsv from "../../../core/seeds/medical_questions.psv?raw";
+import { clinicalCall, seedClinical } from "./mockClinical";
 import type {
   AppointmentInfo, AppointmentStatus, AttachmentInfo, AuditEntry, BackupInfo, ChairInfo, ClinicProfile, DoctorInfo, RecallInfo, RoleInfo, ErrorCode, LabeledItem, MedicalAnswer, MedicalHistoryInfo, MedicalQuestionInfo, PatientInfo, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
 } from "../../../shared/ts/contract";
@@ -96,7 +97,7 @@ const state = {
   logo: null as string | null,
   users: [] as U[],
   sessions: new Map<string, Session>(),
-  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false, tooth_numbering: "fdi" } as Settings,
+  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false, tooth_numbering: "quadrant" } as Settings,
   backups: [] as BackupInfo[],
   audit: [] as AuditEntry[],
   recoveryKey: "",
@@ -191,6 +192,7 @@ function seed() {
     state.patients.push(patient);
   });
   seedScheduling();
+  seedClinical(state.patients[0].id);
   // Reviewed eight months ago: the profile asks for a new review.
   state.medicalHistory.set(state.patients[0].id, {
     patient_id: state.patients[0].id,
@@ -779,6 +781,8 @@ function call(method: string, p: any, token: string | null): unknown {
         last_backup: state.backups[0] ?? null,
       };
   }
+  const clinical = clinicalCall(method, p);
+  if (clinical !== undefined) return clinical;
   return fail("unknown_method", method);
 }
 

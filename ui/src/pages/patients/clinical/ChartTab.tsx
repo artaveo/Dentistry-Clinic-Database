@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowDown, Baby, CircleDot, Grid3x3, Layers, MousePointerClick, ScanLine, Smile, Tag, Tags, Wrench } from "lucide-react";
+import { Activity, Baby, CircleDot, Grid3x3, Layers, ScanLine, Smile, Tag, Tags, Wrench } from "lucide-react";
 import type { ChartInfo, ClinicProfile, PatientInfo, ServiceInfo } from "../../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../../lib/api";
 import { useCatalog, useClinicSettings, useToothConditions } from "../../../lib/clinical";
 import { tr } from "../../../lib/medical";
 import { useI18n } from "../../../i18n";
-import { Button } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Segmented } from "../../../ui/Controls";
 import { ErrorState, Loading } from "../../../ui/Feedback";
@@ -19,7 +18,7 @@ import type { Surface } from "../../../chart/geometry";
 import { itemState, layersOf, marksOf, spansOf, STATES, viewForSymbol } from "../../../chart/model";
 import type { ChartState, ChartView } from "../../../chart/model";
 import { chartNumber, teethLabel, toothLabel } from "../../../chart/numbering";
-import { ChartPanel, ToothDetails } from "./ChartPanel";
+import { ChartRecordDialog, ChartSelectionBar, ToothDetails } from "./ChartPanel";
 import type { ChartMode, QuickPick } from "./ChartPanel";
 import { PerioChart } from "./PerioChart";
 import { ToothHistory } from "./ToothHistory";
@@ -37,8 +36,8 @@ const VIEWS: { value: ChartView; icon: LucideIcon }[] = [
  * Patient profile → «چارت دندان» (5.2–5.5, M5): the odontogram with its specialty views, selecting
  * teeth and surfaces (quick buttons for jaws and quadrants), recording what is there, planning work
  * service-first or tooth-first, and each tooth's history. The periodontal chart is the «پریو» view.
- * v0.6.1: the recording steps sit beside the chart on a wide window (below it on a narrow one, with a
- * bar under the chart that says what is selected and leads to them).
+ * v0.6.1: a bar under the chart (kept on screen) shows the selection and the three kinds of record; each
+ * opens the record dialog, so the chart never scrolls away and the result shows as soon as it is saved.
  */
 export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: PatientInfo; canEdit: boolean; clinic: ClinicProfile | null; onChanged?: () => void }) {
   const { t, err, lang } = useI18n();
@@ -57,6 +56,7 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
   const [workingPlan, setWorkingPlan] = useState<string | null>(null);
   const [history, setHistory] = useState<number | null>(null);
   const [mode, setMode] = useState<ChartMode>("plan");
+  const [recording, setRecording] = useState(false);
 
   const load = useCallback(
     () =>
@@ -185,11 +185,9 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
   };
   const workingPlans = chart.plans.filter((p) => p.status !== "cancelled" && p.status !== "completed");
   const one = selected.length === 1 ? selected[0] : null;
-  const toBench = () => document.getElementById("chart-bench")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div className="chart-tab" data-testid="chart-tab">
-      <div className={`chart-workspace ${view === "perio" ? "perio" : ""}`}>
+    <div className="chart-tab stack-lg" data-testid="chart-tab">
         <Card flush className="chart-card">
           <div className="chart-toolbar">
             <Segmented<ChartView>
@@ -247,18 +245,7 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
                   ))}
                 </div>
               )}
-              <div className="chart-selbar" aria-live="polite">
-                <MousePointerClick size={16} aria-hidden />
-                {selected.length ? (
-                  <>
-                    <b><bdi>{teethLabel(selected, numbering, lang)}</bdi></b>
-                    <span className="grow" />
-                    {canEdit && <Button size="sm" variant="primary" icon={ArrowDown} onClick={toBench} data-testid="chart-to-bench">{t("chart.toBench")}</Button>}
-                  </>
-                ) : (
-                  <span className="subtle">{t("chart.step.teethHint")}</span>
-                )}
-              </div>
+              <ChartSelectionBar selected={selected} surfaces={surfaces} numbering={numbering} canEdit={canEdit} onQuick={quick} onOpen={(m) => { setMode(m); setRecording(true); }} />
               <div className="chart-foot">
                 <Legend />
                 <span className="grow" />
@@ -283,45 +270,44 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
             </>
           )}
         </Card>
-
-        {view !== "perio" && (
-          <aside className="chart-aside">
-            <ChartPanel
-              patient={patient}
-              chart={chart}
-              clinic={clinic}
-              canEdit={canEdit}
-              selected={selected}
-              surfaces={surfaces}
-              numbering={numbering}
-              mode={mode}
-              onMode={setMode}
-              workingPlanId={workingPlan}
-              onWorkingPlan={setWorkingPlan}
-              onServicePicked={onServicePicked}
-              onQuick={quick}
-              onSurface={onSurface}
-              onChanged={refresh}
-            />
-            {one != null && (
-              <ToothDetails
-                patient={patient}
-                chart={chart}
-                canEdit={canEdit}
-                tooth={one}
-                numbering={numbering}
-                onChanged={refresh}
-                onHistory={(fdi) => setHistory(fdi)}
-                onToggleSlot={(fdi) => {
-                  const place = fdi > 50 ? (Math.floor(fdi / 10) - 4) * 10 + (fdi % 10) : fdi;
-                  const slots = chart.primary_slots.includes(place) ? chart.primary_slots.filter((x) => x !== place) : [...chart.primary_slots, place];
-                  setDentition("mixed", slots);
-                }}
-              />
-            )}
-          </aside>
-        )}
-      </div>
+      {view !== "perio" && one != null && (
+        <ToothDetails
+          patient={patient}
+          chart={chart}
+          canEdit={canEdit}
+          tooth={one}
+          numbering={numbering}
+          onChanged={refresh}
+          onHistory={(fdi) => setHistory(fdi)}
+          onToggleSlot={(fdi) => {
+            const place = fdi > 50 ? (Math.floor(fdi / 10) - 4) * 10 + (fdi % 10) : fdi;
+            const slots = chart.primary_slots.includes(place) ? chart.primary_slots.filter((x) => x !== place) : [...chart.primary_slots, place];
+            setDentition("mixed", slots);
+          }}
+        />
+      )}
+      {recording && canEdit && (
+        <ChartRecordDialog
+          patient={patient}
+          chart={chart}
+          clinic={clinic}
+          selected={selected}
+          surfaces={surfaces}
+          numbering={numbering}
+          mode={mode}
+          onMode={setMode}
+          workingPlanId={workingPlan}
+          onWorkingPlan={setWorkingPlan}
+          onServicePicked={onServicePicked}
+          onPickSurface={(srf) => setSurfaces((x) => (x.includes(srf) ? x.filter((y) => y !== srf) : [...x, srf]))}
+          onChanged={() => {
+            // What was saved is on the chart now; the next record starts without surfaces.
+            setSurfaces([]);
+            refresh();
+          }}
+          onClose={() => setRecording(false)}
+        />
+      )}
       {history != null && <ToothHistory patient={patient} tooth={history} numbering={numbering} onClose={() => setHistory(null)} />}
     </div>
   );

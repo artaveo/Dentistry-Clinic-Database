@@ -3259,7 +3259,7 @@ fn treatment_plans_alternatives_sessions_and_appointments() {
         .unwrap()
         .iter()
         .any(|i| i["service"] == "Root canal treatment — Two canals"));
-    assert_eq!(doc["content"]["numbering"], "fdi");
+    assert_eq!(doc["content"]["numbering"], "quadrant");
     let (_, field, _) = rule_of(
         t,
         m::DOCUMENTS_ISSUE,
@@ -3529,7 +3529,7 @@ fn the_record_summary_prints_the_clinical_visit() {
         Some(owner),
     );
     let snap = &doc["content"]["snapshot"];
-    assert_eq!(snap["numbering"], "fdi");
+    assert_eq!(snap["numbering"], "quadrant");
     assert_eq!(snap["findings"][0], json!({"tooth": 18, "condition": "Missing", "surfaces": ""}), "by tooth");
     assert_eq!(snap["findings"][1]["surfaces"], "OD");
     assert_eq!(snap["treatments"].as_array().unwrap().len(), 1);

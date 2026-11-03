@@ -16,16 +16,18 @@ describe("tooth numbering (ADR-14: FDI stored, Universal/Palmer shown)", () => {
   it("numbers 1–8 from the midline in each quadrant, baby teeth in Roman numerals (Zsigmondy)", () => {
     expect([18, 11, 21, 28, 38, 31, 41, 48].map(quadrant)).toEqual(["8┘", "1┘", "└1", "└8", "┌8", "┌1", "1┐", "8┐"]);
     expect([55, 51, 61, 64, 75, 83].map(quadrant)).toEqual(["V┘", "I┘", "└I", "└IV", "┌V", "III┐"]);
-    expect(toothLabel(36, "quadrant", "fa")).toBe("┌۶");
+    expect(toothLabel(36, "quadrant", "fa")).toBe("⁦┌۶⁩");
     // On the chart the position already says the quadrant: just the number.
     expect([18, 11, 21, 48, 31].map((t) => chartNumber(t, "quadrant", "fa"))).toEqual(["۸", "۱", "۱", "۸", "۱"]);
     expect([55, 85].map((t) => chartNumber(t, "quadrant", "en"))).toEqual(["V", "V"]);
     expect(chartNumber(55, "palmer", "en")).toBe("E");
     expect(chartNumber(36, "fdi", "fa")).toBe("۳۶");
     // A run in one quadrant carries the corner mark once.
-    expect(teethLabel([31, 32, 33, 34, 35, 36, 37, 38], "quadrant", "fa")).toBe("┌۱–۸");
-    expect(teethLabel([14, 15, 16], "quadrant", "en")).toBe("4–6┘");
-    expect(teethLabel([11, 21], "quadrant", "en")).toBe("1┘, └1");
+    // Isolated left to right, so the mark keeps its side in Persian text.
+    const plain = (x: string) => x.replace(/[⁦⁩]/g, "");
+    expect(plain(teethLabel([31, 32, 33, 34, 35, 36, 37, 38], "quadrant", "fa"))).toBe("┌۱–۸");
+    expect(plain(teethLabel([14, 15, 16], "quadrant", "en"))).toBe("4–6┘");
+    expect(teethLabel([11, 21], "quadrant", "en")).toBe("⁦1┘⁩, ⁦└1⁩");
   });
 
   it("shows the interface's digits and joins neighbours in one quadrant", () => {

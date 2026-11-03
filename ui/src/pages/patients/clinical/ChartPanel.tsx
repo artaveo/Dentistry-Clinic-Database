@@ -13,6 +13,7 @@ import { Card, CardHeader } from "../../../ui/Card";
 import { Segmented } from "../../../ui/Controls";
 import { Field, Select, TextInput } from "../../../ui/Field";
 import { Badge, Notice } from "../../../ui/Feedback";
+import { Dialog, Popover } from "../../../ui/Overlay";
 import { useToast } from "../../../ui/Toast";
 import { toothInfo } from "../../../chart/geometry";
 import type { Surface } from "../../../chart/geometry";
@@ -26,23 +27,73 @@ import { SessionDots } from "./SessionDots";
 export type ChartMode = "finding" | "plan" | "done";
 export type QuickPick = "upper" | "lower" | "q1" | "q2" | "q3" | "q4" | "all" | "none";
 
-const MODES: { value: ChartMode; icon: LucideIcon; state: "existing" | "planned" | "done" }[] = [
+export const MODES: { value: ChartMode; icon: LucideIcon; state: "existing" | "planned" | "done" }[] = [
   { value: "finding", icon: Stethoscope, state: "existing" },
   { value: "plan", icon: ClipboardPlus, state: "planned" },
   { value: "done", icon: CalendarCheck2, state: "done" },
 ];
 
 /**
- * Beside the chart (v0.6.1): recording on the chart as three numbered steps — ① which teeth, ② what kind
- * of record (an existing condition = blue, work for the plan = red, work done today = green, the chart's
- * own colours), ③ which condition or service, then one clearly worded save button. The rarely changed
- * options (plan, phase, doctor, details) wait behind «گزینه‌های بیشتر».
+ * Under the chart, kept at the bottom of the screen while the chart is in view (v0.6.1): ① what is
+ * selected (or how to select), quick selection of a jaw or quadrant, and ② the three kinds of record in
+ * the chart's own colours — an existing condition (blue), work for the plan (red), work done today
+ * (green). Each opens the record dialog, so the chart never scrolls away.
  */
-export function ChartPanel(p: {
+export function ChartSelectionBar(p: { selected: number[]; surfaces: Surface[]; numbering: ToothNumbering; canEdit: boolean; onQuick: (k: QuickPick) => void; onOpen: (m: ChartMode) => void }) {
+  const { t, lang } = useI18n();
+  const [quick, setQuick] = useState(false);
+  const has = p.selected.length > 0;
+  return (
+    <div className="chart-selbar" data-testid="chart-selbar">
+      <span className={`bench-step-n ${has ? "on" : ""}`} aria-hidden>{digits(1, lang)}</span>
+      {has ? (
+        <span className="chart-selection" data-testid="chart-selection" aria-live="polite">
+          <span className="bench-teeth"><bdi>{teethLabel(p.selected, p.numbering, lang)}</bdi></span>
+          {p.surfaces.length > 0 && <Badge tone="accent">{surfacesText(p.surfaces.join(""), p.selected[0])}</Badge>}
+          <IconButton icon={X} size="sm" label={t("chart.clearSelection")} onClick={() => p.onQuick("none")} data-testid="chart-clear" />
+        </span>
+      ) : (
+        <span className="bench-hint">{t("chart.step.teethHint")}</span>
+      )}
+      <Popover
+        open={quick}
+        onClose={() => setQuick(false)}
+        align="start"
+        width={280}
+        testId="chart-quick"
+        trigger={<Button size="sm" variant="subtle" icon={ChevronDown} onClick={() => setQuick((x) => !x)} data-testid="chart-quick-open">{t("chart.quick")}</Button>}
+      >
+        <div className="chart-quick" role="group" aria-label={t("chart.quick")}>
+          {(["upper", "lower", "q1", "q2", "q3", "q4", "all"] as const).map((k) => (
+            <button key={k} type="button" className="chip-toggle" onClick={() => { p.onQuick(k); setQuick(false); }} data-testid={`chart-quick-${k}`}>{t(`chart.quick.${k}`)}</button>
+          ))}
+        </div>
+      </Popover>
+      <span className="grow" />
+      {p.canEdit && (
+        <span className="chart-selbar-modes" role="group" aria-label={t("chart.step.mode")}>
+          <span className="bench-step-n" aria-hidden>{digits(2, lang)}</span>
+          {MODES.map((m) => (
+            <Button key={m.value} size="sm" variant="secondary" className={`selbar-mode st-${m.state}`} icon={m.icon} onClick={() => p.onOpen(m.value)} data-testid={`chart-mode-${m.value}`}>
+              {t(`chart.mode.${m.value}`)}
+            </Button>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The record dialog (v0.6.1): the teeth in its title, ① the kind of record (switchable here too, with a
+ * one-line explanation each), ② which condition or service, then one save button that names the work
+ * and the teeth. Rarely changed options (plan, phase, doctor, details) wait behind «گزینه‌های بیشتر».
+ * Saving closes it, so the result is seen on the chart at once.
+ */
+export function ChartRecordDialog(p: {
   patient: PatientInfo;
   chart: ChartInfo;
   clinic: ClinicProfile | null;
-  canEdit: boolean;
   selected: number[];
   surfaces: Surface[];
   numbering: ToothNumbering;
@@ -51,65 +102,56 @@ export function ChartPanel(p: {
   workingPlanId: string | null;
   onWorkingPlan: (id: string | null) => void;
   onServicePicked: (s: ServiceInfo) => void;
-  onQuick: (k: QuickPick) => void;
-  onSurface: (fdi: number, s: Surface) => void;
+  onPickSurface: (s: Surface) => void;
   onChanged: () => void;
+  onClose: () => void;
 }) {
   const { t, lang } = useI18n();
-  const has = p.selected.length > 0;
+  const where = teethLabel(p.selected, p.numbering, lang);
+  const saved = () => {
+    p.onChanged();
+    p.onClose();
+  };
   return (
-    <Card className="chart-bench" data-testid="chart-actions" id="chart-bench">
+    <Dialog
+      wide
+      testId="chart-actions"
+      onClose={p.onClose}
+      title={where ? <>{t(p.selected.length === 1 ? "chart.recordForTooth" : "chart.recordFor")} <bdi className="bench-teeth">{where}</bdi></> : t("chart.recordTitle")}
+      description={
+        !where
+          ? t("chart.recordNoTeeth")
+          : p.selected.length === 1
+            ? `${t(`chart.type.${toothInfo(p.selected[0]).type}`)} · ${t(`chart.quadrant.${toothInfo(p.selected[0]).quadrant}`)}`
+            : undefined
+      }
+    >
       <ol className="bench-steps">
-        <Step n={1} done={has} title={t("chart.step.teeth")}>
-          {has ? (
-            <div className="chart-selection" data-testid="chart-selection">
-              <span className="bench-teeth"><bdi>{teethLabel(p.selected, p.numbering, lang)}</bdi></span>
-              {p.surfaces.length > 0 && <Badge tone="accent">{surfacesText(p.surfaces.join(""), p.selected[0])}</Badge>}
-              <span className="grow" />
-              <IconButton icon={X} size="sm" label={t("chart.clearSelection")} onClick={() => p.onQuick("none")} data-testid="chart-clear" />
-            </div>
-          ) : (
-            <p className="bench-hint">{t("chart.step.teethHint")}</p>
-          )}
-          <div className="chart-quick" role="group" aria-label={t("chart.quick")}>
-            {(["upper", "lower", "q1", "q2", "q3", "q4", "all"] as const).map((k) => (
-              <button key={k} type="button" className="chip-toggle" onClick={() => p.onQuick(k)} data-testid={`chart-quick-${k}`}>{t(`chart.quick.${k}`)}</button>
+        <Step n={1} done title={t("chart.step.mode")}>
+          <div className="bench-modes" role="radiogroup" aria-label={t("chart.step.mode")}>
+            {MODES.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                role="radio"
+                aria-checked={p.mode === m.value}
+                className={`bench-mode st-${m.state}`}
+                onClick={() => p.onMode(m.value)}
+                title={t(`chart.mode.${m.value}Desc`)}
+                data-testid={`record-mode-${m.value}`}
+              >
+                <span className="bench-mode-icon" aria-hidden><m.icon size={16} /></span>
+                <span className="bench-mode-title">{t(`chart.mode.${m.value}`)}</span>
+              </button>
             ))}
           </div>
+          <p className="bench-hint">{t(`chart.mode.${p.mode}Desc`)}</p>
         </Step>
-        {p.canEdit ? (
-          <>
-            <Step n={2} done title={t("chart.step.mode")}>
-              <div className="bench-modes" role="radiogroup" aria-label={t("chart.step.mode")}>
-                {MODES.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={p.mode === m.value}
-                    className={`bench-mode st-${m.state}`}
-                    onClick={() => p.onMode(m.value)}
-                    data-testid={`chart-mode-${m.value}`}
-                  >
-                    <span className="bench-mode-icon" aria-hidden><m.icon size={18} /></span>
-                    <span className="bench-mode-text">
-                      <span className="bench-mode-title">{t(`chart.mode.${m.value}`)}</span>
-                      <span className="bench-mode-desc">{t(`chart.mode.${m.value}Desc`)}</span>
-                    </span>
-                    <span className="chart-swatch" aria-hidden />
-                  </button>
-                ))}
-              </div>
-            </Step>
-            <Step n={3} done={false} title={t(p.mode === "finding" ? "chart.step.condition" : "chart.step.service")} last>
-              {p.mode === "finding" ? <FindingForm {...p} /> : <ItemForm key={p.mode} {...p} done={p.mode === "done"} />}
-            </Step>
-          </>
-        ) : (
-          <li className="bench-readonly"><Notice tone="info">{t("chart.readOnly")}</Notice></li>
-        )}
+        <Step n={2} done={false} title={t(p.mode === "finding" ? "chart.step.condition" : "chart.step.service")} last>
+          {p.mode === "finding" ? <FindingForm {...p} onSaved={saved} /> : <ItemForm key={p.mode} {...p} onSaved={saved} done={p.mode === "done"} />}
+        </Step>
       </ol>
-    </Card>
+    </Dialog>
   );
 }
 
@@ -132,7 +174,7 @@ const SURFACES: Surface[] = ["B", "M", "O", "D", "L"];
  * The tooth's five surfaces as a small cross, the way the biting surface is drawn on the chart: buccal on
  * top, lingual below, mesial towards the midline. The same selection as clicking the chart.
  */
-function SurfacePicker({ tooth, surfaces, onSurface }: { tooth: number; surfaces: Surface[]; onSurface: (fdi: number, s: Surface) => void }) {
+function SurfacePicker({ tooth, surfaces, onSurface }: { tooth: number; surfaces: Surface[]; onSurface: (s: Surface) => void }) {
   const { t } = useI18n();
   const info = toothInfo(tooth);
   // On the chart the patient's right is on the left: mesial points right in quadrants 1 and 4.
@@ -146,7 +188,7 @@ function SurfacePicker({ tooth, surfaces, onSurface }: { tooth: number; surfaces
           className={`surface-btn s-${s}`}
           aria-pressed={surfaces.includes(s)}
           title={t(`chart.surface.${s}`)}
-          onClick={() => onSurface(tooth, s)}
+          onClick={() => onSurface(s)}
           data-testid={`surface-pick-${s}`}
         >
           {surfacesText(s, tooth)}
@@ -156,18 +198,18 @@ function SurfacePicker({ tooth, surfaces, onSurface }: { tooth: number; surfaces
   );
 }
 
-/** Surfaces needed: the hint and, for one tooth, the picker; several teeth pick on the chart one by one. */
-function SurfaceNeed({ testId, selected, surfaces, onSurface }: { testId: string; selected: number[]; surfaces: Surface[]; onSurface: (fdi: number, s: Surface) => void }) {
+/** Surfaces needed: the cross and its hint; with several teeth the same surfaces go on each, drawn for the first. */
+function SurfaceNeed({ testId, selected, surfaces, onSurface }: { testId: string; selected: number[]; surfaces: Surface[]; onSurface: (s: Surface) => void }) {
   const { t } = useI18n();
   return (
     <div className="surface-need" data-testid={testId}>
-      {selected.length === 1 && <SurfacePicker tooth={selected[0]} surfaces={surfaces} onSurface={onSurface} />}
+      {selected.length > 0 && <SurfacePicker tooth={selected[0]} surfaces={surfaces} onSurface={onSurface} />}
       <p className="bench-hint">{t(surfaces.length ? "chart.surfacesHint" : "chart.pickSurfaces")}</p>
     </div>
   );
 }
 
-function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Surface[]; numbering: ToothNumbering; onSurface: (fdi: number, s: Surface) => void; onChanged: () => void }) {
+function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Surface[]; numbering: ToothNumbering; onPickSurface: (s: Surface) => void; onSaved: () => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const conditions = useToothConditions();
@@ -185,7 +227,7 @@ function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Su
       await rpc("chart.add_findings", { patient_id: p.patient.id, condition_id: condition.id, teeth: p.selected, surfaces: condition.needs_surface ? p.surfaces.join("") : "", note: note.trim() || null });
       toast.success(t("chart.findingSaved"));
       setNote("");
-      p.onChanged();
+      p.onSaved();
     } catch (x) {
       if (!isSessionError(x)) setError(x instanceof ApiError && x.rule ? t(`rule.${x.rule}`) : err(x));
     } finally {
@@ -203,9 +245,9 @@ function FindingForm(p: { patient: PatientInfo; selected: number[]; surfaces: Su
         ))}
       </div>
       {condition?.needs_surface && (needSurface ? (
-        <SurfaceNeed testId="finding-need-surface" selected={p.selected} surfaces={p.surfaces} onSurface={p.onSurface} />
+        <SurfaceNeed testId="finding-need-surface" selected={p.selected} surfaces={p.surfaces} onSurface={p.onPickSurface} />
       ) : (
-        <SurfaceNeed testId="finding-surfaces" selected={p.selected} surfaces={p.surfaces} onSurface={p.onSurface} />
+        <SurfaceNeed testId="finding-surfaces" selected={p.selected} surfaces={p.surfaces} onSurface={p.onPickSurface} />
       ))}
       {condition && (
         <Field label={t("chart.note")} optional>
@@ -234,8 +276,8 @@ function ItemForm(p: {
   workingPlanId: string | null;
   onWorkingPlan: (id: string | null) => void;
   onServicePicked: (s: ServiceInfo) => void;
-  onSurface: (fdi: number, s: Surface) => void;
-  onChanged: () => void;
+  onPickSurface: (s: Surface) => void;
+  onSaved: () => void;
   done: boolean;
 }) {
   const { t, err, lang } = useI18n();
@@ -323,7 +365,7 @@ function ItemForm(p: {
       toast.success(p.done ? t("chart.doneSaved") : t("chart.itemAdded"));
       setDetails("");
       setNote("");
-      p.onChanged();
+      p.onSaved();
     } catch (x) {
       if (!isSessionError(x)) setError(x instanceof ApiError && x.rule ? t(`rule.${x.rule}`) : err(x));
     } finally {
@@ -343,12 +385,12 @@ function ItemForm(p: {
             <span className="subtle t-caption">
               {t(`catalog.scope.${service.tooth_scope}`)}
               {p.selected.length > 0 && <> · <bdi>{where}</bdi></>}
-              {p.surfaces.length > 0 && ` · ${surfacesText(p.surfaces.join(""), p.selected[0])}`}
+              {needSurface && p.surfaces.length > 0 && ` · ${surfacesText(p.surfaces.join(""), p.selected[0])}`}
             </span>
           </div>
           {teethProblem && <Notice tone="warning" testId="item-teeth-problem">{teethProblem}</Notice>}
           {needSurface && !teethProblem && (
-            <SurfaceNeed testId={surfaceProblem ? "item-surface-problem" : "item-surfaces"} selected={p.selected} surfaces={p.surfaces} onSurface={p.onSurface} />
+            <SurfaceNeed testId={surfaceProblem ? "item-surface-problem" : "item-surfaces"} selected={p.selected} surfaces={p.surfaces} onSurface={p.onPickSurface} />
           )}
           {splits && <Notice tone="info">{t("chart.splitHint").replace("{n}", digits(p.selected.length, lang))}</Notice>}
           <div className="grid-2">

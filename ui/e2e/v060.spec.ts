@@ -43,16 +43,20 @@ test("M5: tooth first — a finding on 36 with its surfaces, then a root canal a
   await page.getByTestId("tooth-36").click();
   await expect(page.getByTestId("chart-selection")).toContainText("┌۶");
   await expect(page.getByTestId("tooth-details-36")).toBeVisible();
-  // An existing condition: caries needs surfaces, picked on the tooth's biting surface.
+  // v0.6.1: the bar under the chart opens the record dialog for the selected tooth.
+  // An existing condition: caries needs surfaces, picked on the dialog's surface cross.
   await page.getByTestId("chart-mode-finding").click();
+  await expect(page.getByTestId("chart-actions")).toContainText("آسیای بزرگ اول");
   await page.getByTestId("condition-caries").click();
   await expect(page.getByTestId("finding-need-surface")).toBeVisible();
   await expect(page.getByTestId("finding-save")).toBeDisabled();
-  await page.getByTestId("surface-36-O").click();
-  await page.getByTestId("surface-36-D").click();
+  await page.getByTestId("surface-pick-O").click();
+  await page.getByTestId("surface-pick-D").click();
   await expect(page.getByTestId("chart-selection")).toContainText("OD");
   await page.getByTestId("finding-save").click();
   await expect(toast()).toHaveText("وضعیت دندان ثبت شد.");
+  // Saving closes the dialog: the result is on the chart at once.
+  await expect(page.getByTestId("chart-actions")).toHaveCount(0);
   await expect(page.getByTestId("tooth-details-36")).toContainText("پوسیدگی");
   await expect(page.getByTestId("surface-36-O")).toHaveAttribute("data-state", "existing");
 
@@ -72,9 +76,11 @@ test("M5: tooth first — a finding on 36 with its surfaces, then a root canal a
 
 test("M5: service first — a whole-mouth service needs no teeth; quadrant buttons select teeth", async () => {
   await page.getByTestId("chart-clear").click();
+  await page.getByTestId("chart-quick-open").click();
   await page.getByTestId("chart-quick-q3").click();
   await expect(page.getByTestId("chart-selection")).toContainText("┌۱–۸");
   await page.getByTestId("chart-clear").click();
+  await page.getByTestId("chart-mode-plan").click();
   await page.getByTestId("item-service-search").fill("PER-01");
   await page.getByTestId("item-service-PER-01").click();
   await expect(page.getByTestId("item-teeth-problem")).toHaveCount(0);
@@ -82,9 +88,11 @@ test("M5: service first — a whole-mouth service needs no teeth; quadrant butto
   await expect(toast()).toHaveText("به پلان درمان اضافه شد.");
   await expect(page.getByTestId("chart-whole-mouth")).toContainText("جرم‌گیری");
   // A per-tooth service picked first asks for its teeth.
+  await page.getByTestId("chart-mode-plan").click();
   await page.getByTestId("item-service-search").fill("RST-01C");
   await page.getByTestId("item-service-RST-01C").click();
   await expect(page.getByTestId("item-teeth-problem")).toBeVisible();
+  await page.keyboard.press("Escape");
   // The specialty views keep only their own work.
   await page.getByTestId("chart-view-ortho").click();
   await expect(page.getByTestId("odontogram")).not.toContainText("دوکاناله");

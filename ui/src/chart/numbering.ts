@@ -48,11 +48,17 @@ export function quadrant(fdi: number): string {
   return cornered(fdi, inQuadrant(fdi, true));
 }
 
+/**
+ * The corner mark must stay on its side of the number (6┘ is upper right, └6 upper left), also inside
+ * right-to-left text: the label is isolated as left-to-right (LRI … PDI, invisible).
+ */
+const ltr = (s: string) => `⁦${s}⁩`;
+
 /** One tooth's label in the clinic's numbering, with the interface's digits. */
 export function toothLabel(fdi: number, numbering: ToothNumbering, lang: Language): string {
   if (numbering === "universal") return digits(universal(fdi), lang);
-  if (numbering === "palmer") return digits(palmer(fdi), lang);
-  if (numbering === "quadrant") return digits(quadrant(fdi), lang);
+  if (numbering === "palmer") return ltr(digits(palmer(fdi), lang));
+  if (numbering === "quadrant") return ltr(digits(quadrant(fdi), lang));
   return digits(String(fdi), lang);
 }
 
@@ -78,7 +84,7 @@ export function teethLabel(teeth: number[], numbering: ToothNumbering, lang: Lan
   }
   const range = (a: number, b: number) =>
     numbering === "palmer" || numbering === "quadrant"
-      ? digits(cornered(a, `${inQuadrant(a, numbering === "quadrant")}–${inQuadrant(b, numbering === "quadrant")}`), lang)
+      ? ltr(digits(cornered(a, `${inQuadrant(a, numbering === "quadrant")}–${inQuadrant(b, numbering === "quadrant")}`), lang))
       : `${toothLabel(a, numbering, lang)}–${toothLabel(b, numbering, lang)}`;
   return runs
     .map((r) => (r.length > 2 ? range(r[0], r[r.length - 1]) : r.map((t) => toothLabel(t, numbering, lang)).join(sep)))
