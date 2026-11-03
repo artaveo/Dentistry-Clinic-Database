@@ -91,6 +91,7 @@ pub async fn save_pdf(
     documents: tauri::State<'_, DocumentsDir>,
     file_stem: String,
     page: PageSize,
+    subdir: Option<String>,
 ) -> Result<String, String> {
     // Document numbers (RX-1405-000001) are the only names asked for; anything else is refused so the
     // window can never write outside the documents folder.
@@ -100,8 +101,22 @@ pub async fn save_pdf(
     if !safe {
         return Err("invalid document file name".into());
     }
-    std::fs::create_dir_all(&documents.0).map_err(|e| e.to_string())?;
-    let path = documents.0.join(format!("{file_stem}.pdf"));
+    // Receipts are filed by year and month (`Receipts/1405/07/RC-1405-000184.pdf`, 6.9): folders of
+    // plain letters, digits, `-` and `_` only, so the window can never leave the documents folder.
+    let mut dir = documents.0.clone();
+    if let Some(sub) = subdir.as_deref().filter(|s| !s.is_empty()) {
+        for segment in sub.split('/') {
+            let safe = !segment.is_empty()
+                && segment.len() <= 32
+                && segment.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+            if !safe {
+                return Err("invalid folder name".into());
+            }
+            dir.push(segment);
+        }
+    }
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!("{file_stem}.pdf"));
     let target = path.to_string_lossy().to_string();
     let (tx, rx) = mpsc::channel::<Result<(), String>>();
     run_on_webview(window, move |_wv| {

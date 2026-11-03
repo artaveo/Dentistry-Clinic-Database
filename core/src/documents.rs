@@ -98,7 +98,7 @@ fn content_kind(c: &DocumentContent) -> DocumentKind {
 }
 
 /// The Shamsi year of today in the clinic (ADR-08): the year in a document number.
-fn shamsi_year_today() -> i32 {
+pub(crate) fn shamsi_year_today() -> i32 {
     let d = local_now().date();
     GregorianDate { year: d.year(), month: d.month() as u8, day: d.day() }
         .to_shamsi()

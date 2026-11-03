@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Info, ListOrdered, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Info, ListOrdered, LockKeyhole, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -19,6 +19,8 @@ import { ClinicalListsPage } from "./ClinicalListsPage";
 import { CalendarPage } from "./reception/CalendarPage";
 import { QueuePage } from "./reception/QueuePage";
 import { RecallsPage } from "./reception/RecallsPage";
+import { BillingPage } from "./billing/BillingPage";
+import type { BillingPerms } from "./billing/common";
 import { roleText } from "./reception/labels";
 import { ClinicPage } from "./Clinic";
 import { SettingsPage } from "./Settings";
@@ -32,8 +34,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "patients" | "appointments" | "queue" | "recalls" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
-const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
+type Tab = "patients" | "appointments" | "queue" | "recalls" | "billing" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "system";
+const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -66,6 +68,7 @@ export function Shell({
   const groups = [
     { label: t("nav.group.patients"), tabs: can("patients.view") ? (["patients"] as Tab[]) : [] },
     { label: t("nav.group.reception"), tabs: can("appointments.view") ? (["appointments", "queue", "recalls"] as Tab[]) : [] },
+    { label: t("nav.group.money"), tabs: can("billing.view") ? (["billing"] as Tab[]) : [] },
     {
       label: t("nav.group.clinic"),
       tabs: [...(can("doctors.manage") ? (["doctors"] as Tab[]) : []), ...(can("settings.manage") ? (["catalog", "clinical", "clinic"] as Tab[]) : [])],
@@ -82,6 +85,7 @@ export function Shell({
     { label: t("nav.group.system"), tabs: ["system"] as Tab[] },
   ].filter((g) => g.tabs.length);
   const tabs = groups.flatMap((g) => g.tabs);
+  const billing: BillingPerms = { view: can("billing.view"), edit: can("billing.edit"), void: can("billing.void"), override: can("billing.override"), reports: can("reports.view"), settings: can("settings.manage") };
   const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
 
   const [tab, setTab] = useState<Tab>("system");
@@ -236,10 +240,11 @@ export function Shell({
       </aside>
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
-        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
+        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
         {tab === "appointments" && <CalendarPage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "recalls" && <RecallsPage clinic={clinic} perms={perms} clinicName={clinicName} />}
+        {tab === "billing" && <BillingPage perms={billing} clinic={clinic} />}
         {tab === "doctors" && <DoctorsPage clinic={clinic} />}
         {tab === "catalog" && <CatalogPage />}
         {tab === "clinical" && <ClinicalListsPage />}

@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "internal";
 
@@ -1184,6 +1184,274 @@ export type TimelineParams = { patient_id: string,
  */
 kinds: Array<TimelineKind>, limit: number, };
 
+export type InvoiceStatus = "issued" | "void";
+
+export type PayState = "unpaid" | "partial" | "paid" | "void";
+
+export type PaymentKind = "payment" | "credit" | "refund";
+
+export type InstallmentState = "pending" | "partial" | "paid" | "overdue";
+
+export type CommissionBasis = "payment" | "treatment";
+
+export type CommissionKind = "percent" | "fixed";
+
+export type PaymentMethodInfo = { id: string, code: string, name: Translations, 
+/**
+ * Counts in the cash drawer at closing.
+ */
+is_cash: boolean, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
+
+export type SavePaymentMethodParams = { 
+/**
+ * None = a new method.
+ */
+id: string | null, name: Translations, is_cash: boolean, is_active: boolean, version: number | null, };
+
+export type InvoiceLineInfo = { id: string, treatment_item_id: string | null, service_id: string | null, names: Translations, teeth: Array<number>, surfaces: string, doctor_id: string | null, quantity: number, unit_price: number, 
+/**
+ * The treatment's price before it was changed for this invoice (0 = none to compare with).
+ */
+listed_price: number, line_total: number, };
+
+export type InstallmentInfo = { no: number, due_date: string, amount: number, 
+/**
+ * Covered so far by what the invoice has received (oldest installment first).
+ */
+paid: number, state: InstallmentState, };
+
+export type CreditNoteInfo = { id: string, number: string, amount: number, reason: string, issued_at: string, };
+
+export type InvoiceInfo = { id: string, 
+/**
+ * `INV-1405-000001`
+ */
+number: string, patient_id: string, patient_name: string, patient_number: string, status: InvoiceStatus, pay_state: PayState, issued_at: string, local_date: string, lines: Array<InvoiceLineInfo>, subtotal: number, discount: number, credit_notes_total: number, 
+/**
+ * Subtotal − discount − credit notes: what the patient owes for this invoice.
+ */
+net: number, 
+/**
+ * Received for this invoice (payments and credit used), refunds not yet taken off.
+ */
+paid: number, refunded: number, 
+/**
+ * `net − (paid − refunded)`, never below 0.
+ */
+remaining: number, note: string | null, void_reason: string | null, installments: Array<InstallmentInfo>, credit_notes: Array<CreditNoteInfo>, print_count: number, created_by_name: string | null, version: number, };
+
+export type BillableItem = { item_id: string, service_id: string, names: Translations, teeth: Array<number>, surfaces: string, units: number, unit_price: number, doctor_id: string | null, completed_at: string | null, details: string | null, };
+
+export type InvoiceItemPick = { item_id: string, 
+/**
+ * None = the treatment's price. A different price needs `billing.override`.
+ */
+unit_price: number | null, };
+
+export type NewInvoiceLine = { service_id: string | null, 
+/**
+ * Required when there is no service.
+ */
+description: string | null, teeth: Array<number>, quantity: number, unit_price: number, doctor_id: string | null, };
+
+export type NewInstallment = { due_date: string, amount: number, };
+
+export type CreateInvoiceParams = { patient_id: string, items: Array<InvoiceItemPick>, extra_lines: Array<NewInvoiceLine>, discount: number, note: string | null, installments: Array<NewInstallment>, };
+
+export type VoidInvoiceParams = { id: string, version: number, reason: string, };
+
+export type CreditNoteParams = { invoice_id: string, amount: number, reason: string, };
+
+export type SetInstallmentsParams = { invoice_id: string, installments: Array<NewInstallment>, };
+
+export type InvoiceListParams = { patient_id: string | null, 
+/**
+ * Only invoices still owing money.
+ */
+open_only: boolean, from: string | null, to: string | null, 
+/**
+ * Invoice number or patient name / number.
+ */
+search: string | null, limit: number | null, offset: number | null, };
+
+export type ReceiptLine = { names: Translations, amount: number, };
+
+export type ReceiptSnapshot = { patient_name: string, patient_number: string, invoice_number: string | null, lines: Array<ReceiptLine>, invoice_net: number, 
+/**
+ * Received for the invoice after this payment.
+ */
+paid_after: number, remaining_after: number, 
+/**
+ * The patient's credit after this payment.
+ */
+credit_after: number, method: Translations | null, };
+
+export type PaymentInfo = { id: string, 
+/**
+ * `RC-1405-000001` (payment), `CU-…` (credit used), `RV-…` (refund).
+ */
+number: string, kind: PaymentKind, patient_id: string, patient_name: string, invoice_id: string | null, invoice_number: string | null, method_id: string | null, method: Translations | null, amount: number, paid_at: string, local_date: string, note: string | null, 
+/**
+ * A refund's original payment.
+ */
+refund_of: string | null, returns_to_credit: boolean, reason: string | null, 
+/**
+ * How much of this payment has been given back.
+ */
+refunded: number, print_count: number, last_printed_at: string | null, receipt: ReceiptSnapshot, created_by_name: string | null, version: number, };
+
+export type AddPaymentParams = { patient_id: string, 
+/**
+ * None = an advance payment (credit).
+ */
+invoice_id: string | null, amount: number, 
+/**
+ * Required unless `use_credit`.
+ */
+method_id: string | null, 
+/**
+ * Pay the invoice from the patient's credit instead of with money.
+ */
+use_credit: boolean, note: string | null, };
+
+export type RefundParams = { payment_id: string, amount: number, reason: string, 
+/**
+ * A cash payment's refund hands money back unless this is set (the amount becomes credit instead).
+ */
+to_credit: boolean, };
+
+export type PaymentListParams = { patient_id: string | null, invoice_id: string | null, from: string | null, to: string | null, limit: number | null, offset: number | null, };
+
+export type PatientAccount = { patient_id: string, invoice_count: number, 
+/**
+ * Sum of invoice lines.
+ */
+total: number, 
+/**
+ * Discounts and credit notes.
+ */
+discount: number, paid: number, refunded: number, remaining: number, 
+/**
+ * Advance money not yet put on an invoice.
+ */
+credit: number, 
+/**
+ * Completed treatments not invoiced yet.
+ */
+unbilled_count: number, unbilled_total: number, };
+
+export type DebtorInfo = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, remaining: number, invoice_count: number, oldest_invoice_at: string | null, last_payment_at: string | null, 
+/**
+ * The earliest installment date still unpaid.
+ */
+next_due: string | null, overdue: boolean, };
+
+export type DebtorListParams = { search: string | null, limit: number | null, };
+
+export type StatementLine = { at: string, 
+/**
+ * `invoice`, `payment`, `credit`, `refund`, `credit_note`.
+ */
+kind: string, number: string, description: string, 
+/**
+ * What the patient owes more (invoice).
+ */
+debit: number, 
+/**
+ * What the patient has paid or was credited.
+ */
+credit: number, 
+/**
+ * Running balance owed after this line (negative = in credit).
+ */
+balance: number, };
+
+export type StatementInfo = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, from: string | null, to: string | null, generated_at: string, opening_balance: number, lines: Array<StatementLine>, account: PatientAccount, };
+
+export type StatementParams = { patient_id: string, from: string | null, to: string | null, };
+
+export type InstallmentDue = { invoice_id: string, invoice_number: string, patient_id: string, patient_name: string, phone: string | null, no: number, due_date: string, amount: number, unpaid: number, overdue: boolean, };
+
+export type InstallmentsDueParams = { 
+/**
+ * Installments due on or before this date (default: a week from today).
+ */
+through: string | null, };
+
+export type BillingSettings = { commission_enabled: boolean, commission_basis: CommissionBasis, 
+/**
+ * Printed at the foot of every receipt.
+ */
+receipt_footer: string, };
+
+export type CommissionRuleInfo = { id: string, 
+/**
+ * None = every doctor.
+ */
+doctor_id: string | null, 
+/**
+ * None = every service.
+ */
+service_id: string | null, kind: CommissionKind, value: number, version: number, };
+
+export type SaveCommissionRuleParams = { id: string | null, doctor_id: string | null, service_id: string | null, kind: CommissionKind, value: number, version: number | null, };
+
+export type CommissionReportParams = { doctor_id: string | null, from: string, to: string, };
+
+export type CommissionLine = { date: string, invoice_number: string, patient_name: string, names: Translations, 
+/**
+ * What the commission is taken from.
+ */
+base: number, commission: number, };
+
+export type DoctorCommission = { doctor_id: string, doctor_name: string, base: number, commission: number, lines: Array<CommissionLine>, };
+
+export type CommissionReport = { basis: CommissionBasis, from: string, to: string, doctors: Array<DoctorCommission>, base_total: number, commission_total: number, };
+
+export type ExpenseCategoryInfo = { id: string, name: Translations, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
+
+export type SaveExpenseCategoryParams = { id: string | null, name: Translations, is_active: boolean, version: number | null, };
+
+export type ExpenseInfo = { id: string, category_id: string, category: Translations, amount: number, local_date: string, description: string, payee: string | null, 
+/**
+ * Paid out of the cash drawer (counts at the daily closing).
+ */
+from_cash: boolean, created_by_name: string | null, version: number, };
+
+export type AddExpenseParams = { category_id: string, amount: number, date: string, description: string, payee: string | null, from_cash: boolean, };
+
+export type DeleteExpenseParams = { id: string, version: number, reason: string, };
+
+export type PeriodParams = { from: string, to: string, };
+
+export type DateParams = { date: string, };
+
+export type MethodTotal = { method: Translations, is_cash: boolean, received: number, refunded: number, };
+
+export type CashClosingInfo = { id: string, date: string, expected: number, counted: number, 
+/**
+ * `counted − expected`.
+ */
+difference: number, reason: string | null, closed_at: string, closed_by_name: string | null, };
+
+export type CashDay = { date: string, by_method: Array<MethodTotal>, cash_in: number, cash_refunds: number, cash_expenses: number, expected: number, payment_count: number, closing: CashClosingInfo | null, };
+
+export type CloseCashParams = { date: string, counted: number, 
+/**
+ * Required when the count differs from the expected amount.
+ */
+reason: string | null, };
+
+export type CategoryTotal = { category: Translations, amount: number, };
+
+export type FinanceSummary = { from: string, to: string, invoiced: number, received: number, refunded: number, expenses: number, 
+/**
+ * `received − refunded − expenses`.
+ */
+profit: number, by_method: Array<MethodTotal>, by_category: Array<CategoryTotal>, };
+
+export type ExpenseListParams = { from: string | null, to: string | null, };
+
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
@@ -1315,6 +1583,40 @@ export interface Api {
   "perio.save": { params: SavePerioParams; result: PerioExamInfo };
   "perio.delete": { params: IdVersionParams; result: Empty };
   "timeline.list": { params: TimelineParams; result: Array<TimelineEvent> };
+  "payment_methods.list": { params: IncludeInactiveParams; result: Array<PaymentMethodInfo> };
+  "payment_methods.save": { params: SavePaymentMethodParams; result: PaymentMethodInfo };
+  "invoices.billable": { params: PatientIdParams; result: Array<BillableItem> };
+  "invoices.list": { params: InvoiceListParams; result: Array<InvoiceInfo> };
+  "invoices.get": { params: IdParams; result: InvoiceInfo };
+  "invoices.create": { params: CreateInvoiceParams; result: InvoiceInfo };
+  "invoices.void": { params: VoidInvoiceParams; result: InvoiceInfo };
+  "invoices.credit_note": { params: CreditNoteParams; result: InvoiceInfo };
+  "invoices.set_installments": { params: SetInstallmentsParams; result: InvoiceInfo };
+  "invoices.mark_printed": { params: MarkPrintedParams; result: InvoiceInfo };
+  "payments.list": { params: PaymentListParams; result: Array<PaymentInfo> };
+  "payments.get": { params: IdParams; result: PaymentInfo };
+  "payments.add": { params: AddPaymentParams; result: PaymentInfo };
+  "payments.refund": { params: RefundParams; result: PaymentInfo };
+  "payments.mark_printed": { params: MarkPrintedParams; result: PaymentInfo };
+  "billing.account": { params: PatientIdParams; result: PatientAccount };
+  "billing.debtors": { params: DebtorListParams; result: Array<DebtorInfo> };
+  "billing.statement": { params: StatementParams; result: StatementInfo };
+  "billing.installments_due": { params: InstallmentsDueParams; result: Array<InstallmentDue> };
+  "billing.summary": { params: PeriodParams; result: FinanceSummary };
+  "billing.settings_get": { params: Empty; result: BillingSettings };
+  "billing.settings_save": { params: BillingSettings; result: BillingSettings };
+  "commission.rules_list": { params: Empty; result: Array<CommissionRuleInfo> };
+  "commission.rules_save": { params: SaveCommissionRuleParams; result: CommissionRuleInfo };
+  "commission.rules_delete": { params: IdVersionParams; result: Empty };
+  "commission.report": { params: CommissionReportParams; result: CommissionReport };
+  "expense_categories.list": { params: IncludeInactiveParams; result: Array<ExpenseCategoryInfo> };
+  "expense_categories.save": { params: SaveExpenseCategoryParams; result: ExpenseCategoryInfo };
+  "expenses.list": { params: ExpenseListParams; result: Array<ExpenseInfo> };
+  "expenses.add": { params: AddExpenseParams; result: ExpenseInfo };
+  "expenses.delete": { params: DeleteExpenseParams; result: Empty };
+  "cash.day": { params: DateParams; result: CashDay };
+  "cash.close": { params: CloseCashParams; result: CashClosingInfo };
+  "cash.closings": { params: ExpenseListParams; result: Array<CashClosingInfo> };
 }
 
 export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;

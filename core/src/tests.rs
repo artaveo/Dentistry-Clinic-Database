@@ -3548,3 +3548,415 @@ fn the_record_summary_prints_the_clinical_visit() {
     .unwrap();
     assert!(old.findings.is_empty() && old.numbering == artaveo_shared::ToothNumbering::Fdi);
 }
+
+// ───────────────────────────── Phase 6: billing ─────────────────────────────
+
+fn method_id(t: &T, token: &str, code: &str) -> Value {
+    t.ok(m::PAYMENT_METHODS_LIST, json!({}), Some(token))
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["code"] == code)
+        .unwrap_or_else(|| panic!("payment method {code}"))["id"]
+        .clone()
+}
+
+/// A treatment done today at the given price (AFN × 100).
+fn treatment_done(c: &Clinic4, code: &str, tooth: u8, price: i64) -> Value {
+    let owner = c.owner.as_str();
+    let item = c.t.ok(
+        m::TREATMENT_ITEMS_ADD,
+        json!({"patient_id": c.patient, "service_id": service_id(&c.t, owner, code), "teeth": [tooth],
+               "perform_now": true, "doctor_id": c.doctor, "unit_price": price}),
+        Some(owner),
+    );
+    item[0].clone()
+}
+
+#[test]
+fn billing_cycle_invoice_payments_installments_refund_and_cash_closing() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let cash = method_id(t, owner, "cash");
+    let bank = method_id(t, owner, "bank_transfer");
+    let root = treatment_done(&c, "SRG-01", 36, 350_000);
+    let filling = treatment_done(&c, "SRG-01", 48, 80_000);
+
+    // Treatments done are ready for an invoice.
+    let ready = t.ok(m::INVOICES_BILLABLE, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(ready.as_array().unwrap().len(), 2);
+    let account = t.ok(m::BILLING_ACCOUNT, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(
+        (account["unbilled_count"].as_i64(), account["unbilled_total"].as_i64()),
+        (Some(2), Some(430_000))
+    );
+
+    // An empty invoice, a discount above the total, and a stranger's treatment are refused.
+    let (_, field, rule) = rule_of(t, m::INVOICES_CREATE, json!({"patient_id": c.patient}), owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("items"), Some("invoice_empty")));
+    let (_, field, rule) = rule_of(
+        t,
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient, "items": [{"item_id": root["id"]}], "discount": 400_000}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("discount"), Some("discount_range")));
+    let (_, field, rule) = rule_of(
+        t,
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient2, "items": [{"item_id": root["id"]}]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("items"), Some("item_not_billable")));
+
+    // The root canal with a discount.
+    let inv = t.ok(
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient, "items": [{"item_id": root["id"]}], "discount": 50_000, "note": "اولین فاکتور"}),
+        Some(owner),
+    );
+    assert!(inv["number"].as_str().unwrap().starts_with("INV-"), "{inv}");
+    assert!(inv["number"].as_str().unwrap().ends_with("-000001"));
+    assert_eq!(
+        (inv["subtotal"].as_i64(), inv["net"].as_i64(), inv["remaining"].as_i64()),
+        (Some(350_000), Some(300_000), Some(300_000))
+    );
+    assert_eq!(inv["pay_state"], "unpaid");
+    let treatments = t.ok(m::TREATMENTS_LIST, json!({"patient_id": c.patient}), Some(owner));
+    let rc = treatments.as_array().unwrap().iter().find(|i| i["id"] == root["id"]).unwrap().clone();
+    assert_eq!(rc["billed"], true);
+    let (_, field, rule) = rule_of(
+        t,
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient, "items": [{"item_id": root["id"]}]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("items"), Some("item_already_billed")));
+
+    // Reception can invoice at the treatment's price, not at another one (6.1), and cannot void.
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "reception", "display_name": "پذیرش", "password": "recep-pass-1", "role": "receptionist"}),
+        Some(owner),
+    );
+    let rec = t.login("reception", "recep-pass-1");
+    assert_eq!(
+        t.call(
+            m::INVOICES_CREATE,
+            json!({"patient_id": c.patient, "items": [{"item_id": filling["id"], "unit_price": 10_000}]}),
+            Some(&rec)
+        ),
+        Err(ErrorCode::Forbidden)
+    );
+    assert_eq!(
+        t.call(
+            m::INVOICES_VOID,
+            json!({"id": inv["id"], "version": inv["version"], "reason": "x"}),
+            Some(&rec)
+        ),
+        Err(ErrorCode::Forbidden),
+        "voiding needs billing.void"
+    );
+    assert!(t.call(m::CASH_DAY, json!({"date": c.today}), Some(&rec)).is_ok());
+
+    // A partial payment in cash: the receipt says what is left.
+    let (_, field, rule) = rule_of(
+        t,
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 300_001, "method_id": cash}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("amount"), Some("payment_exceeds")));
+    let (_, field, _) = rule_of(
+        t,
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 100_000}),
+        owner,
+    );
+    assert_eq!(field.as_deref(), Some("method_id"));
+    let p1 = t.ok(
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 100_000, "method_id": cash}),
+        Some(owner),
+    );
+    assert!(p1["number"].as_str().unwrap().starts_with("RC-"));
+    assert_eq!(
+        (
+            p1["receipt"]["remaining_after"].as_i64(),
+            p1["receipt"]["paid_after"].as_i64(),
+            p1["receipt"]["lines"].as_array().unwrap().len()
+        ),
+        (Some(200_000), Some(100_000), 1)
+    );
+
+    // Installments for the rest: they must add up, and one is already late.
+    let yesterday = plus_days(&c.today, -1);
+    let in_a_month = plus_days(&c.today, 30);
+    let (_, field, rule) = rule_of(
+        t,
+        m::INVOICES_SET_INSTALLMENTS,
+        json!({"invoice_id": inv["id"], "installments": [{"due_date": yesterday, "amount": 50_000}]}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("installments"), Some("installments_invalid")));
+    let with_plan = t.ok(
+        m::INVOICES_SET_INSTALLMENTS,
+        json!({"invoice_id": inv["id"], "installments": [
+            {"due_date": in_a_month, "amount": 100_000}, {"due_date": yesterday, "amount": 100_000}]}),
+        Some(owner),
+    );
+    let plan = with_plan["installments"].as_array().unwrap();
+    assert_eq!(
+        (plan[0]["due_date"].as_str(), plan[0]["state"].as_str()),
+        (Some(yesterday.as_str()), Some("overdue"))
+    );
+    let due = t.ok(m::BILLING_INSTALLMENTS_DUE, json!({}), Some(owner));
+    assert_eq!(due.as_array().unwrap().len(), 1, "only the late one is due this week");
+    assert_eq!((due[0]["overdue"].as_bool(), due[0]["unpaid"].as_i64()), (Some(true), Some(100_000)));
+    let debtors = t.ok(m::BILLING_DEBTORS, json!({}), Some(owner));
+    assert_eq!(
+        (debtors[0]["remaining"].as_i64(), debtors[0]["overdue"].as_bool()),
+        (Some(200_000), Some(true))
+    );
+
+    // Paying the late installment by bank transfer settles it; the other stays.
+    let p2 = t.ok(
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 100_000, "method_id": bank}),
+        Some(owner),
+    );
+    assert_eq!(p2["receipt"]["remaining_after"], 100_000);
+    let due = t.ok(m::BILLING_INSTALLMENTS_DUE, json!({"through": in_a_month}), Some(owner));
+    assert_eq!(due.as_array().unwrap().len(), 1);
+    assert_eq!(due[0]["no"], 2);
+
+    // An advance payment becomes credit, which pays the invoice without moving money.
+    let adv = t.ok(
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "amount": 50_000, "method_id": cash, "note": "پیش‌پرداخت"}),
+        Some(owner),
+    );
+    assert_eq!(
+        (adv["invoice_id"].clone(), adv["receipt"]["credit_after"].as_i64()),
+        (Value::Null, Some(50_000))
+    );
+    let (_, field, rule) = rule_of(
+        t,
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 60_000, "use_credit": true}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("amount"), Some("insufficient_credit")));
+    let used = t.ok(
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 50_000, "use_credit": true}),
+        Some(owner),
+    );
+    assert!(used["number"].as_str().unwrap().starts_with("CU-"));
+    let account = t.ok(m::BILLING_ACCOUNT, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(
+        (
+            account["paid"].as_i64(),
+            account["remaining"].as_i64(),
+            account["credit"].as_i64(),
+            account["discount"].as_i64()
+        ),
+        (Some(250_000), Some(50_000), Some(0), Some(50_000))
+    );
+
+    // A refund of part of the first cash payment: the invoice owes that much again.
+    let (_, field, rule) = rule_of(
+        t,
+        m::PAYMENTS_REFUND,
+        json!({"payment_id": p1["id"], "amount": 100_001, "reason": "x"}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("amount"), Some("refund_exceeds")));
+    assert_eq!(
+        t.call(
+            m::PAYMENTS_REFUND,
+            json!({"payment_id": p1["id"], "amount": 20_000, "reason": "x"}),
+            Some(&rec)
+        ),
+        Err(ErrorCode::Forbidden)
+    );
+    let rv = t.ok(
+        m::PAYMENTS_REFUND,
+        json!({"payment_id": p1["id"], "amount": 20_000, "reason": "اشتباه"}),
+        Some(owner),
+    );
+    assert!(rv["number"].as_str().unwrap().starts_with("RV-"));
+    assert_eq!(rv["receipt"]["remaining_after"], 70_000);
+    let again = t.ok(m::PAYMENTS_GET, json!({"id": p1["id"]}), Some(owner));
+    assert_eq!(again["refunded"], 20_000);
+
+    // The invoice cannot be voided while it holds money; a credit note lowers it instead.
+    let inv_now = t.ok(m::INVOICES_GET, json!({"id": inv["id"]}), Some(owner));
+    let (_, _, rule) = rule_of(
+        t,
+        m::INVOICES_VOID,
+        json!({"id": inv_now["id"], "version": inv_now["version"], "reason": "اشتباه"}),
+        owner,
+    );
+    assert_eq!(rule.as_deref(), Some("invoice_has_payments"));
+    let (_, field, rule) = rule_of(
+        t,
+        m::INVOICES_CREDIT_NOTE,
+        json!({"invoice_id": inv["id"], "amount": 80_000, "reason": "x"}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("amount"), Some("credit_note_exceeds")));
+    let noted = t.ok(
+        m::INVOICES_CREDIT_NOTE,
+        json!({"invoice_id": inv["id"], "amount": 10_000, "reason": "تخفیف بعدی"}),
+        Some(owner),
+    );
+    assert_eq!((noted["net"].as_i64(), noted["remaining"].as_i64()), (Some(290_000), Some(60_000)));
+    assert!(noted["credit_notes"][0]["number"].as_str().unwrap().starts_with("CN-"));
+
+    // The statement ends at what the patient owes, and says the same as the account.
+    let st = t.ok(m::BILLING_STATEMENT, json!({"patient_id": c.patient}), Some(owner));
+    let last = st["lines"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["balance"], 60_000, "{st}");
+    assert_eq!(st["account"]["remaining"], 60_000);
+
+    // A second invoice voided frees its treatment again.
+    let inv2 = t.ok(
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient, "items": [{"item_id": filling["id"]}]}),
+        Some(owner),
+    );
+    t.ok(
+        m::INVOICES_VOID,
+        json!({"id": inv2["id"], "version": inv2["version"], "reason": "اشتباه"}),
+        Some(owner),
+    );
+    let ready = t.ok(m::INVOICES_BILLABLE, json!({"patient_id": c.patient}), Some(owner));
+    assert_eq!(ready.as_array().unwrap().len(), 1);
+    assert_eq!(t.ok(m::INVOICES_GET, json!({"id": inv2["id"]}), Some(owner))["pay_state"], "void");
+
+    // A reprint is a count, never a new payment.
+    let before =
+        t.ok(m::PAYMENTS_LIST, json!({"patient_id": c.patient}), Some(owner)).as_array().unwrap().len();
+    let printed = t.ok(m::PAYMENTS_MARK_PRINTED, json!({"id": p1["id"], "pdf": false}), Some(owner));
+    assert_eq!(printed["print_count"], 1);
+    assert_eq!(
+        t.ok(m::PAYMENTS_LIST, json!({"patient_id": c.patient}), Some(owner)).as_array().unwrap().len(),
+        before
+    );
+
+    // Cash closing: in 100 000 + 50 000 cash, 20 000 cash back, 10 000 spent on materials.
+    let cat = t.ok(m::EXPENSE_CATEGORIES_LIST, json!({}), Some(owner))[0]["id"].clone();
+    t.ok(
+        m::EXPENSES_ADD,
+        json!({"category_id": cat, "amount": 10_000, "date": c.today, "description": "ماسک و دستکش"}),
+        Some(owner),
+    );
+    let day = t.ok(m::CASH_DAY, json!({"date": c.today}), Some(owner));
+    assert_eq!(
+        (
+            day["cash_in"].as_i64(),
+            day["cash_refunds"].as_i64(),
+            day["cash_expenses"].as_i64(),
+            day["expected"].as_i64()
+        ),
+        (Some(150_000), Some(20_000), Some(10_000), Some(120_000))
+    );
+    assert_eq!(day["by_method"].as_array().unwrap().len(), 2, "cash and bank");
+    let (_, field, rule) = rule_of(t, m::CASH_CLOSE, json!({"date": c.today, "counted": 119_000}), owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("reason"), Some("cash_reason_required")));
+    let closing =
+        t.ok(m::CASH_CLOSE, json!({"date": c.today, "counted": 119_000, "reason": "خرد نشد"}), Some(owner));
+    assert_eq!((closing["expected"].as_i64(), closing["difference"].as_i64()), (Some(120_000), Some(-1_000)));
+    let (_, _, rule) = rule_of(t, m::CASH_CLOSE, json!({"date": c.today, "counted": 120_000}), owner);
+    assert_eq!(rule.as_deref(), Some("cash_day_closed"));
+    let (_, _, rule) = rule_of(
+        t,
+        m::EXPENSES_ADD,
+        json!({"category_id": cat, "amount": 1_000, "date": c.today, "description": "بعد از بستن"}),
+        owner,
+    );
+    assert_eq!(rule.as_deref(), Some("cash_day_closed"));
+
+    // Profit summary of the day.
+    let sum = t.ok(m::BILLING_SUMMARY, json!({"from": c.today, "to": c.today}), Some(owner));
+    assert_eq!(
+        (
+            sum["received"].as_i64(),
+            sum["refunded"].as_i64(),
+            sum["expenses"].as_i64(),
+            sum["profit"].as_i64()
+        ),
+        (Some(250_000), Some(20_000), Some(10_000), Some(220_000))
+    );
+
+    // Commission: 20 % of what was received, shared by the invoice's lines; off by default.
+    let off = t.ok(m::COMMISSION_REPORT, json!({"from": c.today, "to": c.today}), Some(owner));
+    assert!(off["doctors"].as_array().unwrap().is_empty());
+    t.ok(
+        m::BILLING_SETTINGS_SAVE,
+        json!({"commission_enabled": true, "commission_basis": "payment", "receipt_footer": "با تشکر"}),
+        Some(owner),
+    );
+    t.ok(m::COMMISSION_RULES_SAVE, json!({"kind": "percent", "value": 2000}), Some(owner));
+    let report = t.ok(m::COMMISSION_REPORT, json!({"from": c.today, "to": c.today}), Some(owner));
+    // Received for the invoice: 100 000 + 100 000 + 50 000 credit − 20 000 refund = 230 000 of a net of 290 000.
+    assert_eq!(report["doctors"][0]["doctor_id"], c.doctor.as_str());
+    assert_eq!(report["doctors"][0]["base"], 230_000);
+    assert_eq!(report["doctors"][0]["commission"], 46_000);
+    t.ok(
+        m::BILLING_SETTINGS_SAVE,
+        json!({"commission_enabled": true, "commission_basis": "treatment", "receipt_footer": ""}),
+        Some(owner),
+    );
+    let report = t.ok(m::COMMISSION_REPORT, json!({"from": c.today, "to": c.today}), Some(owner));
+    assert_eq!(report["doctors"][0]["base"], 290_000, "the net of the invoiced treatment");
+    assert_eq!(report["doctors"][0]["commission"], 58_000);
+
+    let actions = t.audit_actions(owner);
+    for a in [
+        "invoice.create",
+        "invoice.void",
+        "invoice.credit_note",
+        "invoice.installments",
+        "payment.add",
+        "payment.credit",
+        "payment.refund",
+        "payment.print",
+        "expense.add",
+        "cash.close",
+        "billing.settings",
+        "commission.rule",
+    ] {
+        assert!(actions.contains(&a.to_string()), "{a}");
+    }
+}
+
+#[test]
+fn payments_after_a_patient_merge_follow_the_survivor() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let cash = method_id(t, owner, "cash");
+    let item = treatment_done(&c, "SRG-01", 48, 80_000);
+    let inv = t.ok(
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient, "items": [{"item_id": item["id"]}]}),
+        Some(owner),
+    );
+    t.ok(
+        m::PAYMENTS_ADD,
+        json!({"patient_id": c.patient, "invoice_id": inv["id"], "amount": 30_000, "method_id": cash}),
+        Some(owner),
+    );
+    let loser = t.ok(m::PATIENTS_GET, json!({"patient_id": c.patient}), Some(owner));
+    let keeper = t.ok(m::PATIENTS_GET, json!({"patient_id": c.patient2}), Some(owner));
+    t.ok(
+        m::PATIENTS_MERGE,
+        json!({"keep_id": keeper["id"], "merge_id": loser["id"], "merge_id_version": loser["version"]}),
+        Some(owner),
+    );
+    let account = t.ok(m::BILLING_ACCOUNT, json!({"patient_id": c.patient2}), Some(owner));
+    assert_eq!((account["invoice_count"].as_i64(), account["remaining"].as_i64()), (Some(1), Some(50_000)));
+    let debtors = t.ok(m::BILLING_DEBTORS, json!({}), Some(owner));
+    assert_eq!(debtors[0]["patient_id"], keeper["id"]);
+}

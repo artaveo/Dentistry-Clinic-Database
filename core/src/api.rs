@@ -16,6 +16,7 @@ use crate::attachment;
 use crate::audit::{self, Actor};
 use crate::auth::{self, perm, NewUser, OWNER};
 use crate::backup;
+use crate::billing;
 use crate::clinic;
 use crate::clock::now_iso;
 use crate::core::Core;
@@ -894,6 +895,177 @@ impl Core {
                 s.require(perm::CLINICAL_VIEW)?;
                 let TimelineParams { patient_id, kinds, limit } = params(p)?;
                 ok(self.with_db(|o| crate::timeline::events(&o.conn, &patient_id, &kinds, limit, None))?)
+            }
+            m::PAYMENT_METHODS_LIST => {
+                s.require_any(&[perm::BILLING_VIEW, perm::SETTINGS_MANAGE])?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| billing::list_methods(&o.conn, include_inactive))?)
+            }
+            m::PAYMENT_METHODS_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SavePaymentMethodParams = params(p)?;
+                ok(self.with_tx(|c| billing::save_method(c, &actor(&s), &p))?)
+            }
+            m::INVOICES_BILLABLE => {
+                s.require(perm::BILLING_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| billing::billable(&o.conn, &patient_id))?)
+            }
+            m::INVOICES_LIST => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: InvoiceListParams = params(p)?;
+                ok(self.with_db(|o| billing::list_invoices(&o.conn, &p))?)
+            }
+            m::INVOICES_GET => {
+                s.require(perm::BILLING_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| billing::get_invoice(&o.conn, &id))?)
+            }
+            m::INVOICES_CREATE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CreateInvoiceParams = params(p)?;
+                let can_override = s.permissions.contains(perm::BILLING_OVERRIDE);
+                ok(self.with_tx(|c| billing::create_invoice(c, &actor(&s), can_override, &p))?)
+            }
+            m::INVOICES_VOID => {
+                s.require(perm::BILLING_VOID)?;
+                let p: VoidInvoiceParams = params(p)?;
+                ok(self.with_tx(|c| billing::void_invoice(c, &actor(&s), &p))?)
+            }
+            m::INVOICES_CREDIT_NOTE => {
+                s.require(perm::BILLING_VOID)?;
+                let p: CreditNoteParams = params(p)?;
+                ok(self.with_tx(|c| billing::credit_note(c, &actor(&s), &p))?)
+            }
+            m::INVOICES_SET_INSTALLMENTS => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: SetInstallmentsParams = params(p)?;
+                ok(self.with_tx(|c| billing::set_installments(c, &actor(&s), &p))?)
+            }
+            m::INVOICES_MARK_PRINTED => {
+                s.require(perm::BILLING_VIEW)?;
+                let MarkPrintedParams { id, pdf } = params(p)?;
+                ok(self.with_tx(|c| billing::invoice_printed(c, &actor(&s), &id, pdf))?)
+            }
+            m::PAYMENTS_LIST => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: PaymentListParams = params(p)?;
+                ok(self.with_db(|o| billing::list_payments(&o.conn, &p))?)
+            }
+            m::PAYMENTS_GET => {
+                s.require(perm::BILLING_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| billing::get_payment(&o.conn, &id))?)
+            }
+            m::PAYMENTS_ADD => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: AddPaymentParams = params(p)?;
+                ok(self.with_tx(|c| billing::add_payment(c, &actor(&s), &p))?)
+            }
+            m::PAYMENTS_REFUND => {
+                s.require(perm::BILLING_VOID)?;
+                let p: RefundParams = params(p)?;
+                ok(self.with_tx(|c| billing::refund(c, &actor(&s), &p))?)
+            }
+            m::PAYMENTS_MARK_PRINTED => {
+                s.require(perm::BILLING_VIEW)?;
+                let MarkPrintedParams { id, pdf } = params(p)?;
+                ok(self.with_tx(|c| billing::payment_printed(c, &actor(&s), &id, pdf))?)
+            }
+            m::BILLING_ACCOUNT => {
+                s.require(perm::BILLING_VIEW)?;
+                let PatientIdParams { patient_id } = params(p)?;
+                ok(self.with_db(|o| billing::account(&o.conn, &patient_id))?)
+            }
+            m::BILLING_DEBTORS => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: DebtorListParams = params(p)?;
+                ok(self.with_db(|o| billing::debtors(&o.conn, &p))?)
+            }
+            m::BILLING_STATEMENT => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: StatementParams = params(p)?;
+                ok(self.with_db(|o| billing::statement(&o.conn, &p))?)
+            }
+            m::BILLING_INSTALLMENTS_DUE => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: InstallmentsDueParams = params(p)?;
+                ok(self.with_db(|o| billing::installments_due(&o.conn, &p))?)
+            }
+            m::BILLING_SUMMARY => {
+                s.require(perm::REPORTS_VIEW)?;
+                let p: PeriodParams = params(p)?;
+                ok(self.with_db(|o| billing::summary(&o.conn, &p))?)
+            }
+            m::BILLING_SETTINGS_GET => {
+                s.require_any(&[perm::BILLING_VIEW, perm::SETTINGS_MANAGE])?;
+                ok(self.with_db(|o| billing::get_settings(&o.conn))?)
+            }
+            m::BILLING_SETTINGS_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: BillingSettings = params(p)?;
+                ok(self.with_tx(|c| billing::save_settings(c, &actor(&s), &p))?)
+            }
+            m::COMMISSION_RULES_LIST => {
+                s.require_any(&[perm::REPORTS_VIEW, perm::SETTINGS_MANAGE])?;
+                ok(self.with_db(|o| billing::list_rules(&o.conn))?)
+            }
+            m::COMMISSION_RULES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveCommissionRuleParams = params(p)?;
+                ok(self.with_tx(|c| billing::save_rule(c, &actor(&s), &p))?)
+            }
+            m::COMMISSION_RULES_DELETE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let IdVersionParams { id, version } = params(p)?;
+                self.with_tx(|c| billing::delete_rule(c, &actor(&s), &id, version))?;
+                ok(Empty {})
+            }
+            m::COMMISSION_REPORT => {
+                s.require(perm::REPORTS_VIEW)?;
+                let p: CommissionReportParams = params(p)?;
+                ok(self.with_db(|o| billing::commission_report(&o.conn, &p))?)
+            }
+            m::EXPENSE_CATEGORIES_LIST => {
+                s.require_any(&[perm::BILLING_VIEW, perm::REPORTS_VIEW, perm::SETTINGS_MANAGE])?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| billing::list_categories(&o.conn, include_inactive))?)
+            }
+            m::EXPENSE_CATEGORIES_SAVE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let p: SaveExpenseCategoryParams = params(p)?;
+                ok(self.with_tx(|c| billing::save_category(c, &actor(&s), &p))?)
+            }
+            m::EXPENSES_LIST => {
+                s.require(perm::REPORTS_VIEW)?;
+                let p: ExpenseListParams = params(p)?;
+                ok(self.with_db(|o| billing::list_expenses(&o.conn, &p))?)
+            }
+            m::EXPENSES_ADD => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: AddExpenseParams = params(p)?;
+                ok(self.with_tx(|c| billing::add_expense(c, &actor(&s), &p))?)
+            }
+            m::EXPENSES_DELETE => {
+                s.require(perm::BILLING_VOID)?;
+                let p: DeleteExpenseParams = params(p)?;
+                self.with_tx(|c| billing::delete_expense(c, &actor(&s), &p))?;
+                ok(Empty {})
+            }
+            m::CASH_DAY => {
+                s.require(perm::BILLING_VIEW)?;
+                let DateParams { date } = params(p)?;
+                ok(self.with_db(|o| billing::cash_day(&o.conn, &date))?)
+            }
+            m::CASH_CLOSE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CloseCashParams = params(p)?;
+                ok(self.with_tx(|c| billing::close_cash(c, &actor(&s), &p))?)
+            }
+            m::CASH_CLOSINGS => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: ExpenseListParams = params(p)?;
+                ok(self.with_db(|o| billing::list_closings(&o.conn, &p))?)
             }
             m::MEDICAL_QUESTIONS_LIST => {
                 // Whoever sees a patient's alert banner needs the questions' labels.

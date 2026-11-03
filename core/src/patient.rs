@@ -527,6 +527,10 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         "treatment_session",
         "clinical_note",
         "perio_exam",
+        // Phase 6: the patient's money follows the patient.
+        "invoice",
+        "payment",
+        "credit_note",
     ] {
         conn.execute(
             &format!("UPDATE {table} SET patient_id = ?1 WHERE patient_id = ?2"),

@@ -99,6 +99,18 @@ export async function savePdf(fileStem: string, paper: Paper): Promise<string | 
   return invoke<string>("save_pdf", { fileStem, page: { widthMm: w, heightMm: h } });
 }
 
+/**
+ * Writes the print layer as a PDF of exactly `page` millimetres, in `subdir` below the documents
+ * folder when given (receipts are filed `Receipts/1405/07/`, 6.9); returns its path (desktop).
+ */
+export async function savePdfAt(fileStem: string, page: { w: number; h: number }, subdir?: string): Promise<string | null> {
+  if (!isDesktop()) {
+    window.print();
+    return null;
+  }
+  return invoke<string>("save_pdf", { fileStem, page: { widthMm: page.w, heightMm: page.h }, subdir: subdir ?? null });
+}
+
 export async function revealFile(path: string): Promise<void> {
   if (!isDesktop()) return;
   await invoke("reveal_export", { path });

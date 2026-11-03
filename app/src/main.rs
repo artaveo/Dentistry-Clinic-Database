@@ -25,7 +25,12 @@ fn reveal_export(
     path: String,
 ) -> Result<(), String> {
     let file = std::path::PathBuf::from(&path);
-    let inside = file.parent().is_some_and(|dir| dir == exports.0.as_path() || dir == documents.0.as_path());
+    // Documents may sit in year/month folders below the documents folder; `..` is never accepted.
+    let plain = !file.components().any(|c| matches!(c, std::path::Component::ParentDir));
+    let inside = plain
+        && file
+            .parent()
+            .is_some_and(|dir| dir == exports.0.as_path() || dir.starts_with(documents.0.as_path()));
     if !inside || !file.is_file() {
         return Err("only exported files can be shown from here".into());
     }

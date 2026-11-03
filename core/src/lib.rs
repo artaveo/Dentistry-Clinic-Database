@@ -8,6 +8,7 @@ pub mod attachment;
 pub mod audit;
 pub mod auth;
 pub mod backup;
+pub mod billing;
 pub mod calendar;
 pub mod catalog;
 pub mod chart;

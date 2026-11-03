@@ -1418,3 +1418,86 @@ fieldset.translations > legend { padding: 0; margin-bottom: var(--space-2); }
 .doc-plan-table td.num, .doc-plan-table th.num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .doc-plan-table tfoot td { border-bottom: none; border-top: .4mm solid #9aa3ad; font-weight: 600; padding-top: 2mm; }
 .setting-numbering { margin-top: var(--space-4); }
+
+/* ───────────── billing (Phase 6) ───────────── */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); }
+.row-click { cursor: pointer; }
+.row-click:hover td { background: var(--fill-subtle); }
+.toolbar { padding: var(--space-3) var(--space-5); gap: var(--space-4); }
+.toolbar .control { flex: 1; max-width: 420px; }
+.money-danger { color: var(--danger); }
+.money-success { color: var(--success); }
+.acct { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-radius: var(--radius-xl); overflow: hidden; }
+.acct-cell { display: flex; flex-direction: column; gap: 2px; padding: var(--space-4) var(--space-5); border-inline-end: 1px solid var(--line); min-width: 0; }
+.acct-cell:last-child { border-inline-end: none; }
+.acct-label { color: var(--text-2); font-size: 12.5px; }
+.acct-value { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.acct-cell.danger .acct-value { color: var(--danger); }
+.acct-cell.success .acct-value { color: var(--success); }
+.fin-summary { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--fill-subtle); max-width: 420px; margin-inline-start: auto; }
+.fin-summary > div { display: flex; justify-content: space-between; gap: var(--space-4); }
+.fin-summary dt { color: var(--text-2); }
+.fin-summary dd { margin: 0; font-variant-numeric: tabular-nums; }
+.fin-summary .strong dt, .fin-summary .strong dd { color: var(--text-1); font-weight: 650; }
+.inv-pick { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.inv-pick-head { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); }
+.inv-pick-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: var(--space-4); align-items: center; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+.inv-pick-row:last-child { border-bottom: none; }
+.inv-pick-row.off { opacity: .55; }
+.inv-pick > p { padding: var(--space-4); margin: 0; }
+.inv-pick-price { display: flex; flex-direction: column; gap: 2px; }
+.inv-extra { display: grid; grid-template-columns: minmax(0, 1fr) 70px 190px 40px; gap: var(--space-3); align-items: center; }
+.inst-rows { display: flex; flex-direction: column; gap: var(--space-3); }
+.inst-row { display: grid; grid-template-columns: 28px minmax(0, 1.4fr) minmax(0, 1fr) 40px; gap: var(--space-3); align-items: center; }
+.inst-no { color: var(--text-3); text-align: center; font-variant-numeric: tabular-nums; }
+.set-list { margin: 0; padding: 0; }
+.set-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+.set-row:last-child { border-bottom: none; }
+.set-row .cell-strong { flex: 1; }
+.rcpt-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-2); }
+.rcpt-mode { display: flex; flex-direction: column; gap: 2px; text-align: start; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--fill-subtle); color: var(--text-1); font: inherit; cursor: pointer; }
+.rcpt-mode[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.rcpt-mode-title { font-weight: 600; }
+.rcpt-mode-hint { color: var(--text-2); font-size: 12.5px; }
+.rcpt-desk { flex: none; overflow: hidden; background: #fff; box-shadow: var(--shadow-3); border-radius: 2px; }
+.rcpt-measure { position: absolute; left: -10000px; top: 0; visibility: hidden; pointer-events: none; }
+.fin-table td.num, .fin-table th.num { text-align: end; font-variant-numeric: tabular-nums; }
+.fin-table .muted-row td { color: #777; }
+.fin-totals { margin: 3mm 0 0; margin-inline-start: auto; width: 82mm; display: flex; flex-direction: column; gap: 1mm; }
+.fin-totals > div { display: flex; justify-content: space-between; gap: 4mm; padding: .6mm 0; border-bottom: .2mm dotted #c9ced6; }
+.fin-totals dt, .fin-totals dd { margin: 0; }
+.fin-totals .strong { font-weight: 700; font-size: 1.08em; border-bottom: .3mm solid #16181d; }
+.fin-block { break-inside: avoid; margin-bottom: 4mm; }
+
+/* The compact receipt: white paper, black ink, its own small size (thermal-safe: no fills, no colour needed). */
+.rcpt { box-sizing: border-box; padding: 4mm 3.5mm 4mm; background: #fff; color: #000; font-family: "Artaveo Sans", "Noto Sans Arabic", sans-serif; font-size: 9pt; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rcpt-narrow { font-size: 8pt; padding: 3mm 2.5mm; }
+.rcpt-head { display: flex; flex-direction: column; align-items: center; gap: .8mm; text-align: center; padding-bottom: 2mm; border-bottom: .3mm dashed #000; }
+.rcpt-logo { display: block; max-height: 11mm; max-width: 80%; object-fit: contain; filter: grayscale(1) contrast(1.2); }
+.rcpt-monogram { display: grid; place-items: center; width: 9mm; height: 9mm; border: .4mm solid #000; border-radius: 50%; font-weight: 700; font-size: 1.3em; }
+.rcpt-clinic { font-weight: 700; font-size: 1.2em; }
+.rcpt-meta { font-size: .85em; }
+.rcpt-title { margin: 2mm 0 1mm; text-align: center; font-weight: 700; font-size: 1.1em; letter-spacing: .02em; }
+.rcpt-copy { margin: 0 auto 1.5mm; padding: .3mm 3mm; width: max-content; border: .35mm solid #000; font-weight: 800; letter-spacing: .08em; }
+.rcpt-facts { margin: 0 0 1.5mm; display: flex; flex-direction: column; gap: .5mm; }
+.rcpt-facts > div { display: flex; justify-content: space-between; gap: 2mm; }
+.rcpt-facts dt { font-weight: 600; flex: none; }
+.rcpt-facts dd { margin: 0; text-align: end; min-width: 0; overflow-wrap: anywhere; }
+.rcpt-lines { list-style: none; margin: 0; padding: 1.5mm 0; border-top: .3mm dashed #000; border-bottom: .3mm dashed #000; }
+.rcpt-lines li { display: flex; justify-content: space-between; gap: 2mm; padding: .3mm 0; }
+.rcpt-amt { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rcpt-totals { padding-top: 1.5mm; display: flex; flex-direction: column; gap: .5mm; }
+.rcpt-totals > div { display: flex; justify-content: space-between; gap: 2mm; }
+.rcpt-main { font-weight: 700; font-size: 1.12em; }
+.rcpt-balance { font-weight: 800; border-top: .3mm solid #000; margin-top: .8mm; padding-top: .8mm; }
+.rcpt-note { margin-top: 1.5mm; font-size: .88em; }
+.rcpt-foot { margin-top: 2.5mm; padding-top: 1.5mm; border-top: .3mm dashed #000; text-align: center; font-size: .88em; display: flex; flex-direction: column; gap: .6mm; }
+.rcpt-brand { display: inline-flex; justify-content: center; align-items: center; gap: 1mm; font-size: .85em; }
+.rcpt-sheetgrid { display: grid; box-sizing: border-box; }
+.rcpt-cell { display: flex; align-items: flex-start; justify-content: center; box-sizing: border-box; padding-top: 6mm; outline: .25mm dashed #8a9099; outline-offset: -.1mm; }
+.rcpt-testpage { box-sizing: border-box; padding: 3mm; font: 8pt/1.4 sans-serif; color: #000; background: #fff; }
+.rcpt-test-frame { display: flex; justify-content: space-between; gap: 3mm; border: .4mm solid #000; padding: 2mm; }
+.rcpt-test-ruler { display: flex; justify-content: space-between; margin-top: 2mm; border-top: .3mm solid #000; }
+@media (max-width: 760px) { .inv-pick-row, .inv-extra { grid-template-columns: 1fr; } .inst-row { grid-template-columns: 24px 1fr; } }
+.dialog.wide:has(.inv-pick), .dialog.wide:has([data-testid="invoice-detail-body"]), .dialog.wide:has(.inst-rows) { width: min(980px, calc(100vw - 48px)); }
+[data-testid="invoice-detail-payments"] td, [data-testid="invoice-detail-installments"] td { white-space: nowrap; }

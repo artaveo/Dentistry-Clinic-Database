@@ -18,6 +18,8 @@ import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { AttachmentsTab } from "./AttachmentsTab";
 import { DocumentsTab, PrescriptionsTab } from "./documents/DocumentTabs";
 import { PatientAuditTab } from "./PatientAuditTab";
+import { PatientInvoicesTab, PatientPaymentsTab } from "../billing/PatientBilling";
+import type { BillingPerms } from "../billing/common";
 import { MergeDialog } from "./MergeDialog";
 import { PatientAppointmentsTab } from "./PatientAppointmentsTab";
 import type { AppointmentPerms, ClinicalPerms } from "./PatientsPage";
@@ -40,14 +42,14 @@ const TABS: { id: TabId; icon: LucideIcon; labelKey: string; ready: boolean }[] 
   { id: "plans", icon: ClipboardList, labelKey: "patients.tab.treatmentPlans", ready: true },
   { id: "treatments", icon: Activity, labelKey: "patients.tab.treatments", ready: true },
   { id: "prescriptions", icon: Pill, labelKey: "patients.tab.prescriptions", ready: true },
-  { id: "invoices", icon: Receipt, labelKey: "patients.tab.invoices", ready: false },
-  { id: "payments", icon: Wallet, labelKey: "patients.tab.payments", ready: false },
+  { id: "invoices", icon: Receipt, labelKey: "patients.tab.invoices", ready: true },
+  { id: "payments", icon: Wallet, labelKey: "patients.tab.payments", ready: true },
   { id: "documents", icon: Images, labelKey: "patients.tab.documents", ready: true },
   { id: "timeline", icon: History, labelKey: "patients.tab.timeline", ready: true },
   { id: "audit", icon: ScrollText, labelKey: "patients.tab.audit", ready: true },
 ];
 
-export function PatientProfile({ patientId, canEdit, clinical, appointments, clinic, clinicName, onBack, onEdit }: { patientId: string; canEdit: boolean; clinical: ClinicalPerms; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
+export function PatientProfile({ patientId, canEdit, billing, clinical, appointments, clinic, clinicName, onBack, onEdit }: { patientId: string; canEdit: boolean; billing: BillingPerms; clinical: ClinicalPerms; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const [patient, setPatient] = useState<PatientInfo | null>(null);
@@ -102,7 +104,7 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
   // Clinical tabs need clinical.view (reception sees the visits and the files, not the medical record).
   const CLINICAL: TabId[] = ["medical", "prescriptions", "chart", "notes", "plans", "treatments", "timeline"];
   const available = (id: TabId, ready: boolean) =>
-    id === "appointments" ? appointments.view : CLINICAL.includes(id) ? ready && clinical.view : ready;
+    id === "appointments" ? appointments.view : id === "invoices" || id === "payments" ? ready && billing.view : CLINICAL.includes(id) ? ready && clinical.view : ready;
   const referralLabel = referrals.find((r) => r.id === patient.referral_source_id)?.label;
 
   return (
@@ -190,9 +192,11 @@ export function PatientProfile({ patientId, canEdit, clinical, appointments, cli
         <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} />
       )}
       {tab === "treatments" && (
-        <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => setTab("chart")} onNote={(i) => { setNoteFor(i); setTab("notes"); }} />
+        <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => setTab("chart")} onNote={(i) => { setNoteFor(i); setTab("notes"); }} onInvoice={billing.edit ? () => setTab("invoices") : undefined} />
       )}
       {tab === "notes" && <NotesTab key={noteFor?.id ?? "notes"} patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} initialItem={noteFor} onChanged={() => setNoteFor(null)} />}
+      {tab === "invoices" && <PatientInvoicesTab patient={patient} perms={billing} canOverride={billing.override} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
+      {tab === "payments" && <PatientPaymentsTab patient={patient} perms={billing} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
       {tab === "timeline" && <TimelineTab patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} />}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 

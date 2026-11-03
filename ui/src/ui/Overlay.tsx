@@ -35,6 +35,8 @@ export function Popover({ open, onClose, trigger, children, align = "end", width
   );
 }
 
+const openDialogs: object[] = [];
+
 /**
  * Modal dialog: centred, scrim + blur, focus moves inside and returns to the
  * opener on close, Escape closes.
@@ -46,10 +48,14 @@ export function Dialog({ title, description, onClose, children, footer, wide, te
     const opener = document.activeElement as HTMLElement | null;
     const first = ref.current?.querySelector<HTMLElement>("input, select, textarea, button:not([data-close])");
     first?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // Dialogs can stack (a receipt over an invoice): Escape closes only the one on top.
+    const me = {};
+    openDialogs.push(me);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && openDialogs[openDialogs.length - 1] === me && onClose();
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      openDialogs.splice(openDialogs.indexOf(me), 1);
       opener?.focus?.();
     };
   }, []);

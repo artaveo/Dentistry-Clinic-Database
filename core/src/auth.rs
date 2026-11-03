@@ -35,6 +35,8 @@ pub mod perm {
     pub const BILLING_VIEW: &str = "billing.view";
     pub const BILLING_EDIT: &str = "billing.edit";
     pub const BILLING_VOID: &str = "billing.void";
+    /// Invoice a treatment at another price than the treatment says (6.1).
+    pub const BILLING_OVERRIDE: &str = "billing.override";
     pub const REPORTS_VIEW: &str = "reports.view";
     pub const INVENTORY_MANAGE: &str = "inventory.manage";
     pub const USERS_MANAGE: &str = "users.manage";
@@ -59,6 +61,7 @@ pub const ALL_PERMISSIONS: &[&str] = &[
     BILLING_VIEW,
     BILLING_EDIT,
     BILLING_VOID,
+    BILLING_OVERRIDE,
     REPORTS_VIEW,
     INVENTORY_MANAGE,
     USERS_MANAGE,
@@ -102,7 +105,10 @@ pub fn system_roles() -> Vec<(&'static str, Vec<&'static str>)> {
                 BILLING_VIEW,
             ],
         ),
-        ("accountant", vec![PATIENTS_VIEW, BILLING_VIEW, BILLING_EDIT, BILLING_VOID, REPORTS_VIEW]),
+        (
+            "accountant",
+            vec![PATIENTS_VIEW, BILLING_VIEW, BILLING_EDIT, BILLING_VOID, BILLING_OVERRIDE, REPORTS_VIEW],
+        ),
         ("assistant", vec![PATIENTS_VIEW, APPOINTMENTS_VIEW, APPOINTMENTS_TREAT, CLINICAL_VIEW]),
     ]
 }

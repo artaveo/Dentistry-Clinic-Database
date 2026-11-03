@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, CalendarCheck2, NotebookPen } from "lucide-react";
+import { Activity, CalendarCheck2, NotebookPen, ReceiptText } from "lucide-react";
 import type { CalendarSystem, ClinicProfile, PatientInfo, TreatmentItemInfo } from "../../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../../lib/api";
 import { digits, formatDate } from "../../../lib/dates";
@@ -19,7 +19,7 @@ import { SessionDots } from "./SessionDots";
  * service, price, result — each completed one ready for an invoice (Phase 6). New treatments are recorded
  * on the chart («انجام‌شده امروز») or by completing a visit booked for a session.
  */
-export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote }: { patient: PatientInfo; clinic: ClinicProfile | null; calendar: CalendarSystem; onOpenChart: () => void; onNote: (item: TreatmentItemInfo) => void }) {
+export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, onInvoice }: { patient: PatientInfo; clinic: ClinicProfile | null; calendar: CalendarSystem; onOpenChart: () => void; onNote: (item: TreatmentItemInfo) => void; onInvoice?: () => void }) {
   const { t, err, lang } = useI18n();
   const catalog = useCatalog();
   const settings = useClinicSettings();
@@ -93,7 +93,7 @@ export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote }
                   <td>
                     <span className="stack" style={{ gap: 2 }}>
                       <Badge tone={ITEM_TONE[i.status]} dot>{t(`item.status.${i.status}`)}</Badge>
-                      {i.status === "completed" && !i.billed && <span className="t-caption subtle">{t("item.readyForInvoice")}</span>}
+                      {i.status === "completed" && !i.billed && (onInvoice ? <Button size="sm" variant="link" icon={ReceiptText} onClick={onInvoice} data-testid={`treatment-invoice-${i.id}`}>{t("item.readyForInvoice")}</Button> : <span className="t-caption subtle">{t("item.readyForInvoice")}</span>)}{i.billed && <span className="t-caption subtle">{t("item.billed")}</span>}
                       <Button size="sm" variant="link" icon={NotebookPen} onClick={() => onNote(i)} data-testid={`treatment-note-${i.id}`}>{t("treatments.writeNote")}</Button>
                     </span>
                   </td>

@@ -10,7 +10,7 @@
 ## ساختار
 
 ```text
-core/      Rust Core — تمام منطق، دیتابیس SQLCipher، Migration، Auth (Argon2id)، Permission، Audit، Backup، بیماران، نوبت‌دهی (appointment.rs، scheduling.rs، recall.rs)
+core/      Rust Core — تمام منطق، دیتابیس SQLCipher، Migration، Auth (Argon2id)، Permission، Audit، Backup، بیماران، نوبت‌دهی (appointment.rs، scheduling.rs، recall.rs)، مالی (billing.rs: فاکتور، پرداخت، اقساط، کمیسیون، هزینه، بستن صندوق)
   migrations/   SQL نسخه‌دار (هر Migration در Transaction، Backup قبل از اجرا)
   seeds/        داده مرجع و جغرافیا (CSV، سه زبان)
   src/bin/      artaveo-dev-server (HTTP توسعه/E2E) · artaveo-seed (دیتابیس آزمایشی بزرگ)

@@ -10,6 +10,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+mod billing;
+pub use billing::*;
+
 // ───────────────────────────── envelope ─────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -192,6 +195,30 @@ pub enum ValidationRule {
     PlanTemplateItems,
     PerioValue,
     PerioExamNotFound,
+    // Phase 6: invoices, payments, installments, commission, expenses, cash closing.
+    BillingAmount,
+    PaymentMethodNotFound,
+    PaymentMethodName,
+    InvoiceNotFound,
+    InvoiceEmpty,
+    InvoiceVoid,
+    InvoiceHasPayments,
+    ItemAlreadyBilled,
+    ItemNotBillable,
+    DiscountRange,
+    PaymentExceeds,
+    PaymentNotFound,
+    RefundExceeds,
+    InsufficientCredit,
+    InstallmentsInvalid,
+    CreditNoteExceeds,
+    ExpenseCategoryNotFound,
+    ExpenseNotFound,
+    CashDayClosed,
+    CashReasonRequired,
+    CommissionValue,
+    CommissionRuleNotFound,
+    PeriodRange,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -3299,6 +3326,40 @@ api! {
     "perio.save"                 => PERIO_SAVE(SavePerioParams) -> PerioExamInfo;
     "perio.delete"               => PERIO_DELETE(IdVersionParams) -> Empty;
     "timeline.list"              => TIMELINE_LIST(TimelineParams) -> Vec<TimelineEvent>;
+    "payment_methods.list"       => PAYMENT_METHODS_LIST(IncludeInactiveParams) -> Vec<PaymentMethodInfo>;
+    "payment_methods.save"       => PAYMENT_METHODS_SAVE(SavePaymentMethodParams) -> PaymentMethodInfo;
+    "invoices.billable"          => INVOICES_BILLABLE(PatientIdParams) -> Vec<BillableItem>;
+    "invoices.list"              => INVOICES_LIST(InvoiceListParams) -> Vec<InvoiceInfo>;
+    "invoices.get"               => INVOICES_GET(IdParams) -> InvoiceInfo;
+    "invoices.create"            => INVOICES_CREATE(CreateInvoiceParams) -> InvoiceInfo;
+    "invoices.void"              => INVOICES_VOID(VoidInvoiceParams) -> InvoiceInfo;
+    "invoices.credit_note"       => INVOICES_CREDIT_NOTE(CreditNoteParams) -> InvoiceInfo;
+    "invoices.set_installments"  => INVOICES_SET_INSTALLMENTS(SetInstallmentsParams) -> InvoiceInfo;
+    "invoices.mark_printed"      => INVOICES_MARK_PRINTED(MarkPrintedParams) -> InvoiceInfo;
+    "payments.list"              => PAYMENTS_LIST(PaymentListParams) -> Vec<PaymentInfo>;
+    "payments.get"               => PAYMENTS_GET(IdParams) -> PaymentInfo;
+    "payments.add"               => PAYMENTS_ADD(AddPaymentParams) -> PaymentInfo;
+    "payments.refund"            => PAYMENTS_REFUND(RefundParams) -> PaymentInfo;
+    "payments.mark_printed"      => PAYMENTS_MARK_PRINTED(MarkPrintedParams) -> PaymentInfo;
+    "billing.account"            => BILLING_ACCOUNT(PatientIdParams) -> PatientAccount;
+    "billing.debtors"            => BILLING_DEBTORS(DebtorListParams) -> Vec<DebtorInfo>;
+    "billing.statement"          => BILLING_STATEMENT(StatementParams) -> StatementInfo;
+    "billing.installments_due"   => BILLING_INSTALLMENTS_DUE(InstallmentsDueParams) -> Vec<InstallmentDue>;
+    "billing.summary"            => BILLING_SUMMARY(PeriodParams) -> FinanceSummary;
+    "billing.settings_get"       => BILLING_SETTINGS_GET(Empty) -> BillingSettings;
+    "billing.settings_save"      => BILLING_SETTINGS_SAVE(BillingSettings) -> BillingSettings;
+    "commission.rules_list"      => COMMISSION_RULES_LIST(Empty) -> Vec<CommissionRuleInfo>;
+    "commission.rules_save"      => COMMISSION_RULES_SAVE(SaveCommissionRuleParams) -> CommissionRuleInfo;
+    "commission.rules_delete"    => COMMISSION_RULES_DELETE(IdVersionParams) -> Empty;
+    "commission.report"          => COMMISSION_REPORT(CommissionReportParams) -> CommissionReport;
+    "expense_categories.list"    => EXPENSE_CATEGORIES_LIST(IncludeInactiveParams) -> Vec<ExpenseCategoryInfo>;
+    "expense_categories.save"    => EXPENSE_CATEGORIES_SAVE(SaveExpenseCategoryParams) -> ExpenseCategoryInfo;
+    "expenses.list"              => EXPENSES_LIST(ExpenseListParams) -> Vec<ExpenseInfo>;
+    "expenses.add"               => EXPENSES_ADD(AddExpenseParams) -> ExpenseInfo;
+    "expenses.delete"            => EXPENSES_DELETE(DeleteExpenseParams) -> Empty;
+    "cash.day"                   => CASH_DAY(DateParams) -> CashDay;
+    "cash.close"                 => CASH_CLOSE(CloseCashParams) -> CashClosingInfo;
+    "cash.closings"              => CASH_CLOSINGS(ExpenseListParams) -> Vec<CashClosingInfo>;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -3538,6 +3599,62 @@ pub fn typescript_bindings() -> String {
         TimelineKind,
         TimelineEvent,
         TimelineParams,
+        InvoiceStatus,
+        PayState,
+        PaymentKind,
+        InstallmentState,
+        CommissionBasis,
+        CommissionKind,
+        PaymentMethodInfo,
+        SavePaymentMethodParams,
+        InvoiceLineInfo,
+        InstallmentInfo,
+        CreditNoteInfo,
+        InvoiceInfo,
+        BillableItem,
+        InvoiceItemPick,
+        NewInvoiceLine,
+        NewInstallment,
+        CreateInvoiceParams,
+        VoidInvoiceParams,
+        CreditNoteParams,
+        SetInstallmentsParams,
+        InvoiceListParams,
+        ReceiptLine,
+        ReceiptSnapshot,
+        PaymentInfo,
+        AddPaymentParams,
+        RefundParams,
+        PaymentListParams,
+        PatientAccount,
+        DebtorInfo,
+        DebtorListParams,
+        StatementLine,
+        StatementInfo,
+        StatementParams,
+        InstallmentDue,
+        InstallmentsDueParams,
+        BillingSettings,
+        CommissionRuleInfo,
+        SaveCommissionRuleParams,
+        CommissionReportParams,
+        CommissionLine,
+        DoctorCommission,
+        CommissionReport,
+        ExpenseCategoryInfo,
+        SaveExpenseCategoryParams,
+        ExpenseInfo,
+        AddExpenseParams,
+        DeleteExpenseParams,
+        PeriodParams,
+        DateParams,
+        MethodTotal,
+        CashClosingInfo,
+        CashDay,
+        CloseCashParams,
+        CategoryTotal,
+        FinanceSummary,
+        ExpenseListParams,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

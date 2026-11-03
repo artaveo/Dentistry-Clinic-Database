@@ -46,7 +46,7 @@ export function DocumentSheet({ doc, letterhead, calendar }: { doc: DocumentInfo
 }
 
 /** The paper, its direction and the footer shared by every document and the appointment card. */
-function Sheet({ paper, lang, letterhead, testId, void: isVoid, children }: { paper: Paper; lang: Language; letterhead: Letterhead; testId?: string; void?: boolean; children: ReactNode }) {
+export function Sheet({ paper, lang, letterhead, testId, void: isVoid, children }: { paper: Paper; lang: Language; letterhead: Letterhead; testId?: string; void?: boolean; children: ReactNode }) {
   const t = docT(lang);
   const lh = letterhead.clinic;
   return (
@@ -61,7 +61,7 @@ function Sheet({ paper, lang, letterhead, testId, void: isVoid, children }: { pa
   );
 }
 
-function Letterhead({ letterhead, lang, doctor }: { letterhead: Letterhead; lang: Language; doctor: { name: string; lines: string[] } | null }) {
+export function Letterhead({ letterhead, lang, doctor }: { letterhead: Letterhead; lang: Language; doctor: { name: string; lines: string[] } | null }) {
   const c = letterhead.clinic;
   return (
     <header className="doc-head">
