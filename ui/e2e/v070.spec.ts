@@ -152,8 +152,10 @@ test("debtors, installments due, cash desk closing with a reason, expenses", asy
 
 test("commission settings and settlement", async () => {
   await page.getByTestId("billing-tab-settings").click();
+  // The switch is off until the settings have loaded; then it saves and turns on.
+  await expect(page.getByTestId("commission-enabled")).toBeEnabled();
   await page.getByTestId("commission-enabled").click({ force: true });
-  await expect(page.getByTestId("commission-enabled")).toBeChecked();
+  await expect(page.getByTestId("commission-enabled")).toBeChecked({ timeout: 15_000 });
   await page.getByTestId("commission-rule-add").click();
   await page.getByTestId("rule-value").fill("20");
   await page.getByTestId("rule-save").click();

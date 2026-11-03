@@ -309,7 +309,7 @@ export function BillingSettingsTab() {
       <Card>
         <CardHeader icon={Percent} title={t("billing.settings.commission")} description={t("billing.settings.commission.hint")} />
         <div className="stack">
-          <Switch checked={!!settings?.commission_enabled} onChange={(on) => settings && save({ ...settings, commission_enabled: on })} label={t("billing.settings.commission.enable")} testId="commission-enabled" />
+          <Switch checked={!!settings?.commission_enabled} onChange={(on) => settings && save({ ...settings, commission_enabled: on })} disabled={!settings} label={t("billing.settings.commission.enable")} testId="commission-enabled" />
           {settings?.commission_enabled && (
             <>
               <div className="field">
