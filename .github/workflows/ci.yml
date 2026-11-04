@@ -67,6 +67,15 @@ jobs:
           cargo build -p artaveo-core --features dev-server --bin artaveo-dev-server --message-format=json | node ../.github/scripts/cargo-annotate.mjs
           npx playwright install --with-deps chromium
           npx playwright test
+      - name: Core log of the E2E run, as an annotation (readable without downloading anything)
+        if: failure()
+        working-directory: ui
+        run: |
+          f=$(ls -t .e2e-data/logs/*.log 2>/dev/null | head -1)
+          [ -n "$f" ] || exit 0
+          # Requests the Core refused or failed, then the last lines.
+          msg=$( (grep -E '"level":"(ERROR|WARN)"|request (rejected|failed)' "$f" | tail -40; echo ---; tail -25 "$f") | cut -c1-300 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Core log (E2E)::$msg"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
