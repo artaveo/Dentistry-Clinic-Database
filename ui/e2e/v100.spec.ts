@@ -129,3 +129,4 @@ test("The audit log narrows to the sensitive actions", async () => {
   await page.getByTestId("audit-filter-action").fill("zzz-no-such-action");
   await expect(page.getByTestId("empty-state")).toBeVisible();
 });
+
