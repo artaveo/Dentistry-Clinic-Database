@@ -88,7 +88,7 @@ export function CommandPalette({ items, calendar, onOpenHit, onClose }: { items:
           <kbd>Esc</kbd>
         </div>
         {noResults ? (
-          <EmptyState icon={SearchX} title={t("shell.commandPalette.empty")}>{t("shell.commandPalette.tryThis")}</EmptyState>
+          <EmptyState icon={SearchX} title={t("shell.commandPalette.empty")}><span data-testid="palette-no-hits">{searched ? t("shell.commandPalette.noRecords").replace("{q}", searched) : t("shell.commandPalette.tryThis")}</span></EmptyState>
         ) : (
           <div className="palette-list" role="listbox" id="palette-list">
             {entries.map((item, i) => (
