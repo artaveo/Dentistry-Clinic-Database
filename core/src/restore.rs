@@ -7,8 +7,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use artaveo_shared::{
-    BackupSource, ErrorCode, RestoreCandidate, RestoreNewParams, RestoreParams, RestorePreview, RestoreResult,
-    RestoreTarget, ScanBackupsParams, ValidationRule,
+    BackupSource, ErrorCode, RestoreCandidate, RestoreNewParams, RestoreParams, RestorePreview,
+    RestoreResult, RestoreTarget, ScanBackupsParams, ValidationRule,
 };
 use rusqlite::Connection;
 use serde_json::json;
@@ -82,8 +82,10 @@ pub fn inspect(src: &Path, key: &DataKey, work_dir: &Path) -> RestorePreview {
         RestorePreview {
             valid: true,
             problem: None,
-            created_at: backup::parse_name(&src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())
-                .map(crate::clock::iso),
+            created_at: backup::parse_name(
+                &src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+            )
+            .map(crate::clock::iso),
             clinic_name: text(&conn, "SELECT value FROM db_meta WHERE key = 'clinic_name'"),
             schema_version: schema,
             patients: count(&conn, "SELECT COUNT(*) FROM patient WHERE deleted_at IS NULL"),
@@ -101,11 +103,9 @@ pub fn inspect(src: &Path, key: &DataKey, work_dir: &Path) -> RestorePreview {
 
 fn find_file(folders: &[PathBuf], name: &str) -> Result<PathBuf> {
     let name = backup::safe_file_name(name)?;
-    folders
-        .iter()
-        .map(|f| f.join(name))
-        .find(|p| p.is_file())
-        .ok_or_else(|| CoreError::invalid("file_name", ValidationRule::BackupFileUnknown, "backup file not found"))
+    folders.iter().map(|f| f.join(name)).find(|p| p.is_file()).ok_or_else(|| {
+        CoreError::invalid("file_name", ValidationRule::BackupFileUnknown, "backup file not found")
+    })
 }
 
 fn invalid_backup(p: &RestorePreview) -> CoreError {
@@ -127,7 +127,8 @@ impl Core {
             let folders = backup::source_folders(&o.conn, &o.key, &self.config, usb.as_ref(), t.source)?;
             let src = find_file(&folders, &t.file_name)?;
             let mut preview = inspect(&src, &o.key, &self.config.data_dir);
-            preview.current_patients = count(&o.conn, "SELECT COUNT(*) FROM patient WHERE deleted_at IS NULL");
+            preview.current_patients =
+                count(&o.conn, "SELECT COUNT(*) FROM patient WHERE deleted_at IS NULL");
             preview.current_last_activity = text(&o.conn, "SELECT MAX(at) FROM audit_log");
             Ok(preview)
         })
@@ -224,7 +225,11 @@ impl Core {
             )
         })?;
         self.start_integrity_check();
-        Ok(RestoreResult { safety_backup: safety.file_name, restored: p.file_name.clone(), patients: preview.patients })
+        Ok(RestoreResult {
+            safety_backup: safety.file_name,
+            restored: p.file_name.clone(),
+            patients: preview.patients,
+        })
     }
 
     // ───────────────────────────── a new computer (no clinic yet) ─────────────────────────────
@@ -259,7 +264,11 @@ impl Core {
         let folder = PathBuf::from(p.folder.trim());
         let src = find_file(std::slice::from_ref(&folder), &p.file_name)?;
         let wrapped = fs::read(src.with_extension("rkey")).map_err(|_| {
-            CoreError::invalid("file_name", ValidationRule::BackupFileUnknown, "the key file (.rkey) is missing")
+            CoreError::invalid(
+                "file_name",
+                ValidationRule::BackupFileUnknown,
+                "the key file (.rkey) is missing",
+            )
         })?;
         let key = RecoveryKey::parse(&p.recovery_key)
             .ok()

@@ -235,16 +235,15 @@ impl Core {
 
     fn notify_extras(&self) -> reports::NotifyExtras {
         let usb = self.usb();
-        let seen = self
-            .lock_db()
-            .as_ref()
-            .and_then(|o| backup::detect(&o.conn, &o.key, usb.as_ref()).ok())
-            .map(|d| {
-                (
-                    d.iter().any(|x| x.verdict == crate::usb::Verdict::Trusted),
-                    d.iter().any(|x| x.verdict == crate::usb::Verdict::Cloned),
-                )
-            });
+        let seen =
+            self.lock_db().as_ref().and_then(|o| backup::detect(&o.conn, &o.key, usb.as_ref()).ok()).map(
+                |d| {
+                    (
+                        d.iter().any(|x| x.verdict == crate::usb::Verdict::Trusted),
+                        d.iter().any(|x| x.verdict == crate::usb::Verdict::Cloned),
+                    )
+                },
+            );
         let (usb_connected, usb_cloned) = seen.unwrap_or((false, false));
         reports::NotifyExtras { license: self.license.status(), usb_connected, usb_cloned }
     }
@@ -635,7 +634,8 @@ impl Core {
             m::BACKUP_SETTINGS_SAVE => {
                 s.require(perm::BACKUP_CREATE)?;
                 let new: BackupSettings = params(p)?;
-                ok(self.with_db(|o| backup::save_settings(&o.conn, &actor(&s), &self.config.data_dir, &new))?)
+                ok(self
+                    .with_db(|o| backup::save_settings(&o.conn, &actor(&s), &self.config.data_dir, &new))?)
             }
             m::BACKUP_USB => {
                 s.require(perm::BACKUP_VIEW)?;
@@ -714,7 +714,9 @@ impl Core {
             }
             m::LICENSE_OFFLINE_REQUEST => {
                 s.require(perm::SETTINGS_MANAGE)?;
-                ok(OfflineRequestInfo { request_code: self.license.offline_request(&self.license_client_info()) })
+                ok(OfflineRequestInfo {
+                    request_code: self.license.offline_request(&self.license_client_info()),
+                })
             }
             m::LICENSE_OFFLINE_APPLY => {
                 s.require(perm::SETTINGS_MANAGE)?;

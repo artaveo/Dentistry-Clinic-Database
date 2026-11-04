@@ -80,7 +80,10 @@ fn a_trusted_usb_drive_gets_every_backup_and_a_missing_one_waits() {
     let second = t.ok(m::BACKUP_CREATE, json!({}), Some(&owner));
     assert_eq!(newest(&t, &owner)["usb"], "pending");
     let ov = t.ok(m::BACKUP_OVERVIEW, json!({}), Some(&owner));
-    assert_eq!((ov["usb"].as_str(), ov["usb_connected"].as_bool(), ov["usb_pending"].as_i64()), (Some("pending"), Some(false), Some(1)));
+    assert_eq!(
+        (ov["usb"].as_str(), ov["usb_connected"].as_bool(), ov["usb_pending"].as_i64()),
+        (Some("pending"), Some(false), Some(1))
+    );
     assert!(kinds(&t, &owner).contains(&"usb_missing".to_string()));
 
     // Plugged in again: the scheduler's next tick transfers it by itself.
@@ -97,16 +100,25 @@ fn a_trusted_usb_drive_gets_every_backup_and_a_missing_one_waits() {
     let o = t.ok(m::BACKUP_USB, json!({}), Some(&owner));
     assert_eq!(o["volumes"][0]["verdict"], "cloned");
     assert_eq!(o["trusted"][0]["connected"], false);
-    assert_eq!(t.call(m::BACKUP_USB_TRUST, json!({"mount": mount}), Some(&owner)), Err(ErrorCode::Validation));
+    assert_eq!(
+        t.call(m::BACKUP_USB_TRUST, json!({"mount": mount}), Some(&owner)),
+        Err(ErrorCode::Validation)
+    );
     assert!(kinds(&t, &owner).contains(&"usb_cloned".to_string()));
 
     // Forgetting a device removes the destination; unknown ids are refused.
     let id = o["trusted"][0]["id"].as_str().unwrap().to_string();
-    assert_eq!(t.call(m::BACKUP_USB_FORGET, json!({"device_id": "nope"}), Some(&owner)), Err(ErrorCode::NotFound));
+    assert_eq!(
+        t.call(m::BACKUP_USB_FORGET, json!({"device_id": "nope"}), Some(&owner)),
+        Err(ErrorCode::NotFound)
+    );
     let o = t.ok(m::BACKUP_USB_FORGET, json!({"device_id": id}), Some(&owner));
     assert!(o["trusted"].as_array().unwrap().is_empty());
     let actions = t.audit_actions(&owner);
-    assert!(actions.contains(&"backup.usb_trust".to_string()) && actions.contains(&"backup.usb_forget".to_string()));
+    assert!(
+        actions.contains(&"backup.usb_trust".to_string())
+            && actions.contains(&"backup.usb_forget".to_string())
+    );
 }
 
 #[test]
@@ -162,8 +174,14 @@ fn backup_settings_are_validated_and_shared_with_the_old_settings_page() {
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let base = t.ok(m::BACKUP_SETTINGS_GET, json!({}), Some(&owner));
-    assert_eq!((base["daily_hour"].as_u64(), base["daily_minute"].as_u64(), base["keep_daily"].as_u64()), (Some(19), Some(0), Some(14)));
-    assert_eq!((base["keep_weekly"].as_u64(), base["keep_monthly"].as_u64(), base["usb_warn_minutes"].as_u64()), (Some(4), Some(3), Some(30)));
+    assert_eq!(
+        (base["daily_hour"].as_u64(), base["daily_minute"].as_u64(), base["keep_daily"].as_u64()),
+        (Some(19), Some(0), Some(14))
+    );
+    assert_eq!(
+        (base["keep_weekly"].as_u64(), base["keep_monthly"].as_u64(), base["usb_warn_minutes"].as_u64()),
+        (Some(4), Some(3), Some(30))
+    );
 
     let bad = |field: &str, value: Value| {
         let mut s = base.clone();
@@ -190,7 +208,10 @@ fn backup_settings_are_validated_and_shared_with_the_old_settings_page() {
     s["daily_minute"] = json!(30);
     s["keep_weekly"] = json!(8);
     let saved = t.ok(m::BACKUP_SETTINGS_SAVE, s, Some(&owner));
-    assert_eq!((saved["daily_hour"].as_u64(), saved["daily_minute"].as_u64(), saved["keep_weekly"].as_u64()), (Some(20), Some(30), Some(8)));
+    assert_eq!(
+        (saved["daily_hour"].as_u64(), saved["daily_minute"].as_u64(), saved["keep_weekly"].as_u64()),
+        (Some(20), Some(30), Some(8))
+    );
     // The older Settings page reads and writes the same hour.
     assert_eq!(t.ok(m::SETTINGS_GET, json!({}), Some(&owner))["daily_backup_hour"], 20);
     assert!(t.audit_actions(&owner).contains(&"backup.settings".to_string()));
@@ -217,17 +238,27 @@ fn restore_validates_asks_the_owners_password_and_keeps_a_safety_copy() {
     t.ok(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner));
 
     let list = t.ok(m::BACKUP_RESTORE_LIST, json!({"source": "local"}), Some(&owner));
-    assert_eq!((list[0]["file_name"].as_str(), list[0]["has_key"].as_bool()), (Some(name.as_str()), Some(true)));
+    assert_eq!(
+        (list[0]["file_name"].as_str(), list[0]["has_key"].as_bool()),
+        (Some(name.as_str()), Some(true))
+    );
     let target = json!({"source": "local", "file_name": name});
     let pv = t.ok(m::BACKUP_RESTORE_PREVIEW, target.clone(), Some(&owner));
-    assert_eq!((pv["valid"].as_bool(), pv["patients"].as_i64(), pv["current_patients"].as_i64()), (Some(true), Some(1), Some(2)));
+    assert_eq!(
+        (pv["valid"].as_bool(), pv["patients"].as_i64(), pv["current_patients"].as_i64()),
+        (Some(true), Some(1), Some(2))
+    );
     assert_eq!(pv["clinic_name"], "کلینیک آزمایشی");
 
     // The password is asked again, and a file name can never be a path.
     let wrong = json!({"source": "local", "file_name": name, "password": "wrong-password"});
     assert_eq!(t.call(m::BACKUP_RESTORE, wrong, Some(&owner)), Err(ErrorCode::InvalidCredentials));
     assert_eq!(
-        t.call(m::BACKUP_RESTORE_PREVIEW, json!({"source": "local", "file_name": "../clinic.db"}), Some(&owner)),
+        t.call(
+            m::BACKUP_RESTORE_PREVIEW,
+            json!({"source": "local", "file_name": "../clinic.db"}),
+            Some(&owner)
+        ),
         Err(ErrorCode::Validation)
     );
     // A damaged file can be previewed (and is reported) but never restored.
@@ -255,13 +286,20 @@ fn restore_validates_asks_the_owners_password_and_keeps_a_safety_copy() {
     assert_eq!(r["patients"], 1);
     assert!(r["safety_backup"].as_str().unwrap().contains("prerestore"));
     // Every session ended: the data was replaced.
-    assert_eq!(t.call(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&owner)), Err(ErrorCode::SessionExpired));
+    assert_eq!(
+        t.call(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&owner)),
+        Err(ErrorCode::SessionExpired)
+    );
     let owner = t.login("owner", "owner-pass-1");
     let patients = t.ok(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&owner));
     assert_eq!(patients["items"].as_array().unwrap().len(), 1);
     // The safety copy is in the register again and the restore is in the audit log.
     let backups = t.ok(m::BACKUP_LIST, json!({}), Some(&owner));
-    assert!(backups.as_array().unwrap().iter().any(|b| b["file_name"].as_str().unwrap().contains("prerestore")));
+    assert!(backups
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|b| b["file_name"].as_str().unwrap().contains("prerestore")));
     assert!(t.audit_actions(&owner).contains(&"backup.restore".to_string()));
     // ... and the safety copy still holds the two patients: restoring it undoes the restore.
     let safety = r["safety_backup"].as_str().unwrap();
@@ -290,7 +328,10 @@ fn a_new_computer_restores_from_a_backup_with_the_recovery_key() {
     let new = T::new();
     assert!(!new.core.is_set_up());
     let found = new.ok(m::BACKUP_SCAN, json!({"folder": folder}), None);
-    assert_eq!((found[0]["file_name"].as_str(), found[0]["has_key"].as_bool()), (Some(name.as_str()), Some(true)));
+    assert_eq!(
+        (found[0]["file_name"].as_str(), found[0]["has_key"].as_bool()),
+        (Some(name.as_str()), Some(true))
+    );
 
     let other_key = crate::keys::RecoveryKey::generate().to_display();
     let wrong = json!({"folder": folder, "file_name": name, "recovery_key": other_key});
@@ -301,7 +342,13 @@ fn a_new_computer_restores_from_a_backup_with_the_recovery_key() {
     assert!(new.core.is_set_up());
 
     let tok = new.login("owner", "owner-pass-1");
-    assert_eq!(new.ok(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&tok))["items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        new.ok(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&tok))["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     assert!(new.audit_actions(&tok).contains(&"backup.restore_new_computer".to_string()));
     // The clinic opens normally on the next start (the key is protected for this computer now).
     let new = new.reopen();
@@ -313,7 +360,14 @@ fn a_new_computer_restores_from_a_backup_with_the_recovery_key() {
 
 // ───────────────────────────── license ─────────────────────────────
 
-fn write_license(t: &T, key: &SigningKey, kind: &str, computers: u32, verified_days_ago: i64, expires_in_days: i64) {
+fn write_license(
+    t: &T,
+    key: &SigningKey,
+    kind: &str,
+    computers: u32,
+    verified_days_ago: i64,
+    expires_in_days: i64,
+) {
     let at = now();
     let day = time::Duration::days;
     let payload = json!({
@@ -351,8 +405,14 @@ fn an_expired_license_makes_the_app_read_only_but_never_hides_the_data() {
     let s = status(&t);
     assert_eq!((s["state"].as_str(), s["read_only"].as_bool()), (Some("expired"), Some(true)));
     // Changes are refused ...
-    assert_eq!(t.call(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
-    assert_eq!(t.call(m::SETTINGS_UPDATE, t.ok(m::SETTINGS_GET, json!({}), Some(&owner)), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner)),
+        Err(ErrorCode::LicenseReadOnly)
+    );
+    assert_eq!(
+        t.call(m::SETTINGS_UPDATE, t.ok(m::SETTINGS_GET, json!({}), Some(&owner)), Some(&owner)),
+        Err(ErrorCode::LicenseReadOnly)
+    );
     // ... but everything that only looks, prints, exports or protects the data keeps working.
     let list = t.ok(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&owner));
     assert_eq!(list["items"].as_array().unwrap().len(), 1);
@@ -365,7 +425,10 @@ fn an_expired_license_makes_the_app_read_only_but_never_hides_the_data() {
     // A renewal (a fresh signed license) lifts it at once.
     write_license(&t, &key, "paid", 3, 0, 300);
     let s = status(&t);
-    assert_eq!((s["state"].as_str(), s["read_only"].as_bool(), s["plan"].as_str()), (Some("active"), Some(false), Some("standard")));
+    assert_eq!(
+        (s["state"].as_str(), s["read_only"].as_bool(), s["plan"].as_str()),
+        (Some("active"), Some(false), Some("standard"))
+    );
     assert_eq!(s["days_left"], 300);
     t.ok(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner));
     assert!(!kinds(&t, &owner).contains(&"license_read_only".to_string()));
@@ -373,11 +436,17 @@ fn an_expired_license_makes_the_app_read_only_but_never_hides_the_data() {
     // No check with the server for 10 days: still works, with a reminder; after 30 days: read-only.
     write_license(&t, &key, "paid", 3, 10, 300);
     let s = status(&t);
-    assert_eq!((s["state"].as_str(), s["read_only"].as_bool(), s["verify_due"].as_bool()), (Some("grace"), Some(false), Some(true)));
+    assert_eq!(
+        (s["state"].as_str(), s["read_only"].as_bool(), s["verify_due"].as_bool()),
+        (Some("grace"), Some(false), Some(true))
+    );
     assert!(kinds(&t, &owner).contains(&"license_verify".to_string()));
     write_license(&t, &key, "paid", 3, 31, 300);
     assert_eq!(status(&t)["state"], "needs_verification");
-    assert_eq!(t.call(m::PATIENTS_CREATE, json!({"full_name": "X"}), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": "X"}), Some(&owner)),
+        Err(ErrorCode::LicenseReadOnly)
+    );
 }
 
 #[test]
@@ -392,9 +461,18 @@ fn the_plan_sets_the_lan_client_limit_and_only_managers_use_the_license_pages() 
     assert_eq!(t.ok(m::LAN_STATUS, json!({}), Some(&owner))["client_limit"], 2);
 
     // This build has no license server address, so asking for a trial says so clearly.
-    assert_eq!(t.call(m::LICENSE_START_TRIAL, json!({}), Some(&owner)), Err(ErrorCode::LicenseServerUnavailable));
-    assert_eq!(t.call(m::LICENSE_ACTIVATE, json!({"code": "ARTA-AAAA-BBBB-CCCC"}), Some(&owner)), Err(ErrorCode::LicenseServerUnavailable));
-    assert_eq!(t.call(m::LICENSE_OFFLINE_APPLY, json!({"response_code": "xxx"}), Some(&owner)), Err(ErrorCode::LicenseRejected));
+    assert_eq!(
+        t.call(m::LICENSE_START_TRIAL, json!({}), Some(&owner)),
+        Err(ErrorCode::LicenseServerUnavailable)
+    );
+    assert_eq!(
+        t.call(m::LICENSE_ACTIVATE, json!({"code": "ARTA-AAAA-BBBB-CCCC"}), Some(&owner)),
+        Err(ErrorCode::LicenseServerUnavailable)
+    );
+    assert_eq!(
+        t.call(m::LICENSE_OFFLINE_APPLY, json!({"response_code": "xxx"}), Some(&owner)),
+        Err(ErrorCode::LicenseRejected)
+    );
     let req = t.ok(m::LICENSE_OFFLINE_REQUEST, json!({}), Some(&owner));
     assert!(req["request_code"].as_str().unwrap().len() > 40);
 
@@ -404,8 +482,14 @@ fn the_plan_sets_the_lan_client_limit_and_only_managers_use_the_license_pages() 
         Some(&owner),
     );
     let rec = t.login("reception", "recep-pass-1");
-    assert!(t.ok(m::LICENSE_STATUS, json!({}), Some(&rec))["state"].is_string(), "everyone may read the state");
-    assert_eq!(t.call(m::LICENSE_ACTIVATE, json!({"code": "ARTA-AAAA-BBBB-CCCC"}), Some(&rec)), Err(ErrorCode::Forbidden));
+    assert!(
+        t.ok(m::LICENSE_STATUS, json!({}), Some(&rec))["state"].is_string(),
+        "everyone may read the state"
+    );
+    assert_eq!(
+        t.call(m::LICENSE_ACTIVATE, json!({"code": "ARTA-AAAA-BBBB-CCCC"}), Some(&rec)),
+        Err(ErrorCode::Forbidden)
+    );
     assert_eq!(t.call(m::LICENSE_VERIFY, json!({}), Some(&rec)), Err(ErrorCode::Forbidden));
     // Giving the place back is for the Owner only.
     assert_eq!(t.call(m::LICENSE_RELEASE, json!({}), Some(&rec)), Err(ErrorCode::Forbidden));

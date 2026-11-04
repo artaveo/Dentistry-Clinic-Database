@@ -1326,7 +1326,16 @@ pub fn notifications(conn: &Connection, s: &Session, extras: &NotifyExtras) -> R
             ));
         }
         if extras.usb_cloned {
-            items.push(item(format!("usb_cloned:{today}"), K::UsbCloned, L::Danger, same(""), None, None, "backup", None));
+            items.push(item(
+                format!("usb_cloned:{today}"),
+                K::UsbCloned,
+                L::Danger,
+                same(""),
+                None,
+                None,
+                "backup",
+                None,
+            ));
         }
     }
 
@@ -1336,13 +1345,42 @@ pub fn notifications(conn: &Connection, s: &Session, extras: &NotifyExtras) -> R
         let l = &extras.license;
         let page = "license";
         if l.read_only {
-            items.push(item(format!("license_read_only:{:?}", l.state), K::LicenseReadOnly, L::Danger, same(""), None, None, page, None));
+            items.push(item(
+                format!("license_read_only:{:?}", l.state),
+                K::LicenseReadOnly,
+                L::Danger,
+                same(""),
+                None,
+                None,
+                page,
+                None,
+            ));
         } else if l.state == S::Grace {
             let left = l.grace_days_left.map(|d| d.to_string());
             let day = l.verified_at.as_deref().map(local_day);
-            items.push(item(format!("license_verify:{}", day.clone().unwrap_or_default()), K::LicenseVerify, L::Warning, same(""), left, day, page, None));
-        } else if let Some(left) = l.first_period_days_left.filter(|d| *d <= 7).or(l.days_left.filter(|d| *d <= 14)) {
-            items.push(item(format!("license_expiring:{left}"), K::LicenseExpiring, L::Warning, same(""), Some(left.to_string()), None, page, None));
+            items.push(item(
+                format!("license_verify:{}", day.clone().unwrap_or_default()),
+                K::LicenseVerify,
+                L::Warning,
+                same(""),
+                left,
+                day,
+                page,
+                None,
+            ));
+        } else if let Some(left) =
+            l.first_period_days_left.filter(|d| *d <= 7).or(l.days_left.filter(|d| *d <= 14))
+        {
+            items.push(item(
+                format!("license_expiring:{left}"),
+                K::LicenseExpiring,
+                L::Warning,
+                same(""),
+                Some(left.to_string()),
+                None,
+                page,
+                None,
+            ));
         }
     }
 

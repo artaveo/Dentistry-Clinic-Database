@@ -70,12 +70,19 @@ pub fn free_bytes(path: &Path) -> Option<i64> {
 }
 
 /// Serials seen on many unrelated cheap controllers; they identify nothing.
-const BOGUS_SERIALS: &[&str] =
-    &["0123456789ABCDEF", "AA00000000011234", "0000000000000000", "00000000000000000000", "123456789ABC", "FFFFFFFFFFFFFFFF"];
+const BOGUS_SERIALS: &[&str] = &[
+    "0123456789ABCDEF",
+    "AA00000000011234",
+    "0000000000000000",
+    "00000000000000000000",
+    "123456789ABC",
+    "FFFFFFFFFFFFFFFF",
+];
 
 /// Normalises a serial and drops values that cannot tell two devices apart.
 pub fn credible_serial(raw: &str) -> Option<String> {
-    let s: String = raw.trim().chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_uppercase();
+    let s: String =
+        raw.trim().chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_uppercase();
     if s.len() < 6 || BOGUS_SERIALS.contains(&s.as_str()) {
         return None;
     }
@@ -188,8 +195,8 @@ mod windows {
         FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
     };
     use windows_sys::Win32::System::Ioctl::{
-        PropertyStandardQuery, StorageDeviceProperty, IOCTL_STORAGE_QUERY_PROPERTY, STORAGE_DEVICE_DESCRIPTOR,
-        STORAGE_PROPERTY_QUERY,
+        PropertyStandardQuery, StorageDeviceProperty, IOCTL_STORAGE_QUERY_PROPERTY,
+        STORAGE_DEVICE_DESCRIPTOR, STORAGE_PROPERTY_QUERY,
     };
     use windows_sys::Win32::System::WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE};
     use windows_sys::Win32::System::IO::DeviceIoControl;
@@ -392,7 +399,8 @@ mod tests {
     #[test]
     fn verdicts() {
         let m = Marker { device_id: "dev-1".into(), clinic_id: "c".into(), mac: String::new() };
-        let trusted = vec![Trusted { device_id: "dev-1".into(), hardware_serial: Some("4C530001230321117283".into()) }];
+        let trusted =
+            vec![Trusted { device_id: "dev-1".into(), hardware_serial: Some("4C530001230321117283".into()) }];
         assert_eq!(verify(&vol(Some("4C530001230321117283")), Some(&m), &trusted), Verdict::Trusted);
         assert_eq!(verify(&vol(Some("4C530009999999999999")), Some(&m), &trusted), Verdict::Cloned);
         assert_eq!(verify(&vol(None), Some(&m), &trusted), Verdict::Cloned);

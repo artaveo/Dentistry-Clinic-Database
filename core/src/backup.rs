@@ -17,9 +17,9 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use artaveo_shared::{
-    BackupEntry, BackupInfo, BackupOverview, BackupSettings, BackupSource, CloudStatus, CopyStatus, ErrorCode,
-    RestoreCandidate, Settings, TargetState, TrustedDeviceInfo, UsbOverview, UsbVerdict, UsbVolumeInfo,
-    ValidationRule,
+    BackupEntry, BackupInfo, BackupOverview, BackupSettings, BackupSource, CloudStatus, CopyStatus,
+    ErrorCode, RestoreCandidate, Settings, TargetState, TrustedDeviceInfo, UsbOverview, UsbVerdict,
+    UsbVolumeInfo, ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
@@ -175,7 +175,11 @@ pub fn save_settings(
         return bad("daily_minute", ValidationRule::BackupMinuteRange, "backup minute must be 0-59");
     }
     if !(5..=720).contains(&new.usb_warn_minutes) {
-        return bad("usb_warn_minutes", ValidationRule::UsbIntervalRange, "reminder interval must be 5-720 minutes");
+        return bad(
+            "usb_warn_minutes",
+            ValidationRule::UsbIntervalRange,
+            "reminder interval must be 5-720 minutes",
+        );
     }
     if !(1..=365).contains(&new.keep_daily) {
         return bad("keep_daily", ValidationRule::BackupKeepRange, "daily copies must be 1-365");
@@ -193,7 +197,11 @@ pub fn save_settings(
         let p = Path::new(f);
         // Writing the cloud copy into our own data folder would copy the backups into themselves.
         if !p.is_absolute() || !p.is_dir() || p.starts_with(data_dir) {
-            return bad("cloud_folder", ValidationRule::CloudFolder, "choose an existing folder outside the app data");
+            return bad(
+                "cloud_folder",
+                ValidationRule::CloudFolder,
+                "choose an existing folder outside the app data",
+            );
         }
     }
     let before = get_settings(conn)?;
@@ -213,7 +221,15 @@ pub fn save_settings(
         write(conn, k, &v, by)?;
     }
     let after = get_settings(conn)?;
-    audit::record(conn, actor, "backup.settings", Some("setting"), None, Some(&json!(before)), Some(&json!(after)))?;
+    audit::record(
+        conn,
+        actor,
+        "backup.settings",
+        Some("setting"),
+        None,
+        Some(&json!(before)),
+        Some(&json!(after)),
+    )?;
     Ok(after)
 }
 
@@ -345,8 +361,12 @@ pub fn parse_name(name: &str) -> Option<OffsetDateTime> {
         n(date.get(6..8)?)? as u8,
     )
     .ok()?;
-    let t = time::Time::from_hms(n(time_part.get(0..2)?)? as u8, n(time_part.get(2..4)?)? as u8, n(time_part.get(4..6)?)? as u8)
-        .ok()?;
+    let t = time::Time::from_hms(
+        n(time_part.get(0..2)?)? as u8,
+        n(time_part.get(2..4)?)? as u8,
+        n(time_part.get(4..6)?)? as u8,
+    )
+    .ok()?;
     Some(time::PrimitiveDateTime::new(d, t).assume_offset(CLINIC_OFFSET))
 }
 
@@ -397,7 +417,8 @@ pub fn select_keep(items: &[Item], at: OffsetDateTime, keep: Keep) -> HashSet<St
         if weeks_ago < keep.weekly as i64 && weeks.insert(week_start) {
             kept.insert(it.name.clone());
         }
-        let months_ago = (today.year() as i64 - d.year() as i64) * 12 + (today.month() as i64 - d.month() as i64);
+        let months_ago =
+            (today.year() as i64 - d.year() as i64) * 12 + (today.month() as i64 - d.month() as i64);
         if months_ago < keep.monthly as i64 && months.insert((d.year(), d.month() as u8)) {
             kept.insert(it.name.clone());
         }
@@ -694,7 +715,11 @@ fn deliver_cloud(conn: &Connection, config: &Config, info: &BackupInfo) -> Resul
     let s = get_settings(conn)?;
     let Some(folder) = s.cloud_folder.clone() else { return Ok(None) };
     if !Path::new(&folder).is_dir() {
-        return Ok(Some(Outcome { status: CopyStatus::Pending, device: None, detail: Some("folder missing".into()) }));
+        return Ok(Some(Outcome {
+            status: CopyStatus::Pending,
+            device: None,
+            detail: Some("folder missing".into()),
+        }));
     }
     let dir = cloud_dir(&folder);
     let dest = Dest {
@@ -832,7 +857,11 @@ pub fn trust_device(
 ) -> Result<()> {
     let detected = detect(conn, key, provider)?;
     let Some(d) = detected.into_iter().find(|d| d.volume.mount.display().to_string() == mount) else {
-        return Err(CoreError::invalid("mount", ValidationRule::UsbMountUnknown, "that drive is not connected"));
+        return Err(CoreError::invalid(
+            "mount",
+            ValidationRule::UsbMountUnknown,
+            "that drive is not connected",
+        ));
     };
     if d.verdict == Verdict::Cloned {
         return Err(CoreError::invalid(
@@ -887,16 +916,23 @@ pub fn forget_device(conn: &Connection, actor: &Actor, device_id: &str) -> Resul
 
 pub fn cloud_status(folder: Option<&str>) -> CloudStatus {
     let Some(folder) = folder else {
-        return CloudStatus { folder: None, folder_exists: false, writable: false, provider: "other".into(), sync_app_found: None };
+        return CloudStatus {
+            folder: None,
+            folder_exists: false,
+            writable: false,
+            provider: "other".into(),
+            sync_app_found: None,
+        };
     };
     let lower = folder.to_lowercase();
-    let provider = if lower.contains("google drive") || lower.contains("googledrive") || lower.contains("my drive") {
-        "google_drive"
-    } else if lower.contains("onedrive") {
-        "onedrive"
-    } else {
-        "other"
-    };
+    let provider =
+        if lower.contains("google drive") || lower.contains("googledrive") || lower.contains("my drive") {
+            "google_drive"
+        } else if lower.contains("onedrive") {
+            "onedrive"
+        } else {
+            "other"
+        };
     let exists = Path::new(folder).is_dir();
     let writable = exists && {
         let probe = Path::new(folder).join(".artaveo-write-test");
@@ -934,7 +970,12 @@ fn sync_app_found(provider: &str) -> Option<bool> {
 
 // ───────────────────────────── overview ─────────────────────────────
 
-fn target_state(conn: &Connection, target: &str, configured: bool, newest: Option<&BackupInfo>) -> Result<TargetState> {
+fn target_state(
+    conn: &Connection,
+    target: &str,
+    configured: bool,
+    newest: Option<&BackupInfo>,
+) -> Result<TargetState> {
     if !configured {
         return Ok(TargetState::NotConfigured);
     }
@@ -962,11 +1003,7 @@ fn pending_count(conn: &Connection, target: &str) -> Result<u32> {
     )?)
 }
 
-pub fn overview(
-    conn: &Connection,
-    key: &DataKey,
-    provider: &dyn UsbProvider,
-) -> Result<BackupOverview> {
+pub fn overview(conn: &Connection, key: &DataKey, provider: &dyn UsbProvider) -> Result<BackupOverview> {
     let s = get_settings(conn)?;
     let last = latest(conn)?;
     let all = list(conn)?;
@@ -1024,14 +1061,20 @@ pub fn source_folders(
             .filter(|d| d.verdict == Verdict::Trusted)
             .map(|d| usb::backup_folder(&d.volume.mount))
             .collect(),
-        BackupSource::Cloud => get_settings(conn)?.cloud_folder.map(|f| vec![cloud_dir(&f)]).unwrap_or_default(),
+        BackupSource::Cloud => {
+            get_settings(conn)?.cloud_folder.map(|f| vec![cloud_dir(&f)]).unwrap_or_default()
+        }
     })
 }
 
 /// A backup file name from a request must be a plain `artaveo-*.db` name, never a path.
 pub fn safe_file_name(name: &str) -> Result<&str> {
     if parse_name(name).is_none() || name.contains(['/', '\\']) || !name.ends_with(".db") {
-        return Err(CoreError::invalid("file_name", ValidationRule::BackupFileUnknown, "not a backup file name"));
+        return Err(CoreError::invalid(
+            "file_name",
+            ValidationRule::BackupFileUnknown,
+            "not a backup file name",
+        ));
     }
     Ok(name)
 }
@@ -1073,11 +1116,17 @@ mod tests {
     #[test]
     fn next_run_is_the_coming_schedule() {
         let today = b("2026-10-02T14:31:00.000Z"); // 19:01 Kabul
-        // 22:00 Kabul on the 2nd: next is 19:00 on the 3rd Kabul = 14:30Z.
-        assert_eq!(next_run(Some(&today), 19, 0, datetime!(2026-10-02 17:30 UTC)), datetime!(2026-10-03 14:30 UTC));
+                                                   // 22:00 Kabul on the 2nd: next is 19:00 on the 3rd Kabul = 14:30Z.
+        assert_eq!(
+            next_run(Some(&today), 19, 0, datetime!(2026-10-02 17:30 UTC)),
+            datetime!(2026-10-03 14:30 UTC)
+        );
         // Not yet done today, before the time: later today.
         let old = b("2026-10-01T14:31:00.000Z");
-        assert_eq!(next_run(Some(&old), 19, 0, datetime!(2026-10-02 06:00 UTC)), datetime!(2026-10-02 14:30 UTC));
+        assert_eq!(
+            next_run(Some(&old), 19, 0, datetime!(2026-10-02 06:00 UTC)),
+            datetime!(2026-10-02 14:30 UTC)
+        );
         // Due now: now.
         assert_eq!(next_run(None, 19, 0, datetime!(2026-10-02 06:00 UTC)), datetime!(2026-10-02 06:00 UTC));
     }
@@ -1102,9 +1151,7 @@ mod tests {
     fn retention_keeps_daily_weekly_and_monthly_copies() {
         let at = datetime!(2026-11-04 08:00 UTC);
         // One copy a day for 120 days, newest first by name.
-        let items: Vec<Item> = (0..120)
-            .map(|i| item(&format!("d{i:03}"), at - Duration::days(i)))
-            .collect();
+        let items: Vec<Item> = (0..120).map(|i| item(&format!("d{i:03}"), at - Duration::days(i))).collect();
         let kept = select_keep(&items, at, Keep { daily: 14, weekly: 4, monthly: 3 });
         for i in 0..14 {
             assert!(kept.contains(&format!("d{i:03}")), "the last 14 days stay: d{i}");
@@ -1134,7 +1181,10 @@ mod tests {
             item("c-prerestore-3", at - Duration::days(202)),
         ];
         let kept = select_keep(&items, at, Keep { daily: 3, weekly: 0, monthly: 0 });
-        assert!(kept.contains("a-newest") && kept.contains("a-morning") && kept.contains("a-night"), "newest three");
+        assert!(
+            kept.contains("a-newest") && kept.contains("a-morning") && kept.contains("a-night"),
+            "newest three"
+        );
         assert!(!kept.contains("a-late"), "a fourth copy of the same day goes");
         assert!(kept.contains("b-yesterday"), "yesterday's newest");
         assert!(kept.contains("c-prerestore-2") && kept.contains("c-prerestore-3"), "safety copies stay");
@@ -1153,7 +1203,12 @@ mod tests {
             fs::write(dir.path().join(format!("{name}.db")), b"x").unwrap();
             fs::write(dir.path().join(format!("{name}.rkey")), b"k").unwrap();
         }
-        let removed = retain_folder(dir.path(), datetime!(2026-11-04 08:00 UTC), Keep { daily: 3, weekly: 0, monthly: 0 }).unwrap();
+        let removed = retain_folder(
+            dir.path(),
+            datetime!(2026-11-04 08:00 UTC),
+            Keep { daily: 3, weekly: 0, monthly: 0 },
+        )
+        .unwrap();
         assert_eq!(removed, vec!["artaveo-20260101-100000-daily.db".to_string()]);
         assert!(!dir.path().join("artaveo-20260101-100000-daily.rkey").exists());
         assert!(dir.path().join("artaveo-20261104-100000-daily.rkey").exists());

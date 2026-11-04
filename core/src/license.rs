@@ -236,7 +236,9 @@ impl LicenseServer for HttpServer {
             .tls_connector(std::sync::Arc::new(tls))
             .timeout(StdDuration::from_secs(15))
             .build();
-        let mut req = agent.post(&format!("{}/{endpoint}", base.trim_end_matches('/'))).set("content-type", "application/json");
+        let mut req = agent
+            .post(&format!("{}/{endpoint}", base.trim_end_matches('/')))
+            .set("content-type", "application/json");
         if let Some(key) = &self.key {
             req = req.set("apikey", key).set("authorization", &format!("Bearer {key}"));
         }
@@ -305,19 +307,20 @@ impl LicenseManager {
         fs::create_dir_all(dir)?;
         let at = now();
         let install_path = dir.join("install.json");
-        let install = match fs::read(&install_path).ok().and_then(|b| serde_json::from_slice::<Install>(&b).ok()) {
-            Some(i) => i,
-            None => {
-                let i = Install {
-                    installation_id: new_id(),
-                    first_run_at: iso(at),
-                    last_seen_at: iso(at),
-                    revoked: false,
-                };
-                write_atomic(&install_path, &serde_json::to_vec_pretty(&i)?)?;
-                i
-            }
-        };
+        let install =
+            match fs::read(&install_path).ok().and_then(|b| serde_json::from_slice::<Install>(&b).ok()) {
+                Some(i) => i,
+                None => {
+                    let i = Install {
+                        installation_id: new_id(),
+                        first_run_at: iso(at),
+                        last_seen_at: iso(at),
+                        revoked: false,
+                    };
+                    write_atomic(&install_path, &serde_json::to_vec_pretty(&i)?)?;
+                    i
+                }
+            };
         let m = Self {
             dir: dir.to_path_buf(),
             public_key: Mutex::new(public_key_b64.to_string()),
@@ -389,7 +392,9 @@ impl LicenseManager {
         let mut st = self.lock();
         let result = evaluate(&st.install, &st.loaded, at, &st.install.installation_id, configured);
         // Only a clock that is not behind may move the mark, and the file is not rewritten on every request.
-        if result.state != LicenseState::ClockTampered && parse(&st.install.last_seen_at).is_some_and(|seen| at > seen) {
+        if result.state != LicenseState::ClockTampered
+            && parse(&st.install.last_seen_at).is_some_and(|seen| at > seen)
+        {
             st.install.last_seen_at = iso(at);
             if at - st.written_at >= Duration::minutes(SEEN_WRITE_EVERY_MINUTES) {
                 if let Err(e) = self.save_install(&mut st) {
@@ -467,10 +472,11 @@ impl LicenseManager {
             self.save_install(&mut st)?;
             return Ok(());
         }
-        let file: LicenseFile = serde_json::from_value(
-            answer.get("license").cloned().ok_or_else(|| CoreError::api(ErrorCode::LicenseServerUnavailable, "no license in answer"))?,
-        )
-        .map_err(|_| CoreError::api(ErrorCode::LicenseServerUnavailable, "unreadable license"))?;
+        let file: LicenseFile =
+            serde_json::from_value(answer.get("license").cloned().ok_or_else(|| {
+                CoreError::api(ErrorCode::LicenseServerUnavailable, "no license in answer")
+            })?)
+            .map_err(|_| CoreError::api(ErrorCode::LicenseServerUnavailable, "unreadable license"))?;
         self.accept(&file)
     }
 
@@ -564,7 +570,12 @@ mod tests {
     }
 
     fn install(first: &str, seen: &str) -> Install {
-        Install { installation_id: "inst-1".into(), first_run_at: first.into(), last_seen_at: seen.into(), revoked: false }
+        Install {
+            installation_id: "inst-1".into(),
+            first_run_at: first.into(),
+            last_seen_at: seen.into(),
+            revoked: false,
+        }
     }
 
     fn state(i: &Install, l: &Loaded, at: OffsetDateTime) -> LicenseStatus {
@@ -579,7 +590,10 @@ mod tests {
         let valid: LicenseFile = serde_json::from_value(v["valid"].clone()).unwrap();
         let tampered: LicenseFile = serde_json::from_value(v["tampered"].clone()).unwrap();
         let p = verify_file(key, &valid).expect("signed by the server code");
-        assert_eq!((p.plan.as_str(), p.computers, p.installation_id.as_str()), ("standard", 3, "inst-test-1"));
+        assert_eq!(
+            (p.plan.as_str(), p.computers, p.installation_id.as_str()),
+            ("standard", 3, "inst-test-1")
+        );
         assert!(verify_file(key, &tampered).is_none(), "a changed payload must not verify");
         assert!(verify_file(PUBLIC_KEY_B64, &valid).is_none(), "another key must not verify");
     }
@@ -594,25 +608,36 @@ mod tests {
     fn a_new_install_works_for_the_first_period_then_is_read_only() {
         let i = install("2026-11-01T00:00:00.000Z", "2026-11-01T00:00:00.000Z");
         let s = state(&i, &Loaded::None, datetime!(2026-11-05 00:00 UTC));
-        assert_eq!((s.state, s.read_only, s.first_period_days_left), (LicenseState::Unactivated, false, Some(10)));
+        assert_eq!(
+            (s.state, s.read_only, s.first_period_days_left),
+            (LicenseState::Unactivated, false, Some(10))
+        );
         let s = state(&i, &Loaded::None, datetime!(2026-11-20 00:00 UTC));
-        assert_eq!((s.state, s.read_only, s.first_period_days_left), (LicenseState::Unactivated, true, Some(0)));
+        assert_eq!(
+            (s.state, s.read_only, s.first_period_days_left),
+            (LicenseState::Unactivated, true, Some(0))
+        );
     }
 
     #[test]
     fn paid_license_walks_through_active_grace_needs_verification_and_expired() {
         let i = install("2026-01-01T00:00:00.000Z", "2026-11-01T00:00:00.000Z");
-        let l = Loaded::Valid(payload("inst-1", "paid", "2026-11-01T00:00:00.000Z", "2027-01-01T00:00:00.000Z"));
+        let l =
+            Loaded::Valid(payload("inst-1", "paid", "2026-11-01T00:00:00.000Z", "2027-01-01T00:00:00.000Z"));
         let s = state(&i, &l, datetime!(2026-11-03 00:00 UTC));
         assert_eq!((s.state, s.read_only, s.verify_due), (LicenseState::Active, false, false));
         assert_eq!(s.days_left, Some(59));
         assert_eq!(s.plan.as_deref(), Some("standard"));
         let s = state(&i, &l, datetime!(2026-11-10 00:00 UTC));
-        assert_eq!((s.state, s.read_only, s.verify_due, s.grace_days_left), (LicenseState::Grace, false, true, Some(21)));
+        assert_eq!(
+            (s.state, s.read_only, s.verify_due, s.grace_days_left),
+            (LicenseState::Grace, false, true, Some(21))
+        );
         let s = state(&i, &l, datetime!(2026-12-05 00:00 UTC));
         assert_eq!((s.state, s.read_only), (LicenseState::NeedsVerification, true));
         // Verified recently but past the end date.
-        let l = Loaded::Valid(payload("inst-1", "paid", "2027-01-02T00:00:00.000Z", "2027-01-01T00:00:00.000Z"));
+        let l =
+            Loaded::Valid(payload("inst-1", "paid", "2027-01-02T00:00:00.000Z", "2027-01-01T00:00:00.000Z"));
         let i2 = install("2026-01-01T00:00:00.000Z", "2027-01-02T00:00:00.000Z");
         let s = state(&i2, &l, datetime!(2027-01-03 00:00 UTC));
         assert_eq!((s.state, s.read_only), (LicenseState::Expired, true));
@@ -621,7 +646,8 @@ mod tests {
     #[test]
     fn trial_revoked_other_computer_damaged_and_clock_tampering() {
         let i = install("2026-11-01T00:00:00.000Z", "2026-11-01T00:00:00.000Z");
-        let trial = Loaded::Valid(payload("inst-1", "trial", "2026-11-01T00:00:00.000Z", "2026-12-01T00:00:00.000Z"));
+        let trial =
+            Loaded::Valid(payload("inst-1", "trial", "2026-11-01T00:00:00.000Z", "2026-12-01T00:00:00.000Z"));
         assert_eq!(state(&i, &trial, datetime!(2026-11-02 00:00 UTC)).state, LicenseState::Trial);
         assert_eq!(state(&i, &trial, datetime!(2026-12-02 00:00 UTC)).state, LicenseState::Expired);
 
@@ -629,13 +655,19 @@ mod tests {
         let s = state(&revoked, &trial, datetime!(2026-11-02 00:00 UTC));
         assert_eq!((s.state, s.read_only), (LicenseState::Revoked, true));
 
-        let other = Loaded::Valid(payload("inst-OTHER", "paid", "2026-11-01T00:00:00.000Z", "2027-11-01T00:00:00.000Z"));
+        let other = Loaded::Valid(payload(
+            "inst-OTHER",
+            "paid",
+            "2026-11-01T00:00:00.000Z",
+            "2027-11-01T00:00:00.000Z",
+        ));
         assert_eq!(state(&i, &other, datetime!(2026-11-02 00:00 UTC)).state, LicenseState::Invalid);
         assert_eq!(state(&i, &Loaded::Invalid, datetime!(2026-11-02 00:00 UTC)).state, LicenseState::Invalid);
 
         // The clock was put back two days: read-only; a few hours is only drift.
         let seen = install("2026-01-01T00:00:00.000Z", "2026-11-10T12:00:00.000Z");
-        let l = Loaded::Valid(payload("inst-1", "paid", "2026-11-09T00:00:00.000Z", "2027-11-01T00:00:00.000Z"));
+        let l =
+            Loaded::Valid(payload("inst-1", "paid", "2026-11-09T00:00:00.000Z", "2027-11-01T00:00:00.000Z"));
         assert_eq!(state(&seen, &l, datetime!(2026-11-08 12:00 UTC)).state, LicenseState::ClockTampered);
         assert_eq!(state(&seen, &l, datetime!(2026-11-10 06:00 UTC)).state, LicenseState::Active);
     }
@@ -723,7 +755,12 @@ mod tests {
         assert!(dir.path().join("license.json").exists());
 
         // A new manager on the same folder finds the license again (restart).
-        let again = LicenseManager::new(dir.path(), &BASE64.encode(script.key.verifying_key().as_bytes()), Box::new(Fake(script.clone()))).unwrap();
+        let again = LicenseManager::new(
+            dir.path(),
+            &BASE64.encode(script.key.verifying_key().as_bytes()),
+            Box::new(Fake(script.clone())),
+        )
+        .unwrap();
         assert_eq!(again.status().state, LicenseState::Active);
 
         // The vendor revokes: the next check flags it, read-only follows.
@@ -738,7 +775,10 @@ mod tests {
         let s = m.release().unwrap();
         assert_eq!(s.state, LicenseState::Unactivated);
         assert!(!dir.path().join("license.json").exists());
-        assert_eq!(script.calls.lock().unwrap().as_slice(), ["license-activate", "license-verify", "license-verify", "license-release"]);
+        assert_eq!(
+            script.calls.lock().unwrap().as_slice(),
+            ["license-activate", "license-verify", "license-verify", "license-release"]
+        );
     }
 
     #[test]
@@ -753,15 +793,25 @@ mod tests {
         // A license for another installation, or signed with another key, is refused.
         *script.reply.lock().unwrap() = None;
         *script.installation.lock().unwrap() = "someone-else".into();
-        assert_eq!(m.activate("ARTA-AAAA-BBBB-CCCC", &info()).unwrap_err().code(), ErrorCode::LicenseRejected);
+        assert_eq!(
+            m.activate("ARTA-AAAA-BBBB-CCCC", &info()).unwrap_err().code(),
+            ErrorCode::LicenseRejected
+        );
         *script.installation.lock().unwrap() = m.installation_id();
         m.set_public_key(&BASE64.encode(SigningKey::from_bytes(&[9u8; 32]).verifying_key().as_bytes()));
-        assert_eq!(m.activate("ARTA-AAAA-BBBB-CCCC", &info()).unwrap_err().code(), ErrorCode::LicenseRejected);
+        assert_eq!(
+            m.activate("ARTA-AAAA-BBBB-CCCC", &info()).unwrap_err().code(),
+            ErrorCode::LicenseRejected
+        );
 
         // No server address in this build.
-        let unconfigured = LicenseManager::new(dir.path(), "x", Box::new(HttpServer { base: None, key: None })).unwrap();
+        let unconfigured =
+            LicenseManager::new(dir.path(), "x", Box::new(HttpServer { base: None, key: None })).unwrap();
         assert!(!unconfigured.status().server_configured);
-        assert_eq!(unconfigured.start_trial(&info()).unwrap_err().code(), ErrorCode::LicenseServerUnavailable);
+        assert_eq!(
+            unconfigured.start_trial(&info()).unwrap_err().code(),
+            ErrorCode::LicenseServerUnavailable
+        );
     }
 
     #[test]
@@ -782,7 +832,8 @@ mod tests {
     fn offline_activation_round_trips_through_codes() {
         let (_dir, m, script) = manager();
         let request = m.offline_request(&info());
-        let decoded: Value = serde_json::from_slice(&BASE64URL_NOPAD.decode(request.as_bytes()).unwrap()).unwrap();
+        let decoded: Value =
+            serde_json::from_slice(&BASE64URL_NOPAD.decode(request.as_bytes()).unwrap()).unwrap();
         assert_eq!(decoded["installation_id"], m.installation_id());
         assert_eq!(decoded["clinic_name"], "Clinic");
 
