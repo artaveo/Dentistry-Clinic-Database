@@ -43,7 +43,11 @@ fn qty_of(field: &str, v: i64) -> Result<i64> {
 fn line_total(qty: i64, unit_cost: i64) -> Result<i64> {
     let total = (i128::from(qty) * i128::from(unit_cost) + 50) / 100;
     if total > MAX_AMOUNT {
-        return Err(CoreError::invalid("unit_cost", ValidationRule::BillingAmount, "this total is too large"));
+        return Err(CoreError::invalid(
+            "unit_cost",
+            ValidationRule::BillingAmount,
+            "this total is too large",
+        ));
     }
     Ok(total as i64)
 }
@@ -57,11 +61,9 @@ fn day_of(p: &Option<String>) -> Result<String> {
     let today = today_iso();
     match opt_date("date", p)? {
         None => Ok(today),
-        Some(d) if d > today => Err(CoreError::invalid(
-            "date",
-            ValidationRule::DateFormat,
-            "this cannot be dated in the future",
-        )),
+        Some(d) if d > today => {
+            Err(CoreError::invalid("date", ValidationRule::DateFormat, "this cannot be dated in the future"))
+        }
         Some(d) => Ok(d),
     }
 }
@@ -169,7 +171,11 @@ fn lookup_select(which: Lookup) -> String {
     )
 }
 
-pub fn list_lookups(conn: &Connection, which: Lookup, include_inactive: bool) -> Result<Vec<StockLookupInfo>> {
+pub fn list_lookups(
+    conn: &Connection,
+    which: Lookup,
+    include_inactive: bool,
+) -> Result<Vec<StockLookupInfo>> {
     let mut stmt = conn.prepare(&format!(
         "{} {} ORDER BY sort_order, name_en",
         lookup_select(which),
@@ -197,11 +203,9 @@ pub fn save_lookup(
     match p.id.as_deref().filter(|s| !s.is_empty()) {
         None => {
             let id = new_id();
-            let order = scalar(
-                conn,
-                &format!("SELECT MAX(sort_order) FROM {table} WHERE sort_order < 90"),
-                &[],
-            )? + 10;
+            let order =
+                scalar(conn, &format!("SELECT MAX(sort_order) FROM {table} WHERE sort_order < 90"), &[])?
+                    + 10;
             conn.execute(
                 &format!(
                     "INSERT INTO {table}(id, name_fa, name_ps, name_en, sort_order, is_active, created_at, created_by, updated_at, updated_by)
@@ -672,13 +676,14 @@ pub fn list_movements(conn: &Connection, p: &StockMovementListParams) -> Result<
     }
     sql.push_str(&format!(" ORDER BY m.local_date DESC, m.created_at DESC, m.id DESC LIMIT {MAX_LIST}"));
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params_from_iter(args.iter()), map_move)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    let rows =
+        stmt.query_map(params_from_iter(args.iter()), map_move)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
 
 fn movements_of_treatment(conn: &Connection, treatment_item_id: &str) -> Result<Vec<StockMovementInfo>> {
-    let mut stmt = conn
-        .prepare(&format!("{MOVE_SELECT} AND m.treatment_item_id = ?1 ORDER BY m.created_at, m.id"))?;
+    let mut stmt =
+        conn.prepare(&format!("{MOVE_SELECT} AND m.treatment_item_id = ?1 ORDER BY m.created_at, m.id"))?;
     let rows = stmt.query_map([treatment_item_id], map_move)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
@@ -686,9 +691,14 @@ fn movements_of_treatment(conn: &Connection, treatment_item_id: &str) -> Result<
 pub fn alerts(conn: &Connection, p: &StockAlertParams) -> Result<StockAlerts> {
     let low = list_items(
         conn,
-        &StockItemListParams { only: Some(StockFilter::Low), expiring_days: p.expiring_days, ..Default::default() },
+        &StockItemListParams {
+            only: Some(StockFilter::Low),
+            expiring_days: p.expiring_days,
+            ..Default::default()
+        },
     )?;
-    let batches = list_batches(conn, &StockBatchListParams { expiring_days: p.expiring_days, ..Default::default() })?;
+    let batches =
+        list_batches(conn, &StockBatchListParams { expiring_days: p.expiring_days, ..Default::default() })?;
     let (expired, rest): (Vec<_>, Vec<_>) = batches.into_iter().partition(|b| b.state == BatchState::Expired);
     let expiring = rest.into_iter().filter(|b| b.state == BatchState::Expiring).collect();
     let lab_delayed = list_lab_cases(conn, &LabCaseListParams { delayed_only: true, ..Default::default() })?;
@@ -919,7 +929,8 @@ pub fn adjust(conn: &Connection, actor: &Actor, p: &AdjustStockParams) -> Result
     let reason = required("reason", &p.reason, 300)?;
     let date = day_of(&p.date)?;
     bump_batch(conn, &p.batch_id, p.delta)?;
-    let mut mv = Move::new(&b.item_id, &p.batch_id, &b.location_id, StockMovementKind::Adjust, p.delta, &date);
+    let mut mv =
+        Move::new(&b.item_id, &p.batch_id, &b.location_id, StockMovementKind::Adjust, p.delta, &date);
     mv.unit_cost = b.unit_cost;
     mv.reason = Some(&reason);
     record_move(conn, actor, &mv)?;
@@ -1003,7 +1014,8 @@ pub fn transfer(conn: &Connection, actor: &Actor, p: &TransferStockParams) -> Re
             },
         )?,
     };
-    let mut out = Move::new(&b.item_id, &p.batch_id, &b.location_id, StockMovementKind::TransferOut, -qty, &date);
+    let mut out =
+        Move::new(&b.item_id, &p.batch_id, &b.location_id, StockMovementKind::TransferOut, -qty, &date);
     out.unit_cost = b.unit_cost;
     record_move(conn, actor, &out)?;
     let mut inn = Move::new(&b.item_id, &target, &to.id, StockMovementKind::TransferIn, qty, &date);
@@ -1086,7 +1098,10 @@ pub fn save_materials(
         "service_materials.save",
         Some("service"),
         Some(&p.service_id),
-        Some(&json!(before.iter().map(|m| json!({"item": m.item_name.en, "qty": m.qty})).collect::<Vec<_>>())),
+        Some(&json!(before
+            .iter()
+            .map(|m| json!({"item": m.item_name.en, "qty": m.qty}))
+            .collect::<Vec<_>>())),
         Some(&json!(after.iter().map(|m| json!({"item": m.item_name.en, "qty": m.qty})).collect::<Vec<_>>())),
     )?;
     Ok(after)
@@ -1308,7 +1323,8 @@ fn purchase_lines(conn: &Connection, purchase_id: &str) -> Result<Vec<PurchaseLi
     Ok(rows)
 }
 
-const PURCHASE_SELECT: &str = "SELECT p.id, p.number, p.supplier_id, s.name, p.local_date, p.total, p.note, p.status, p.void_reason,
+const PURCHASE_SELECT: &str =
+    "SELECT p.id, p.number, p.supplier_id, s.name, p.local_date, p.total, p.note, p.status, p.void_reason,
     au.display_name, p.version
     FROM purchase p JOIN supplier s ON s.id = p.supplier_id LEFT JOIN app_user au ON au.id = p.created_by
     WHERE 1 = 1";
@@ -1354,7 +1370,8 @@ pub fn list_purchases(conn: &Connection, p: &PurchaseListParams) -> Result<Vec<P
     }
     sql.push_str(" ORDER BY p.local_date DESC, p.created_at DESC LIMIT 300");
     let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query_map(params_from_iter(args.iter()), map_purchase)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut rows =
+        stmt.query_map(params_from_iter(args.iter()), map_purchase)?.collect::<rusqlite::Result<Vec<_>>>()?;
     for row in &mut rows {
         row.lines = purchase_lines(conn, &row.id)?;
     }
@@ -1494,8 +1511,9 @@ pub fn void_purchase(conn: &Connection, actor: &Actor, p: &VoidWithReasonParams)
     }
     let reason = required("reason", &p.reason, 300)?;
     let date = today_iso();
-    let mut stmt = conn
-        .prepare("SELECT b.id, b.item_id, b.location_id, b.qty_left FROM stock_batch b WHERE b.purchase_id = ?1")?;
+    let mut stmt = conn.prepare(
+        "SELECT b.id, b.item_id, b.location_id, b.qty_left FROM stock_batch b WHERE b.purchase_id = ?1",
+    )?;
     let batches = stmt
         .query_map([&p.id], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, i64>(3)?))
@@ -1521,7 +1539,8 @@ pub fn void_purchase(conn: &Connection, actor: &Actor, p: &VoidWithReasonParams)
             ));
         }
         bump_batch(conn, &batch_id, -left)?;
-        let mut mv = Move::new(&item_id, &batch_id, &location_id, StockMovementKind::VoidPurchase, -left, &date);
+        let mut mv =
+            Move::new(&item_id, &batch_id, &location_id, StockMovementKind::VoidPurchase, -left, &date);
         mv.purchase_id = Some(&p.id);
         mv.reason = Some(&reason);
         record_move(conn, actor, &mv)?;
@@ -1594,7 +1613,8 @@ pub fn list_payments(conn: &Connection, p: &SupplierPaymentListParams) -> Result
     }
     sql.push_str(" ORDER BY sp.local_date DESC, sp.created_at DESC LIMIT 300");
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params_from_iter(args.iter()), map_payment)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    let rows =
+        stmt.query_map(params_from_iter(args.iter()), map_payment)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
 
@@ -1615,7 +1635,12 @@ pub fn add_supplier_payment(
         )
         .optional()?;
     let Some((method_id, is_cash)) = method else {
-        return Err(not_found("payment method", &p.method_id, "method_id", ValidationRule::PaymentMethodNotFound));
+        return Err(not_found(
+            "payment method",
+            &p.method_id,
+            "method_id",
+            ValidationRule::PaymentMethodNotFound,
+        ));
     };
     let id = new_id();
     let number = next_number(conn, "SP")?;
@@ -1624,7 +1649,11 @@ pub fn add_supplier_payment(
         conn,
         actor,
         &AddExpenseParams {
-            category_id: if supplier.kind == SupplierKind::Lab { "ec-lab".into() } else { "ec-materials".into() },
+            category_id: if supplier.kind == SupplierKind::Lab {
+                "ec-lab".into()
+            } else {
+                "ec-materials".into()
+            },
             amount,
             date: date.clone(),
             description: format!("{number} - {}", supplier.name),
@@ -1786,7 +1815,11 @@ pub fn list_lab_cases(conn: &Connection, p: &LabCaseListParams) -> Result<Vec<La
 
 fn teeth_text(teeth: &[u8]) -> Result<String> {
     if teeth.len() > 32 || teeth.iter().any(|t| !(1..=85).contains(t)) {
-        return Err(CoreError::invalid("teeth", ValidationRule::StockQuantity, "a tooth number is not valid"));
+        return Err(CoreError::invalid(
+            "teeth",
+            ValidationRule::StockQuantity,
+            "a tooth number is not valid",
+        ));
     }
     Ok(teeth.iter().map(u8::to_string).collect::<Vec<_>>().join(","))
 }
@@ -1922,7 +1955,9 @@ pub fn set_lab_status(conn: &Connection, actor: &Actor, p: &SetLabStatusParams) 
             },
             None,
         ),
-        LabStatus::Cancelled => (before.cost, Some(required("reason", p.reason.as_deref().unwrap_or(""), 300)?)),
+        LabStatus::Cancelled => {
+            (before.cost, Some(required("reason", p.reason.as_deref().unwrap_or(""), 300)?))
+        }
         _ => (before.cost, None),
     };
     if let (Some(sent), LabStatus::Received) = (before.sent_date.as_deref(), p.status) {

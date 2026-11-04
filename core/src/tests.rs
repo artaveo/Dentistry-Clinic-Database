@@ -4034,18 +4034,27 @@ fn inventory_stock_is_taken_first_expiry_first_and_expired_is_never_used() {
     let (_, _, rule) =
         rule_of(&t, m::STOCK_ADJUST, json!({"batch_id": expired, "delta": -1001, "reason": "x"}), &owner);
     assert_eq!(rule.as_deref(), Some("stock_insufficient"));
-    let thrown = t.ok(m::STOCK_ADJUST, json!({"batch_id": expired, "delta": -1000, "reason": "منقضی"}), Some(&owner));
+    let thrown =
+        t.ok(m::STOCK_ADJUST, json!({"batch_id": expired, "delta": -1000, "reason": "منقضی"}), Some(&owner));
     assert_eq!(thrown["expired_qty"], 0);
 
     // Moving some of C to the treatment room splits the batch; moving to the same place is refused.
     let c_batch = s_of(&t.ok(m::STOCK_BATCHES_LIST, json!({"item_id": id}), Some(&owner))[0], "id");
     t.ok(m::STOCK_TRANSFER, json!({"batch_id": c_batch, "qty": 100, "to_location_id": room}), Some(&owner));
-    let (_, _, rule) =
-        rule_of(&t, m::STOCK_TRANSFER, json!({"batch_id": c_batch, "qty": 10, "to_location_id": main}), &owner);
+    let (_, _, rule) = rule_of(
+        &t,
+        m::STOCK_TRANSFER,
+        json!({"batch_id": c_batch, "qty": 10, "to_location_id": main}),
+        &owner,
+    );
     assert_eq!(rule.as_deref(), Some("stock_same_place"));
     let split = t.ok(m::STOCK_BATCHES_LIST, json!({"item_id": id}), Some(&owner));
     assert_eq!(split.as_array().unwrap().len(), 2);
-    assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": id}), Some(&owner))["usable_qty"], 200, "a transfer keeps the total");
+    assert_eq!(
+        t.ok(m::STOCK_ITEMS_GET, json!({"id": id}), Some(&owner))["usable_qty"],
+        200,
+        "a transfer keeps the total"
+    );
 
     // Taking from one place only.
     let (_, _, rule) =
@@ -4087,22 +4096,17 @@ fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_righ
         Some(&owner),
     );
     let item_id = s_of(&item, "id");
-    let supplier = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "supplier", "name": "Kabul Dental Supply"}), Some(&owner));
+    let supplier =
+        t.ok(m::SUPPLIERS_SAVE, json!({"kind": "supplier", "name": "Kabul Dental Supply"}), Some(&owner));
     let sid = s_of(&supplier, "id");
     let lab = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "lab", "name": "Noor Lab"}), Some(&owner));
-    let line = |qty: i64| {
-        json!({"item_id": item_id, "qty": qty, "unit_cost": 2500, "lot_no": "L1", "expiry_date": day(300), "location_id": main})
-    };
+    let line = |qty: i64| json!({"item_id": item_id, "qty": qty, "unit_cost": 2500, "lot_no": "L1", "expiry_date": day(300), "location_id": main});
 
     // 10.00 units at 2500 = 250.00 AFN (25 000 in AFN × 100); 100.00 AFN paid in cash on the spot.
     let (_, field, rule) = rule_of(&t, m::PURCHASES_CREATE, json!({"supplier_id": sid, "lines": []}), &owner);
     assert_eq!((field.as_deref(), rule.as_deref()), (Some("lines"), Some("purchase_empty")));
-    let (_, field, rule) = rule_of(
-        &t,
-        m::PURCHASES_CREATE,
-        json!({"supplier_id": lab["id"], "lines": [line(1000)]}),
-        &owner,
-    );
+    let (_, field, rule) =
+        rule_of(&t, m::PURCHASES_CREATE, json!({"supplier_id": lab["id"], "lines": [line(1000)]}), &owner);
     assert_eq!((field.as_deref(), rule.as_deref()), (Some("supplier_id"), Some("supplier_not_found")));
     let (_, field, rule) = rule_of(
         &t,
@@ -4190,7 +4194,10 @@ fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_righ
         Some(&owner),
     );
     assert_eq!(voided["void"], true);
-    assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": item_id}), Some(&owner))["qty"].as_i64().unwrap(), before - 200);
+    assert_eq!(
+        t.ok(m::STOCK_ITEMS_GET, json!({"id": item_id}), Some(&owner))["qty"].as_i64().unwrap(),
+        before - 200
+    );
     assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner))["balance"], 17_500);
     let (_, _, rule) = rule_of(
         &t,
@@ -4201,7 +4208,13 @@ fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_righ
     assert_eq!(rule.as_deref(), Some("purchase_void"));
 
     let actions = t.audit_actions(&owner);
-    for a in ["supplier.create", "purchase.create", "purchase.void", "supplier_payment.add", "supplier_payment.void"] {
+    for a in [
+        "supplier.create",
+        "purchase.create",
+        "purchase.void",
+        "supplier_payment.add",
+        "supplier_payment.void",
+    ] {
         assert!(actions.contains(&a.to_string()), "{a} is audited");
     }
 }
@@ -4247,8 +4260,15 @@ fn dental_lab_case_runs_its_cycle_warns_when_late_and_counts_towards_the_lab_bal
     assert_eq!((sent["delayed"].as_bool(), sent["days_late"].as_i64()), (Some(true), Some(3)));
     let alerts = t.ok(m::STOCK_ALERTS_LIST, json!({}), Some(owner));
     assert_eq!(alerts["lab_delayed"].as_array().unwrap().len(), 1);
-    assert_eq!(t.ok(m::LAB_CASES_LIST, json!({"delayed_only": true}), Some(owner)).as_array().unwrap().len(), 1);
-    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}), Some(owner))["balance"], 0, "not owed until it is back");
+    assert_eq!(
+        t.ok(m::LAB_CASES_LIST, json!({"delayed_only": true}), Some(owner)).as_array().unwrap().len(),
+        1
+    );
+    assert_eq!(
+        t.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}), Some(owner))["balance"],
+        0,
+        "not owed until it is back"
+    );
 
     // It comes back with the final cost: now the clinic owes the lab, and the late warning is gone.
     let back = t.ok(
@@ -4267,9 +4287,16 @@ fn dental_lab_case_runs_its_cycle_warns_when_late_and_counts_towards_the_lab_bal
     assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}), Some(owner))["balance"], 20_000);
 
     // Lab cost beside what the treatment was invoiced for.
-    t.ok(m::INVOICES_CREATE, json!({"patient_id": c.patient, "items": [{"item_id": item["id"]}]}), Some(owner));
+    t.ok(
+        m::INVOICES_CREATE,
+        json!({"patient_id": c.patient, "items": [{"item_id": item["id"]}]}),
+        Some(owner),
+    );
     let report = t.ok(m::LAB_CASES_REPORT, json!({"from": day(-1), "to": day(0)}), Some(owner));
-    assert_eq!((report["total_cost"].as_i64(), report["rows"].as_array().map(Vec::len)), (Some(32_000), Some(1)));
+    assert_eq!(
+        (report["total_cost"].as_i64(), report["rows"].as_array().map(Vec::len)),
+        (Some(32_000), Some(1))
+    );
     assert_eq!(report["total_billed"], 350_000, "{report}");
 
     // Delivered to the patient: closed for editing. A cancel needs its reason.
@@ -4313,8 +4340,16 @@ fn dental_lab_case_runs_its_cycle_warns_when_late_and_counts_towards_the_lab_bal
 fn inventory_permissions_and_materials_of_a_service() {
     let c = clinic4();
     let (t, owner) = (&c.t, c.owner.as_str());
-    t.ok(m::USERS_CREATE, json!({"username": "dr1", "display_name": "x", "password": "doctor-pass-1", "role": "doctor"}), Some(owner));
-    t.ok(m::USERS_CREATE, json!({"username": "rec1", "display_name": "y", "password": "recep-pass-12", "role": "receptionist"}), Some(owner));
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "dr1", "display_name": "x", "password": "doctor-pass-1", "role": "doctor"}),
+        Some(owner),
+    );
+    t.ok(
+        m::USERS_CREATE,
+        json!({"username": "rec1", "display_name": "y", "password": "recep-pass-12", "role": "receptionist"}),
+        Some(owner),
+    );
     let doctor = t.login("dr1", "doctor-pass-1");
     let reception = t.login("rec1", "recep-pass-12");
     let cat = first_id(t, m::STOCK_CATEGORIES_LIST, owner, 0);
@@ -4344,7 +4379,8 @@ fn inventory_permissions_and_materials_of_a_service() {
     );
     let item = treatment_done(&c, "SRG-01", 46, 80_000);
     let service = item["service_id"].clone();
-    let (_, _, rule) = rule_of(t, m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), owner);
+    let (_, _, rule) =
+        rule_of(t, m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), owner);
     assert_eq!(rule.as_deref(), Some("materials_none"));
 
     t.ok(
@@ -4353,7 +4389,10 @@ fn inventory_permissions_and_materials_of_a_service() {
         Some(owner),
     );
     assert_eq!(
-        t.ok(m::SERVICE_MATERIALS_LIST, json!({"service_id": service}), Some(&doctor)).as_array().unwrap().len(),
+        t.ok(m::SERVICE_MATERIALS_LIST, json!({"service_id": service}), Some(&doctor))
+            .as_array()
+            .unwrap()
+            .len(),
         1
     );
     // A doctor takes the materials of the treatment; the second try is refused.
@@ -4361,6 +4400,7 @@ fn inventory_permissions_and_materials_of_a_service() {
     assert_eq!(moves[0]["qty"], -200);
     assert_eq!(moves[0]["patient_id"], json!(c.patient));
     assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": glue_id}), Some(owner))["qty"], 300);
-    let (_, _, rule) = rule_of(t, m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), owner);
+    let (_, _, rule) =
+        rule_of(t, m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), owner);
     assert_eq!(rule.as_deref(), Some("materials_already_consumed"));
 }

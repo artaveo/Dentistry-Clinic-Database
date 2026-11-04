@@ -123,7 +123,10 @@ pub fn system_roles() -> Vec<(&'static str, Vec<&'static str>)> {
                 INVENTORY_MANAGE,
             ],
         ),
-        ("assistant", vec![PATIENTS_VIEW, APPOINTMENTS_VIEW, APPOINTMENTS_TREAT, CLINICAL_VIEW, INVENTORY_VIEW]),
+        (
+            "assistant",
+            vec![PATIENTS_VIEW, APPOINTMENTS_VIEW, APPOINTMENTS_TREAT, CLINICAL_VIEW, INVENTORY_VIEW],
+        ),
     ]
 }
 
