@@ -16,7 +16,11 @@ const OWNER = { user: "owner", pass: "owner-pass-123" };
 
 test.beforeAll(async ({ browser }) => {
   page = await newClinicPage(browser, { width: 1280, height: 800 });
+  page.on("console", (m) => debug.push("console." + m.type() + ": " + m.text().slice(0, 300)));
+  page.on("pageerror", (e) => debug.push("pageerror: " + String(e).slice(0, 400)));
+  page.on("requestfinished", async (r) => { if (r.url().includes(":8787")) { const t = await (await r.response())?.text().catch(() => ""); debug.push("rpc " + (r.postData() ?? "").slice(0, 60) + " -> " + (t ?? "").slice(0, 160)); } });
 });
+const debug: string[] = [];
 
 // SCREENSHOTS=1 writes images for the manual test guide (docs/testing/img/v0.2.1).
 async function shot(name: string) {
@@ -130,7 +134,11 @@ test("login: LTR username keeps the UI font (OF-004); wrong password, then the o
 
 test("header status and command palette", async () => {
   await expect(page.getByTestId("status-online")).toHaveText("آنلاین");
-  await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
+  try {
+    await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
+  } catch (e) {
+    throw new Error("DEBUG " + debug.slice(-14).join(" || ") + " BODY " + (await page.locator("body").innerText()).replace(/s+/g, " ").slice(0, 700));
+  }
   await page.getByTestId("command-palette-open").click();
   await page.getByTestId("command-palette-input").fill("کاربران");
   await expect(page.getByTestId("command-item-users")).toBeVisible();
