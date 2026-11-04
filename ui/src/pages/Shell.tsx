@@ -126,7 +126,7 @@ export function Shell({
         setClinic(c);
         rememberBrand(c.color_primary, c.color_accent);
       })
-      .catch(() => {});
+      .catch((e) => console.error("clinic.get failed:", String(e)));
   }, []);
   useEffect(loadClinic, []);
 

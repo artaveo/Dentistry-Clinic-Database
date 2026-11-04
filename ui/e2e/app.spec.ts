@@ -16,7 +16,15 @@ const OWNER = { user: "owner", pass: "owner-pass-123" };
 
 test.beforeAll(async ({ browser }) => {
   page = await newClinicPage(browser, { width: 1280, height: 800 });
+  // Evidence for the rare missing header status line (see the header status test): every RPC and console line, in order.
+  const method = (r: { postData(): string | null }) => /"method":"([^"]+)"/.exec(r.postData() ?? "")?.[1] ?? "?";
+  page.on("console", (m) => trace.push(`console.${m.type()}: ${m.text().slice(0, 200)}`));
+  page.on("pageerror", (e) => trace.push(`pageerror: ${String(e).slice(0, 300)}`));
+  page.on("request", (r) => { if (r.url().includes(":8787")) trace.push(`> ${method(r)}`); });
+  page.on("requestfailed", (r) => { if (r.url().includes(":8787")) trace.push(`FAILED ${method(r)} ${r.failure()?.errorText}`); });
+  page.on("requestfinished", (r) => { if (r.url().includes(":8787")) trace.push(`< ${method(r)}`); });
 });
+const trace: string[] = [];
 
 // SCREENSHOTS=1 writes images for the manual test guide (docs/testing/img/v0.2.1).
 async function shot(name: string) {
@@ -130,7 +138,11 @@ test("login: LTR username keeps the UI font (OF-004); wrong password, then the o
 
 test("header status and command palette", async () => {
   await expect(page.getByTestId("status-online")).toHaveText("آنلاین");
-  await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
+  try {
+    await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
+  } catch (e) {
+    throw new Error("TRACE " + trace.slice(-40).join(" | ") + " ## " + String(e).slice(0, 200));
+  }
   await page.getByTestId("command-palette-open").click();
   await page.getByTestId("command-palette-input").fill("کاربران");
   await expect(page.getByTestId("command-item-users")).toBeVisible();
