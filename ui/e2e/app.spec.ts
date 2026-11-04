@@ -16,15 +16,7 @@ const OWNER = { user: "owner", pass: "owner-pass-123" };
 
 test.beforeAll(async ({ browser }) => {
   page = await newClinicPage(browser, { width: 1280, height: 800 });
-  page.on("console", (m) => debug.push("console." + m.type() + ": " + m.text().slice(0, 300)));
-  page.on("pageerror", (e) => debug.push("pageerror: " + String(e).slice(0, 400)));
-  page.on("request", (r) => { if (r.url().includes(":8787")) { pending.set(r, (r.postData() ?? "").slice(0, 50)); } });
-  page.on("requestfailed", (r) => { pending.delete(r); debug.push("FAILED " + (r.postData() ?? "").slice(0, 50) + " " + r.failure()?.errorText); });
-  page.on("requestfinished", (r) => { pending.delete(r); });
-  page.on("requestfinished", async (r) => { if (r.url().includes(":8787")) { const t = await (await r.response())?.text().catch(() => ""); debug.push("rpc " + (r.postData() ?? "").slice(0, 60) + " -> " + (t ?? "").slice(0, 160)); } });
 });
-const debug: string[] = [];
-const pending = new Map<unknown, string>();
 
 // SCREENSHOTS=1 writes images for the manual test guide (docs/testing/img/v0.2.1).
 async function shot(name: string) {
@@ -138,11 +130,7 @@ test("login: LTR username keeps the UI font (OF-004); wrong password, then the o
 
 test("header status and command palette", async () => {
   await expect(page.getByTestId("status-online")).toHaveText("آنلاین");
-  try {
-    await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
-  } catch (e) {
-    throw new Error("DEBUG2 PENDING " + [...pending.values()].join(" ;; ") + " LOG " + debug.slice(-8).map((x) => x.slice(0, 90)).join(" || "));
-  }
+  await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
   await page.getByTestId("command-palette-open").click();
   await page.getByTestId("command-palette-input").fill("کاربران");
   await expect(page.getByTestId("command-item-users")).toBeVisible();
@@ -187,7 +175,8 @@ test("settings: the daily backup time is picked as 12-hour (OF-007)", async () =
   await page.getByTestId("settings-save").click();
   await expect(toast()).toHaveText("تغییرات ذخیره شد.");
   await page.getByTestId("tab-backup").click();
-  await expect(page.getByTestId("page-backup")).toContainText("هر روز، ساعت ۸:۰۰ ق.ظ");
+  // The Backup page names the next automatic run, now at the 8:00 AM just chosen (Phase 10).
+  await expect(page.getByTestId("backup-next")).toContainText("ساعت ۸:۰۰ ق.ظ");
 });
 
 test("owner edits the clinic profile", async () => {
