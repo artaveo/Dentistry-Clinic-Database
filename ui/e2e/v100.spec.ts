@@ -75,7 +75,7 @@ test("A report runs for a period, narrows by doctor, exports to Excel and prints
     await expect(page.getByTestId("report-export-done")).toBeVisible();
     await page.getByTestId("report-print").click();
     await expect(page.getByTestId("report-preview")).toBeVisible();
-    await expect(page.getByTestId("report-sheet")).toBeVisible();
+    await expect(page.getByTestId("doc-preview").getByTestId("report-sheet")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("report-preview")).toBeHidden();
   }
