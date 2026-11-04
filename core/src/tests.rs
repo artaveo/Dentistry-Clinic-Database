@@ -4690,12 +4690,10 @@ fn global_search_finds_patients_documents_and_respects_access() {
 fn the_audit_viewer_filters_and_marks_the_sensitive_actions() {
     let c = clinic4();
     let (t, owner) = (&c.t, c.owner.as_str());
-    let p = t.ok(m::PATIENTS_GET, json!({"patient_id": c.patient}), Some(owner));
-    t.ok(
-        m::PATIENTS_UPDATE,
-        json!({"id": c.patient, "version": p["version"], "full_name": "بیمار یکم (ویرایش)", "phone": "0700111111"}),
-        Some(owner),
-    );
+    let mut update = t.ok(m::PATIENTS_GET, json!({"patient_id": c.patient}), Some(owner));
+    update["full_name"] = json!("بیمار یکم (ویرایش)");
+    update["status"] = json!("active");
+    t.ok(m::PATIENTS_UPDATE, update, Some(owner));
     invoiced_and_part_paid(&c);
 
     let page = |extra: Value| {
