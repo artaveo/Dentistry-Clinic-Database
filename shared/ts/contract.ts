@@ -1750,7 +1750,7 @@ headers: Array<string>,
  */
 labels: { [key in string]: string }, };
 
-export type NotificationKind = "appointment_reminder" | "follow_up_due" | "installment_due" | "low_stock" | "expiring_item" | "expired_item" | "lab_delayed" | "backup_failed" | "backup_overdue" | "usb_missing" | "usb_cloned" | "license_expiring" | "license_read_only" | "license_verify";
+export type NotificationKind = "appointment_reminder" | "follow_up_due" | "installment_due" | "low_stock" | "expiring_item" | "expired_item" | "lab_delayed" | "backup_failed" | "backup_overdue" | "usb_missing" | "usb_cloned" | "license_expiring" | "license_expired" | "license_read_only" | "license_verify";
 
 export type NotificationLevel = "info" | "warning" | "danger";
 
@@ -1838,9 +1838,9 @@ export type ScanBackupsParams = { folder: string | null, };
 
 export type RestoreNewParams = { folder: string, file_name: string, recovery_key: string, };
 
-export type LicenseState = "unactivated" | "trial" | "active" | "grace" | "expired" | "revoked" | "clock_tampered" | "invalid" | "needs_verification";
+export type LicenseState = "unactivated" | "trial" | "active" | "expired_warning" | "grace" | "expired" | "revoked" | "pending" | "blocked" | "clock_tampered" | "invalid" | "needs_verification";
 
-export type LicenseStatus = { state: LicenseState, read_only: boolean, kind: string | null, plan: string | null, computers: number, installation_id: string, expires_at: string | null, days_left: number | null, verified_at: string | null, verify_due: boolean, grace_days_left: number | null, first_period_days_left: number | null, server_configured: boolean, };
+export type LicenseStatus = { state: LicenseState, read_only: boolean, kind: string | null, plan: string | null, computers: number, installation_id: string, fingerprint_hint: string, expires_at: string | null, days_left: number | null, verified_at: string | null, verify_due: boolean, grace_days_left: number | null, server_configured: boolean, };
 
 export type ActivateParams = { code: string, };
 
@@ -2080,10 +2080,8 @@ export interface Api {
   "backup.scan": { params: ScanBackupsParams; result: Array<RestoreCandidate> };
   "backup.restore_new": { params: RestoreNewParams; result: Empty };
   "license.status": { params: Empty; result: LicenseStatus };
-  "license.start_trial": { params: Empty; result: LicenseStatus };
   "license.activate": { params: ActivateParams; result: LicenseStatus };
   "license.verify": { params: Empty; result: LicenseStatus };
-  "license.release": { params: Empty; result: LicenseStatus };
   "license.offline_request": { params: Empty; result: OfflineRequestInfo };
   "license.offline_apply": { params: OfflineApplyParams; result: LicenseStatus };
 }

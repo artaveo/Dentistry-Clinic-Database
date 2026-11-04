@@ -684,12 +684,6 @@ impl Core {
                 ok(self.restore_backup(&s, &r)?)
             }
             m::LICENSE_STATUS => ok(self.license.status()),
-            m::LICENSE_START_TRIAL => {
-                s.require(perm::SETTINGS_MANAGE)?;
-                let st = self.license.start_trial(&self.license_client_info())?;
-                self.after_license_change(&s, "license.start_trial", &st)?;
-                ok(st)
-            }
             m::LICENSE_ACTIVATE => {
                 s.require(perm::SETTINGS_MANAGE)?;
                 let ActivateParams { code } = params(p)?;
@@ -701,15 +695,6 @@ impl Core {
                 s.require(perm::SETTINGS_MANAGE)?;
                 let st = self.license.verify(&self.license_client_info())?;
                 self.after_license_change(&s, "license.verify", &st)?;
-                ok(st)
-            }
-            m::LICENSE_RELEASE => {
-                s.require(perm::SETTINGS_MANAGE)?;
-                if s.user.role != OWNER {
-                    return Err(CoreError::forbidden(perm::SETTINGS_MANAGE));
-                }
-                let st = self.license.release()?;
-                self.after_license_change(&s, "license.release", &st)?;
                 ok(st)
             }
             m::LICENSE_OFFLINE_REQUEST => {

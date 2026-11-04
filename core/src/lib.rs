@@ -19,6 +19,7 @@ pub mod db;
 pub mod documents;
 pub mod draft;
 pub mod error;
+pub mod fingerprint;
 pub mod formulary;
 pub mod ids;
 pub mod import;

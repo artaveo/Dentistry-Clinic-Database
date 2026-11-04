@@ -233,6 +233,7 @@ pub enum NotificationKind {
     UsbMissing,
     UsbCloned,
     LicenseExpiring,
+    LicenseExpired,
     LicenseReadOnly,
     LicenseVerify,
 }

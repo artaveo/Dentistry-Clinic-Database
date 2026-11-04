@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use artaveo_shared::{methods as m, ErrorCode};
-use data_encoding::BASE64;
 use ed25519_dalek::{Signer, SigningKey};
 use serde_json::{json, Value};
 
@@ -360,93 +359,108 @@ fn a_new_computer_restores_from_a_backup_with_the_recovery_key() {
 
 // ───────────────────────────── license ─────────────────────────────
 
+/// Writes a token as the Control Center would sign it for this very installation and hardware.
+#[allow(clippy::too_many_arguments)]
 fn write_license(
     t: &T,
     key: &SigningKey,
-    kind: &str,
+    result: &str,
     computers: u32,
-    verified_days_ago: i64,
+    issued_days_ago: i64,
     expires_in_days: i64,
+    valid_until_in_days: i64,
+    check_every_days: i64,
 ) {
     let at = now();
     let day = time::Duration::days;
     let payload = json!({
-        "v": 1, "license_id": "lic-1", "clinic_id": "clinic-1", "installation_id": t.core.license.installation_id(),
-        "kind": kind, "plan": "standard", "computers": computers,
-        "issued_at": iso(at - day(verified_days_ago)), "verified_at": iso(at - day(verified_days_ago)),
-        "starts_at": iso(at - day(365)), "expires_at": iso(at + day(expires_in_days)),
-        "offline_grace_days": 30, "verify_every_days": 7
-    })
-    .to_string();
-    let signature = BASE64.encode(&key.sign(payload.as_bytes()).to_bytes());
+        "result": result, "kind": "paid", "plan": "standard", "max_computers": computers,
+        "installation_id": t.core.license.installation_id(), "fingerprint": t.core.license.fingerprint(),
+        "issued_at": iso(at - day(issued_days_ago)), "expires_at": iso(at + day(expires_in_days)),
+        "check_every_days": check_every_days, "offline_grace_days": 120, "post_expiry_grace_days": 120,
+        "valid_until": iso(at + day(valid_until_in_days)),
+    });
+    let b64 = |b: &[u8]| data_encoding::BASE64URL_NOPAD.encode(b);
+    let header = b64(json!({"alg": "EdDSA", "kid": "t"}).to_string().as_bytes());
+    let body = b64(payload.to_string().as_bytes());
+    let signature = b64(&key.sign(format!("{header}.{body}").as_bytes()).to_bytes());
     fs::write(
         t.core.config().data_dir.join("license.json"),
-        json!({"payload": payload, "signature": signature}).to_string(),
+        json!({ "token": format!("{header}.{body}.{signature}") }).to_string(),
     )
     .unwrap();
-    t.core.license.set_public_key(&BASE64.encode(key.verifying_key().as_bytes()));
+    t.core.license.set_keys(vec![("t".into(), key.verifying_key().to_bytes())]);
 }
 
 #[test]
-fn an_expired_license_makes_the_app_read_only_but_never_hides_the_data() {
+fn the_license_states_decide_what_can_be_changed_and_never_hide_the_data() {
     let t = T::new();
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let key = SigningKey::from_bytes(&[3u8; 32]);
     let status = |t: &T| t.ok(m::LICENSE_STATUS, json!({}), Some(&owner));
 
-    // A fresh install is not blocked; the clinic works while it decides.
+    // Development and tests work without a license; a production build would be read-only here.
     let s = status(&t);
     assert_eq!((s["state"].as_str(), s["read_only"].as_bool()), (Some("unactivated"), Some(false)));
-    assert!(s["first_period_days_left"].as_i64().unwrap() >= 13);
+    assert_eq!(s["fingerprint_hint"].as_str().unwrap().len(), 9);
     t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad"}), Some(&owner));
 
-    write_license(&t, &key, "paid", 3, 1, -1); // ended yesterday
+    // The vendor's grace is over: read-only.
+    write_license(&t, &key, "valid", 3, 100, -10, -1, 30);
     let s = status(&t);
     assert_eq!((s["state"].as_str(), s["read_only"].as_bool()), (Some("expired"), Some(true)));
-    // Changes are refused ...
-    assert_eq!(
-        t.call(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner)),
-        Err(ErrorCode::LicenseReadOnly)
-    );
+    assert_eq!(t.call(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
     assert_eq!(
         t.call(m::SETTINGS_UPDATE, t.ok(m::SETTINGS_GET, json!({}), Some(&owner)), Some(&owner)),
         Err(ErrorCode::LicenseReadOnly)
     );
-    // ... but everything that only looks, prints, exports or protects the data keeps working.
+    // Everything that only looks, prints, exports or protects the data keeps working.
     let list = t.ok(m::PATIENTS_LIST, json!({"limit": 50, "offset": 0}), Some(&owner));
     assert_eq!(list["items"].as_array().unwrap().len(), 1);
     t.ok(m::BACKUP_CREATE, json!({}), Some(&owner));
     t.ok(m::PATIENTS_EXPORT, json!({}), Some(&owner));
-    t.ok(m::DASHBOARD_GET, json!({}), Some(&owner));
     assert_eq!(t.ok(m::DASHBOARD_GET, json!({}), Some(&owner))["license"], "expired");
     assert!(kinds(&t, &owner).contains(&"license_read_only".to_string()));
 
-    // A renewal (a fresh signed license) lifts it at once.
-    write_license(&t, &key, "paid", 3, 0, 300);
+    // Past the end date but inside the grace: it works, with a warning.
+    write_license(&t, &key, "valid", 3, 5, -10, 50, 30);
+    let s = status(&t);
+    assert_eq!(
+        (s["state"].as_str(), s["read_only"].as_bool(), s["days_left"].as_i64()),
+        (Some("expired_warning"), Some(false), Some(-10))
+    );
+    t.ok(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner));
+    assert!(kinds(&t, &owner).contains(&"license_expired".to_string()));
+
+    // A renewal (a fresh token) lifts the warning at once.
+    write_license(&t, &key, "valid", 3, 0, 300, 120, 30);
     let s = status(&t);
     assert_eq!(
         (s["state"].as_str(), s["read_only"].as_bool(), s["plan"].as_str()),
         (Some("active"), Some(false), Some("standard"))
     );
     assert_eq!(s["days_left"], 300);
-    t.ok(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner));
-    assert!(!kinds(&t, &owner).contains(&"license_read_only".to_string()));
+    assert!(!kinds(&t, &owner).contains(&"license_expired".to_string()));
 
-    // No check with the server for 10 days: still works, with a reminder; after 30 days: read-only.
-    write_license(&t, &key, "paid", 3, 10, 300);
+    // The monthly check is late: it still works, with a reminder; with no check until the token's limit it is read-only.
+    write_license(&t, &key, "valid", 3, 40, 300, 80, 30);
     let s = status(&t);
     assert_eq!(
         (s["state"].as_str(), s["read_only"].as_bool(), s["verify_due"].as_bool()),
         (Some("grace"), Some(false), Some(true))
     );
     assert!(kinds(&t, &owner).contains(&"license_verify".to_string()));
-    write_license(&t, &key, "paid", 3, 31, 300);
+    write_license(&t, &key, "valid", 3, 200, 300, -10, 30);
     assert_eq!(status(&t)["state"], "needs_verification");
-    assert_eq!(
-        t.call(m::PATIENTS_CREATE, json!({"full_name": "X"}), Some(&owner)),
-        Err(ErrorCode::LicenseReadOnly)
-    );
+    assert_eq!(t.call(m::PATIENTS_CREATE, json!({"full_name": "X"}), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
+
+    // The vendor has not approved this computer / has blocked it / has suspended the license.
+    for (result, state) in [("pending", "pending"), ("blocked", "blocked"), ("license_suspended", "revoked")] {
+        write_license(&t, &key, result, 3, 0, 300, 120, 30);
+        let s = status(&t);
+        assert_eq!((s["state"].as_str(), s["read_only"].as_bool()), (Some(state), Some(true)), "{result}");
+    }
 }
 
 #[test]
@@ -455,26 +469,23 @@ fn the_plan_sets_the_lan_client_limit_and_only_managers_use_the_license_pages() 
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let key = SigningKey::from_bytes(&[4u8; 32]);
-    write_license(&t, &key, "paid", 3, 0, 200);
+    write_license(&t, &key, "valid", 3, 0, 200, 120, 30);
     t.core.apply_license_limits();
     // 3 computers = the clinic server and 2 more.
     assert_eq!(t.ok(m::LAN_STATUS, json!({}), Some(&owner))["client_limit"], 2);
 
-    // This build has no license server address, so asking for a trial says so clearly.
-    assert_eq!(
-        t.call(m::LICENSE_START_TRIAL, json!({}), Some(&owner)),
-        Err(ErrorCode::LicenseServerUnavailable)
-    );
-    assert_eq!(
-        t.call(m::LICENSE_ACTIVATE, json!({"code": "ARTA-AAAA-BBBB-CCCC"}), Some(&owner)),
-        Err(ErrorCode::LicenseServerUnavailable)
-    );
+    // A key must look like a key before anything is sent; this build has no license server address.
+    let bad = json!({"code": "ARTA-AAAA-BBBB-CCCC"});
+    assert_eq!(t.call(m::LICENSE_ACTIVATE, bad, Some(&owner)), Err(ErrorCode::Validation));
+    let good = json!({"code": "0A1B-2C3D-4E5F-6A7B-8C9D-0E1F"});
+    assert_eq!(t.call(m::LICENSE_ACTIVATE, good.clone(), Some(&owner)), Err(ErrorCode::LicenseServerUnavailable));
+    assert_eq!(t.call(m::LICENSE_VERIFY, json!({}), Some(&owner)), Err(ErrorCode::LicenseRejected), "no key was ever accepted");
     assert_eq!(
         t.call(m::LICENSE_OFFLINE_APPLY, json!({"response_code": "xxx"}), Some(&owner)),
         Err(ErrorCode::LicenseRejected)
     );
     let req = t.ok(m::LICENSE_OFFLINE_REQUEST, json!({}), Some(&owner));
-    assert!(req["request_code"].as_str().unwrap().len() > 40);
+    assert!(req["request_code"].as_str().unwrap().len() > 60);
 
     t.ok(
         m::USERS_CREATE,
@@ -482,17 +493,9 @@ fn the_plan_sets_the_lan_client_limit_and_only_managers_use_the_license_pages() 
         Some(&owner),
     );
     let rec = t.login("reception", "recep-pass-1");
-    assert!(
-        t.ok(m::LICENSE_STATUS, json!({}), Some(&rec))["state"].is_string(),
-        "everyone may read the state"
-    );
-    assert_eq!(
-        t.call(m::LICENSE_ACTIVATE, json!({"code": "ARTA-AAAA-BBBB-CCCC"}), Some(&rec)),
-        Err(ErrorCode::Forbidden)
-    );
+    assert!(t.ok(m::LICENSE_STATUS, json!({}), Some(&rec))["state"].is_string(), "everyone may read the state");
+    assert_eq!(t.call(m::LICENSE_ACTIVATE, good, Some(&rec)), Err(ErrorCode::Forbidden));
     assert_eq!(t.call(m::LICENSE_VERIFY, json!({}), Some(&rec)), Err(ErrorCode::Forbidden));
-    // Giving the place back is for the Owner only.
-    assert_eq!(t.call(m::LICENSE_RELEASE, json!({}), Some(&rec)), Err(ErrorCode::Forbidden));
 }
 
 #[test]
@@ -502,12 +505,12 @@ fn the_license_survives_a_restore_so_an_old_backup_cannot_bring_back_a_trial() {
     let owner = t.login("owner", "owner-pass-1");
     let b = t.ok(m::BACKUP_CREATE, json!({}), Some(&owner));
     let key = SigningKey::from_bytes(&[5u8; 32]);
-    write_license(&t, &key, "paid", 1, 1, -5); // expired five days ago
+    write_license(&t, &key, "valid", 1, 100, -10, -1, 30); // read-only: the vendor's grace is over
     pause();
     let restore = json!({"source": "local", "file_name": b["file_name"], "password": "owner-pass-1"});
     // Backup and restore keep working in read-only state (10.9) ...
     t.ok(m::BACKUP_RESTORE, restore, Some(&owner));
     let owner = t.login("owner", "owner-pass-1");
-    // ... and the license files beside the database were not touched by it.
+    // ... and the token beside the database was not touched by it.
     assert_eq!(t.ok(m::LICENSE_STATUS, json!({}), Some(&owner))["state"], "expired");
 }

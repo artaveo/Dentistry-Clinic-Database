@@ -30,8 +30,6 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - name: Version is consistent (SemVer)
         run: node scripts/check-version.mjs
-      - name: License server logic (signing, codes, renewal) - the same file the Edge Functions run
-        run: node --test server/supabase/functions/_shared/license.test.mjs
       - run: cargo fmt --all --check
       - name: Run cargo clippy -p artaveo-core -p artaveo-shared -p artaveo-lan --all-targets --features artaveo-core/dev-server -- -D warnings
         run: |

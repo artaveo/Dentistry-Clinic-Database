@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CircleAlert, CircleCheck, Copy, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Unplug, WifiOff } from "lucide-react";
+import { CircleAlert, CircleCheck, Copy, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, WifiOff } from "lucide-react";
 import type { CalendarSystem, LicenseState, LicenseStatus } from "../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../lib/api";
 import { digits, formatDate, formatDateTime } from "../lib/dates";
@@ -16,9 +16,12 @@ const TONE: Record<LicenseState, Tone> = {
   active: "success",
   trial: "info",
   unactivated: "info",
+  pending: "info",
+  expired_warning: "warning",
   grace: "warning",
   expired: "danger",
   revoked: "danger",
+  blocked: "danger",
   clock_tampered: "danger",
   invalid: "danger",
   needs_verification: "danger",
@@ -34,16 +37,15 @@ function reason(e: unknown): string | null {
  * code (online) or offline, check now, or hand the place to another computer. Never alarming about
  * the data: the page says plainly that patient records stay readable whatever happens.
  */
-export function LicensePage({ calendar, canManage, isOwner }: { calendar?: CalendarSystem; canManage: boolean; isOwner: boolean }) {
+export function LicensePage({ calendar, canManage }: { calendar?: CalendarSystem; canManage: boolean }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState<"" | "trial" | "activate" | "verify" | "release">("");
+  const [busy, setBusy] = useState<"" | "activate" | "verify">("");
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
   const [offline, setOffline] = useState(false);
-  const [release, setRelease] = useState(false);
 
   const load = useCallback(() => {
     rpc("license.status", {})
@@ -68,7 +70,6 @@ export function LicensePage({ calendar, canManage, isOwner }: { calendar?: Calen
       else toast.error(why ? t(`lic.reject.${why}`) : err(e));
     } finally {
       setBusy("");
-      setRelease(false);
     }
   };
 
@@ -82,9 +83,7 @@ export function LicensePage({ calendar, canManage, isOwner }: { calendar?: Calen
   const Icon = tone === "success" ? ShieldCheck : tone === "danger" ? ShieldAlert : tone === "warning" ? CircleAlert : KeyRound;
   const headline = status.state === "trial" && status.days_left !== null
     ? t("lic.state.trial").replace("{n}", n(Math.max(status.days_left, 0)))
-    : status.state === "unactivated" && status.first_period_days_left !== null
-      ? t("lic.state.unactivated").replace("{n}", n(status.first_period_days_left))
-      : t(`lic.state.${status.state}`);
+    : t(`lic.state.${status.state}`);
 
   const activate = (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -113,6 +112,9 @@ export function LicensePage({ calendar, canManage, isOwner }: { calendar?: Calen
           <span className="spacer" />
           <Badge tone={tone} testId="lic-state">{t(`lic.badge.${status.state}`)}</Badge>
         </div>
+        {status.state === "pending" && (
+          <Notice tone="info" title={t("lic.pending.title")} testId="lic-pending">{t("lic.pending.body").replace("{fp}", status.fingerprint_hint)}</Notice>
+        )}
         {status.read_only && (
           <Notice tone="info" title={t("lic.readOnly.title")} testId="lic-readonly">
             <ul className="plain-list" style={{ marginTop: "var(--space-2)" }}>
@@ -142,6 +144,11 @@ export function LicensePage({ calendar, canManage, isOwner }: { calendar?: Calen
             {status.grace_days_left !== null && <span className="subtle t-caption">{t("lic.graceLeft").replace("{n}", n(status.grace_days_left))}</span>}
           </div>
           <div className="lan-fact">
+            <span className="lan-fact-label">{t("lic.fingerprint")}</span>
+            <span className="lan-fact-value"><bdi className="ltr num" data-testid="lic-fingerprint">{status.fingerprint_hint}</bdi></span>
+            <span className="subtle t-caption">{t("lic.fingerprintHint")}</span>
+          </div>
+          <div className="lan-fact">
             <span className="lan-fact-label">{t("lic.installation")}</span>
             <span className="lan-fact-value">
               <bdi className="ltr num" data-testid="lic-installation">{status.installation_id}</bdi>
@@ -157,47 +164,17 @@ export function LicensePage({ calendar, canManage, isOwner }: { calendar?: Calen
           {!online && <Notice tone="warning" testId="lic-offline-build">{t("lic.noServer")}</Notice>}
           <form onSubmit={activate} noValidate className="lic-code-form">
             <Field label={t("lic.activate.code")} hint={t("lic.activate.codeHint")} error={codeError || null} className="code-input">
-              <TextInput dir="ltr" placeholder="ARTA-XXXX-XXXX-XXXX" autoComplete="off" spellCheck={false} value={code} onChange={(x) => { setCode(x.target.value.toUpperCase()); setCodeError(""); }} data-testid="lic-code" />
+              <TextInput dir="ltr" placeholder="0A1B-2C3D-4E5F-6A7B-8C9D-0E1F" autoComplete="off" spellCheck={false} value={code} onChange={(x) => { setCode(x.target.value.toUpperCase()); setCodeError(""); }} data-testid="lic-code" />
             </Field>
             <div className="row">
               <Button type="submit" variant="primary" icon={ShieldCheck} loading={busy === "activate"} disabled={!online} data-testid="lic-activate">{t("lic.activate.go")}</Button>
               <Button variant="subtle" icon={WifiOff} onClick={() => setOffline(true)} data-testid="lic-offline-open">{t("lic.offline.open")}</Button>
             </div>
           </form>
-          {status.state === "unactivated" && (
-            <div className="lic-trial">
-              <div>
-                <strong>{t("lic.trial.title")}</strong>
-                <p className="muted" style={{ margin: 0 }}>{t("lic.trial.hint")}</p>
-              </div>
-              <Button icon={Sparkles} loading={busy === "trial"} disabled={!online} onClick={() => run("trial", () => rpc("license.start_trial", {}), "lic.trialStarted")} data-testid="lic-trial">{t("lic.trial.go")}</Button>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {isOwner && hasLicense && online && (
-        <Card>
-          <CardHeader icon={Unplug} title={t("lic.release.title")} description={t("lic.release.hint")} actions={<Button variant="danger" onClick={() => setRelease(true)} data-testid="lic-release">{t("lic.release.go")}</Button>} />
         </Card>
       )}
 
       {offline && <OfflineDialog onClose={() => setOffline(false)} onApplied={(s) => { setStatus(s); setOffline(false); toast.success(t("lic.activated")); window.dispatchEvent(new Event("artaveo:license-changed")); }} />}
-      {release && (
-        <Dialog
-          title={t("lic.release.title")}
-          description={t("lic.release.body")}
-          onClose={() => setRelease(false)}
-          footer={
-            <>
-              <Button variant="subtle" onClick={() => setRelease(false)}>{t("common.cancel")}</Button>
-              <Button variant="danger" loading={busy === "release"} onClick={() => run("release", () => rpc("license.release", {}), "lic.released")} data-testid="lic-release-confirm">{t("lic.release.go")}</Button>
-            </>
-          }
-        >
-          <span />
-        </Dialog>
-      )}
     </Page>
   );
 }

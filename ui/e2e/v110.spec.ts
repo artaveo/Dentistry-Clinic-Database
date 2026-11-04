@@ -39,13 +39,13 @@ test("The dashboard license row leads to the License page, which says the state 
   await expect(page.getByTestId("dash-license")).toContainText("فعال نشده");
   await page.getByTestId("dash-license").getByRole("button").click();
   await expect(page.getByTestId("page-license")).toBeVisible();
-  await expect(page.getByTestId("lic-headline")).toContainText("فعال نشده");
+  await expect(page.getByTestId("lic-headline")).toContainText("لایسنس وارد نشده");
+  await expect(page.getByTestId("lic-fingerprint")).toHaveText(/^[0-9A-F]{4}-[0-9A-F]{4}$/);
   await expect(page.getByTestId("lic-state")).toBeVisible();
   await expect(page.getByTestId("lic-installation")).not.toBeEmpty();
   // This build has no license server address: online activation is off, offline activation is offered.
   await expect(page.getByTestId("lic-offline-build")).toBeVisible();
   await expect(page.getByTestId("lic-activate")).toBeDisabled();
-  await expect(page.getByTestId("lic-trial")).toBeDisabled();
 });
 
 test("Offline activation shows a request code and refuses a wrong response", async () => {

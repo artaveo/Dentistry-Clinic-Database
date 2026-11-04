@@ -278,7 +278,7 @@ export function Shell({
         {tab === "clinical" && <ClinicalListsPage />}
         {tab === "system" && <SystemInfoPage version={version} />}
         {tab === "backup" && <BackupPage canCreate={can("backup.create")} canRestore={can("backup.restore")} calendar={clinic?.calendar_system} onRestored={onSignOut} />}
-        {tab === "license" && <LicensePage calendar={clinic?.calendar_system} canManage={can("settings.manage")} isOwner={session.user.role === "owner"} />}
+        {tab === "license" && <LicensePage calendar={clinic?.calendar_system} canManage={can("settings.manage")} />}
         {tab === "users" && <UsersPage currentUserId={session.user.id} />}
         {tab === "audit" && <AuditPage calendar={clinic?.calendar_system} />}
         {tab === "clinic" && <ClinicPage logo={logo} onLogoChange={onLogoChange} onSaved={loadClinic} />}

@@ -3545,10 +3545,8 @@ api! {
     "backup.scan"            => BACKUP_SCAN(ScanBackupsParams) -> Vec<RestoreCandidate>;
     "backup.restore_new"     => BACKUP_RESTORE_NEW(RestoreNewParams) -> Empty;
     "license.status"         => LICENSE_STATUS(Empty) -> LicenseStatus;
-    "license.start_trial"    => LICENSE_START_TRIAL(Empty) -> LicenseStatus;
     "license.activate"       => LICENSE_ACTIVATE(ActivateParams) -> LicenseStatus;
     "license.verify"         => LICENSE_VERIFY(Empty) -> LicenseStatus;
-    "license.release"        => LICENSE_RELEASE(Empty) -> LicenseStatus;
     "license.offline_request" => LICENSE_OFFLINE_REQUEST(Empty) -> OfflineRequestInfo;
     "license.offline_apply"  => LICENSE_OFFLINE_APPLY(OfflineApplyParams) -> LicenseStatus;
 }

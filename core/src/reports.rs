@@ -1368,9 +1368,19 @@ pub fn notifications(conn: &Connection, s: &Session, extras: &NotifyExtras) -> R
                 page,
                 None,
             ));
-        } else if let Some(left) =
-            l.first_period_days_left.filter(|d| *d <= 7).or(l.days_left.filter(|d| *d <= 14))
-        {
+        } else if l.state == S::ExpiredWarning {
+            let over = l.days_left.map(|d| (-d).to_string());
+            items.push(item(
+                format!("license_expired:{}", over.clone().unwrap_or_default()),
+                K::LicenseExpired,
+                L::Warning,
+                same(""),
+                over,
+                None,
+                page,
+                None,
+            ));
+        } else if let Some(left) = l.days_left.filter(|d| (0..=30).contains(d)) {
             items.push(item(
                 format!("license_expiring:{left}"),
                 K::LicenseExpiring,

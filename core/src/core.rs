@@ -14,7 +14,7 @@ use crate::db;
 use crate::error::{CoreError, Result};
 use crate::keys::{default_protector, DataKey, KeyProtector};
 use crate::lan::{self, LanHub};
-use crate::license::{HttpServer, LicenseManager, PUBLIC_KEY_B64};
+use crate::license::{trusted_keys, HttpServer, LicenseManager};
 use crate::session::SessionStore;
 use crate::settings;
 use crate::usb::{SystemUsb, UsbProvider};
@@ -48,8 +48,15 @@ impl Core {
     /// role sync → background full integrity check.
     pub fn with_protector(config: Config, protector: Box<dyn KeyProtector>) -> Result<Self> {
         fs::create_dir_all(&config.data_dir)?;
-        let license =
-            LicenseManager::new(&config.data_dir, PUBLIC_KEY_B64, Box::new(HttpServer::from_build()))?;
+        // A production build trusts only the production key and needs a license; development and tests do not.
+        let production = config.environment == crate::Environment::Production;
+        let license = LicenseManager::new(
+            &config.data_dir,
+            trusted_keys(!production),
+            Box::new(HttpServer::from_build(production)),
+            crate::fingerprint::current(),
+            !production,
+        )?;
         let core = Core {
             config,
             protector,
