@@ -82,7 +82,7 @@ pub enum Loaded {
     None,
     /// Signature wrong, file damaged, or made for another computer.
     Invalid,
-    Valid(Payload),
+    Valid(Box<Payload>),
 }
 
 pub fn verify_file(public_key_b64: &str, file: &LicenseFile) -> Option<Payload> {
@@ -349,7 +349,7 @@ impl LicenseManager {
             Ok(bytes) => match serde_json::from_slice::<LicenseFile>(&bytes) {
                 Err(_) => Loaded::Invalid,
                 Ok(file) => match verify_file(&key, &file) {
-                    Some(p) if p.installation_id == st.install.installation_id => Loaded::Valid(p),
+                    Some(p) if p.installation_id == st.install.installation_id => Loaded::Valid(Box::new(p)),
                     _ => Loaded::Invalid,
                 },
             },
@@ -551,8 +551,8 @@ mod tests {
 
     use super::*;
 
-    fn payload(installation: &str, kind: &str, verified: &str, expires: &str) -> Payload {
-        Payload {
+    fn payload(installation: &str, kind: &str, verified: &str, expires: &str) -> Box<Payload> {
+        Box::new(Payload {
             v: 1,
             license_id: "l".into(),
             clinic_id: "c".into(),
@@ -566,7 +566,7 @@ mod tests {
             expires_at: expires.into(),
             offline_grace_days: 30,
             verify_every_days: 7,
-        }
+        })
     }
 
     fn install(first: &str, seen: &str) -> Install {
