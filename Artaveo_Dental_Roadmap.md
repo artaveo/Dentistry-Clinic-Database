@@ -951,6 +951,8 @@ Sent Date · Expected Date · Received Date · Status · Cost · Notes
 
 **Exit Criteria:** خرید، مصرف، هشدار موجودی/انقضا و چرخه کامل یک Lab Case کار می‌کند.
 
+> **وضعیت (v0.9.0):** ✅ پیاده‌سازی شد؛ CI روی Linux و Windows (x64، x86، ARM64) سبز است. خرید و دریافت یک مرحله‌اند (سفارش جدا نداریم)؛ لابراتوار نوعی «تأمین‌کننده» است و فرمایش چاپی لابراتوار هنوز به Lab Case وصل نیست. هشدارها فعلاً روی صفحه انبار است؛ مرکز اعلان و گزارش‌های موجودی در فاز ۹. [یادداشت انتشار](docs/releases/v0.9.0.md)
+
 ---
 
 # PHASE 9 — Dashboard, Reports, Notifications & Global Search
