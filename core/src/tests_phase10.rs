@@ -410,7 +410,10 @@ fn the_license_states_decide_what_can_be_changed_and_never_hide_the_data() {
     write_license(&t, &key, "valid", 3, 100, -10, -1, 30);
     let s = status(&t);
     assert_eq!((s["state"].as_str(), s["read_only"].as_bool()), (Some("expired"), Some(true)));
-    assert_eq!(t.call(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": "Zarghuna"}), Some(&owner)),
+        Err(ErrorCode::LicenseReadOnly)
+    );
     assert_eq!(
         t.call(m::SETTINGS_UPDATE, t.ok(m::SETTINGS_GET, json!({}), Some(&owner)), Some(&owner)),
         Err(ErrorCode::LicenseReadOnly)
@@ -453,10 +456,14 @@ fn the_license_states_decide_what_can_be_changed_and_never_hide_the_data() {
     assert!(kinds(&t, &owner).contains(&"license_verify".to_string()));
     write_license(&t, &key, "valid", 3, 200, 300, -10, 30);
     assert_eq!(status(&t)["state"], "needs_verification");
-    assert_eq!(t.call(m::PATIENTS_CREATE, json!({"full_name": "X"}), Some(&owner)), Err(ErrorCode::LicenseReadOnly));
+    assert_eq!(
+        t.call(m::PATIENTS_CREATE, json!({"full_name": "X"}), Some(&owner)),
+        Err(ErrorCode::LicenseReadOnly)
+    );
 
     // The vendor has not approved this computer / has blocked it / has suspended the license.
-    for (result, state) in [("pending", "pending"), ("blocked", "blocked"), ("license_suspended", "revoked")] {
+    for (result, state) in [("pending", "pending"), ("blocked", "blocked"), ("license_suspended", "revoked")]
+    {
         write_license(&t, &key, result, 3, 0, 300, 120, 30);
         let s = status(&t);
         assert_eq!((s["state"].as_str(), s["read_only"].as_bool()), (Some(state), Some(true)), "{result}");
@@ -478,8 +485,15 @@ fn the_plan_sets_the_lan_client_limit_and_only_managers_use_the_license_pages() 
     let bad = json!({"code": "ARTA-AAAA-BBBB-CCCC"});
     assert_eq!(t.call(m::LICENSE_ACTIVATE, bad, Some(&owner)), Err(ErrorCode::Validation));
     let good = json!({"code": "0A1B-2C3D-4E5F-6A7B-8C9D-0E1F"});
-    assert_eq!(t.call(m::LICENSE_ACTIVATE, good.clone(), Some(&owner)), Err(ErrorCode::LicenseServerUnavailable));
-    assert_eq!(t.call(m::LICENSE_VERIFY, json!({}), Some(&owner)), Err(ErrorCode::LicenseRejected), "no key was ever accepted");
+    assert_eq!(
+        t.call(m::LICENSE_ACTIVATE, good.clone(), Some(&owner)),
+        Err(ErrorCode::LicenseServerUnavailable)
+    );
+    assert_eq!(
+        t.call(m::LICENSE_VERIFY, json!({}), Some(&owner)),
+        Err(ErrorCode::LicenseRejected),
+        "no key was ever accepted"
+    );
     assert_eq!(
         t.call(m::LICENSE_OFFLINE_APPLY, json!({"response_code": "xxx"}), Some(&owner)),
         Err(ErrorCode::LicenseRejected)
@@ -493,7 +507,10 @@ fn the_plan_sets_the_lan_client_limit_and_only_managers_use_the_license_pages() 
         Some(&owner),
     );
     let rec = t.login("reception", "recep-pass-1");
-    assert!(t.ok(m::LICENSE_STATUS, json!({}), Some(&rec))["state"].is_string(), "everyone may read the state");
+    assert!(
+        t.ok(m::LICENSE_STATUS, json!({}), Some(&rec))["state"].is_string(),
+        "everyone may read the state"
+    );
     assert_eq!(t.call(m::LICENSE_ACTIVATE, good, Some(&rec)), Err(ErrorCode::Forbidden));
     assert_eq!(t.call(m::LICENSE_VERIFY, json!({}), Some(&rec)), Err(ErrorCode::Forbidden));
 }

@@ -38,7 +38,8 @@ pub const PUBLIC_KEYS: &[(&str, &str, bool)] = &[
 ];
 
 /// The production `validate` function of the Control Center (ADR-25).
-pub const PRODUCTION_URL: &str = "https://br-calm-hill-b145m2f2-validate.compute.c-5.eu-central-1.aws.neon.tech/";
+pub const PRODUCTION_URL: &str =
+    "https://br-calm-hill-b145m2f2-validate.compute.c-5.eu-central-1.aws.neon.tech/";
 
 /// A clock this far behind the latest time seen counts as tampering.
 const CLOCK_SLACK_HOURS: i64 = 24;
@@ -291,7 +292,11 @@ impl LicenseServer for HttpServer {
             if v.get("token").and_then(Value::as_str).is_some() {
                 Ok(v)
             } else {
-                let why = v.get("result").or_else(|| v.get("error")).and_then(Value::as_str).unwrap_or("server_error");
+                let why = v
+                    .get("result")
+                    .or_else(|| v.get("error"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("server_error");
                 Err(if why == "server_error" {
                     ServerError::Unavailable(why.into())
                 } else {
@@ -357,14 +362,16 @@ impl LicenseManager {
         fs::create_dir_all(dir)?;
         let at = now();
         let install_path = dir.join("install.json");
-        let install = match fs::read(&install_path).ok().and_then(|b| serde_json::from_slice::<Install>(&b).ok()) {
-            Some(i) => i,
-            None => {
-                let i = Install { installation_id: new_id(), first_run_at: iso(at), last_seen_at: iso(at) };
-                write_atomic(&install_path, &serde_json::to_vec_pretty(&i)?)?;
-                i
-            }
-        };
+        let install =
+            match fs::read(&install_path).ok().and_then(|b| serde_json::from_slice::<Install>(&b).ok()) {
+                Some(i) => i,
+                None => {
+                    let i =
+                        Install { installation_id: new_id(), first_run_at: iso(at), last_seen_at: iso(at) };
+                    write_atomic(&install_path, &serde_json::to_vec_pretty(&i)?)?;
+                    i
+                }
+            };
         let m = Self {
             dir: dir.to_path_buf(),
             keys: Mutex::new(keys),
@@ -454,9 +461,12 @@ impl LicenseManager {
     pub fn status_at(&self, at: OffsetDateTime) -> LicenseStatus {
         let configured = self.server_configured();
         let mut st = self.lock();
-        let result = evaluate(&st.install, &st.loaded, at, &self.fingerprint, configured, self.allow_unlicensed);
+        let result =
+            evaluate(&st.install, &st.loaded, at, &self.fingerprint, configured, self.allow_unlicensed);
         // Only a clock that is not behind may move the mark, and the file is not rewritten on every request.
-        if result.state != LicenseState::ClockTampered && parse(&st.install.last_seen_at).is_some_and(|seen| at > seen) {
+        if result.state != LicenseState::ClockTampered
+            && parse(&st.install.last_seen_at).is_some_and(|seen| at > seen)
+        {
             st.install.last_seen_at = iso(at);
             if at - st.written_at >= Duration::minutes(SEEN_WRITE_EVERY_MINUTES) {
                 if let Err(e) = self.save_install(&mut st) {
@@ -503,18 +513,16 @@ impl LicenseManager {
             "computer_name": info.computer_name,
             "nonce": nonce,
         });
-        let answer = self
-            .server
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .validate(&body)
-            .map_err(|e| match e {
+        let answer =
+            self.server.lock().unwrap_or_else(|p| p.into_inner()).validate(&body).map_err(|e| match e {
                 ServerError::Unavailable(d) => CoreError::api(ErrorCode::LicenseServerUnavailable, d),
                 ServerError::Rejected(code) => CoreError::api(ErrorCode::LicenseRejected, code),
             })?;
         let token = answer["token"].as_str().unwrap_or_default();
         let ok = verify_token(&self.keys(), token).is_some_and(|p| {
-            p.nonce.as_deref() == Some(nonce.as_str()) && p.installation_id == installation && p.fingerprint == self.fingerprint
+            p.nonce.as_deref() == Some(nonce.as_str())
+                && p.installation_id == installation
+                && p.fingerprint == self.fingerprint
         });
         if !ok {
             return Err(CoreError::api(ErrorCode::LicenseRejected, "token_invalid"));
@@ -594,7 +602,11 @@ mod tests {
     const FP: &str = "abababababababababababababababababababababababababababababababab";
 
     fn install(seen: &str) -> Install {
-        Install { installation_id: "inst-1".into(), first_run_at: "2026-01-01T00:00:00.000Z".into(), last_seen_at: seen.into() }
+        Install {
+            installation_id: "inst-1".into(),
+            first_run_at: "2026-01-01T00:00:00.000Z".into(),
+            last_seen_at: seen.into(),
+        }
     }
 
     struct P {
@@ -609,7 +621,16 @@ mod tests {
     }
 
     fn p() -> P {
-        P { result: "valid", kind: "paid", issued: "2026-11-01T00:00:00.000Z", expires: Some("2027-11-01T00:00:00.000Z"), valid_until: Some("2027-03-01T00:00:00.000Z"), check: 30, offline: 120, post: 120 }
+        P {
+            result: "valid",
+            kind: "paid",
+            issued: "2026-11-01T00:00:00.000Z",
+            expires: Some("2027-11-01T00:00:00.000Z"),
+            valid_until: Some("2027-03-01T00:00:00.000Z"),
+            check: 30,
+            offline: 120,
+            post: 120,
+        }
     }
 
     fn loaded(x: &P) -> Loaded {
@@ -662,7 +683,10 @@ mod tests {
         let i = install("2026-12-01T00:00:00.000Z");
         let l = loaded(&p()); // issued 11-01, check 30 d, valid until 2027-03-01, ends 2027-11-01
         let s = state(&i, &l, datetime!(2026-11-10 00:00 UTC));
-        assert_eq!((s.state, s.read_only, s.verify_due, s.computers), (LicenseState::Active, false, false, 3));
+        assert_eq!(
+            (s.state, s.read_only, s.verify_due, s.computers),
+            (LicenseState::Active, false, false, 3)
+        );
         // 31 days since the last check: still works, with the reminder.
         let s = state(&i, &l, datetime!(2026-12-02 00:00 UTC));
         assert_eq!((s.state, s.read_only, s.verify_due), (LicenseState::Grace, false, true));
@@ -675,7 +699,12 @@ mod tests {
 
     #[test]
     fn after_the_end_date_there_is_a_warning_bar_for_the_vendors_grace_then_read_only() {
-        let x = P { expires: Some("2026-12-01T00:00:00.000Z"), issued: "2026-12-10T00:00:00.000Z", valid_until: Some("2027-04-01T00:00:00.000Z"), ..p() };
+        let x = P {
+            expires: Some("2026-12-01T00:00:00.000Z"),
+            issued: "2026-12-10T00:00:00.000Z",
+            valid_until: Some("2027-04-01T00:00:00.000Z"),
+            ..p()
+        };
         let l = loaded(&x);
         let i = install("2026-12-20T00:00:00.000Z");
         let s = state(&i, &l, datetime!(2026-12-20 00:00 UTC));
@@ -688,7 +717,16 @@ mod tests {
 
     #[test]
     fn a_trial_is_read_only_the_day_it_ends() {
-        let x = P { kind: "trial", issued: "2026-11-01T00:00:00.000Z", expires: Some("2026-12-01T00:00:00.000Z"), valid_until: Some("2026-12-01T00:00:00.000Z"), check: 7, offline: 45, post: 0, ..p() };
+        let x = P {
+            kind: "trial",
+            issued: "2026-11-01T00:00:00.000Z",
+            expires: Some("2026-12-01T00:00:00.000Z"),
+            valid_until: Some("2026-12-01T00:00:00.000Z"),
+            check: 7,
+            offline: 45,
+            post: 0,
+            ..p()
+        };
         let l = loaded(&x);
         let i = install("2026-11-03T00:00:00.000Z");
         assert_eq!(state(&i, &l, datetime!(2026-11-03 00:00 UTC)).state, LicenseState::Trial);
@@ -723,14 +761,18 @@ mod tests {
         assert_eq!(other_hw.state, LicenseState::Invalid);
         assert_eq!(state(&i, &Loaded::Invalid, at).state, LicenseState::Invalid);
         let seen = install("2026-11-10T12:00:00.000Z");
-        assert_eq!(state(&seen, &loaded(&p()), datetime!(2026-11-08 12:00 UTC)).state, LicenseState::ClockTampered);
+        assert_eq!(
+            state(&seen, &loaded(&p()), datetime!(2026-11-08 12:00 UTC)).state,
+            LicenseState::ClockTampered
+        );
         assert_eq!(state(&seen, &loaded(&p()), datetime!(2026-11-10 06:00 UTC)).state, LicenseState::Active);
     }
 
     // ── tokens and the manager, with a throw-away signing key and a scripted server ──
 
     fn make_token(key: &SigningKey, kid: &str, payload: &Value) -> String {
-        let h = BASE64URL_NOPAD.encode(json!({"alg": "EdDSA", "kid": kid, "typ": "JWT"}).to_string().as_bytes());
+        let h =
+            BASE64URL_NOPAD.encode(json!({"alg": "EdDSA", "kid": kid, "typ": "JWT"}).to_string().as_bytes());
         let p = BASE64URL_NOPAD.encode(payload.to_string().as_bytes());
         let sig = BASE64URL_NOPAD.encode(&key.sign(format!("{h}.{p}").as_bytes()).to_bytes());
         format!("{h}.{p}.{sig}")
@@ -747,7 +789,9 @@ mod tests {
         let forger = SigningKey::from_bytes(&[8u8; 32]);
         assert!(verify_token(&keys, &make_token(&forger, "k1", &payload)).is_none(), "wrong key");
         let parts: Vec<&str> = t.split('.').collect();
-        let tampered_payload = BASE64URL_NOPAD.encode(json!({"result": "valid", "installation_id": "i2", "issued_at": "x"}).to_string().as_bytes());
+        let tampered_payload = BASE64URL_NOPAD.encode(
+            json!({"result": "valid", "installation_id": "i2", "issued_at": "x"}).to_string().as_bytes(),
+        );
         assert!(verify_token(&keys, &format!("{}.{}.{}", parts[0], tampered_payload, parts[2])).is_none());
         assert!(verify_token(&keys, "a.b").is_none() && verify_token(&keys, "").is_none());
         // alg must be EdDSA (an `alg: none` token is refused).
@@ -778,7 +822,11 @@ mod tests {
             if let Some(code) = s.refuse.lock().unwrap().clone() {
                 return Err(ServerError::Rejected(code));
             }
-            let nonce = if *s.wrong_nonce.lock().unwrap() { "0".repeat(32) } else { body["nonce"].as_str().unwrap().to_string() };
+            let nonce = if *s.wrong_nonce.lock().unwrap() {
+                "0".repeat(32)
+            } else {
+                body["nonce"].as_str().unwrap().to_string()
+            };
             let payload = json!({
                 "result": *s.result.lock().unwrap(), "kind": "paid", "plan": "standard", "max_computers": 3,
                 "installation_id": *s.manager_installation.lock().unwrap(), "fingerprint": s.fingerprint, "nonce": nonce,
@@ -805,7 +853,8 @@ mod tests {
             result: Mutex::new("pending".into()),
             wrong_nonce: Mutex::new(false),
         });
-        let m = LicenseManager::new(dir.path(), keys, Box::new(Fake(script.clone())), FP.into(), false).unwrap();
+        let m =
+            LicenseManager::new(dir.path(), keys, Box::new(Fake(script.clone())), FP.into(), false).unwrap();
         *script.manager_installation.lock().unwrap() = m.lock().install.installation_id.clone();
         (dir, m, script)
     }
@@ -825,7 +874,11 @@ mod tests {
     fn entering_the_key_asks_the_server_then_waits_for_approval_and_checks_again_with_the_stored_key() {
         let (dir, m, script) = manager();
         let s = m.status();
-        assert_eq!((s.state, s.read_only), (LicenseState::Unactivated, true), "production rules: no key, no changes");
+        assert_eq!(
+            (s.state, s.read_only),
+            (LicenseState::Unactivated, true),
+            "production rules: no key, no changes"
+        );
 
         // New computer: the vendor has not approved it yet.
         let s = m.activate(&KEY.to_lowercase(), &info()).unwrap();
@@ -840,8 +893,13 @@ mod tests {
         // The vendor approves; the next check brings the working token. A restart keeps it.
         *script.result.lock().unwrap() = "valid".into();
         let s = m.verify(&info()).unwrap();
-        assert_eq!((s.state, s.read_only, s.plan.as_deref(), s.computers), (LicenseState::Active, false, Some("standard"), 3));
-        let again = LicenseManager::new(dir.path(), m.keys(), Box::new(Fake(script.clone())), FP.into(), false).unwrap();
+        assert_eq!(
+            (s.state, s.read_only, s.plan.as_deref(), s.computers),
+            (LicenseState::Active, false, Some("standard"), 3)
+        );
+        let again =
+            LicenseManager::new(dir.path(), m.keys(), Box::new(Fake(script.clone())), FP.into(), false)
+                .unwrap();
         assert_eq!(again.status().state, LicenseState::Active);
         assert_eq!(script.calls.lock().unwrap().len(), 2);
         assert_eq!(script.calls.lock().unwrap()[1]["license_key"], KEY, "the stored key is used");
@@ -873,7 +931,11 @@ mod tests {
         *script.wrong_nonce.lock().unwrap() = false;
         assert!(!dir.path().join("license.json").exists());
 
-        assert_eq!(m.verify(&info()).unwrap_err().code(), ErrorCode::LicenseRejected, "no key was ever accepted");
+        assert_eq!(
+            m.verify(&info()).unwrap_err().code(),
+            ErrorCode::LicenseRejected,
+            "no key was ever accepted"
+        );
 
         // This build has no server address.
         struct NoServer;
@@ -896,7 +958,9 @@ mod tests {
         *script.result.lock().unwrap() = "valid".into();
         m.activate(KEY, &info()).unwrap();
         // Same token file, other hardware.
-        let other = LicenseManager::new(dir.path(), m.keys(), Box::new(Fake(script.clone())), "c".repeat(64), false).unwrap();
+        let other =
+            LicenseManager::new(dir.path(), m.keys(), Box::new(Fake(script.clone())), "c".repeat(64), false)
+                .unwrap();
         assert_eq!(other.status().state, LicenseState::Invalid);
         // Edited file.
         let path = dir.path().join("license.json");
@@ -913,8 +977,12 @@ mod tests {
     fn offline_activation_round_trips_through_codes() {
         let (_dir, m, script) = manager();
         let request = m.offline_request(&info());
-        let decoded: Value = serde_json::from_slice(&BASE64URL_NOPAD.decode(request.as_bytes()).unwrap()).unwrap();
-        assert_eq!((decoded["installation_id"].as_str(), decoded["fingerprint"].as_str()), (Some(m.installation_id().as_str()), Some(FP)));
+        let decoded: Value =
+            serde_json::from_slice(&BASE64URL_NOPAD.decode(request.as_bytes()).unwrap()).unwrap();
+        assert_eq!(
+            (decoded["installation_id"].as_str(), decoded["fingerprint"].as_str()),
+            (Some(m.installation_id().as_str()), Some(FP))
+        );
 
         // The vendor makes a token for exactly this computer (no nonce: it was not asked online).
         let payload = json!({
@@ -926,7 +994,10 @@ mod tests {
         assert_eq!((s.state, s.plan.as_deref()), (LicenseState::Active, Some("pro")));
 
         let wrong = json!({"result": "valid", "installation_id": "someone-else", "fingerprint": FP, "issued_at": iso(now())});
-        assert_eq!(m.offline_apply(&make_token(&script.key, "t", &wrong)).unwrap_err().code(), ErrorCode::LicenseRejected);
+        assert_eq!(
+            m.offline_apply(&make_token(&script.key, "t", &wrong)).unwrap_err().code(),
+            ErrorCode::LicenseRejected
+        );
         assert_eq!(m.offline_apply("not a token").unwrap_err().code(), ErrorCode::LicenseRejected);
     }
 
