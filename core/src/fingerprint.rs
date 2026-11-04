@@ -32,9 +32,9 @@ pub fn short(fingerprint: &str) -> String {
 #[cfg(windows)]
 fn machine_id() -> Option<String> {
     use std::ptr;
-    use windows_sys::Win32::System::Registry::{
-        RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RRF_SUBKEY_WOW64_64KEY,
-    };
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    // winreg.h value; windows-sys does not export it. Read the 64-bit view even from a 32-bit build.
+    const RRF_SUBKEY_WOW64_64KEY: u32 = 0x0001_0000;
     let wide = |s: &str| -> Vec<u16> { s.encode_utf16().chain(std::iter::once(0)).collect() };
     let sub = wide("SOFTWARE\\Microsoft\\Cryptography");
     let name = wide("MachineGuid");
