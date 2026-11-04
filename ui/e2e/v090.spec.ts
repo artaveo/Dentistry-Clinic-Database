@@ -115,6 +115,8 @@ test("Suppliers: a purchase adds to stock and to what is owed", async ({ request
   // Paying part of it lowers the balance; it is also an expense of the clinic.
   await page.getByTestId("supplier-pay-open").click();
   await page.getByTestId("supplier-pay-amount").fill("250");
+  // Earlier files already closed today's cash, so this payment goes by bank.
+  await page.getByTestId("supplier-pay-method").selectOption({ label: "حواله بانکی" });
   await page.getByTestId("supplier-pay-save").click();
   await expect(page.getByTestId("supplier-pay-dialog")).toBeHidden();
   await expect(page.getByTestId("ledger-balance")).toContainText("۳۵۰");
