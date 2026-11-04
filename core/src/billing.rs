@@ -28,7 +28,7 @@ const RECEIPT_LINES: usize = 12;
 
 // ───────────────────────────── small helpers ─────────────────────────────
 
-fn money(field: &str, v: i64, allow_zero: bool) -> Result<i64> {
+pub(crate) fn money(field: &str, v: i64, allow_zero: bool) -> Result<i64> {
     let ok = if allow_zero { v >= 0 } else { v > 0 };
     if !ok || v > MAX_AMOUNT {
         return Err(CoreError::invalid(
@@ -40,7 +40,7 @@ fn money(field: &str, v: i64, allow_zero: bool) -> Result<i64> {
     Ok(v)
 }
 
-fn required(field: &str, s: &str, max: usize) -> Result<String> {
+pub(crate) fn required(field: &str, s: &str, max: usize) -> Result<String> {
     let s = s.trim();
     if s.is_empty() {
         return Err(CoreError::invalid(field, ValidationRule::Required, format!("{field} is required")));
@@ -55,26 +55,26 @@ fn required(field: &str, s: &str, max: usize) -> Result<String> {
     Ok(s.to_string())
 }
 
-fn optional(field: &str, s: &Option<String>, max: usize) -> Result<Option<String>> {
+pub(crate) fn optional(field: &str, s: &Option<String>, max: usize) -> Result<Option<String>> {
     match s.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         None => Ok(None),
         Some(v) => required(field, v, max).map(Some),
     }
 }
 
-fn date_of(field: &'static str, s: &str) -> Result<String> {
+pub(crate) fn date_of(field: &'static str, s: &str) -> Result<String> {
     Ok(format_date(parse_date(field, s.trim())?))
 }
 
-fn opt_date(field: &'static str, s: &Option<String>) -> Result<Option<String>> {
+pub(crate) fn opt_date(field: &'static str, s: &Option<String>) -> Result<Option<String>> {
     s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(|s| date_of(field, s)).transpose()
 }
 
-fn scalar(conn: &Connection, sql: &str, args: &[&dyn rusqlite::ToSql]) -> Result<i64> {
+pub(crate) fn scalar(conn: &Connection, sql: &str, args: &[&dyn rusqlite::ToSql]) -> Result<i64> {
     Ok(conn.query_row(sql, args, |r| r.get::<_, Option<i64>>(0))?.unwrap_or(0))
 }
 
-fn next_number(conn: &Connection, prefix: &str) -> Result<String> {
+pub(crate) fn next_number(conn: &Connection, prefix: &str) -> Result<String> {
     let year = crate::documents::shamsi_year_today();
     conn.execute(
         "INSERT INTO document_counter(prefix, year, value) VALUES (?1, ?2, 1)
@@ -89,11 +89,11 @@ fn next_number(conn: &Connection, prefix: &str) -> Result<String> {
     Ok(format!("{prefix}-{year}-{n:06}"))
 }
 
-fn parse_teeth(s: &str) -> Vec<u8> {
+pub(crate) fn parse_teeth(s: &str) -> Vec<u8> {
     s.split(',').filter_map(|x| x.trim().parse().ok()).collect()
 }
 
-fn trio(fa: String, ps: String, en: String) -> Translations {
+pub(crate) fn trio(fa: String, ps: String, en: String) -> Translations {
     Translations { fa, ps, en }
 }
 
@@ -110,7 +110,7 @@ fn set_setting(conn: &Connection, actor: &Actor, key: &str, value: &str) -> Resu
     Ok(())
 }
 
-fn check_patient(conn: &Connection, patient_id: &str) -> Result<()> {
+pub(crate) fn check_patient(conn: &Connection, patient_id: &str) -> Result<()> {
     let row: Option<Option<String>> = conn
         .query_row(
             "SELECT merged_into_id FROM patient WHERE id = ?1 AND deleted_at IS NULL",

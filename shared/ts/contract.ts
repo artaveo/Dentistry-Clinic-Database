@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "supplier_payment_not_found" | "supplier_payment_void" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "server_unreachable" | "internal";
 
@@ -1452,6 +1452,190 @@ profit: number, by_method: Array<MethodTotal>, by_category: Array<CategoryTotal>
 
 export type ExpenseListParams = { from: string | null, to: string | null, };
 
+export type StockLookupInfo = { id: string, name: Translations, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
+
+export type SaveStockLookupParams = { 
+/**
+ * None = a new entry.
+ */
+id: string | null, name: Translations, is_active: boolean, version: number | null, };
+
+export type StockItemInfo = { id: string, code: string | null, name: Translations, category_id: string, category: Translations, unit_id: string, unit: Translations, min_qty: number, note: string | null, is_active: boolean, 
+/**
+ * On the shelf, expired included.
+ */
+qty: number, 
+/**
+ * On the shelf and still valid.
+ */
+usable_qty: number, expired_qty: number, expiring_qty: number, 
+/**
+ * Value of the stock at the cost it was bought for (AFN × 100).
+ */
+value: number, nearest_expiry: string | null, 
+/**
+ * Usable stock is at or below the minimum (and a minimum is set).
+ */
+low: boolean, version: number, };
+
+export type SaveStockItemParams = { id: string | null, code: string | null, name: Translations, category_id: string, unit_id: string, min_qty: number, note: string | null, is_active: boolean, version: number | null, };
+
+export type StockItemListParams = { search: string | null, category_id: string | null, only: StockFilter | null, include_inactive: boolean, 
+/**
+ * Days ahead that count as "expiring soon" (default 60).
+ */
+expiring_days: number | null, };
+
+export type StockBatchInfo = { id: string, item_id: string, item_name: Translations, unit: Translations, location_id: string, location: Translations, lot_no: string | null, expiry_date: string | null, qty_left: number, unit_cost: number, received_on: string, supplier_name: string | null, state: BatchState, };
+
+export type StockBatchListParams = { item_id: string | null, include_empty: boolean, expiring_days: number | null, };
+
+export type StockMovementInfo = { id: string, item_id: string, item_name: Translations, unit: Translations, kind: StockMovementKind, qty: number, unit_cost: number, credit: number, location: Translations, lot_no: string | null, supplier_name: string | null, patient_id: string | null, treatment_item_id: string | null, reason: string | null, local_date: string, created_by_name: string | null, };
+
+export type StockMovementListParams = { item_id: string | null, from: string | null, to: string | null, kind: StockMovementKind | null, };
+
+export type StockAlertParams = { expiring_days: number | null, };
+
+export type StockAlerts = { low: Array<StockItemInfo>, expired: Array<StockBatchInfo>, expiring: Array<StockBatchInfo>, lab_delayed: Array<LabCaseInfo>, };
+
+export type ReceiveStockParams = { item_id: string, qty: number, unit_cost: number, lot_no: string | null, expiry_date: string | null, location_id: string, supplier_id: string | null, date: string | null, reason: string | null, };
+
+export type ConsumeStockParams = { item_id: string, qty: number, date: string | null, reason: string | null, 
+/**
+ * Take only from this place.
+ */
+location_id: string | null, patient_id: string | null, treatment_item_id: string | null, };
+
+export type AdjustStockParams = { batch_id: string, 
+/**
+ * Positive adds, negative removes (a count correction, a breakage, an expired lot thrown away).
+ */
+delta: number, reason: string, date: string | null, };
+
+export type ReturnStockParams = { batch_id: string, qty: number, supplier_id: string, 
+/**
+ * What the supplier credits the clinic for (reduces what the clinic owes).
+ */
+credit: number, reason: string | null, date: string | null, };
+
+export type TransferStockParams = { batch_id: string, qty: number, to_location_id: string, date: string | null, };
+
+export type ConsumeForTreatmentParams = { treatment_item_id: string, };
+
+export type ServiceMaterialInfo = { item_id: string, item_name: Translations, unit: Translations, qty: number, 
+/**
+ * On the shelf and valid now.
+ */
+usable_qty: number, };
+
+export type ServiceIdParams = { service_id: string, };
+
+export type MaterialLine = { item_id: string, qty: number, };
+
+export type SaveServiceMaterialsParams = { service_id: string, materials: Array<MaterialLine>, };
+
+export type SupplierInfo = { id: string, kind: SupplierKind, name: string, contact_person: string | null, phone: string | null, address: string | null, note: string | null, is_active: boolean, 
+/**
+ * Bought from this supplier.
+ */
+purchases_total: number, 
+/**
+ * Lab work received from this lab.
+ */
+lab_total: number, 
+/**
+ * Credited for goods returned.
+ */
+returns_total: number, paid_total: number, 
+/**
+ * What the clinic still owes (negative = the supplier owes the clinic).
+ */
+balance: number, version: number, };
+
+export type SaveSupplierParams = { id: string | null, kind: SupplierKind, name: string, contact_person: string | null, phone: string | null, address: string | null, note: string | null, is_active: boolean, version: number | null, };
+
+export type SupplierListParams = { kind: SupplierKind | null, include_inactive: boolean, 
+/**
+ * Only those the clinic owes money to.
+ */
+owing_only: boolean, };
+
+export type SupplierIdParams = { supplier_id: string, };
+
+export type LedgerEntry = { kind: LedgerKind, local_date: string, number: string | null, description: string, amount: number, balance: number, };
+
+export type PurchaseLineInfo = { id: string, item_id: string, item_name: Translations, unit: Translations, qty: number, unit_cost: number, line_total: number, lot_no: string | null, expiry_date: string | null, location: Translations, };
+
+export type PurchaseInfo = { id: string, number: string, supplier_id: string, supplier_name: string, local_date: string, total: number, note: string | null, void: boolean, void_reason: string | null, lines: Array<PurchaseLineInfo>, created_by_name: string | null, version: number, };
+
+export type PurchaseLineParams = { item_id: string, qty: number, unit_cost: number, lot_no: string | null, expiry_date: string | null, location_id: string, };
+
+export type CreatePurchaseParams = { supplier_id: string, date: string | null, note: string | null, lines: Array<PurchaseLineParams>, 
+/**
+ * Paid on the spot (recorded as a payment to the supplier).
+ */
+paid: number, method_id: string | null, };
+
+export type PurchaseListParams = { supplier_id: string | null, from: string | null, to: string | null, };
+
+export type VoidWithReasonParams = { id: string, version: number, reason: string, };
+
+export type SupplierPaymentInfo = { id: string, number: string, supplier_id: string, supplier_name: string, amount: number, method_id: string | null, method: Translations | null, local_date: string, note: string | null, void: boolean, void_reason: string | null, created_by_name: string | null, version: number, };
+
+export type AddSupplierPaymentParams = { supplier_id: string, amount: number, method_id: string, date: string | null, note: string | null, };
+
+export type SupplierPaymentListParams = { supplier_id: string | null, from: string | null, to: string | null, };
+
+export type LabCaseInfo = { id: string, number: string, patient_id: string, patient_name: string, patient_number: string, doctor_id: string | null, doctor_name: string | null, treatment_item_id: string | null, lab_id: string, lab_name: string, teeth: Array<number>, work_type: string, shade: string | null, status: LabStatus, sent_date: string | null, expected_date: string | null, received_date: string | null, delivered_date: string | null, cost: number, note: string | null, cancel_reason: string | null, 
+/**
+ * Sent, and past its expected date.
+ */
+delayed: boolean, days_late: number, version: number, };
+
+export type CreateLabCaseParams = { patient_id: string, lab_id: string, doctor_id: string | null, treatment_item_id: string | null, teeth: Array<number>, work_type: string, shade: string | null, expected_date: string | null, cost: number, note: string | null, };
+
+export type UpdateLabCaseParams = { id: string, version: number, lab_id: string, doctor_id: string | null, teeth: Array<number>, work_type: string, shade: string | null, expected_date: string | null, cost: number, note: string | null, };
+
+export type SetLabStatusParams = { id: string, version: number, status: LabStatus, 
+/**
+ * The day it happened (default today).
+ */
+date: string | null, 
+/**
+ * The final cost, when the work comes back.
+ */
+cost: number | null, 
+/**
+ * Required to cancel.
+ */
+reason: string | null, };
+
+export type LabCaseListParams = { status: LabStatus | null, lab_id: string | null, patient_id: string | null, 
+/**
+ * Open (planned or sent) cases only.
+ */
+open_only: boolean, delayed_only: boolean, };
+
+export type LabProfitRow = { case_id: string, number: string, patient_name: string, lab_name: string, work_type: string, teeth: Array<number>, received_date: string | null, cost: number, 
+/**
+ * Invoiced for the treatment this case belongs to (None = not linked to a treatment).
+ */
+billed: number | null, };
+
+export type LabReport = { rows: Array<LabProfitRow>, total_cost: number, total_billed: number, };
+
+export type StockMovementKind = "purchase" | "receive" | "consume" | "adjust" | "return" | "transfer_out" | "transfer_in" | "void_purchase";
+
+export type BatchState = "valid" | "expiring" | "expired";
+
+export type StockFilter = "low" | "expired" | "expiring";
+
+export type SupplierKind = "supplier" | "lab";
+
+export type LabStatus = "planned" | "sent" | "received" | "delivered" | "cancelled";
+
+export type LedgerKind = "purchase" | "lab" | "return" | "payment";
+
 export type LanPairingInfo = { code: string, expires_in_seconds: number, attempts_left: number, };
 
 export type LanStatus = { enabled: boolean, running: boolean, port: number | null, addresses: Array<string>, computer_name: string, fingerprint: string | null, client_limit: number, paired_count: number, connected_count: number, pairing: LanPairingInfo | null, };
@@ -1629,6 +1813,43 @@ export interface Api {
   "cash.day": { params: DateParams; result: CashDay };
   "cash.close": { params: CloseCashParams; result: CashClosingInfo };
   "cash.closings": { params: ExpenseListParams; result: Array<CashClosingInfo> };
+  "stock_categories.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };
+  "stock_categories.save": { params: SaveStockLookupParams; result: StockLookupInfo };
+  "stock_units.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };
+  "stock_units.save": { params: SaveStockLookupParams; result: StockLookupInfo };
+  "stock_locations.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };
+  "stock_locations.save": { params: SaveStockLookupParams; result: StockLookupInfo };
+  "stock_items.list": { params: StockItemListParams; result: Array<StockItemInfo> };
+  "stock_items.get": { params: IdParams; result: StockItemInfo };
+  "stock_items.save": { params: SaveStockItemParams; result: StockItemInfo };
+  "stock_batches.list": { params: StockBatchListParams; result: Array<StockBatchInfo> };
+  "stock_movements.list": { params: StockMovementListParams; result: Array<StockMovementInfo> };
+  "stock_alerts.list": { params: StockAlertParams; result: StockAlerts };
+  "stock.receive": { params: ReceiveStockParams; result: StockItemInfo };
+  "stock.consume": { params: ConsumeStockParams; result: StockItemInfo };
+  "stock.consume_treatment": { params: ConsumeForTreatmentParams; result: Array<StockMovementInfo> };
+  "stock.adjust": { params: AdjustStockParams; result: StockItemInfo };
+  "stock.return_to_supplier": { params: ReturnStockParams; result: StockItemInfo };
+  "stock.transfer": { params: TransferStockParams; result: StockItemInfo };
+  "service_materials.list": { params: ServiceIdParams; result: Array<ServiceMaterialInfo> };
+  "service_materials.save": { params: SaveServiceMaterialsParams; result: Array<ServiceMaterialInfo> };
+  "suppliers.list": { params: SupplierListParams; result: Array<SupplierInfo> };
+  "suppliers.get": { params: IdParams; result: SupplierInfo };
+  "suppliers.save": { params: SaveSupplierParams; result: SupplierInfo };
+  "supplier_ledger.list": { params: SupplierIdParams; result: Array<LedgerEntry> };
+  "purchases.list": { params: PurchaseListParams; result: Array<PurchaseInfo> };
+  "purchases.get": { params: IdParams; result: PurchaseInfo };
+  "purchases.create": { params: CreatePurchaseParams; result: PurchaseInfo };
+  "purchases.void": { params: VoidWithReasonParams; result: PurchaseInfo };
+  "supplier_payments.list": { params: SupplierPaymentListParams; result: Array<SupplierPaymentInfo> };
+  "supplier_payments.add": { params: AddSupplierPaymentParams; result: SupplierPaymentInfo };
+  "supplier_payments.void": { params: VoidWithReasonParams; result: SupplierPaymentInfo };
+  "lab_cases.list": { params: LabCaseListParams; result: Array<LabCaseInfo> };
+  "lab_cases.get": { params: IdParams; result: LabCaseInfo };
+  "lab_cases.create": { params: CreateLabCaseParams; result: LabCaseInfo };
+  "lab_cases.update": { params: UpdateLabCaseParams; result: LabCaseInfo };
+  "lab_cases.set_status": { params: SetLabStatusParams; result: LabCaseInfo };
+  "lab_cases.report": { params: PeriodParams; result: LabReport };
   "lan.status": { params: Empty; result: LanStatus };
   "lan.enable": { params: Empty; result: LanStatus };
   "lan.disable": { params: Empty; result: LanStatus };

@@ -9,6 +9,7 @@ pub mod audit;
 pub mod auth;
 pub mod backup;
 pub mod billing;
+pub mod inventory;
 pub mod calendar;
 pub mod catalog;
 pub mod chart;

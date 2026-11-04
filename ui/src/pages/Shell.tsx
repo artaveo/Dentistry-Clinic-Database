@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Info, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Package, Info, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -20,6 +20,8 @@ import { CalendarPage } from "./reception/CalendarPage";
 import { QueuePage } from "./reception/QueuePage";
 import { RecallsPage } from "./reception/RecallsPage";
 import { BillingPage } from "./billing/BillingPage";
+import { InventoryPage } from "./inventory/InventoryPage";
+import type { InventoryPerms } from "./inventory/common";
 import type { BillingPerms } from "./billing/common";
 import { roleText } from "./reception/labels";
 import { ClinicPage } from "./Clinic";
@@ -36,8 +38,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "patients" | "appointments" | "queue" | "recalls" | "billing" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "network" | "system";
-const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
+type Tab = "patients" | "appointments" | "queue" | "recalls" | "billing" | "inventory" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "network" | "system";
+const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, inventory: Package, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -74,6 +76,7 @@ export function Shell({
     { label: t("nav.group.patients"), tabs: can("patients.view") ? (["patients"] as Tab[]) : [] },
     { label: t("nav.group.reception"), tabs: can("appointments.view") ? (["appointments", "queue", "recalls"] as Tab[]) : [] },
     { label: t("nav.group.money"), tabs: can("billing.view") ? (["billing"] as Tab[]) : [] },
+    { label: t("nav.group.stock"), tabs: can("inventory.view") ? (["inventory"] as Tab[]) : [] },
     {
       label: t("nav.group.clinic"),
       tabs: [...(can("doctors.manage") ? (["doctors"] as Tab[]) : []), ...(can("settings.manage") ? (["catalog", "clinical", "clinic"] as Tab[]) : [])],
@@ -91,6 +94,7 @@ export function Shell({
   ].filter((g) => g.tabs.length);
   const tabs = groups.flatMap((g) => g.tabs);
   const billing: BillingPerms = { view: can("billing.view"), edit: can("billing.edit"), void: can("billing.void"), override: can("billing.override"), reports: can("reports.view"), settings: can("settings.manage") };
+  const inventory: InventoryPerms = { view: can("inventory.view"), manage: can("inventory.manage"), billingEdit: can("billing.edit"), billingVoid: can("billing.void"), clinicalView: can("clinical.view"), clinicalEdit: can("clinical.edit"), treat: can("appointments.treat"), reports: can("reports.view"), settings: can("settings.manage"), patientsEdit: can("patients.edit") };
   const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
 
   const [tab, setTab] = useState<Tab>("system");
@@ -251,6 +255,7 @@ export function Shell({
         {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "recalls" && <RecallsPage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "billing" && <BillingPage perms={billing} clinic={clinic} />}
+        {tab === "inventory" && <InventoryPage perms={inventory} clinic={clinic} />}
         {tab === "doctors" && <DoctorsPage clinic={clinic} />}
         {tab === "catalog" && <CatalogPage />}
         {tab === "clinical" && <ClinicalListsPage />}

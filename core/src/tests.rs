@@ -3960,3 +3960,407 @@ fn payments_after_a_patient_merge_follow_the_survivor() {
     let debtors = t.ok(m::BILLING_DEBTORS, json!({}), Some(owner));
     assert_eq!(debtors[0]["patient_id"], keeper["id"]);
 }
+
+// ───────────────────────────── Phase 8: inventory, suppliers, dental lab ─────────────────────────────
+
+/// A clinic date `n` days from today (negative = the past).
+fn day(n: i64) -> String {
+    crate::scheduling::format_date(crate::clock::local_now().date() + time::Duration::days(n))
+}
+
+fn first_id(t: &T, method: &str, owner: &str, index: usize) -> String {
+    s_of(&t.ok(method, json!({}), Some(owner))[index], "id")
+}
+
+#[test]
+fn inventory_stock_is_taken_first_expiry_first_and_expired_is_never_used() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let cat = first_id(&t, m::STOCK_CATEGORIES_LIST, &owner, 0);
+    let unit = first_id(&t, m::STOCK_UNITS_LIST, &owner, 0);
+    let main = first_id(&t, m::STOCK_LOCATIONS_LIST, &owner, 0);
+    let room = first_id(&t, m::STOCK_LOCATIONS_LIST, &owner, 1);
+    let item = t.ok(
+        m::STOCK_ITEMS_SAVE,
+        json!({"name": {"fa": "دستکش", "ps": "", "en": "Gloves"}, "category_id": cat, "unit_id": unit, "min_qty": 500}),
+        Some(&owner),
+    );
+    assert_eq!(item["name"]["ps"], "دستکش", "an empty language is filled from the first one");
+    let id = s_of(&item, "id");
+    let receive = |qty: i64, cost: i64, lot: &str, expiry: String, place: &str| {
+        t.ok(
+            m::STOCK_RECEIVE,
+            json!({"item_id": id, "qty": qty, "unit_cost": cost, "lot_no": lot, "expiry_date": expiry, "location_id": place}),
+            Some(&owner),
+        )
+    };
+    receive(1000, 100, "A", day(-5), &main);
+    receive(400, 200, "B", day(30), &main);
+    let after = receive(300, 300, "C", day(200), &main);
+    assert_eq!(
+        (
+            after["qty"].as_i64(),
+            after["usable_qty"].as_i64(),
+            after["expired_qty"].as_i64(),
+            after["expiring_qty"].as_i64()
+        ),
+        (Some(1700), Some(700), Some(1000), Some(400)),
+        "{after}"
+    );
+    assert_eq!(after["low"], false);
+    // 10.00 × 1.00 + 4.00 × 2.00 + 3.00 × 3.00 = 27.00 AFN, in AFN × 100.
+    assert_eq!(after["value"], 2_700);
+
+    // 5.00 units: the batch that expires first (B, 4.00), then C; the expired batch is untouched.
+    let used = t.ok(m::STOCK_CONSUME, json!({"item_id": id, "qty": 500}), Some(&owner));
+    assert_eq!((used["usable_qty"].as_i64(), used["expired_qty"].as_i64()), (Some(200), Some(1000)));
+    assert_eq!(used["low"], true, "200 is under the minimum of 500");
+    let batches = t.ok(m::STOCK_BATCHES_LIST, json!({"item_id": id}), Some(&owner));
+    let lots: Vec<_> = batches.as_array().unwrap().iter().map(|b| b["lot_no"].as_str().unwrap()).collect();
+    assert_eq!(lots, vec!["A", "C"], "B is empty and hidden; the expired one is listed first");
+    assert_eq!(batches[0]["state"], "expired");
+
+    let (_, field, rule) = rule_of(&t, m::STOCK_CONSUME, json!({"item_id": id, "qty": 300}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("qty"), Some("stock_insufficient")));
+    let (_, field, rule) = rule_of(&t, m::STOCK_CONSUME, json!({"item_id": id, "qty": 0}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("qty"), Some("stock_quantity")));
+
+    // Throwing the expired lot away needs a reason; stock can never go below zero.
+    let expired = s_of(&batches[0], "id");
+    let (_, field, rule) =
+        rule_of(&t, m::STOCK_ADJUST, json!({"batch_id": expired, "delta": -1000, "reason": " "}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("reason"), Some("required")));
+    let (_, _, rule) =
+        rule_of(&t, m::STOCK_ADJUST, json!({"batch_id": expired, "delta": -1001, "reason": "x"}), &owner);
+    assert_eq!(rule.as_deref(), Some("stock_insufficient"));
+    let thrown = t.ok(m::STOCK_ADJUST, json!({"batch_id": expired, "delta": -1000, "reason": "منقضی"}), Some(&owner));
+    assert_eq!(thrown["expired_qty"], 0);
+
+    // Moving some of C to the treatment room splits the batch; moving to the same place is refused.
+    let c_batch = s_of(&t.ok(m::STOCK_BATCHES_LIST, json!({"item_id": id}), Some(&owner))[0], "id");
+    t.ok(m::STOCK_TRANSFER, json!({"batch_id": c_batch, "qty": 100, "to_location_id": room}), Some(&owner));
+    let (_, _, rule) =
+        rule_of(&t, m::STOCK_TRANSFER, json!({"batch_id": c_batch, "qty": 10, "to_location_id": main}), &owner);
+    assert_eq!(rule.as_deref(), Some("stock_same_place"));
+    let split = t.ok(m::STOCK_BATCHES_LIST, json!({"item_id": id}), Some(&owner));
+    assert_eq!(split.as_array().unwrap().len(), 2);
+    assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": id}), Some(&owner))["usable_qty"], 200, "a transfer keeps the total");
+
+    // Taking from one place only.
+    let (_, _, rule) =
+        rule_of(&t, m::STOCK_CONSUME, json!({"item_id": id, "qty": 150, "location_id": room}), &owner);
+    assert_eq!(rule.as_deref(), Some("stock_insufficient"));
+    t.ok(m::STOCK_CONSUME, json!({"item_id": id, "qty": 100, "location_id": room}), Some(&owner));
+
+    // Alerts and filters.
+    let alerts = t.ok(m::STOCK_ALERTS_LIST, json!({}), Some(&owner));
+    assert_eq!(alerts["low"].as_array().unwrap().len(), 1);
+    assert!(alerts["expired"].as_array().unwrap().is_empty());
+    let low = t.ok(m::STOCK_ITEMS_LIST, json!({"only": "low"}), Some(&owner));
+    assert_eq!(low.as_array().unwrap().len(), 1);
+    let none = t.ok(m::STOCK_ITEMS_LIST, json!({"search": "zzz"}), Some(&owner));
+    assert!(none.as_array().unwrap().is_empty());
+    let ledger = t.ok(m::STOCK_MOVEMENTS_LIST, json!({"item_id": id}), Some(&owner));
+    let kinds: Vec<_> = ledger.as_array().unwrap().iter().map(|x| x["kind"].as_str().unwrap()).collect();
+    assert!(kinds.contains(&"receive") && kinds.contains(&"consume") && kinds.contains(&"adjust"));
+    assert!(kinds.contains(&"transfer_out") && kinds.contains(&"transfer_in"));
+    let actions = t.audit_actions(&owner);
+    for a in ["stock_item.create", "stock.receive", "stock.consume", "stock.adjust", "stock.transfer"] {
+        assert!(actions.contains(&a.to_string()), "{a} is audited");
+    }
+}
+
+#[test]
+fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_right() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let cat = first_id(&t, m::STOCK_CATEGORIES_LIST, &owner, 0);
+    let unit = first_id(&t, m::STOCK_UNITS_LIST, &owner, 0);
+    let main = first_id(&t, m::STOCK_LOCATIONS_LIST, &owner, 0);
+    let cash = method_id(&t, &owner, "cash");
+    let bank = method_id(&t, &owner, "bank_transfer");
+    let item = t.ok(
+        m::STOCK_ITEMS_SAVE,
+        json!({"name": {"fa": "کامپوزیت", "ps": "کامپوزیت", "en": "Composite"}, "category_id": cat, "unit_id": unit}),
+        Some(&owner),
+    );
+    let item_id = s_of(&item, "id");
+    let supplier = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "supplier", "name": "Kabul Dental Supply"}), Some(&owner));
+    let sid = s_of(&supplier, "id");
+    let lab = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "lab", "name": "Noor Lab"}), Some(&owner));
+    let line = |qty: i64| {
+        json!({"item_id": item_id, "qty": qty, "unit_cost": 2500, "lot_no": "L1", "expiry_date": day(300), "location_id": main})
+    };
+
+    // 10.00 units at 2500 = 250.00 AFN (25 000 in AFN × 100); 100.00 AFN paid in cash on the spot.
+    let (_, field, rule) = rule_of(&t, m::PURCHASES_CREATE, json!({"supplier_id": sid, "lines": []}), &owner);
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("lines"), Some("purchase_empty")));
+    let (_, field, rule) = rule_of(
+        &t,
+        m::PURCHASES_CREATE,
+        json!({"supplier_id": lab["id"], "lines": [line(1000)]}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("supplier_id"), Some("supplier_not_found")));
+    let (_, field, rule) = rule_of(
+        &t,
+        m::PURCHASES_CREATE,
+        json!({"supplier_id": sid, "lines": [line(1000)], "paid": 30_000, "method_id": cash}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("paid"), Some("payment_exceeds")));
+    let purchase = t.ok(
+        m::PURCHASES_CREATE,
+        json!({"supplier_id": sid, "lines": [line(1000)], "paid": 10_000, "method_id": cash}),
+        Some(&owner),
+    );
+    assert_eq!(purchase["total"], 25_000);
+    assert!(purchase["number"].as_str().unwrap().starts_with("PU-"));
+    assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": item_id}), Some(&owner))["qty"], 1000);
+    let owed = t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner));
+    assert_eq!(
+        (owed["purchases_total"].as_i64(), owed["paid_total"].as_i64(), owed["balance"].as_i64()),
+        (Some(25_000), Some(10_000), Some(15_000))
+    );
+    // The cash paid out is an expense of that day, so the cash closing sees it.
+    let today = crate::clock::today_iso();
+    assert_eq!(t.ok(m::CASH_DAY, json!({"date": today}), Some(&owner))["cash_expenses"], 10_000);
+
+    // A bank payment is not cash; voiding the cash one takes its expense back.
+    let bank_pay = t.ok(
+        m::SUPPLIER_PAYMENTS_ADD,
+        json!({"supplier_id": sid, "amount": 5_000, "method_id": bank}),
+        Some(&owner),
+    );
+    assert_eq!(t.ok(m::CASH_DAY, json!({"date": today}), Some(&owner))["cash_expenses"], 10_000);
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner))["balance"], 10_000);
+    let payments = t.ok(m::SUPPLIER_PAYMENTS_LIST, json!({"supplier_id": sid}), Some(&owner));
+    let cash_pay = payments.as_array().unwrap().iter().find(|p| p["amount"] == 10_000).unwrap().clone();
+    let (_, field, rule) = rule_of(
+        &t,
+        m::SUPPLIER_PAYMENTS_VOID,
+        json!({"id": cash_pay["id"], "version": cash_pay["version"], "reason": ""}),
+        &owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("reason"), Some("required")));
+    let voided_pay = t.ok(
+        m::SUPPLIER_PAYMENTS_VOID,
+        json!({"id": cash_pay["id"], "version": cash_pay["version"], "reason": "اشتباه"}),
+        Some(&owner),
+    );
+    assert_eq!(t.ok(m::CASH_DAY, json!({"date": today}), Some(&owner))["cash_expenses"], 0);
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner))["balance"], 20_000);
+    let (_, _, rule) = rule_of(
+        &t,
+        m::SUPPLIER_PAYMENTS_VOID,
+        json!({"id": cash_pay["id"], "version": voided_pay["version"], "reason": "دوباره"}),
+        &owner,
+    );
+    assert_eq!(rule.as_deref(), Some("supplier_payment_void"));
+    assert_eq!(bank_pay["amount"], 5_000);
+
+    // Goods returned to the supplier lower what is owed.
+    let batch = s_of(&t.ok(m::STOCK_BATCHES_LIST, json!({"item_id": item_id}), Some(&owner))[0], "id");
+    t.ok(
+        m::STOCK_RETURN_TO_SUPPLIER,
+        json!({"batch_id": batch, "qty": 100, "supplier_id": sid, "credit": 2_500, "reason": "خراب"}),
+        Some(&owner),
+    );
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner))["balance"], 17_500);
+
+    // The history adds up to the balance.
+    let ledger = t.ok(m::SUPPLIER_LEDGER_LIST, json!({"supplier_id": sid}), Some(&owner));
+    assert_eq!(ledger.as_array().unwrap().last().unwrap()["balance"], 17_500, "{ledger}");
+
+    // A purchase whose goods were used cannot be voided; an untouched one can, and its stock goes.
+    let (_, _, rule) = rule_of(
+        &t,
+        m::PURCHASES_VOID,
+        json!({"id": purchase["id"], "version": purchase["version"], "reason": "x"}),
+        &owner,
+    );
+    assert_eq!(rule.as_deref(), Some("purchase_used"));
+    let second = t.ok(m::PURCHASES_CREATE, json!({"supplier_id": sid, "lines": [line(200)]}), Some(&owner));
+    let before = t.ok(m::STOCK_ITEMS_GET, json!({"id": item_id}), Some(&owner))["qty"].as_i64().unwrap();
+    let voided = t.ok(
+        m::PURCHASES_VOID,
+        json!({"id": second["id"], "version": second["version"], "reason": "اشتباه ورود"}),
+        Some(&owner),
+    );
+    assert_eq!(voided["void"], true);
+    assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": item_id}), Some(&owner))["qty"].as_i64().unwrap(), before - 200);
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner))["balance"], 17_500);
+    let (_, _, rule) = rule_of(
+        &t,
+        m::PURCHASES_VOID,
+        json!({"id": second["id"], "version": voided["version"], "reason": "again"}),
+        &owner,
+    );
+    assert_eq!(rule.as_deref(), Some("purchase_void"));
+
+    let actions = t.audit_actions(&owner);
+    for a in ["supplier.create", "purchase.create", "purchase.void", "supplier_payment.add", "supplier_payment.void"] {
+        assert!(actions.contains(&a.to_string()), "{a} is audited");
+    }
+}
+
+#[test]
+fn dental_lab_case_runs_its_cycle_warns_when_late_and_counts_towards_the_lab_balance() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    let item = treatment_done(&c, "SRG-01", 36, 350_000);
+    let lab = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "lab", "name": "Noor Lab"}), Some(owner));
+    let goods = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "supplier", "name": "Supply"}), Some(owner));
+    let (_, field, rule) = rule_of(
+        t,
+        m::LAB_CASES_CREATE,
+        json!({"patient_id": c.patient, "lab_id": goods["id"], "work_type": "Crown"}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("lab_id"), Some("supplier_not_found")));
+    let case = t.ok(
+        m::LAB_CASES_CREATE,
+        json!({"patient_id": c.patient, "lab_id": lab["id"], "doctor_id": c.doctor, "treatment_item_id": item["id"],
+               "teeth": [36], "work_type": "Crown PFM", "shade": "A2", "expected_date": day(-3), "cost": 30_000}),
+        Some(owner),
+    );
+    assert!(case["number"].as_str().unwrap().starts_with("LC-"));
+    assert_eq!((case["status"].as_str(), case["delayed"].as_bool()), (Some("planned"), Some(false)));
+    let id = case["id"].clone();
+
+    let (_, field, rule) = rule_of(
+        t,
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": id, "version": case["version"], "status": "received"}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("status"), Some("lab_status_invalid")));
+
+    // Sent, and already past the expected date: late, and listed among the alerts.
+    let sent = t.ok(
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": id, "version": case["version"], "status": "sent"}),
+        Some(owner),
+    );
+    assert_eq!((sent["delayed"].as_bool(), sent["days_late"].as_i64()), (Some(true), Some(3)));
+    let alerts = t.ok(m::STOCK_ALERTS_LIST, json!({}), Some(owner));
+    assert_eq!(alerts["lab_delayed"].as_array().unwrap().len(), 1);
+    assert_eq!(t.ok(m::LAB_CASES_LIST, json!({"delayed_only": true}), Some(owner)).as_array().unwrap().len(), 1);
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}), Some(owner))["balance"], 0, "not owed until it is back");
+
+    // It comes back with the final cost: now the clinic owes the lab, and the late warning is gone.
+    let back = t.ok(
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": id, "version": sent["version"], "status": "received", "cost": 32_000}),
+        Some(owner),
+    );
+    assert_eq!((back["delayed"].as_bool(), back["cost"].as_i64()), (Some(false), Some(32_000)));
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}), Some(owner))["balance"], 32_000);
+    let bank = method_id(t, owner, "bank_transfer");
+    t.ok(
+        m::SUPPLIER_PAYMENTS_ADD,
+        json!({"supplier_id": lab["id"], "amount": 12_000, "method_id": bank}),
+        Some(owner),
+    );
+    assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}), Some(owner))["balance"], 20_000);
+
+    // Lab cost beside what the treatment was invoiced for.
+    t.ok(m::INVOICES_CREATE, json!({"patient_id": c.patient, "items": [{"item_id": item["id"]}]}), Some(owner));
+    let report = t.ok(m::LAB_CASES_REPORT, json!({"from": day(-1), "to": day(0)}), Some(owner));
+    assert_eq!((report["total_cost"].as_i64(), report["rows"].as_array().map(Vec::len)), (Some(32_000), Some(1)));
+    assert_eq!(report["total_billed"], 350_000, "{report}");
+
+    // Delivered to the patient: closed for editing. A cancel needs its reason.
+    let done = t.ok(
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": id, "version": back["version"], "status": "delivered"}),
+        Some(owner),
+    );
+    let (_, _, rule) = rule_of(
+        t,
+        m::LAB_CASES_UPDATE,
+        json!({"id": id, "version": done["version"], "lab_id": lab["id"], "work_type": "Crown", "cost": 1}),
+        owner,
+    );
+    assert_eq!(rule.as_deref(), Some("lab_case_closed"));
+    let second = t.ok(
+        m::LAB_CASES_CREATE,
+        json!({"patient_id": c.patient, "lab_id": lab["id"], "work_type": "Bridge", "teeth": [14, 15, 16]}),
+        Some(owner),
+    );
+    let (_, field, rule) = rule_of(
+        t,
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": second["id"], "version": second["version"], "status": "cancelled"}),
+        owner,
+    );
+    assert_eq!((field.as_deref(), rule.as_deref()), (Some("reason"), Some("required")));
+    let cancelled = t.ok(
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": second["id"], "version": second["version"], "status": "cancelled", "reason": "بیمار نیامد"}),
+        Some(owner),
+    );
+    assert_eq!(cancelled["status"], "cancelled");
+    let actions = t.audit_actions(owner);
+    for a in ["lab_case.create", "lab_case.status"] {
+        assert!(actions.contains(&a.to_string()), "{a} is audited");
+    }
+}
+
+#[test]
+fn inventory_permissions_and_materials_of_a_service() {
+    let c = clinic4();
+    let (t, owner) = (&c.t, c.owner.as_str());
+    t.ok(m::USERS_CREATE, json!({"username": "dr1", "display_name": "x", "password": "doctor-pass-1", "role": "doctor"}), Some(owner));
+    t.ok(m::USERS_CREATE, json!({"username": "rec1", "display_name": "y", "password": "recep-pass-12", "role": "receptionist"}), Some(owner));
+    let doctor = t.login("dr1", "doctor-pass-1");
+    let reception = t.login("rec1", "recep-pass-12");
+    let cat = first_id(t, m::STOCK_CATEGORIES_LIST, owner, 0);
+    let unit = first_id(t, m::STOCK_UNITS_LIST, owner, 0);
+    let main = first_id(t, m::STOCK_LOCATIONS_LIST, owner, 0);
+
+    assert_eq!(t.call(m::STOCK_RECEIVE, json!({}), Some(&doctor)), Err(ErrorCode::Forbidden));
+    assert_eq!(t.call(m::STOCK_ITEMS_SAVE, json!({}), Some(&reception)), Err(ErrorCode::Forbidden));
+    assert_eq!(t.call(m::SUPPLIER_PAYMENTS_ADD, json!({}), Some(&doctor)), Err(ErrorCode::Forbidden));
+    t.ok(m::STOCK_ITEMS_LIST, json!({}), Some(&doctor));
+    t.ok(m::STOCK_ITEMS_LIST, json!({}), Some(&reception));
+    assert_eq!(
+        t.call(m::STOCK_CONSUME, json!({"item_id": "x", "qty": 1}), Some(&reception)),
+        Err(ErrorCode::Forbidden)
+    );
+
+    let glue = t.ok(
+        m::STOCK_ITEMS_SAVE,
+        json!({"name": {"fa": "بوند", "ps": "بوند", "en": "Bond"}, "category_id": cat, "unit_id": unit}),
+        Some(owner),
+    );
+    let glue_id = s_of(&glue, "id");
+    t.ok(
+        m::STOCK_RECEIVE,
+        json!({"item_id": glue_id, "qty": 500, "unit_cost": 1000, "location_id": main}),
+        Some(owner),
+    );
+    let item = treatment_done(&c, "SRG-01", 46, 80_000);
+    let service = item["service_id"].clone();
+    let (_, _, rule) = rule_of(t, m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), owner);
+    assert_eq!(rule.as_deref(), Some("materials_none"));
+
+    t.ok(
+        m::SERVICE_MATERIALS_SAVE,
+        json!({"service_id": service, "materials": [{"item_id": glue_id, "qty": 200}]}),
+        Some(owner),
+    );
+    assert_eq!(
+        t.ok(m::SERVICE_MATERIALS_LIST, json!({"service_id": service}), Some(&doctor)).as_array().unwrap().len(),
+        1
+    );
+    // A doctor takes the materials of the treatment; the second try is refused.
+    let moves = t.ok(m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), Some(&doctor));
+    assert_eq!(moves[0]["qty"], -200);
+    assert_eq!(moves[0]["patient_id"], json!(c.patient));
+    assert_eq!(t.ok(m::STOCK_ITEMS_GET, json!({"id": glue_id}), Some(owner))["qty"], 300);
+    let (_, _, rule) = rule_of(t, m::STOCK_CONSUME_TREATMENT, json!({"treatment_item_id": item["id"]}), owner);
+    assert_eq!(rule.as_deref(), Some("materials_already_consumed"));
+}

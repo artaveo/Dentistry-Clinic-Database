@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 mod billing;
+mod inventory;
 pub use billing::*;
+pub use inventory::*;
 
 // ───────────────────────────── envelope ─────────────────────────────
 
@@ -219,6 +221,25 @@ pub enum ValidationRule {
     CommissionValue,
     CommissionRuleNotFound,
     PeriodRange,
+    // Phase 8: inventory, suppliers, dental lab.
+    StockItemNotFound,
+    StockLookupNotFound,
+    StockQuantity,
+    StockInsufficient,
+    StockBatchNotFound,
+    StockSamePlace,
+    SupplierNotFound,
+    PurchaseNotFound,
+    PurchaseEmpty,
+    PurchaseVoid,
+    PurchaseUsed,
+    SupplierPaymentNotFound,
+    SupplierPaymentVoid,
+    LabCaseNotFound,
+    LabStatusInvalid,
+    LabCaseClosed,
+    MaterialsNone,
+    MaterialsAlreadyConsumed,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -3418,6 +3439,43 @@ api! {
     "cash.day"                   => CASH_DAY(DateParams) -> CashDay;
     "cash.close"                 => CASH_CLOSE(CloseCashParams) -> CashClosingInfo;
     "cash.closings"              => CASH_CLOSINGS(ExpenseListParams) -> Vec<CashClosingInfo>;
+    "stock_categories.list"      => STOCK_CATEGORIES_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
+    "stock_categories.save"      => STOCK_CATEGORIES_SAVE(SaveStockLookupParams) -> StockLookupInfo;
+    "stock_units.list"           => STOCK_UNITS_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
+    "stock_units.save"           => STOCK_UNITS_SAVE(SaveStockLookupParams) -> StockLookupInfo;
+    "stock_locations.list"       => STOCK_LOCATIONS_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
+    "stock_locations.save"       => STOCK_LOCATIONS_SAVE(SaveStockLookupParams) -> StockLookupInfo;
+    "stock_items.list"           => STOCK_ITEMS_LIST(StockItemListParams) -> Vec<StockItemInfo>;
+    "stock_items.get"            => STOCK_ITEMS_GET(IdParams) -> StockItemInfo;
+    "stock_items.save"           => STOCK_ITEMS_SAVE(SaveStockItemParams) -> StockItemInfo;
+    "stock_batches.list"         => STOCK_BATCHES_LIST(StockBatchListParams) -> Vec<StockBatchInfo>;
+    "stock_movements.list"       => STOCK_MOVEMENTS_LIST(StockMovementListParams) -> Vec<StockMovementInfo>;
+    "stock_alerts.list"          => STOCK_ALERTS_LIST(StockAlertParams) -> StockAlerts;
+    "stock.receive"              => STOCK_RECEIVE(ReceiveStockParams) -> StockItemInfo;
+    "stock.consume"              => STOCK_CONSUME(ConsumeStockParams) -> StockItemInfo;
+    "stock.consume_treatment"    => STOCK_CONSUME_TREATMENT(ConsumeForTreatmentParams) -> Vec<StockMovementInfo>;
+    "stock.adjust"               => STOCK_ADJUST(AdjustStockParams) -> StockItemInfo;
+    "stock.return_to_supplier"   => STOCK_RETURN_TO_SUPPLIER(ReturnStockParams) -> StockItemInfo;
+    "stock.transfer"             => STOCK_TRANSFER(TransferStockParams) -> StockItemInfo;
+    "service_materials.list"     => SERVICE_MATERIALS_LIST(ServiceIdParams) -> Vec<ServiceMaterialInfo>;
+    "service_materials.save"     => SERVICE_MATERIALS_SAVE(SaveServiceMaterialsParams) -> Vec<ServiceMaterialInfo>;
+    "suppliers.list"             => SUPPLIERS_LIST(SupplierListParams) -> Vec<SupplierInfo>;
+    "suppliers.get"              => SUPPLIERS_GET(IdParams) -> SupplierInfo;
+    "suppliers.save"             => SUPPLIERS_SAVE(SaveSupplierParams) -> SupplierInfo;
+    "supplier_ledger.list"       => SUPPLIER_LEDGER_LIST(SupplierIdParams) -> Vec<LedgerEntry>;
+    "purchases.list"             => PURCHASES_LIST(PurchaseListParams) -> Vec<PurchaseInfo>;
+    "purchases.get"              => PURCHASES_GET(IdParams) -> PurchaseInfo;
+    "purchases.create"           => PURCHASES_CREATE(CreatePurchaseParams) -> PurchaseInfo;
+    "purchases.void"             => PURCHASES_VOID(VoidWithReasonParams) -> PurchaseInfo;
+    "supplier_payments.list"     => SUPPLIER_PAYMENTS_LIST(SupplierPaymentListParams) -> Vec<SupplierPaymentInfo>;
+    "supplier_payments.add"      => SUPPLIER_PAYMENTS_ADD(AddSupplierPaymentParams) -> SupplierPaymentInfo;
+    "supplier_payments.void"     => SUPPLIER_PAYMENTS_VOID(VoidWithReasonParams) -> SupplierPaymentInfo;
+    "lab_cases.list"             => LAB_CASES_LIST(LabCaseListParams) -> Vec<LabCaseInfo>;
+    "lab_cases.get"              => LAB_CASES_GET(IdParams) -> LabCaseInfo;
+    "lab_cases.create"           => LAB_CASES_CREATE(CreateLabCaseParams) -> LabCaseInfo;
+    "lab_cases.update"           => LAB_CASES_UPDATE(UpdateLabCaseParams) -> LabCaseInfo;
+    "lab_cases.set_status"       => LAB_CASES_SET_STATUS(SetLabStatusParams) -> LabCaseInfo;
+    "lab_cases.report"           => LAB_CASES_REPORT(PeriodParams) -> LabReport;
     "lan.status"             => LAN_STATUS(Empty) -> LanStatus;
     "lan.enable"             => LAN_ENABLE(Empty) -> LanStatus;
     "lan.disable"            => LAN_DISABLE(Empty) -> LanStatus;
@@ -3723,6 +3781,54 @@ pub fn typescript_bindings() -> String {
         CategoryTotal,
         FinanceSummary,
         ExpenseListParams,
+        StockLookupInfo,
+        SaveStockLookupParams,
+        StockItemInfo,
+        SaveStockItemParams,
+        StockItemListParams,
+        StockBatchInfo,
+        StockBatchListParams,
+        StockMovementInfo,
+        StockMovementListParams,
+        StockAlertParams,
+        StockAlerts,
+        ReceiveStockParams,
+        ConsumeStockParams,
+        AdjustStockParams,
+        ReturnStockParams,
+        TransferStockParams,
+        ConsumeForTreatmentParams,
+        ServiceMaterialInfo,
+        ServiceIdParams,
+        MaterialLine,
+        SaveServiceMaterialsParams,
+        SupplierInfo,
+        SaveSupplierParams,
+        SupplierListParams,
+        SupplierIdParams,
+        LedgerEntry,
+        PurchaseLineInfo,
+        PurchaseInfo,
+        PurchaseLineParams,
+        CreatePurchaseParams,
+        PurchaseListParams,
+        VoidWithReasonParams,
+        SupplierPaymentInfo,
+        AddSupplierPaymentParams,
+        SupplierPaymentListParams,
+        LabCaseInfo,
+        CreateLabCaseParams,
+        UpdateLabCaseParams,
+        SetLabStatusParams,
+        LabCaseListParams,
+        LabProfitRow,
+        LabReport,
+        StockMovementKind,
+        BatchState,
+        StockFilter,
+        SupplierKind,
+        LabStatus,
+        LedgerKind,
         LanPairingInfo,
         LanStatus,
         LanDevice,

@@ -38,6 +38,8 @@ pub mod perm {
     /// Invoice a treatment at another price than the treatment says (6.1).
     pub const BILLING_OVERRIDE: &str = "billing.override";
     pub const REPORTS_VIEW: &str = "reports.view";
+    /// See stock, suppliers and lab cases (8.1).
+    pub const INVENTORY_VIEW: &str = "inventory.view";
     pub const INVENTORY_MANAGE: &str = "inventory.manage";
     pub const USERS_MANAGE: &str = "users.manage";
     pub const SETTINGS_MANAGE: &str = "settings.manage";
@@ -63,6 +65,7 @@ pub const ALL_PERMISSIONS: &[&str] = &[
     BILLING_VOID,
     BILLING_OVERRIDE,
     REPORTS_VIEW,
+    INVENTORY_VIEW,
     INVENTORY_MANAGE,
     USERS_MANAGE,
     SETTINGS_MANAGE,
@@ -91,6 +94,7 @@ pub fn system_roles() -> Vec<(&'static str, Vec<&'static str>)> {
                 APPOINTMENTS_EDIT,
                 BILLING_VIEW,
                 BILLING_EDIT,
+                INVENTORY_VIEW,
             ],
         ),
         (
@@ -103,13 +107,23 @@ pub fn system_roles() -> Vec<(&'static str, Vec<&'static str>)> {
                 CLINICAL_VIEW,
                 CLINICAL_EDIT,
                 BILLING_VIEW,
+                INVENTORY_VIEW,
             ],
         ),
         (
             "accountant",
-            vec![PATIENTS_VIEW, BILLING_VIEW, BILLING_EDIT, BILLING_VOID, BILLING_OVERRIDE, REPORTS_VIEW],
+            vec![
+                PATIENTS_VIEW,
+                BILLING_VIEW,
+                BILLING_EDIT,
+                BILLING_VOID,
+                BILLING_OVERRIDE,
+                REPORTS_VIEW,
+                INVENTORY_VIEW,
+                INVENTORY_MANAGE,
+            ],
         ),
-        ("assistant", vec![PATIENTS_VIEW, APPOINTMENTS_VIEW, APPOINTMENTS_TREAT, CLINICAL_VIEW]),
+        ("assistant", vec![PATIENTS_VIEW, APPOINTMENTS_VIEW, APPOINTMENTS_TREAT, CLINICAL_VIEW, INVENTORY_VIEW]),
     ]
 }
 

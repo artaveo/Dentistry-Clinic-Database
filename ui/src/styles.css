@@ -1529,3 +1529,49 @@ fieldset.translations > legend { padding: 0; margin-bottom: var(--space-2); }
 .presence-banner > svg { width: 18px; height: 18px; flex: none; color: var(--info); }
 .server-offline { max-width: 460px; }
 @media (prefers-reduced-motion: no-preference) { .conn-banner { animation: page-in var(--dur-slow) var(--ease); } }
+
+/* ───────────── Inventory, suppliers and dental lab (Phase 8) ───────────── */
+.stat-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 1200px) { .stat-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* The lab tile is a shortcut to the lab cases: the whole tile is the button. */
+.stat-link { display: block; padding: 0; background: none; border: none; text-align: start; border-radius: var(--radius-xl); cursor: pointer; font: inherit; color: inherit; }
+.stat-link:hover .stat { background: var(--fill-hover); }
+.stat-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stat-link .stat { height: 100%; transition: background var(--dur-fast) var(--ease); }
+.toolbar-search { flex: 1 1 240px; max-width: 360px; min-width: 0; }
+.toolbar-search .control { max-width: none; }
+.link-btn.plain { text-decoration: none; font-weight: 600; color: var(--text); text-align: start; }
+.link-btn.plain:hover { color: var(--accent-text); text-decoration: underline; }
+.row.tight { gap: var(--space-1); }
+.pad { padding: var(--space-4) var(--space-5); }
+.strike { text-decoration: line-through; color: var(--text-3); }
+.qty-cell { display: flex; align-items: baseline; gap: var(--space-1); flex-wrap: wrap; }
+/* How full a stock is next to its minimum; decorative, the numbers and the badge say the same. */
+.level { display: inline-block; align-self: center; width: 56px; height: 5px; border-radius: 99px; background: var(--fill-hover); overflow: hidden; margin-inline-start: var(--space-2); }
+.level > i { display: block; height: 100%; border-radius: 99px; background: var(--success); }
+.level[data-state="low"] > i { background: var(--warning); }
+.level[data-state="empty"] > i { background: var(--danger); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-4); margin: 0; padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--fill-subtle); }
+.facts > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.facts dt { font-size: var(--text-caption); color: var(--text-3); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+.sum { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); align-self: end; }
+.sum-row { display: flex; justify-content: space-between; gap: var(--space-4); align-items: baseline; }
+.sum-row dt { color: var(--text-2); }
+.sum-row dd { margin: 0; }
+.sum-row.strong { font-size: var(--text-subtitle); font-weight: 650; padding-top: var(--space-2); border-top: 1px solid var(--line); }
+/* A purchase line: item, quantity, cost, lot, place and expiry in a grid that collapses on a narrow window. */
+.po-lines { display: flex; flex-direction: column; gap: var(--space-3); }
+.po-line { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); margin: 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--fill-subtle); min-width: 0; }
+.po-line > legend { padding: 0 var(--space-2); }
+.po-line > .field:first-of-type { grid-column: 1 / -1; }
+.po-remove { position: absolute; inset-block-start: var(--space-2); inset-inline-end: var(--space-2); }
+.mat-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: var(--space-3); align-items: end; }
+.dialog.wide:has(.po-lines), .dialog.wide:has([data-testid="item-batches"]), .dialog.wide:has([data-testid="ledger-table"]) { width: min(980px, calc(100vw - 48px)); }
+@media (max-width: 760px) { .po-line { grid-template-columns: 1fr; } .mat-row { grid-template-columns: 1fr auto; } .mat-row > .field:first-child { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { .stat-link .stat { transition: none; } }
+.nowrap { white-space: nowrap; }
+.table td.lab-work { min-width: 160px; }
+.table [data-testid^="stock-open-"] { text-align: start; }
+[data-testid="stock-table"] td:first-child { min-width: 190px; }
+.po-total { align-self: auto; margin-inline-start: auto; min-width: min(100%, 280px); }

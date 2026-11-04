@@ -17,6 +17,7 @@ use crate::audit::{self, Actor};
 use crate::auth::{self, perm, NewUser, OWNER};
 use crate::backup;
 use crate::billing;
+use crate::inventory::{self, Lookup};
 use crate::clinic;
 use crate::clock::now_iso;
 use crate::core::Core;
@@ -1070,6 +1071,197 @@ impl Core {
                 s.require(perm::BILLING_VIEW)?;
                 let p: ExpenseListParams = params(p)?;
                 ok(self.with_db(|o| billing::list_closings(&o.conn, &p))?)
+            }
+            m::STOCK_CATEGORIES_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| inventory::list_lookups(&o.conn, Lookup::Category, include_inactive))?)
+            }
+            m::STOCK_CATEGORIES_SAVE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: SaveStockLookupParams = params(p)?;
+                ok(self.with_tx(|c| inventory::save_lookup(c, &actor(&s), Lookup::Category, &p))?)
+            }
+            m::STOCK_UNITS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| inventory::list_lookups(&o.conn, Lookup::Unit, include_inactive))?)
+            }
+            m::STOCK_UNITS_SAVE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: SaveStockLookupParams = params(p)?;
+                ok(self.with_tx(|c| inventory::save_lookup(c, &actor(&s), Lookup::Unit, &p))?)
+            }
+            m::STOCK_LOCATIONS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let IncludeInactiveParams { include_inactive } = params(p)?;
+                ok(self.with_db(|o| inventory::list_lookups(&o.conn, Lookup::Location, include_inactive))?)
+            }
+            m::STOCK_LOCATIONS_SAVE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: SaveStockLookupParams = params(p)?;
+                ok(self.with_tx(|c| inventory::save_lookup(c, &actor(&s), Lookup::Location, &p))?)
+            }
+            m::STOCK_ITEMS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: StockItemListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_items(&o.conn, &p))?)
+            }
+            m::STOCK_ITEMS_GET => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| inventory::get_item(&o.conn, &id))?)
+            }
+            m::STOCK_ITEMS_SAVE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: SaveStockItemParams = params(p)?;
+                ok(self.with_tx(|c| inventory::save_item(c, &actor(&s), &p))?)
+            }
+            m::STOCK_BATCHES_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: StockBatchListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_batches(&o.conn, &p))?)
+            }
+            m::STOCK_MOVEMENTS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: StockMovementListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_movements(&o.conn, &p))?)
+            }
+            m::STOCK_ALERTS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: StockAlertParams = params(p)?;
+                ok(self.with_db(|o| inventory::alerts(&o.conn, &p))?)
+            }
+            m::STOCK_RECEIVE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: ReceiveStockParams = params(p)?;
+                ok(self.with_tx(|c| inventory::receive(c, &actor(&s), &p))?)
+            }
+            m::STOCK_CONSUME => {
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::CLINICAL_EDIT, perm::APPOINTMENTS_TREAT])?;
+                let p: ConsumeStockParams = params(p)?;
+                ok(self.with_tx(|c| inventory::consume(c, &actor(&s), &p))?)
+            }
+            m::STOCK_CONSUME_TREATMENT => {
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::CLINICAL_EDIT, perm::APPOINTMENTS_TREAT])?;
+                let p: ConsumeForTreatmentParams = params(p)?;
+                ok(self.with_tx(|c| inventory::consume_for_treatment(c, &actor(&s), &p))?)
+            }
+            m::STOCK_ADJUST => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: AdjustStockParams = params(p)?;
+                ok(self.with_tx(|c| inventory::adjust(c, &actor(&s), &p))?)
+            }
+            m::STOCK_RETURN_TO_SUPPLIER => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: ReturnStockParams = params(p)?;
+                ok(self.with_tx(|c| inventory::return_to_supplier(c, &actor(&s), &p))?)
+            }
+            m::STOCK_TRANSFER => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: TransferStockParams = params(p)?;
+                ok(self.with_tx(|c| inventory::transfer(c, &actor(&s), &p))?)
+            }
+            m::SERVICE_MATERIALS_LIST => {
+                s.require_any(&[perm::INVENTORY_VIEW, perm::CLINICAL_VIEW, perm::SETTINGS_MANAGE])?;
+                let ServiceIdParams { service_id } = params(p)?;
+                ok(self.with_db(|o| inventory::list_materials(&o.conn, &service_id))?)
+            }
+            m::SERVICE_MATERIALS_SAVE => {
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::SETTINGS_MANAGE])?;
+                let p: SaveServiceMaterialsParams = params(p)?;
+                ok(self.with_tx(|c| inventory::save_materials(c, &actor(&s), &p))?)
+            }
+            m::SUPPLIERS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: SupplierListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_suppliers(&o.conn, &p))?)
+            }
+            m::SUPPLIERS_GET => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| inventory::get_supplier(&o.conn, &id))?)
+            }
+            m::SUPPLIERS_SAVE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: SaveSupplierParams = params(p)?;
+                ok(self.with_tx(|c| inventory::save_supplier(c, &actor(&s), &p))?)
+            }
+            m::SUPPLIER_LEDGER_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let SupplierIdParams { supplier_id } = params(p)?;
+                ok(self.with_db(|o| inventory::supplier_ledger(&o.conn, &supplier_id))?)
+            }
+            m::PURCHASES_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: PurchaseListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_purchases(&o.conn, &p))?)
+            }
+            m::PURCHASES_GET => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| inventory::get_purchase(&o.conn, &id))?)
+            }
+            m::PURCHASES_CREATE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: CreatePurchaseParams = params(p)?;
+                if p.paid > 0 {
+                    // Paying on the spot is money out of the clinic, like any expense.
+                    s.require(perm::BILLING_EDIT)?;
+                }
+                ok(self.with_tx(|c| inventory::create_purchase(c, &actor(&s), &p))?)
+            }
+            m::PURCHASES_VOID => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let p: VoidWithReasonParams = params(p)?;
+                ok(self.with_tx(|c| inventory::void_purchase(c, &actor(&s), &p))?)
+            }
+            m::SUPPLIER_PAYMENTS_LIST => {
+                s.require(perm::INVENTORY_VIEW)?;
+                let p: SupplierPaymentListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_payments(&o.conn, &p))?)
+            }
+            m::SUPPLIER_PAYMENTS_ADD => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                s.require(perm::BILLING_EDIT)?;
+                let p: AddSupplierPaymentParams = params(p)?;
+                ok(self.with_tx(|c| inventory::add_supplier_payment(c, &actor(&s), &p))?)
+            }
+            m::SUPPLIER_PAYMENTS_VOID => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                s.require(perm::BILLING_VOID)?;
+                let p: VoidWithReasonParams = params(p)?;
+                ok(self.with_tx(|c| inventory::void_supplier_payment(c, &actor(&s), &p))?)
+            }
+            m::LAB_CASES_LIST => {
+                s.require_any(&[perm::INVENTORY_VIEW, perm::CLINICAL_VIEW])?;
+                let p: LabCaseListParams = params(p)?;
+                ok(self.with_db(|o| inventory::list_lab_cases(&o.conn, &p))?)
+            }
+            m::LAB_CASES_GET => {
+                s.require_any(&[perm::INVENTORY_VIEW, perm::CLINICAL_VIEW])?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_db(|o| inventory::get_lab_case(&o.conn, &id))?)
+            }
+            m::LAB_CASES_CREATE => {
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::CLINICAL_EDIT])?;
+                let p: CreateLabCaseParams = params(p)?;
+                ok(self.with_tx(|c| inventory::create_lab_case(c, &actor(&s), &p))?)
+            }
+            m::LAB_CASES_UPDATE => {
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::CLINICAL_EDIT])?;
+                let p: UpdateLabCaseParams = params(p)?;
+                ok(self.with_tx(|c| inventory::update_lab_case(c, &actor(&s), &p))?)
+            }
+            m::LAB_CASES_SET_STATUS => {
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::CLINICAL_EDIT])?;
+                let p: SetLabStatusParams = params(p)?;
+                ok(self.with_tx(|c| inventory::set_lab_status(c, &actor(&s), &p))?)
+            }
+            m::LAB_CASES_REPORT => {
+                s.require_any(&[perm::INVENTORY_VIEW, perm::REPORTS_VIEW])?;
+                let p: PeriodParams = params(p)?;
+                ok(self.with_db(|o| inventory::lab_report(&o.conn, &p))?)
             }
             m::MEDICAL_QUESTIONS_LIST => {
                 // Whoever sees a patient's alert banner needs the questions' labels.

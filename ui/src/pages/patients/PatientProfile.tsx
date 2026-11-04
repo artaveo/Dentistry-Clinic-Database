@@ -202,7 +202,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
         <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} />
       )}
       {tab === "treatments" && (
-        <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => setTab("chart")} onNote={(i) => { setNoteFor(i); setTab("notes"); }} onInvoice={billing.edit ? () => setTab("invoices") : undefined} />
+        <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => setTab("chart")} onNote={(i) => { setNoteFor(i); setTab("notes"); }} onInvoice={billing.edit ? () => setTab("invoices") : undefined} canTakeMaterials={clinical.edit} />
       )}
       {tab === "notes" && <NotesTab key={noteFor?.id ?? "notes"} patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} initialItem={noteFor} onChanged={() => setNoteFor(null)} />}
       {tab === "invoices" && <PatientInvoicesTab patient={patient} perms={billing} canOverride={billing.override} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}

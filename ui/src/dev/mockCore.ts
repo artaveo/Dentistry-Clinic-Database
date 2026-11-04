@@ -6,6 +6,7 @@
 // `?mock=seeded` starts with a configured clinic and some history.
 import questionsPsv from "../../../core/seeds/medical_questions.psv?raw";
 import { clinicalCall, seedClinical } from "./mockClinical";
+import { inventoryCall } from "./mockInventory";
 import type {
   AppointmentInfo, AppointmentStatus, AttachmentInfo, AuditEntry, BackupInfo, ChairInfo, ClinicProfile, DoctorInfo, RecallInfo, RoleInfo, ErrorCode, LabeledItem, MedicalAnswer, MedicalHistoryInfo, MedicalQuestionInfo, PatientInfo, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
 } from "../../../shared/ts/contract";
@@ -38,7 +39,7 @@ const DISTRICTS: Record<string, [string, string, string, string][]> = {
 type Session = { user: UserInfo; perms: string[]; last: number; locked: boolean };
 type U = UserInfo & { password: string };
 
-const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage"];
+const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.edit", "billing.void"];
 const ROLE_PERMS: Record<string, string[]> = {
   owner: ALL_PERMS,
   administrator: ALL_PERMS.filter((p) => p !== "backup.restore"),
@@ -783,6 +784,14 @@ function call(method: string, p: any, token: string | null): unknown {
   }
   const clinical = clinicalCall(method, p);
   if (clinical !== undefined) return clinical;
+  try {
+    const inventory = inventoryCall(method, p);
+    if (inventory !== undefined) return inventory;
+  } catch (e) {
+    const f = e as { mockRule?: ValidationRule; mockField?: string | null };
+    if (f.mockRule) return invalid(f.mockField ?? "", f.mockRule);
+    throw e;
+  }
   return fail("unknown_method", method);
 }
 

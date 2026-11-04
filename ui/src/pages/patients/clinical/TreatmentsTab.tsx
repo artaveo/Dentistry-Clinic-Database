@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { Activity, CalendarCheck2, NotebookPen, ReceiptText } from "lucide-react";
+import { Activity, CalendarCheck2, NotebookPen, PackageMinus, ReceiptText } from "lucide-react";
 import type { CalendarSystem, ClinicProfile, PatientInfo, TreatmentItemInfo } from "../../../../../shared/ts/contract";
-import { isSessionError, rpc } from "../../../lib/api";
+import { ApiError, isSessionError, rpc } from "../../../lib/api";
 import { digits, formatDate } from "../../../lib/dates";
 import { useCatalog, useClinicSettings } from "../../../lib/clinical";
 import { formatAmount } from "../../../lib/money";
 import { useI18n } from "../../../i18n";
 import { Button } from "../../../ui/Button";
 import { Card, CardHeader } from "../../../ui/Card";
+import { useToast } from "../../../ui/Toast";
 import { Badge, EmptyState, ErrorState, SkeletonRows } from "../../../ui/Feedback";
 import { teethLabel } from "../../../chart/numbering";
 import { isSolo, useScheduling } from "../../reception/useScheduling";
@@ -19,8 +20,9 @@ import { SessionDots } from "./SessionDots";
  * service, price, result — each completed one ready for an invoice (Phase 6). New treatments are recorded
  * on the chart («انجام‌شده امروز») or by completing a visit booked for a session.
  */
-export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, onInvoice }: { patient: PatientInfo; clinic: ClinicProfile | null; calendar: CalendarSystem; onOpenChart: () => void; onNote: (item: TreatmentItemInfo) => void; onInvoice?: () => void }) {
+export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, onInvoice, canTakeMaterials }: { patient: PatientInfo; clinic: ClinicProfile | null; calendar: CalendarSystem; onOpenChart: () => void; onNote: (item: TreatmentItemInfo) => void; onInvoice?: () => void; canTakeMaterials?: boolean }) {
   const { t, err, lang } = useI18n();
+  const toast = useToast();
   const catalog = useCatalog();
   const settings = useClinicSettings();
   const numbering = settings?.tooth_numbering ?? "fdi";
@@ -38,6 +40,26 @@ export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, 
   useEffect(() => {
     load();
   }, [patient.id]);
+  // Phase 8 (8.2): a service with materials set offers to take them out of stock once the treatment is done.
+  const [withMaterials, setWithMaterials] = useState<Set<string>>(new Set());
+  const [taken, setTaken] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!canTakeMaterials || !items) return;
+    const services = [...new Set(items.filter((i) => i.status !== "cancelled").map((i) => i.service_id))];
+    Promise.all(services.map((id) => rpc("service_materials.list", { service_id: id }).then((m) => (m.length ? id : null))))
+      .then((ids) => setWithMaterials(new Set(ids.filter((x): x is string => !!x))))
+      .catch(() => {});
+  }, [canTakeMaterials, items]);
+  const takeMaterials = async (item: TreatmentItemInfo) => {
+    try {
+      await rpc("stock.consume_treatment", { treatment_item_id: item.id });
+      setTaken((s) => new Set(s).add(item.id));
+      toast.success(t("treatments.materialsTaken"));
+    } catch (e) {
+      if (isSessionError(e)) return;
+      toast.error(e instanceof ApiError && e.rule ? t(`rule.${e.rule}`) : err(e));
+    }
+  };
   if (error && !items) return <ErrorState message={error} onRetry={load} />;
   const doctorName = (id: string | null | undefined) => doctors?.find((d) => d.id === id)?.full_name ?? "—";
   const total = (items ?? []).filter((i) => i.status === "completed").reduce((s, i) => s + i.unit_price * i.units, 0);
@@ -94,6 +116,7 @@ export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, 
                     <span className="stack" style={{ gap: 2 }}>
                       <Badge tone={ITEM_TONE[i.status]} dot>{t(`item.status.${i.status}`)}</Badge>
                       {i.status === "completed" && !i.billed && (onInvoice ? <Button size="sm" variant="link" icon={ReceiptText} onClick={onInvoice} data-testid={`treatment-invoice-${i.id}`}>{t("item.readyForInvoice")}</Button> : <span className="t-caption subtle">{t("item.readyForInvoice")}</span>)}{i.billed && <span className="t-caption subtle">{t("item.billed")}</span>}
+                      {canTakeMaterials && i.status === "completed" && withMaterials.has(i.service_id) && !taken.has(i.id) && <Button size="sm" variant="link" icon={PackageMinus} onClick={() => takeMaterials(i)} data-testid={`treatment-materials-${i.id}`}>{t("treatments.takeMaterials")}</Button>}
                       <Button size="sm" variant="link" icon={NotebookPen} onClick={() => onNote(i)} data-testid={`treatment-note-${i.id}`}>{t("treatments.writeNote")}</Button>
                     </span>
                   </td>
