@@ -123,8 +123,9 @@ test("The audit log narrows to the sensitive actions", async () => {
   const rows = page.getByTestId("audit-list").locator("tbody tr");
   await expect(rows.first()).toBeVisible();
   await expect(page.getByTestId("audit-sensitive").first()).toBeVisible();
-  const total = await rows.count();
-  expect(await page.getByTestId("audit-sensitive").count()).toBe(total);
+  // The old (unfiltered) page stays on screen until the filtered answer arrives: wait for it, don't read once.
+  const badges = page.getByTestId("audit-sensitive");
+  await expect.poll(async () => (await rows.count()) - (await badges.count())).toBe(0);
 
   await page.getByTestId("audit-filter-action").fill("zzz-no-such-action");
   await expect(page.getByTestId("empty-state")).toBeVisible();
