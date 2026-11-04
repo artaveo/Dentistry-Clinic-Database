@@ -682,8 +682,8 @@ mod tests {
     fn a_paid_license_walks_through_active_check_due_expired_warning_and_read_only() {
         let i = install("2026-12-01T00:00:00.000Z");
         let l = loaded(&p()); // issued 11-01, check 30 d, valid until 2027-03-01, ends 2027-11-01
-        // The clock mark must not be ahead of "now", or the clock-set-back rule fires.
         let early = install("2026-11-10T00:00:00.000Z");
+        // The clock mark must not be ahead of "now", or the clock-set-back rule fires.
         let s = state(&early, &l, datetime!(2026-11-10 00:00 UTC));
         assert_eq!(
             (s.state, s.read_only, s.verify_due, s.computers),
