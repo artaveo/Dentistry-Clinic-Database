@@ -197,7 +197,8 @@ fn backup_status(conn: &Connection) -> Result<BackupStatus> {
     })
 }
 
-pub fn dashboard(conn: &Connection, s: &Session) -> Result<Dashboard> {
+/// `license` is the license state code (`active`, `trial`, ...), known to the caller, not to the database.
+pub fn dashboard(conn: &Connection, s: &Session, license: Option<String>) -> Result<Dashboard> {
     let today = today_iso();
     let can = |p: &str| s.permissions.contains(p);
     let doctor = own_doctor(conn, s)?;
@@ -308,7 +309,7 @@ pub fn dashboard(conn: &Connection, s: &Session) -> Result<Dashboard> {
         low_stock,
         pending_lab,
         backup,
-        license: None,
+        license,
     })
 }
 
@@ -1133,8 +1134,16 @@ fn read_keys(conn: &Connection, user_id: &str) -> Result<HashSet<String>> {
     Ok(keys)
 }
 
+/// Facts the database does not hold (the license file, the USB drives plugged in right now).
+#[derive(Debug, Clone)]
+pub struct NotifyExtras {
+    pub license: LicenseStatus,
+    pub usb_connected: bool,
+    pub usb_cloned: bool,
+}
+
 /// What needs attention right now for this user. Nothing is stored except which keys were read.
-pub fn notifications(conn: &Connection, s: &Session) -> Result<NotificationList> {
+pub fn notifications(conn: &Connection, s: &Session, extras: &NotifyExtras) -> Result<NotificationList> {
     use NotificationKind as K;
     use NotificationLevel as L;
     let can = |p: &str| s.permissions.contains(p);
@@ -1291,6 +1300,50 @@ pub fn notifications(conn: &Connection, s: &Session) -> Result<NotificationList>
                 None,
             ));
         }
+        // 10.4: the trusted USB drive is not plugged in, so the newest backup waits for it. A new
+        // reminder every `usb_warn_minutes` (19:00, 19:30, 20:00, ...), each one a fresh, unread item.
+        let waiting: Option<(String, String)> = conn
+            .query_row(
+                "SELECT l.id, l.created_at FROM backup_copy c JOIN backup_log l ON l.id = c.backup_id
+                 WHERE c.target = 'usb' AND c.status IN ('pending', 'failed') AND l.deleted_at IS NULL
+                 ORDER BY l.created_at DESC LIMIT 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        if let (Some((id, since)), false) = (waiting, extras.usb_connected) {
+            let interval = crate::backup::get_settings(conn)?.usb_warn_minutes.max(5) as i64;
+            let minutes = parse(&since).map(|t| (now() - t).whole_minutes()).unwrap_or(0).max(0);
+            items.push(item(
+                format!("usb_missing:{id}:{}", minutes / interval),
+                K::UsbMissing,
+                L::Warning,
+                same(""),
+                Some(minutes.to_string()),
+                Some(local_day(&since)),
+                "backup",
+                None,
+            ));
+        }
+        if extras.usb_cloned {
+            items.push(item(format!("usb_cloned:{today}"), K::UsbCloned, L::Danger, same(""), None, None, "backup", None));
+        }
+    }
+
+    // The license speaks to whoever can change settings (10.8, 10.9).
+    if can(perm::SETTINGS_MANAGE) {
+        use artaveo_shared::LicenseState as S;
+        let l = &extras.license;
+        let page = "license";
+        if l.read_only {
+            items.push(item(format!("license_read_only:{:?}", l.state), K::LicenseReadOnly, L::Danger, same(""), None, None, page, None));
+        } else if l.state == S::Grace {
+            let left = l.grace_days_left.map(|d| d.to_string());
+            let day = l.verified_at.as_deref().map(local_day);
+            items.push(item(format!("license_verify:{}", day.clone().unwrap_or_default()), K::LicenseVerify, L::Warning, same(""), left, day, page, None));
+        } else if let Some(left) = l.first_period_days_left.filter(|d| *d <= 7).or(l.days_left.filter(|d| *d <= 14)) {
+            items.push(item(format!("license_expiring:{left}"), K::LicenseExpiring, L::Warning, same(""), Some(left.to_string()), None, page, None));
+        }
     }
 
     // Most urgent first; inside one level, the order the checks above produced.
@@ -1303,9 +1356,14 @@ pub fn notifications(conn: &Connection, s: &Session) -> Result<NotificationList>
     Ok(NotificationList { items, unread })
 }
 
-pub fn mark_read(conn: &Connection, s: &Session, p: &NotificationKeysParams) -> Result<NotificationList> {
+pub fn mark_read(
+    conn: &Connection,
+    s: &Session,
+    p: &NotificationKeysParams,
+    extras: &NotifyExtras,
+) -> Result<NotificationList> {
     let keys: Vec<String> = if p.keys.is_empty() {
-        notifications(conn, s)?.items.into_iter().map(|i| i.key).collect()
+        notifications(conn, s, extras)?.items.into_iter().map(|i| i.key).collect()
     } else {
         p.keys.iter().take(500).cloned().collect()
     };
@@ -1321,7 +1379,7 @@ pub fn mark_read(conn: &Connection, s: &Session, p: &NotificationKeysParams) -> 
         "DELETE FROM notification_read WHERE read_at < ?1",
         [iso(now() - time::Duration::days(90))],
     )?;
-    notifications(conn, s)
+    notifications(conn, s, extras)
 }
 
 // ───────────────────────────── global search (9.7) ─────────────────────────────

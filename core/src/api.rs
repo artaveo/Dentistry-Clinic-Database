@@ -193,6 +193,11 @@ impl Core {
         }
         let token = token.unwrap_or_default();
         let session = self.authorize(&token, method)?;
+        // Expired, revoked or unlicensed: everything can be looked at, printed, exported and backed up,
+        // nothing can be changed (roadmap 10.9). Patient data never depends on the license.
+        if crate::license::blocked_when_read_only(method) && self.license.is_read_only() {
+            return Err(CoreError::api(ErrorCode::LicenseReadOnly, "the license does not allow changes"));
+        }
         if crate::lan::is_lan_method(method) {
             return self.call_lan(method, p, &session, origin);
         }
@@ -213,8 +218,44 @@ impl Core {
         Ok(s.clone())
     }
 
+    fn after_license_change(&self, s: &Session, action: &str, st: &LicenseStatus) -> Result<()> {
+        self.apply_license_limits();
+        self.with_db(|o| {
+            audit::record(
+                &o.conn,
+                &actor(s),
+                action,
+                Some("license"),
+                None,
+                None,
+                Some(&json!({"state": st.state, "plan": st.plan, "expires_at": st.expires_at})),
+            )
+        })
+    }
+
+    fn notify_extras(&self) -> reports::NotifyExtras {
+        let usb = self.usb();
+        let seen = self
+            .lock_db()
+            .as_ref()
+            .and_then(|o| backup::detect(&o.conn, &o.key, usb.as_ref()).ok())
+            .map(|d| {
+                (
+                    d.iter().any(|x| x.verdict == crate::usb::Verdict::Trusted),
+                    d.iter().any(|x| x.verdict == crate::usb::Verdict::Cloned),
+                )
+            });
+        let (usb_connected, usb_cloned) = seen.unwrap_or((false, false));
+        reports::NotifyExtras { license: self.license.status(), usb_connected, usb_cloned }
+    }
+
     fn call_public(&self, method: &str, p: Value) -> Result<Value> {
         match method {
+            m::BACKUP_SCAN => ok(self.scan_backups(&params(p)?)?),
+            m::BACKUP_RESTORE_NEW => {
+                self.restore_new_computer(&params(p)?)?;
+                ok(Empty {})
+            }
             m::APP_STATUS => ok(AppStatus {
                 state: if self.is_set_up() { AppState::Ready } else { AppState::NeedsSetup },
                 version: APP_VERSION.into(),
@@ -565,20 +606,122 @@ impl Core {
             }
             m::BACKUP_CREATE => {
                 s.require(perm::BACKUP_CREATE)?;
+                let usb = self.usb();
                 ok(self.with_db(|o| {
                     let info =
                         backup::create(&o.conn, &o.key, &self.config, backup::Kind::Manual, &actor(&s))?;
-                    backup::apply_retention(
-                        &o.conn,
-                        &self.config.backup_dir(),
-                        settings::get(&o.conn)?.backup_keep_daily,
-                    )?;
+                    backup::distribute(&o.conn, &o.key, &self.config, usb.as_ref(), &info)?;
+                    backup::apply_retention(&o.conn, &self.config)?;
                     Ok(info)
                 })?)
             }
             m::BACKUP_LIST => {
                 s.require(perm::BACKUP_VIEW)?;
                 ok(self.with_db(|o| backup::list(&o.conn))?)
+            }
+            m::BACKUP_HISTORY => {
+                s.require(perm::BACKUP_VIEW)?;
+                ok(self.with_db(|o| backup::history(&o.conn))?)
+            }
+            m::BACKUP_OVERVIEW => {
+                s.require(perm::BACKUP_VIEW)?;
+                let usb = self.usb();
+                ok(self.with_db(|o| backup::overview(&o.conn, &o.key, usb.as_ref()))?)
+            }
+            m::BACKUP_SETTINGS_GET => {
+                s.require(perm::BACKUP_VIEW)?;
+                ok(self.with_db(|o| backup::get_settings(&o.conn))?)
+            }
+            m::BACKUP_SETTINGS_SAVE => {
+                s.require(perm::BACKUP_CREATE)?;
+                let new: BackupSettings = params(p)?;
+                ok(self.with_db(|o| backup::save_settings(&o.conn, &actor(&s), &self.config.data_dir, &new))?)
+            }
+            m::BACKUP_USB => {
+                s.require(perm::BACKUP_VIEW)?;
+                let usb = self.usb();
+                ok(self.with_db(|o| backup::usb_overview(&o.conn, &o.key, usb.as_ref()))?)
+            }
+            m::BACKUP_USB_TRUST => {
+                s.require(perm::BACKUP_CREATE)?;
+                let UsbMountParams { mount } = params(p)?;
+                let usb = self.usb();
+                ok(self.with_db(|o| {
+                    backup::trust_device(&o.conn, &o.key, usb.as_ref(), &actor(&s), &mount)?;
+                    // The newest backup goes to the new device right away (10.3).
+                    if let Some(info) = backup::latest(&o.conn)? {
+                        backup::distribute(&o.conn, &o.key, &self.config, usb.as_ref(), &info)?;
+                    }
+                    backup::usb_overview(&o.conn, &o.key, usb.as_ref())
+                })?)
+            }
+            m::BACKUP_USB_FORGET => {
+                s.require(perm::BACKUP_CREATE)?;
+                let DeviceIdParams { device_id } = params(p)?;
+                let usb = self.usb();
+                ok(self.with_db(|o| {
+                    backup::forget_device(&o.conn, &actor(&s), &device_id)?;
+                    backup::usb_overview(&o.conn, &o.key, usb.as_ref())
+                })?)
+            }
+            m::BACKUP_CLOUD_CHECK => {
+                s.require(perm::BACKUP_VIEW)?;
+                let folder = self.with_db(|o| Ok(backup::get_settings(&o.conn)?.cloud_folder))?;
+                ok(backup::cloud_status(folder.as_deref()))
+            }
+            m::BACKUP_RESTORE_LIST => {
+                s.require(perm::BACKUP_RESTORE)?;
+                let RestoreListParams { source } = params(p)?;
+                ok(self.restore_candidates(source)?)
+            }
+            m::BACKUP_RESTORE_PREVIEW => {
+                s.require(perm::BACKUP_RESTORE)?;
+                let t: RestoreTarget = params(p)?;
+                ok(self.restore_preview(&t)?)
+            }
+            m::BACKUP_RESTORE => {
+                let r: RestoreParams = params(p)?;
+                ok(self.restore_backup(&s, &r)?)
+            }
+            m::LICENSE_STATUS => ok(self.license.status()),
+            m::LICENSE_START_TRIAL => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let st = self.license.start_trial(&self.license_client_info())?;
+                self.after_license_change(&s, "license.start_trial", &st)?;
+                ok(st)
+            }
+            m::LICENSE_ACTIVATE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let ActivateParams { code } = params(p)?;
+                let st = self.license.activate(&code, &self.license_client_info())?;
+                self.after_license_change(&s, "license.activate", &st)?;
+                ok(st)
+            }
+            m::LICENSE_VERIFY => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let st = self.license.verify(&self.license_client_info())?;
+                self.after_license_change(&s, "license.verify", &st)?;
+                ok(st)
+            }
+            m::LICENSE_RELEASE => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                if s.user.role != OWNER {
+                    return Err(CoreError::forbidden(perm::SETTINGS_MANAGE));
+                }
+                let st = self.license.release()?;
+                self.after_license_change(&s, "license.release", &st)?;
+                ok(st)
+            }
+            m::LICENSE_OFFLINE_REQUEST => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                ok(OfflineRequestInfo { request_code: self.license.offline_request(&self.license_client_info()) })
+            }
+            m::LICENSE_OFFLINE_APPLY => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                let OfflineApplyParams { response_code } = params(p)?;
+                let st = self.license.offline_apply(&response_code)?;
+                self.after_license_change(&s, "license.activate_offline", &st)?;
+                ok(st)
             }
             m::AUDIT_LIST => {
                 let p: AuditListParams = params(p)?;
@@ -587,7 +730,12 @@ impl Core {
                 s.require(if p.entity_id.is_some() { perm::PATIENTS_VIEW } else { perm::AUDIT_VIEW })?;
                 ok(self.with_db(|o| audit::list(&o.conn, &p))?)
             }
-            m::DASHBOARD_GET => ok(self.with_db(|o| reports::dashboard(&o.conn, &s))?),
+            m::DASHBOARD_GET => {
+                let license = serde_json::to_value(self.license.status().state)
+                    .ok()
+                    .and_then(|v| v.as_str().map(str::to_string));
+                ok(self.with_db(|o| reports::dashboard(&o.conn, &s, license))?)
+            }
             m::REPORTS_RUN => {
                 let p: ReportParams = params(p)?;
                 require_report(&s, p.kind)?;
@@ -598,10 +746,14 @@ impl Core {
                 require_report(&s, p.report.kind)?;
                 ok(self.with_db(|o| reports::export(&o.conn, &actor(&s), &p, &self.config.exports_dir()))?)
             }
-            m::NOTIFICATIONS_LIST => ok(self.with_db(|o| reports::notifications(&o.conn, &s))?),
+            m::NOTIFICATIONS_LIST => {
+                let extras = self.notify_extras();
+                ok(self.with_db(|o| reports::notifications(&o.conn, &s, &extras))?)
+            }
             m::NOTIFICATIONS_MARK_READ => {
                 let p: NotificationKeysParams = params(p)?;
-                ok(self.with_db(|o| reports::mark_read(&o.conn, &s, &p))?)
+                let extras = self.notify_extras();
+                ok(self.with_db(|o| reports::mark_read(&o.conn, &s, &p, &extras))?)
             }
             m::SEARCH_GLOBAL => {
                 let p: SearchParams = params(p)?;

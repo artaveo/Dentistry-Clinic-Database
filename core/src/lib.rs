@@ -25,6 +25,7 @@ pub mod import;
 pub mod inventory;
 pub mod keys;
 pub mod lan;
+pub mod license;
 pub mod logging;
 pub mod medical;
 pub mod normalize;
@@ -33,6 +34,7 @@ pub mod patient;
 pub mod perio;
 pub mod recall;
 pub mod reports;
+pub mod restore;
 pub mod scheduling;
 pub mod seeds;
 pub mod session;
@@ -41,10 +43,13 @@ pub mod specialty;
 pub mod sysinfo;
 pub mod timeline;
 pub mod treatment;
+pub mod usb;
 
 mod core;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_phase10;
 
 pub use crate::config::{Config, Environment};
 pub use crate::core::Core;

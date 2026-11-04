@@ -71,6 +71,11 @@ impl SessionStore {
         self.sessions.remove(token)
     }
 
+    /// Ends every session (the data was replaced by a restore: the old users may not exist any more).
+    pub fn clear(&mut self) {
+        self.sessions.clear();
+    }
+
     /// Ends every session of a user (deactivation, password reset).
     pub fn remove_user(&mut self, user_id: &str) {
         self.sessions.retain(|_, s| s.user.id != user_id);

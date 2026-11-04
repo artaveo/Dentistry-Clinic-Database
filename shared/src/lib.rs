@@ -10,11 +10,15 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+mod backup;
 mod billing;
 mod inventory;
+mod license;
 mod reports;
+pub use backup::*;
 pub use billing::*;
 pub use inventory::*;
+pub use license::*;
 pub use reports::*;
 
 // ───────────────────────────── envelope ─────────────────────────────
@@ -242,6 +246,14 @@ pub enum ValidationRule {
     LabCaseClosed,
     MaterialsNone,
     MaterialsAlreadyConsumed,
+    // Phase 10: backup manager and license.
+    BackupMinuteRange,
+    BackupRetentionRange,
+    UsbIntervalRange,
+    CloudFolder,
+    ActivationCodeFormat,
+    UsbMountUnknown,
+    BackupFileUnknown,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -263,6 +275,14 @@ pub enum ErrorCode {
     UnknownMethod,
     // LAN client: the clinic server computer cannot be reached (Phase 7).
     ServerUnreachable,
+    // Phase 10: the license is expired, revoked or missing, so changes are refused (10.9).
+    LicenseReadOnly,
+    // The license server could not be reached (no internet, or this build has no server address).
+    LicenseServerUnavailable,
+    // The license server answered "no" (unknown or used-up code, revoked license, ...).
+    LicenseRejected,
+    // A backup file cannot be restored (damaged, wrong key, from a newer app).
+    BackupInvalid,
     Internal,
 }
 
@@ -3511,6 +3531,26 @@ api! {
     "presence.enter"         => PRESENCE_ENTER(PresenceParams) -> Vec<PresenceViewer>;
     "presence.leave"         => PRESENCE_LEAVE(PresenceParams) -> Empty;
     "presence.who"           => PRESENCE_WHO(PresenceParams) -> Vec<PresenceViewer>;
+    "backup.history"         => BACKUP_HISTORY(Empty) -> Vec<BackupEntry>;
+    "backup.overview"        => BACKUP_OVERVIEW(Empty) -> BackupOverview;
+    "backup.settings_get"    => BACKUP_SETTINGS_GET(Empty) -> BackupSettings;
+    "backup.settings_save"   => BACKUP_SETTINGS_SAVE(BackupSettings) -> BackupSettings;
+    "backup.usb"             => BACKUP_USB(Empty) -> UsbOverview;
+    "backup.usb_trust"       => BACKUP_USB_TRUST(UsbMountParams) -> UsbOverview;
+    "backup.usb_forget"      => BACKUP_USB_FORGET(DeviceIdParams) -> UsbOverview;
+    "backup.cloud_check"     => BACKUP_CLOUD_CHECK(Empty) -> CloudStatus;
+    "backup.restore_list"    => BACKUP_RESTORE_LIST(RestoreListParams) -> Vec<RestoreCandidate>;
+    "backup.restore_preview" => BACKUP_RESTORE_PREVIEW(RestoreTarget) -> RestorePreview;
+    "backup.restore"         => BACKUP_RESTORE(RestoreParams) -> RestoreResult;
+    "backup.scan"            => BACKUP_SCAN(ScanBackupsParams) -> Vec<RestoreCandidate>;
+    "backup.restore_new"     => BACKUP_RESTORE_NEW(RestoreNewParams) -> Empty;
+    "license.status"         => LICENSE_STATUS(Empty) -> LicenseStatus;
+    "license.start_trial"    => LICENSE_START_TRIAL(Empty) -> LicenseStatus;
+    "license.activate"       => LICENSE_ACTIVATE(ActivateParams) -> LicenseStatus;
+    "license.verify"         => LICENSE_VERIFY(Empty) -> LicenseStatus;
+    "license.release"        => LICENSE_RELEASE(Empty) -> LicenseStatus;
+    "license.offline_request" => LICENSE_OFFLINE_REQUEST(Empty) -> OfflineRequestInfo;
+    "license.offline_apply"  => LICENSE_OFFLINE_APPLY(OfflineApplyParams) -> LicenseStatus;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -3521,6 +3561,9 @@ pub const PUBLIC_METHODS: &[&str] = &[
     methods::APP_CLINIC_LOGO,
     methods::AUTH_LOGIN,
     methods::AUTH_RECOVER_OWNER,
+    // Restore on a new computer (10.7): there is no clinic and no session yet.
+    methods::BACKUP_SCAN,
+    methods::BACKUP_RESTORE_NEW,
 ];
 
 /// Generates `shared/ts/contract.ts`.
@@ -3880,6 +3923,32 @@ pub fn typescript_bindings() -> String {
         SearchHit,
         SearchParams,
         SearchResults,
+        BackupSettings,
+        CopyStatus,
+        BackupEntry,
+        TargetState,
+        CloudStatus,
+        BackupOverview,
+        UsbVerdict,
+        UsbVolumeInfo,
+        TrustedDeviceInfo,
+        UsbOverview,
+        UsbMountParams,
+        DeviceIdParams,
+        BackupSource,
+        RestoreListParams,
+        RestoreCandidate,
+        RestoreTarget,
+        RestorePreview,
+        RestoreParams,
+        RestoreResult,
+        ScanBackupsParams,
+        RestoreNewParams,
+        LicenseState,
+        LicenseStatus,
+        ActivateParams,
+        OfflineRequestInfo,
+        OfflineApplyParams,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(
@@ -3909,7 +3978,15 @@ mod tests {
         assert_eq!(names.len(), ALL_METHODS.len());
         assert_eq!(
             PUBLIC_METHODS,
-            &["app.status", "app.setup", "app.clinic_logo", "auth.login", "auth.recover_owner"]
+            &[
+                "app.status",
+                "app.setup",
+                "app.clinic_logo",
+                "auth.login",
+                "auth.recover_owner",
+                "backup.scan",
+                "backup.restore_new"
+            ]
         );
     }
 

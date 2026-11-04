@@ -1,0 +1,11 @@
+{
+  "public_key": "QWmFptSNkKxusO4PrUFDlMzJtagJXeZZmrS8DtoMSTQ=",
+  "valid": {
+    "payload": "{\"v\":1,\"license_id\":\"lic-test-1\",\"clinic_id\":\"clinic-test-1\",\"installation_id\":\"inst-test-1\",\"kind\":\"paid\",\"plan\":\"standard\",\"computers\":3,\"issued_at\":\"2026-11-01T08:00:00.000Z\",\"verified_at\":\"2026-11-01T08:00:00.000Z\",\"starts_at\":\"2026-01-01T00:00:00.000Z\",\"expires_at\":\"2027-01-01T00:00:00.000Z\",\"offline_grace_days\":30,\"verify_every_days\":7}",
+    "signature": "DX1Dtbc5JvNG8c6PFGxQ9qarIkMhApF8/w8sQEprgdhcW0PhDDRtUB0Dgwmmk3lHdo+wfLu+DivaWxPBCHWNBg=="
+  },
+  "tampered": {
+    "payload": "{\"v\":1,\"license_id\":\"lic-test-1\",\"clinic_id\":\"clinic-test-1\",\"installation_id\":\"inst-test-1\",\"kind\":\"paid\",\"plan\":\"pro\",\"computers\":3,\"issued_at\":\"2026-11-01T08:00:00.000Z\",\"verified_at\":\"2026-11-01T08:00:00.000Z\",\"starts_at\":\"2026-01-01T00:00:00.000Z\",\"expires_at\":\"2027-01-01T00:00:00.000Z\",\"offline_grace_days\":30,\"verify_every_days\":7}",
+    "signature": "DX1Dtbc5JvNG8c6PFGxQ9qarIkMhApF8/w8sQEprgdhcW0PhDDRtUB0Dgwmmk3lHdo+wfLu+DivaWxPBCHWNBg=="
+  }
+}

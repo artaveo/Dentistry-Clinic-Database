@@ -40,7 +40,7 @@ test("The dashboard is the first page and shows today's numbers", async () => {
   await expect(page.getByTestId("dash-patients")).toBeVisible();
   await expect(page.getByTestId("dash-attention")).toBeVisible();
   // A state is a word and an icon, never only a colour.
-  await expect(page.getByTestId("dash-license")).toContainText("۱۰");
+  await expect(page.getByTestId("dash-license")).toContainText("فعال نشده");
   await page.getByTestId("tab-system").click();
   await page.getByTestId("tab-dashboard").click();
   await expect(page.getByTestId("dash-stats")).toBeVisible();

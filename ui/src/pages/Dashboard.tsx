@@ -2,7 +2,7 @@
 // reception see the clinic, a doctor sees only their own patients, visits and work. Numbers come from the
 // Core; every figure that can be a warning says so in words and an icon, never by colour alone.
 import { useEffect, useState } from "react";
-import { AlertTriangle, CalendarCheck2, CalendarClock, CheckCircle2, ChevronRight, CircleHelp, DatabaseBackup, FlaskConical, Landmark, PackageMinus, ShieldCheck, Stethoscope, UsersRound, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarCheck2, CalendarClock, CheckCircle2, ChevronRight, DatabaseBackup, FlaskConical, Landmark, PackageMinus, ShieldCheck, Stethoscope, UsersRound, Wallet } from "lucide-react";
 import type { CalendarSystem, Dashboard } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "../lib/api";
 import { digits, formatDate, formatTime } from "../lib/dates";
@@ -108,7 +108,17 @@ export function DashboardPage({ calendar, go }: { calendar: CalendarSystem; go: 
                 testId="dash-backup"
               />
             )}
-            <Row icon={CircleHelp} label={t("dash.license")} value={t("dash.licenseSoon")} testId="dash-license" />
+            {data.license && (
+              <Row
+                icon={ShieldCheck}
+                label={t("dash.license")}
+                value={t(`lic.badge.${data.license}`)}
+                bad={!["active", "trial", "unactivated"].includes(data.license)}
+                badText={t("dash.checkLicense")}
+                onClick={() => go("license")}
+                testId="dash-license"
+              />
+            )}
           </ul>
         </Card>
       </div>

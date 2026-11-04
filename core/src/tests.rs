@@ -9,13 +9,13 @@ use serde_json::{json, Value};
 use crate::keys::{default_protector, RecoveryKey};
 use crate::{db, Config, Core, Environment};
 
-struct T {
-    _dir: tempfile::TempDir,
-    core: Core,
+pub(crate) struct T {
+    pub(crate) _dir: tempfile::TempDir,
+    pub(crate) core: Core,
 }
 
 impl T {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         // Booking tests use 09:00 "today": pin the clock to 06:00 clinic time so they are never in the past.
         let six = crate::clock::local_now().replace_time(time::macros::time!(06:00));
         crate::clock::pin_booking_clock(six);
@@ -24,21 +24,21 @@ impl T {
         T { _dir: dir, core }
     }
 
-    fn reopen(self) -> Self {
+    pub(crate) fn reopen(self) -> Self {
         let dir = self._dir;
         drop(self.core);
         let core = Core::open(Config::new(Environment::Test, dir.path().to_path_buf())).unwrap();
         T { _dir: dir, core }
     }
 
-    fn call(&self, method: &str, params: Value, token: Option<&str>) -> Result<Value, ErrorCode> {
+    pub(crate) fn call(&self, method: &str, params: Value, token: Option<&str>) -> Result<Value, ErrorCode> {
         match self.core.handle(RpcRequest { method: method.into(), params, token: token.map(Into::into) }) {
             RpcResponse::Ok { result } => Ok(result),
             RpcResponse::Error { error } => Err(error.code),
         }
     }
 
-    fn ok(&self, method: &str, params: Value, token: Option<&str>) -> Value {
+    pub(crate) fn ok(&self, method: &str, params: Value, token: Option<&str>) -> Value {
         match self.core.handle(RpcRequest { method: method.into(), params, token: token.map(Into::into) }) {
             RpcResponse::Ok { result } => result,
             // The detail says which step failed (the code alone is just "internal").
@@ -46,7 +46,7 @@ impl T {
         }
     }
 
-    fn setup(&self) -> String {
+    pub(crate) fn setup(&self) -> String {
         let r = self.ok(
             m::APP_SETUP,
             json!({
@@ -58,14 +58,14 @@ impl T {
         r["recovery_key"].as_str().unwrap().to_string()
     }
 
-    fn login(&self, user: &str, pass: &str) -> String {
+    pub(crate) fn login(&self, user: &str, pass: &str) -> String {
         self.ok(m::AUTH_LOGIN, json!({"username": user, "password": pass}), None)["token"]
             .as_str()
             .unwrap()
             .to_string()
     }
 
-    fn audit_actions(&self, token: &str) -> Vec<String> {
+    pub(crate) fn audit_actions(&self, token: &str) -> Vec<String> {
         self.ok(m::AUDIT_LIST, json!({"limit": 500, "offset": 0}), Some(token))
             .as_array()
             .unwrap()
@@ -333,22 +333,23 @@ fn backup_is_encrypted_verified_and_restorable_with_recovery_key() {
 }
 
 #[test]
-fn backup_retention_keeps_newest() {
+fn backup_retention_keeps_the_newest_three_whatever_the_settings() {
     let t = T::new();
     t.setup();
     let tok = t.login("owner", "owner-pass-1");
     let mut s = t.ok(m::SETTINGS_GET, json!({}), Some(&tok));
-    s["backup_keep_daily"] = json!(2);
+    s["backup_keep_daily"] = json!(1);
     t.ok(m::SETTINGS_UPDATE, s, Some(&tok));
     let mut names = vec![];
-    for _ in 0..3 {
+    for _ in 0..4 {
         names.push(t.ok(m::BACKUP_CREATE, json!({}), Some(&tok))["file_name"].as_str().unwrap().to_string());
         std::thread::sleep(Duration::from_millis(1100)); // file names have 1 s resolution
     }
+    // One per day would leave a single copy; the newest three always stay (10.5).
     let listed = t.ok(m::BACKUP_LIST, json!({}), Some(&tok));
-    assert_eq!(listed.as_array().unwrap().len(), 2);
+    assert_eq!(listed.as_array().unwrap().len(), 3);
     assert!(!t.core.config().backup_dir().join(&names[0]).exists());
-    assert!(t.core.config().backup_dir().join(&names[2]).exists());
+    assert!(t.core.config().backup_dir().join(&names[3]).exists());
 }
 
 #[test]

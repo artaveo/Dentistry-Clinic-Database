@@ -22,8 +22,9 @@ import { Badge, Notice } from "../ui/Feedback";
 import { ClinicMark, DentalLockup } from "../ui/Brand";
 import { isDesktop } from "../print/engine";
 import { ConnectServer } from "./ConnectServer";
+import { RestoreFromBackup } from "./RestoreFromBackup";
 
-type Step = "connect" | "welcome" | "language" | "install_mode" | "clinic_info" | "hours" | "clinic_type" | "branding" | "trial" | "backup" | "owner" | "recovery";
+type Step = "connect" | "restore" | "welcome" | "language" | "install_mode" | "clinic_info" | "hours" | "clinic_type" | "branding" | "trial" | "backup" | "owner" | "recovery";
 const STEPS: Step[] = ["welcome", "language", "install_mode", "clinic_info", "hours", "clinic_type", "branding", "trial", "backup", "owner", "recovery"];
 
 /** First-run wizard (roadmap 2.5): clinic identity, geography, calendar,
@@ -34,7 +35,9 @@ export function Setup({ onDone }: { onDone: () => void }) {
   const [stepIndex, setStepIndex] = useState(0);
   // "Connect to a clinic server" (roadmap 7.2) replaces the rest of the wizard: the clinic already exists on the server.
   const [connecting, setConnecting] = useState(false);
-  const step: Step = connecting ? "connect" : STEPS[stepIndex];
+  // "Restore from a backup" (roadmap 10.7) also replaces the rest of the wizard: the clinic already exists in the backup.
+  const [restoring, setRestoring] = useState(false);
+  const step: Step = connecting ? "connect" : restoring ? "restore" : STEPS[stepIndex];
   const go = (delta: number) => setStepIndex((i) => Math.max(0, Math.min(STEPS.length - 1, i + delta)));
 
   const [installMode, setInstallMode] = useState<InstallMode>("single");
@@ -162,6 +165,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
       <main className="setup-main">
         <div className="glass setup-card" data-testid={`setup-step-${step}`} key={step}>
           {step === "connect" && <ConnectServer onBack={() => setConnecting(false)} onDone={onDone} />}
+          {step === "restore" && <RestoreFromBackup onBack={() => setRestoring(false)} onDone={onDone} />}
 
           {step === "welcome" && (
             <div className="welcome">
@@ -176,6 +180,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
                 <div className="welcome-point"><Globe aria-hidden /><strong>{t("wizard.welcome.p3")}</strong><span>{t("wizard.welcome.p3Hint")}</span></div>
               </div>
               <div className="setup-actions">
+                <Button variant="link" onClick={() => setRestoring(true)} data-testid="wizard-restore">{t("wizard.welcome.restore")}</Button>
                 <span className="subtle t-caption">{t("wizard.welcome.time")}</span>
                 <span className="spacer" />
                 <Button variant="primary" size="lg" iconEnd={ArrowRight} flipIcon onClick={() => go(1)} data-testid="wizard-start">{t("wizard.welcome.start")}</Button>

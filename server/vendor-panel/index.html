@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Artaveo Vendor Panel</title>
+  <link rel="stylesheet" href="panel.css" />
+</head>
+<body>
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="card login-card">
+      <h1>Artaveo Vendor Panel</h1>
+      <p class="muted">For Artaveo staff only.</p>
+      <label>Email <input name="email" type="email" autocomplete="username" required /></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+      <p id="login-error" class="error" role="alert"></p>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+  </main>
+
+  <div id="app" class="shell" hidden>
+    <header class="top">
+      <strong>Artaveo Vendor Panel</strong>
+      <nav id="tabs" aria-label="Sections"></nav>
+      <span class="grow"></span>
+      <span id="who" class="muted"></span>
+      <button id="logout">Sign out</button>
+    </header>
+    <p id="notice" class="notice" role="status" hidden></p>
+    <main id="view" class="view"></main>
+  </div>
+
+  <script src="config.js"></script>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

@@ -319,6 +319,8 @@ fn main() {
                     if let Err(e) = tick.run_due_tasks() {
                         tracing::error!(error = %e, "scheduled task failed");
                     }
+                    // The 7-day license check (roadmap 10.8); quiet when offline.
+                    tick.run_license_check();
                     std::thread::sleep(Duration::from_secs(300));
                 });
                 Backend::Ready(core)

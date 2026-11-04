@@ -229,6 +229,12 @@ pub enum NotificationKind {
     LabDelayed,
     BackupFailed,
     BackupOverdue,
+    // Phase 10: the trusted USB device is not connected, or looks like a copy; the license needs attention.
+    UsbMissing,
+    UsbCloned,
+    LicenseExpiring,
+    LicenseReadOnly,
+    LicenseVerify,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq, PartialOrd, Ord)]

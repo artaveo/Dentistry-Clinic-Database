@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Package, Info, LayoutDashboard, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
+import { BarChart3, BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, KeyRound, Landmark, Package, Info, LayoutDashboard, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, SearchHit, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
@@ -10,6 +10,8 @@ import { rememberBrand } from "../lib/color";
 import { LangSwitch } from "./LangSwitch";
 import { SystemInfoPage } from "./SystemInfo";
 import { BackupPage } from "./Backup";
+import { LicensePage } from "./License";
+import { LicenseBanner } from "../shell/LicenseBanner";
 import { UsersPage } from "./Users";
 import { PatientsPage } from "./patients/PatientsPage";
 import { AuditPage } from "./Audit";
@@ -40,8 +42,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "dashboard" | "reports" | "patients" | "appointments" | "queue" | "recalls" | "billing" | "inventory" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "network" | "system";
-const ICONS: Record<Tab, LucideIcon> = { dashboard: LayoutDashboard, reports: BarChart3, patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, inventory: Package, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
+type Tab = "dashboard" | "reports" | "patients" | "appointments" | "queue" | "recalls" | "billing" | "inventory" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "license" | "audit" | "settings" | "network" | "system";
+const ICONS: Record<Tab, LucideIcon> = { license: KeyRound, dashboard: LayoutDashboard, reports: BarChart3, patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, inventory: Package, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -90,6 +92,7 @@ export function Shell({
       tabs: [
         ...(can("users.manage") ? (["users"] as Tab[]) : []),
         ...(can("backup.view") ? (["backup"] as Tab[]) : []),
+        ...(can("settings.manage") ? (["license"] as Tab[]) : []),
         ...(can("audit.view") ? (["audit"] as Tab[]) : []),
         ...(can("settings.manage") ? (["settings", "network"] as Tab[]) : []),
       ],
@@ -261,6 +264,7 @@ export function Shell({
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
         {clientOf && <ConnectionBanner onReconnected={() => setGeneration((g) => g + 1)} />}
+        <LicenseBanner canManage={can("settings.manage")} onOpen={() => go("license")} />
         {tab === "dashboard" && <DashboardPage calendar={clinic?.calendar_system ?? "shamsi"} go={go} />}
         {tab === "reports" && <ReportsPage clinic={clinic} canSeeStock={can("inventory.view")} />}
         {tab === "patients" && <PatientsPage openRequest={openPatient} canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
@@ -273,7 +277,8 @@ export function Shell({
         {tab === "catalog" && <CatalogPage />}
         {tab === "clinical" && <ClinicalListsPage />}
         {tab === "system" && <SystemInfoPage version={version} />}
-        {tab === "backup" && <BackupPage canCreate={can("backup.create")} calendar={clinic?.calendar_system} />}
+        {tab === "backup" && <BackupPage canCreate={can("backup.create")} canRestore={can("backup.restore")} calendar={clinic?.calendar_system} onRestored={onSignOut} />}
+        {tab === "license" && <LicensePage calendar={clinic?.calendar_system} canManage={can("settings.manage")} isOwner={session.user.role === "owner"} />}
         {tab === "users" && <UsersPage currentUserId={session.user.id} />}
         {tab === "audit" && <AuditPage calendar={clinic?.calendar_system} />}
         {tab === "clinic" && <ClinicPage logo={logo} onLogoChange={onLogoChange} onSaved={loadClinic} />}

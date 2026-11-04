@@ -35,3 +35,6 @@ ui/test-results/
 ui/playwright-report/
 app/gen/
 .artaveo-*/
+
+# License signing key (never commit)
+server/.secrets/

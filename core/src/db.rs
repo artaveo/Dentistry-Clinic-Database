@@ -57,6 +57,11 @@ pub static MIGRATIONS: &[Migration] = &[
     Migration { version: 15, name: "lan", sql: include_str!("../migrations/0015_lan.sql") },
     Migration { version: 16, name: "inventory", sql: include_str!("../migrations/0016_inventory.sql") },
     Migration { version: 17, name: "reports", sql: include_str!("../migrations/0017_reports.sql") },
+    Migration {
+        version: 18,
+        name: "backup_manager",
+        sql: include_str!("../migrations/0018_backup_manager.sql"),
+    },
 ];
 
 /// Files next to the database.

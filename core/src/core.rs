@@ -14,8 +14,10 @@ use crate::db;
 use crate::error::{CoreError, Result};
 use crate::keys::{default_protector, DataKey, KeyProtector};
 use crate::lan::{self, LanHub};
+use crate::license::{HttpServer, LicenseManager, PUBLIC_KEY_B64};
 use crate::session::SessionStore;
 use crate::settings;
+use crate::usb::{SystemUsb, UsbProvider};
 
 pub(crate) struct Opened {
     pub conn: Connection,
@@ -31,6 +33,9 @@ pub struct Core {
     pub(crate) timeout_minutes: AtomicU32,
     pub(crate) integrity: Arc<Mutex<IntegrityInfo>>,
     pub(crate) lan: LanHub,
+    /// Where the connected USB drives come from (a fake one in tests).
+    pub(crate) usb: Mutex<Arc<dyn UsbProvider>>,
+    pub(crate) license: LicenseManager,
 }
 
 impl Core {
@@ -43,6 +48,8 @@ impl Core {
     /// role sync → background full integrity check.
     pub fn with_protector(config: Config, protector: Box<dyn KeyProtector>) -> Result<Self> {
         fs::create_dir_all(&config.data_dir)?;
+        let license =
+            LicenseManager::new(&config.data_dir, PUBLIC_KEY_B64, Box::new(HttpServer::from_build()))?;
         let core = Core {
             config,
             protector,
@@ -55,6 +62,8 @@ impl Core {
                 detail: None,
             })),
             lan: LanHub::new(),
+            usb: Mutex::new(Arc::new(SystemUsb)),
+            license,
         };
         let path = core.config.db_path();
         if path.exists() {
@@ -89,6 +98,7 @@ impl Core {
         }
         self.timeout_minutes.store(settings::get(&conn)?.session_timeout_minutes, Ordering::Relaxed);
         *self.lock_db() = Some(Opened { conn, key });
+        self.apply_license_limits();
         Ok(())
     }
 
@@ -200,19 +210,82 @@ impl Core {
         self.integrity.lock().unwrap().clone()
     }
 
+    pub(crate) fn usb(&self) -> Arc<dyn UsbProvider> {
+        self.usb.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_usb(&self, provider: Arc<dyn UsbProvider>) {
+        *self.usb.lock().unwrap() = provider;
+    }
+
     /// Scheduled work; the shell calls this every few minutes.
-    /// Returns the backup made, if one was due.
+    /// Returns the backup made, if one was due. A backup that is not due still brings the newest
+    /// backup to a USB drive or cloud folder that was missing when it was made (roadmap 10.4).
     pub fn run_due_tasks(&self) -> Result<Option<BackupInfo>> {
+        let usb = self.usb();
         self.with_db(|o| {
-            let s = settings::get(&o.conn)?;
-            if !backup::is_due(backup::latest(&o.conn)?.as_ref(), &s, now()) {
+            let s = backup::get_settings(&o.conn)?;
+            if !backup::is_due(backup::latest(&o.conn)?.as_ref(), s.daily_hour, s.daily_minute, now()) {
+                backup::transfer_pending(&o.conn, &o.key, &self.config, usb.as_ref())?;
                 return Ok(None);
             }
             let info = backup::create(&o.conn, &o.key, &self.config, backup::Kind::Daily, &Actor::system())?;
-            backup::apply_retention(&o.conn, &self.config.backup_dir(), s.backup_keep_daily)?;
+            backup::distribute(&o.conn, &o.key, &self.config, usb.as_ref(), &info)?;
+            backup::apply_retention(&o.conn, &self.config)?;
             Ok(Some(info))
         })
         .or_else(|e| if e.code() == ErrorCode::NotSetUp { Ok(None) } else { Err(e) })
+    }
+
+    /// The periodic license check (roadmap 10.8, about every 7 days while online); a failed attempt
+    /// is only logged: the clinic keeps working through the grace period.
+    pub fn run_license_check(&self) {
+        if !self.is_set_up() || !self.license.should_check_now() {
+            return;
+        }
+        match self.license.verify(&self.license_client_info()) {
+            Ok(st) => {
+                tracing::info!(state = ?st.state, "license verified");
+                self.apply_license_limits();
+            }
+            Err(e) => tracing::debug!(error = %e, "license check skipped"),
+        }
+    }
+
+    /// What this computer tells the license server about itself.
+    pub(crate) fn license_client_info(&self) -> crate::license::ClientInfo {
+        let (last, ok) = self
+            .lock_db()
+            .as_ref()
+            .and_then(|o| backup::latest(&o.conn).ok().flatten())
+            .map(|b| (Some(b.created_at), Some(b.verified)))
+            .unwrap_or((None, None));
+        crate::license::ClientInfo {
+            clinic_name: self.clinic_name().unwrap_or_default(),
+            computer_name: audit::computer_name().to_string(),
+            app_version: crate::APP_VERSION.to_string(),
+            arch: crate::sysinfo::build_arch().to_string(),
+            last_backup_at: last,
+            last_backup_ok: ok,
+        }
+    }
+
+    /// The plan decides how many computers may join (roadmap 10.8): the server PC is one of them.
+    pub(crate) fn apply_license_limits(&self) {
+        let status = self.license.status();
+        if status.read_only || status.state == artaveo_shared::LicenseState::Unactivated {
+            return;
+        }
+        let clients = status.computers.saturating_sub(1).to_string();
+        let _ = self.with_db(|o| {
+            o.conn.execute(
+                "INSERT INTO setting(key, value, updated_at, updated_by) VALUES ('lan_client_limit', ?1, ?2, NULL)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                rusqlite::params![clients, now_iso()],
+            )?;
+            Ok(())
+        });
     }
 
     pub(crate) fn clinic_name(&self) -> Option<String> {

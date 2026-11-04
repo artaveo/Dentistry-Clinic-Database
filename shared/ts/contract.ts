@@ -24,9 +24,9 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "supplier_payment_not_found" | "supplier_payment_void" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "supplier_payment_not_found" | "supplier_payment_void" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed" | "backup_minute_range" | "backup_retention_range" | "usb_interval_range" | "cloud_folder" | "activation_code_format" | "usb_mount_unknown" | "backup_file_unknown";
 
-export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "server_unreachable" | "internal";
+export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "server_unreachable" | "license_read_only" | "license_server_unavailable" | "license_rejected" | "backup_invalid" | "internal";
 
 export type Empty = Record<symbol, never>;
 
@@ -1750,7 +1750,7 @@ headers: Array<string>,
  */
 labels: { [key in string]: string }, };
 
-export type NotificationKind = "appointment_reminder" | "follow_up_due" | "installment_due" | "low_stock" | "expiring_item" | "expired_item" | "lab_delayed" | "backup_failed" | "backup_overdue";
+export type NotificationKind = "appointment_reminder" | "follow_up_due" | "installment_due" | "low_stock" | "expiring_item" | "expired_item" | "lab_delayed" | "backup_failed" | "backup_overdue" | "usb_missing" | "usb_cloned" | "license_expiring" | "license_read_only" | "license_verify";
 
 export type NotificationLevel = "info" | "warning" | "danger";
 
@@ -1795,6 +1795,58 @@ export type SearchParams = { query: string,
 per_kind: number | null, };
 
 export type SearchResults = { hits: Array<SearchHit>, millis: number, };
+
+export type BackupSettings = { daily_hour: number, daily_minute: number, usb_warn_minutes: number, keep_daily: number, keep_weekly: number, keep_monthly: number, cloud_folder: string | null, cloud_include_images: boolean, cloud_keep_daily: number, cloud_keep_weekly: number, };
+
+export type CopyStatus = "done" | "pending" | "failed" | "skipped";
+
+export type BackupEntry = { info: BackupInfo, usb: CopyStatus | null, cloud: CopyStatus | null, };
+
+export type TargetState = "not_configured" | "ok" | "pending" | "failed";
+
+export type CloudStatus = { folder: string | null, folder_exists: boolean, writable: boolean, provider: string, sync_app_found: boolean | null, };
+
+export type BackupOverview = { last: BackupInfo | null, next_at: string, local_count: number, local_bytes: number, usb: TargetState, usb_connected: boolean, usb_pending: number, cloud: TargetState, cloud_pending: number, cloud_status: CloudStatus, };
+
+export type UsbVerdict = "new" | "trusted" | "cloned";
+
+export type UsbVolumeInfo = { mount: string, vendor: string, product: string, label: string, filesystem: string, verdict: UsbVerdict, device_id: string | null, free_bytes: number | null, };
+
+export type TrustedDeviceInfo = { id: string, vendor: string, product: string, label: string | null, serial_hint: string | null, trusted_at: string, last_seen_at: string | null, connected: boolean, };
+
+export type UsbOverview = { volumes: Array<UsbVolumeInfo>, trusted: Array<TrustedDeviceInfo>, };
+
+export type UsbMountParams = { mount: string, };
+
+export type DeviceIdParams = { device_id: string, };
+
+export type BackupSource = "local" | "usb" | "cloud";
+
+export type RestoreListParams = { source: BackupSource, };
+
+export type RestoreCandidate = { source: BackupSource, file_name: string, folder: string, created_at: string | null, size_bytes: number, has_key: boolean, };
+
+export type RestoreTarget = { source: BackupSource, file_name: string, };
+
+export type RestorePreview = { valid: boolean, problem: string | null, created_at: string | null, clinic_name: string | null, schema_version: number, patients: number, appointments: number, invoices: number, users: number, last_activity: string | null, current_patients: number, current_last_activity: string | null, };
+
+export type RestoreParams = { source: BackupSource, file_name: string, password: string, };
+
+export type RestoreResult = { safety_backup: string, restored: string, patients: number, };
+
+export type ScanBackupsParams = { folder: string | null, };
+
+export type RestoreNewParams = { folder: string, file_name: string, recovery_key: string, };
+
+export type LicenseState = "unactivated" | "trial" | "active" | "grace" | "expired" | "revoked" | "clock_tampered" | "invalid" | "needs_verification";
+
+export type LicenseStatus = { state: LicenseState, read_only: boolean, kind: string | null, plan: string | null, computers: number, installation_id: string, expires_at: string | null, days_left: number | null, verified_at: string | null, verify_due: boolean, grace_days_left: number | null, first_period_days_left: number | null, server_configured: boolean, };
+
+export type ActivateParams = { code: string, };
+
+export type OfflineRequestInfo = { request_code: string, };
+
+export type OfflineApplyParams = { response_code: string, };
 
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
@@ -2014,6 +2066,26 @@ export interface Api {
   "presence.enter": { params: PresenceParams; result: Array<PresenceViewer> };
   "presence.leave": { params: PresenceParams; result: Empty };
   "presence.who": { params: PresenceParams; result: Array<PresenceViewer> };
+  "backup.history": { params: Empty; result: Array<BackupEntry> };
+  "backup.overview": { params: Empty; result: BackupOverview };
+  "backup.settings_get": { params: Empty; result: BackupSettings };
+  "backup.settings_save": { params: BackupSettings; result: BackupSettings };
+  "backup.usb": { params: Empty; result: UsbOverview };
+  "backup.usb_trust": { params: UsbMountParams; result: UsbOverview };
+  "backup.usb_forget": { params: DeviceIdParams; result: UsbOverview };
+  "backup.cloud_check": { params: Empty; result: CloudStatus };
+  "backup.restore_list": { params: RestoreListParams; result: Array<RestoreCandidate> };
+  "backup.restore_preview": { params: RestoreTarget; result: RestorePreview };
+  "backup.restore": { params: RestoreParams; result: RestoreResult };
+  "backup.scan": { params: ScanBackupsParams; result: Array<RestoreCandidate> };
+  "backup.restore_new": { params: RestoreNewParams; result: Empty };
+  "license.status": { params: Empty; result: LicenseStatus };
+  "license.start_trial": { params: Empty; result: LicenseStatus };
+  "license.activate": { params: ActivateParams; result: LicenseStatus };
+  "license.verify": { params: Empty; result: LicenseStatus };
+  "license.release": { params: Empty; result: LicenseStatus };
+  "license.offline_request": { params: Empty; result: OfflineRequestInfo };
+  "license.offline_apply": { params: OfflineApplyParams; result: LicenseStatus };
 }
 
-export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner"] as const;
+export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner","backup.scan","backup.restore_new"] as const;

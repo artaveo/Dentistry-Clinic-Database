@@ -28,7 +28,7 @@ function osEnabled(): boolean {
 export function notificationText(i: NotificationItem, t: (k: string) => string, lang: Language, calendar: CalendarSystem): string {
   let detail = i.detail ?? "";
   if (i.kind === "installment_due" && detail) detail = formatAmount(Number(detail), lang);
-  else if ((i.kind === "lab_delayed" || i.kind === "backup_overdue") && detail) detail = digits(detail, lang);
+  else if ((i.kind === "lab_delayed" || i.kind === "backup_overdue" || i.kind === "usb_missing" || i.kind === "license_expiring" || i.kind === "license_verify") && detail) detail = digits(detail, lang);
   else if (i.kind === "appointment_reminder" && detail) detail = formatTime(detail, lang);
   const key = i.kind === "backup_overdue" && !i.detail ? "notif.msg.backup_never" : `notif.msg.${i.kind}`;
   return t(key)
