@@ -122,11 +122,15 @@ jobs:
           "OPENSSL_SRC_PERL=$perl" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Tests on ${{ matrix.arch }} (real DPAPI, SQLCipher, Argon2id)
         id: core_tests
-        run: cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --target ${{ matrix.target }}
-      - name: Annotate compile errors (core/shared tests, ${{ matrix.arch }})
+        run: |
+          cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --target ${{ matrix.target }} 2>&1 | Tee-Object -FilePath $env:RUNNER_TEMPcore-tests.log
+          exit $LASTEXITCODE
+      - name: Annotate test failures (core/shared tests, ${{ matrix.arch }})
         if: failure() && steps.core_tests.outcome == 'failure'
         continue-on-error: true
-        run: cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --target ${{ matrix.target }} --message-format=json | node .github/scripts/cargo-annotate.mjs
+        run: |
+          Get-Content $env:RUNNER_TEMPcore-tests.log | node .github/scripts/cargo-annotate.mjs
+          cargo test -p artaveo-core -p artaveo-shared -p artaveo-lan --target ${{ matrix.target }} --no-run --message-format=json | node .github/scripts/cargo-annotate.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
