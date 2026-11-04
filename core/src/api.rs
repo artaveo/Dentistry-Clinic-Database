@@ -27,6 +27,7 @@ use crate::inventory::{self, Lookup};
 use crate::keys::RecoveryKey;
 use crate::medical;
 use crate::patient;
+use crate::reports;
 use crate::session::{state_of, Session};
 use crate::settings;
 use crate::sysinfo;
@@ -45,6 +46,15 @@ fn params<P: DeserializeOwned>(v: Value) -> Result<P> {
 
 fn ok<T: Serialize>(v: T) -> Result<Value> {
     Ok(serde_json::to_value(v)?)
+}
+
+/// Reports need `reports.view`; the inventory ones also need to be allowed to see stock.
+fn require_report(s: &Session, kind: ReportKind) -> Result<()> {
+    s.require(perm::REPORTS_VIEW)?;
+    if kind.group() == "inventory" {
+        s.require(perm::INVENTORY_VIEW)?;
+    }
+    Ok(())
 }
 
 fn actor(s: &Session) -> Actor {
@@ -571,11 +581,38 @@ impl Core {
                 ok(self.with_db(|o| backup::list(&o.conn))?)
             }
             m::AUDIT_LIST => {
-                let AuditListParams { limit, offset, entity_id } = params(p)?;
+                let p: AuditListParams = params(p)?;
                 // Scoped to one record (e.g. a patient's Audit History tab, 3.6): anyone who
                 // can view that record can see its history. The full log needs AUDIT_VIEW.
-                s.require(if entity_id.is_some() { perm::PATIENTS_VIEW } else { perm::AUDIT_VIEW })?;
-                ok(self.with_db(|o| audit::list(&o.conn, limit, offset, entity_id.as_deref()))?)
+                s.require(if p.entity_id.is_some() { perm::PATIENTS_VIEW } else { perm::AUDIT_VIEW })?;
+                ok(self.with_db(|o| audit::list(&o.conn, &p))?)
+            }
+            m::DASHBOARD_GET => ok(self.with_db(|o| reports::dashboard(&o.conn, &s))?),
+            m::REPORTS_RUN => {
+                let p: ReportParams = params(p)?;
+                require_report(&s, p.kind)?;
+                ok(self.with_db(|o| reports::run(&o.conn, &p))?)
+            }
+            m::REPORTS_EXPORT => {
+                let p: ExportReportParams = params(p)?;
+                require_report(&s, p.report.kind)?;
+                ok(self.with_db(|o| reports::export(&o.conn, &actor(&s), &p, &self.config.exports_dir()))?)
+            }
+            m::NOTIFICATIONS_LIST => ok(self.with_db(|o| reports::notifications(&o.conn, &s))?),
+            m::NOTIFICATIONS_MARK_READ => {
+                let p: NotificationKeysParams = params(p)?;
+                ok(self.with_db(|o| reports::mark_read(&o.conn, &s, &p))?)
+            }
+            m::SEARCH_GLOBAL => {
+                let p: SearchParams = params(p)?;
+                let access = reports::SearchAccess {
+                    patients: s.permissions.contains(perm::PATIENTS_VIEW),
+                    appointments: s.permissions.contains(perm::APPOINTMENTS_VIEW),
+                    billing: s.permissions.contains(perm::BILLING_VIEW),
+                    labs: s.permissions.contains(perm::INVENTORY_VIEW),
+                };
+                s.require_any(&[perm::PATIENTS_VIEW, perm::APPOINTMENTS_VIEW, perm::BILLING_VIEW, perm::INVENTORY_VIEW])?;
+                ok(self.with_db(|o| reports::search(&o.conn, &p, access))?)
             }
             m::PATIENTS_LIST => {
                 s.require(perm::PATIENTS_VIEW)?;

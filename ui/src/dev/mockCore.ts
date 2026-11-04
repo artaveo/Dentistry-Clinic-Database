@@ -39,7 +39,7 @@ const DISTRICTS: Record<string, [string, string, string, string][]> = {
 type Session = { user: UserInfo; perms: string[]; last: number; locked: boolean };
 type U = UserInfo & { password: string };
 
-const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.edit", "billing.void"];
+const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.view", "billing.edit", "billing.void", "reports.view"];
 const ROLE_PERMS: Record<string, string[]> = {
   owner: ALL_PERMS,
   administrator: ALL_PERMS.filter((p) => p !== "backup.restore"),
@@ -117,7 +117,7 @@ const state = {
 function record(user: UserInfo | null, action: string, entity: string | null = null, entityId: string | null = null) {
   state.audit.unshift({
     id: state.audit.length + 1, at: iso(), user_id: user?.id ?? null, username: user?.username ?? null, action, entity,
-    entity_id: entityId, old_value: null, new_value: null, computer: "RECEPTION-PC",
+    entity_id: entityId, old_value: null, new_value: null, computer: "RECEPTION-PC", sensitive: false,
   });
 }
 
@@ -172,7 +172,7 @@ function seed() {
   ];
   acts.reverse().forEach(([ui, action, entity], i) => {
     const u = ui === null ? null : state.users[ui];
-    state.audit.unshift({ id: i + 1, at: iso(new Date(Date.now() - (acts.length - i) * 2_700_000)), user_id: u?.id ?? null, username: u?.username ?? "unknown", action, entity, entity_id: null, old_value: null, new_value: null, computer: "RECEPTION-PC" });
+    state.audit.unshift({ id: i + 1, at: iso(new Date(Date.now() - (acts.length - i) * 2_700_000)), user_id: u?.id ?? null, username: u?.username ?? "unknown", action, entity, entity_id: null, old_value: null, new_value: null, computer: "RECEPTION-PC", sensitive: false });
   });
 
   const day2 = 86400_000;
@@ -600,6 +600,43 @@ function call(method: string, p: any, token: string | null): unknown {
     case "backup.list":
       need(s, "backup.view");
       return state.backups;
+    // ── Phase 9 (screens only; the real numbers come from the Core) ──
+    case "dashboard.get": {
+      const today = new Date().toISOString().slice(0, 10);
+      const visit = (i: number, n: string, t: string, st: string) => ({ appointment_id: `a${i}`, patient_id: `p${i}`, patient_name: n, doctor_name: "دکتر احمد", date: today, time: t, status: st });
+      return {
+        date: today, scope: "clinic", doctor_name: null, patients_today: 14, appointments_today: 18, appointments_done: 9, treatments_completed: 11,
+        revenue_basis: "received", revenue_today: 4_850_000, outstanding: 12_300_000,
+        upcoming: [visit(1, "احمد ظاهر", "14:30", "confirmed"), visit(2, "مریم صدیقی", "15:00", "scheduled"), visit(3, "نجیب الله رحیمی", "15:45", "scheduled")],
+        low_stock: 3, pending_lab: 2, backup: { last_at: new Date(Date.now() - 5 * 3_600_000).toISOString(), last_verified: true, age_hours: 5, failed_since: false }, license: null,
+      };
+    }
+    case "reports.run": {
+      const money = (value: number) => ({ type: "money", value });
+      const days = Array.from({ length: 8 }, (_, i) => new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10)).reverse();
+      const rows = days.map((d, i) => [{ type: "date", value: d }, { type: "int", value: 4 + (i % 5) }, money(900_000 + i * 70_000), money(700_000 + i * 90_000), money(i % 3 === 0 ? 50_000 : 0), money(650_000 + i * 90_000)]);
+      return {
+        kind: p.kind, from: p.from, to: p.to, columns: ["date", "payments", "invoiced", "received", "refunded", "net"].map((key) => ({ key })), rows,
+        totals: [{ type: "empty" }, { type: "int", value: 39 }, money(8_000_000), money(7_000_000), money(150_000), money(6_850_000)], truncated: false, millis: 12,
+      };
+    }
+    case "reports.export":
+      return { file_path: "C:\exports\report.xlsx", file_name: "report.xlsx", rows: 8 };
+    case "notifications.list":
+    case "notifications.mark_read": {
+      const same = (v: string) => ({ fa: v, ps: v, en: v });
+      const read = method === "notifications.mark_read";
+      const items = [
+        { key: "installment_due:1:2", kind: "installment_due", level: "danger", subject: same("احمد ظاهر"), detail: "1500000", date: new Date().toISOString().slice(0, 10), page: "billing", patient_id: "p1", read },
+        { key: "low_stock:1", kind: "low_stock", level: "warning", subject: { fa: "سرنگ یکبارمصرف", ps: "سرنگ", en: "Disposable syringe" }, detail: null, date: null, page: "inventory", patient_id: null, read },
+        { key: "appointment_reminder:1", kind: "appointment_reminder", level: "info", subject: same("مریم صدیقی"), detail: "15:00", date: new Date().toISOString().slice(0, 10), page: "appointments", patient_id: "p2", read },
+      ];
+      return { items, unread: read ? 0 : items.length };
+    }
+    case "search.global": {
+      const q = String(p.query).trim();
+      return { hits: q.length < 2 ? [] : state.patients.filter((x) => x.full_name.includes(q)).slice(0, 5).map((x) => ({ kind: "patient", id: x.id, patient_id: x.id, title: x.full_name, subtitle: x.patient_number, date: null, page: "patients" })), millis: 3 };
+    }
     case "audit.list": {
       need(s, p.entity_id ? "patients.view" : "audit.view");
       const rows = p.entity_id ? state.audit.filter((a) => a.entity_id === p.entity_id) : state.audit;

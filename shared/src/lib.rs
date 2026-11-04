@@ -12,8 +12,10 @@ use ts_rs::TS;
 
 mod billing;
 mod inventory;
+mod reports;
 pub use billing::*;
 pub use inventory::*;
+pub use reports::*;
 
 // ───────────────────────────── envelope ─────────────────────────────
 
@@ -3112,6 +3114,20 @@ pub struct AuditListParams {
     /// Narrows to one record's history (e.g. a patient's Audit History tab, 3.6).
     #[serde(default)]
     pub entity_id: Option<String>,
+    /// Phase 9.8 filters (the full log only): action contains this text, e.g. `invoice`.
+    #[serde(default)]
+    pub action: Option<String>,
+    /// Exactly this user name.
+    #[serde(default)]
+    pub username: Option<String>,
+    /// Clinic-local dates, both included.
+    #[serde(default)]
+    pub from: Option<String>,
+    #[serde(default)]
+    pub to: Option<String>,
+    /// Only the sensitive actions (delete, void, refund, discount, permission change, restore, …).
+    #[serde(default)]
+    pub sensitive_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -3126,6 +3142,9 @@ pub struct AuditEntry {
     pub old_value: Option<String>,
     pub new_value: Option<String>,
     pub computer: String,
+    /// A delete, void, refund, discount, price override, permission change, license event or restore (9.8).
+    #[serde(default)]
+    pub sensitive: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -3349,6 +3368,12 @@ api! {
     "backup.create"          => BACKUP_CREATE(Empty) -> BackupInfo;
     "backup.list"            => BACKUP_LIST(Empty) -> Vec<BackupInfo>;
     "audit.list"             => AUDIT_LIST(AuditListParams) -> Vec<AuditEntry>;
+    "dashboard.get"          => DASHBOARD_GET(Empty) -> Dashboard;
+    "reports.run"            => REPORTS_RUN(ReportParams) -> ReportResult;
+    "reports.export"         => REPORTS_EXPORT(ExportReportParams) -> ExportResult;
+    "notifications.list"     => NOTIFICATIONS_LIST(Empty) -> NotificationList;
+    "notifications.mark_read" => NOTIFICATIONS_MARK_READ(NotificationKeysParams) -> NotificationList;
+    "search.global"          => SEARCH_GLOBAL(SearchParams) -> SearchResults;
     "system.info"            => SYSTEM_INFO(Empty) -> SystemInfo;
     "drafts.get"             => DRAFTS_GET(DraftParams) -> DraftInfo;
     "drafts.save"            => DRAFTS_SAVE(SaveDraftParams) -> Empty;
@@ -3835,6 +3860,26 @@ pub fn typescript_bindings() -> String {
         PresenceParams,
         PresenceViewer,
         LiveEvent,
+        DashboardScope,
+        RevenueBasis,
+        DashboardVisit,
+        BackupStatus,
+        Dashboard,
+        ReportKind,
+        ReportParams,
+        ReportCell,
+        ReportColumn,
+        ReportResult,
+        ExportReportParams,
+        NotificationKind,
+        NotificationLevel,
+        NotificationItem,
+        NotificationList,
+        NotificationKeysParams,
+        SearchKind,
+        SearchHit,
+        SearchParams,
+        SearchResults,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(

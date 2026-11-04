@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Package, Info, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
-import type { ClinicProfile, SessionInfo } from "../../../shared/ts/contract";
+import { BarChart3, BellRing, Building2, CalendarDays, ClipboardList, DatabaseBackup, Landmark, Package, Info, LayoutDashboard, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserRound, Users } from "lucide-react";
+import type { ClinicProfile, SearchHit, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
 import { useForm, v } from "../lib/validation";
@@ -20,6 +20,8 @@ import { CalendarPage } from "./reception/CalendarPage";
 import { QueuePage } from "./reception/QueuePage";
 import { RecallsPage } from "./reception/RecallsPage";
 import { BillingPage } from "./billing/BillingPage";
+import { DashboardPage } from "./Dashboard";
+import { ReportsPage } from "./reports/ReportsPage";
 import { InventoryPage } from "./inventory/InventoryPage";
 import type { InventoryPerms } from "./inventory/common";
 import type { BillingPerms } from "./billing/common";
@@ -38,8 +40,8 @@ import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
 import { Notice } from "../ui/Feedback";
 
-type Tab = "patients" | "appointments" | "queue" | "recalls" | "billing" | "inventory" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "network" | "system";
-const ICONS: Record<Tab, LucideIcon> = { patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, inventory: Package, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
+type Tab = "dashboard" | "reports" | "patients" | "appointments" | "queue" | "recalls" | "billing" | "inventory" | "doctors" | "catalog" | "clinical" | "clinic" | "users" | "backup" | "audit" | "settings" | "network" | "system";
+const ICONS: Record<Tab, LucideIcon> = { dashboard: LayoutDashboard, reports: BarChart3, patients: UserRound, appointments: CalendarDays, queue: ListOrdered, recalls: BellRing, billing: Landmark, inventory: Package, doctors: Stethoscope, catalog: Tags, clinical: ClipboardList, clinic: Building2, users: Users, backup: DatabaseBackup, audit: ScrollText, settings: SettingsIcon, network: Network, system: Info };
 
 /**
  * OF-008/OF-012: real input (mouse, keyboard, wheel) is the single source of
@@ -73,10 +75,12 @@ export function Shell({
   const { t } = useI18n();
   const can = (p: string) => session.permissions.includes(p);
   const groups = [
+    { label: t("nav.group.home"), tabs: ["dashboard"] as Tab[] },
     { label: t("nav.group.patients"), tabs: can("patients.view") ? (["patients"] as Tab[]) : [] },
     { label: t("nav.group.reception"), tabs: can("appointments.view") ? (["appointments", "queue", "recalls"] as Tab[]) : [] },
     { label: t("nav.group.money"), tabs: can("billing.view") ? (["billing"] as Tab[]) : [] },
     { label: t("nav.group.stock"), tabs: can("inventory.view") ? (["inventory"] as Tab[]) : [] },
+    { label: t("nav.group.insights"), tabs: can("reports.view") ? (["reports"] as Tab[]) : [] },
     {
       label: t("nav.group.clinic"),
       tabs: [...(can("doctors.manage") ? (["doctors"] as Tab[]) : []), ...(can("settings.manage") ? (["catalog", "clinical", "clinic"] as Tab[]) : [])],
@@ -97,7 +101,9 @@ export function Shell({
   const inventory: InventoryPerms = { view: can("inventory.view"), manage: can("inventory.manage"), billingEdit: can("billing.edit"), billingVoid: can("billing.void"), clinicalView: can("clinical.view"), clinicalEdit: can("clinical.edit"), treat: can("appointments.treat"), reports: can("reports.view"), settings: can("settings.manage"), patientsEdit: can("patients.edit") };
   const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
 
-  const [tab, setTab] = useState<Tab>("system");
+  const [tab, setTab] = useState<Tab>("dashboard");
+  /** The patient the global search asked to open (9.7). */
+  const [openPatient, setOpenPatient] = useState<{ id: string; n: number } | null>(null);
   const [locked, setLocked] = useState(session.locked);
   /** Bumped after every unlock: pages remount and reload, so nothing stale survives the lock (OF-008). */
   const [generation, setGeneration] = useState(0);
@@ -189,6 +195,11 @@ export function Shell({
     window.setTimeout(() => checkNow.current(), 0);
   };
 
+  const go = (page: string) => (tabs as string[]).includes(page) && setTab(page as Tab);
+  const openHit = (hit: SearchHit) => {
+    if (hit.kind === "patient") setOpenPatient((p) => ({ id: hit.id, n: (p?.n ?? 0) + 1 }));
+    go(hit.page);
+  };
   const paletteItems: PaletteItem[] = tabs.map((x) => ({ id: x, label: t(`nav.${x}`), icon: ICONS[x], onSelect: () => setTab(x) }));
 
   return (
@@ -211,7 +222,7 @@ export function Shell({
             <span className="dot" aria-hidden />
             {online ? t("shell.status.online") : t("shell.status.offline")}
           </span>
-          <NotificationBell />
+          <NotificationBell calendar={clinic?.calendar_system ?? "shamsi"} go={go} />
           <UserMenu
             displayName={session.user.display_name}
             roleLabel={roleText(t, session.user.role, session.user.role_label)}
@@ -250,7 +261,9 @@ export function Shell({
 
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
         {clientOf && <ConnectionBanner onReconnected={() => setGeneration((g) => g + 1)} />}
-        {tab === "patients" && <PatientsPage canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
+        {tab === "dashboard" && <DashboardPage calendar={clinic?.calendar_system ?? "shamsi"} go={go} />}
+        {tab === "reports" && <ReportsPage clinic={clinic} canSeeStock={can("inventory.view")} />}
+        {tab === "patients" && <PatientsPage openRequest={openPatient} canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
         {tab === "appointments" && <CalendarPage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "queue" && <QueuePage clinic={clinic} perms={perms} clinicName={clinicName} />}
         {tab === "recalls" && <RecallsPage clinic={clinic} perms={perms} clinicName={clinicName} />}
@@ -268,7 +281,7 @@ export function Shell({
         {tab === "network" && <NetworkPage calendar={clinic?.calendar_system} onChanged={loadClinic} />}
       </main>
 
-      {paletteOpen && <CommandPalette items={paletteItems} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && <CommandPalette items={paletteItems} calendar={clinic?.calendar_system ?? "shamsi"} onOpenHit={openHit} onClose={() => setPaletteOpen(false)} />}
       {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
       {locked && <LockScreen name={session.user.display_name} onUnlocked={unlocked} onLogout={logout} />}
     </div>

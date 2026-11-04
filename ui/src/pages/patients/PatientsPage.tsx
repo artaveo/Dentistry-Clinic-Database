@@ -19,8 +19,12 @@ export type AppointmentPerms = Perms & { view: boolean };
 /** Medical history, prescriptions and clinical documents (clinical.view / clinical.edit). */
 export type ClinicalPerms = { view: boolean; edit: boolean };
 
-export function PatientsPage({ canEdit, billing, clinical, appointments, clinic, clinicName }: { canEdit: boolean; billing: BillingPerms; clinical: ClinicalPerms; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string }) {
-  const [view, setView] = useState<View>({ kind: "list" });
+/** `openRequest`: the global search (9.7) asks for one patient's profile; `n` makes a repeated ask count. */
+export function PatientsPage({ canEdit, billing, clinical, appointments, clinic, clinicName, openRequest }: { canEdit: boolean; billing: BillingPerms; clinical: ClinicalPerms; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; openRequest?: { id: string; n: number } | null }) {
+  const [view, setView] = useState<View>(openRequest ? { kind: "profile", id: openRequest.id } : { kind: "list" });
+  useEffect(() => {
+    if (openRequest) setView({ kind: "profile", id: openRequest.id });
+  }, [openRequest?.n]);
   if (view.kind === "create") return <PatientForm onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "list" })} />;
   if (view.kind === "edit") return <PatientForm patient={view.patient} onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "profile", id: view.patient.id })} />;
   if (view.kind === "profile") return <PatientProfile patientId={view.id} canEdit={canEdit} billing={billing} clinical={clinical} appointments={appointments} clinic={clinic} clinicName={clinicName} onBack={() => setView({ kind: "list" })} onEdit={(p) => setView({ kind: "edit", patient: p })} />;

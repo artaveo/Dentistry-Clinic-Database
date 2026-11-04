@@ -18,7 +18,7 @@ export function PatientAuditTab({ patientId }: { patientId: string }) {
   };
 
   const load = () =>
-    rpc("audit.list", { limit: 200, offset: 0, entity_id: patientId })
+    rpc("audit.list", { limit: 200, offset: 0, entity_id: patientId, action: null, username: null, from: null, to: null, sensitive_only: false })
       .then((r) => {
         setRows(r);
         setError("");

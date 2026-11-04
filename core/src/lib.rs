@@ -32,6 +32,7 @@ pub mod notes;
 pub mod patient;
 pub mod perio;
 pub mod recall;
+pub mod reports;
 pub mod scheduling;
 pub mod seeds;
 pub mod session;

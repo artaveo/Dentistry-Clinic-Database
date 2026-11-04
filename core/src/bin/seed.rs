@@ -184,6 +184,36 @@ fn measure_phase3_and_4(core: &Core, token: &str, patients: usize, enforce: bool
         call(core, m::RECALLS_LIST, json!({}), Some(token));
     });
 
+    // Phase 9: every report must finish within 3 seconds; the dashboard and the search stay quick too.
+    let report_limit = Some(Duration::from_secs(3));
+    add("dashboard.get", report_limit, &mut || {
+        call(core, m::DASHBOARD_GET, json!({}), Some(token));
+    });
+    add("notifications.list", report_limit, &mut || {
+        call(core, m::NOTIFICATIONS_LIST, json!({}), Some(token));
+    });
+    add("search.global by name", Some(Duration::from_millis(500)), &mut || {
+        call(core, m::SEARCH_GLOBAL, json!({"query": names[0]}), Some(token));
+    });
+    for kind in [
+        "patients",
+        "referral_sources",
+        "doctor_activity",
+        "daily_revenue",
+        "profit_loss",
+        "outstanding",
+        "treatments",
+        "tooth_conditions",
+        "follow_ups",
+        "recall_list",
+        "stock",
+    ] {
+        let label: &'static str = Box::leak(format!("reports.run {kind}, 2000-2100").into_boxed_str());
+        add(label, report_limit, &mut || {
+            call(core, m::REPORTS_RUN, json!({"kind": kind, "from": "2000-01-01", "to": "2100-01-01"}), Some(token));
+        });
+    }
+
     let mut table = String::from("| Scenario | Median (7 runs) | Limit | |\n|---|---|---|---|\n");
     let mut failed = Vec::new();
     for r in &rows {

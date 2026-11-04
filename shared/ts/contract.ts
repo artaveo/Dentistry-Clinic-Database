@@ -154,9 +154,29 @@ export type AuditListParams = { limit: number, offset: number,
 /**
  * Narrows to one record's history (e.g. a patient's Audit History tab, 3.6).
  */
-entity_id: string | null, };
+entity_id: string | null, 
+/**
+ * Phase 9.8 filters (the full log only): action contains this text, e.g. `invoice`.
+ */
+action: string | null, 
+/**
+ * Exactly this user name.
+ */
+username: string | null, 
+/**
+ * Clinic-local dates, both included.
+ */
+from: string | null, to: string | null, 
+/**
+ * Only the sensitive actions (delete, void, refund, discount, permission change, restore, …).
+ */
+sensitive_only: boolean, };
 
-export type AuditEntry = { id: number, at: string, user_id: string | null, username: string | null, action: string, entity: string | null, entity_id: string | null, old_value: string | null, new_value: string | null, computer: string, };
+export type AuditEntry = { id: number, at: string, user_id: string | null, username: string | null, action: string, entity: string | null, entity_id: string | null, old_value: string | null, new_value: string | null, computer: string, 
+/**
+ * A delete, void, refund, discount, price override, permission change, license event or restore (9.8).
+ */
+sensitive: boolean, };
 
 export type Settings = { session_timeout_minutes: number, daily_backup_hour: number, backup_keep_daily: number, 
 /**
@@ -1648,6 +1668,134 @@ export type PresenceViewer = { user_id: string, user_name: string, device: strin
 
 export type LiveEvent = { topic: string, method: string, };
 
+export type DashboardScope = "clinic" | "doctor";
+
+export type RevenueBasis = "received" | "invoiced";
+
+export type DashboardVisit = { appointment_id: string, patient_id: string, patient_name: string, doctor_name: string, date: string, 
+/**
+ * Clinic-local `HH:MM`.
+ */
+time: string, status: string, };
+
+export type BackupStatus = { last_at: string | null, last_verified: boolean, 
+/**
+ * Hours since the last backup, `None` when there is none.
+ */
+age_hours: number | null, 
+/**
+ * A backup failed after the last good one.
+ */
+failed_since: boolean, };
+
+export type Dashboard = { date: string, scope: DashboardScope, doctor_name: string | null, 
+/**
+ * Different patients booked today (cancelled visits left out).
+ */
+patients_today: number, appointments_today: number, appointments_done: number, treatments_completed: number, revenue_basis: RevenueBasis, 
+/**
+ * `None`: this user may not see money.
+ */
+revenue_today: number | null, outstanding: number | null, upcoming: Array<DashboardVisit>, 
+/**
+ * `None`: this user may not see stock (or it is not theirs to see).
+ */
+low_stock: number | null, pending_lab: number | null, backup: BackupStatus | null, 
+/**
+ * `None` until licensing exists (Phase 10).
+ */
+license: string | null, };
+
+export type ReportKind = "daily_revenue" | "monthly_revenue" | "payments" | "outstanding" | "discounts" | "refunds" | "doctor_revenue" | "doctor_commission" | "service_revenue" | "expenses" | "profit_loss" | "cash_closings" | "patients" | "treatments" | "procedures" | "tooth_conditions" | "doctor_activity" | "follow_ups" | "recall_list" | "referral_sources" | "stock" | "low_stock" | "purchases" | "consumption" | "expiry" | "supplier_balance";
+
+export type ReportParams = { kind: ReportKind, 
+/**
+ * First day of the period (clinic-local ISO date).
+ */
+from: string, to: string, doctor_id: string | null, service_id: string | null, 
+/**
+ * How "monthly" rows are grouped (default Shamsi).
+ */
+calendar: CalendarSystem | null, };
+
+export type ReportCell = { "type": "empty" } | { "type": "text", value: string, } | { "type": "code", value: string, } | { "type": "int", value: number, } | { "type": "money", value: number, } | { "type": "date", value: string, } | { "type": "month", value: string, } | { "type": "name", value: Translations, } | { "type": "tag", value: string, } | { "type": "qty", value: number, } | { "type": "percent", value: number, };
+
+export type ReportColumn = { 
+/**
+ * Header text key: `reports.col.<key>`.
+ */
+key: string, };
+
+export type ReportResult = { kind: ReportKind, from: string, to: string, columns: Array<ReportColumn>, rows: Array<Array<ReportCell>>, 
+/**
+ * Same length as `columns` (`Empty` where a column has no total), or empty.
+ */
+totals: Array<ReportCell>, 
+/**
+ * More rows matched than the report shows.
+ */
+truncated: boolean, millis: number, };
+
+export type ExportReportParams = { report: ReportParams, language: Language, 
+/**
+ * Sheet and file title, already in the user's language.
+ */
+title: string, 
+/**
+ * One header per column, already in the user's language.
+ */
+headers: Array<string>, 
+/**
+ * The words for `Tag` cells (`value` → text in the user's language).
+ */
+labels: { [key in string]: string }, };
+
+export type NotificationKind = "appointment_reminder" | "follow_up_due" | "installment_due" | "low_stock" | "expiring_item" | "expired_item" | "lab_delayed" | "backup_failed" | "backup_overdue";
+
+export type NotificationLevel = "info" | "warning" | "danger";
+
+export type NotificationItem = { 
+/**
+ * Stable: the same cause has the same key, so "read" survives a refresh.
+ */
+key: string, kind: NotificationKind, level: NotificationLevel, 
+/**
+ * Who or what it is about (a patient, an item): the same text in all three languages for a person.
+ */
+subject: Translations, 
+/**
+ * Completes the message: a time, a date, days late, or an amount (AFN × 100) for an installment.
+ */
+detail: string | null, date: string | null, 
+/**
+ * The page that deals with it: "appointments" | "recalls" | "billing" | "inventory" | "backup".
+ */
+page: string, patient_id: string | null, read: boolean, };
+
+export type NotificationList = { items: Array<NotificationItem>, unread: number, };
+
+export type NotificationKeysParams = { 
+/**
+ * Empty = every current notification.
+ */
+keys: Array<string>, };
+
+export type SearchKind = "patient" | "appointment" | "invoice" | "receipt" | "lab_case";
+
+export type SearchHit = { kind: SearchKind, id: string, patient_id: string | null, title: string, subtitle: string | null, date: string | null, 
+/**
+ * The page that shows it.
+ */
+page: string, };
+
+export type SearchParams = { query: string, 
+/**
+ * Per kind (default 5, at most 20).
+ */
+per_kind: number | null, };
+
+export type SearchResults = { hits: Array<SearchHit>, millis: number, };
+
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
@@ -1723,6 +1871,12 @@ export interface Api {
   "backup.create": { params: Empty; result: BackupInfo };
   "backup.list": { params: Empty; result: Array<BackupInfo> };
   "audit.list": { params: AuditListParams; result: Array<AuditEntry> };
+  "dashboard.get": { params: Empty; result: Dashboard };
+  "reports.run": { params: ReportParams; result: ReportResult };
+  "reports.export": { params: ExportReportParams; result: ExportResult };
+  "notifications.list": { params: Empty; result: NotificationList };
+  "notifications.mark_read": { params: NotificationKeysParams; result: NotificationList };
+  "search.global": { params: SearchParams; result: SearchResults };
   "system.info": { params: Empty; result: SystemInfo };
   "drafts.get": { params: DraftParams; result: DraftInfo };
   "drafts.save": { params: SaveDraftParams; result: Empty };
