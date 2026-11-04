@@ -116,8 +116,8 @@ impl ReportKind {
         match self {
             DailyRevenue | MonthlyRevenue | Payments | Outstanding | Discounts | Refunds | DoctorRevenue
             | DoctorCommission | ServiceRevenue | Expenses | ProfitLoss | CashClosings => "financial",
-            Patients | Treatments | Procedures | ToothConditions | DoctorActivity | FollowUps | RecallList
-            | ReferralSources => "clinical",
+            Patients | Treatments | Procedures | ToothConditions | DoctorActivity | FollowUps
+            | RecallList | ReferralSources => "clinical",
             Stock | LowStock | Purchases | Consumption | Expiry | SupplierBalance => "inventory",
         }
     }
@@ -143,23 +143,43 @@ pub struct ReportParams {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ReportCell {
     Empty,
-    Text { value: String },
+    Text {
+        value: String,
+    },
     /// An id, a number or a phone: always left-to-right.
-    Code { value: String },
-    Int { value: i64 },
+    Code {
+        value: String,
+    },
+    Int {
+        value: i64,
+    },
     /// AFN × 100.
-    Money { value: i64 },
+    Money {
+        value: i64,
+    },
     /// Clinic-local ISO date.
-    Date { value: String },
+    Date {
+        value: String,
+    },
     /// A `YYYY-MM` month (Shamsi or Gregorian, as the report says).
-    Month { value: String },
-    Name { value: Translations },
+    Month {
+        value: String,
+    },
+    Name {
+        value: Translations,
+    },
     /// A short code the screen translates through `reports.val.<value>` (a status, a kind).
-    Tag { value: String },
+    Tag {
+        value: String,
+    },
     /// Hundredths of a stock unit (250 = 2.5).
-    Qty { value: i64 },
+    Qty {
+        value: i64,
+    },
     /// Parts per ten thousand (2 500 = 25 %).
-    Percent { value: i64 },
+    Percent {
+        value: i64,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

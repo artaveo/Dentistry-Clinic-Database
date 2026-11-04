@@ -185,11 +185,9 @@ fn backup_status(conn: &Connection) -> Result<BackupStatus> {
         )
         .optional()?;
     let since = last.as_ref().map(|l| l.0.clone()).unwrap_or_default();
-    let failed_since = scalar(
-        conn,
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'backup.failed' AND at > ?1",
-        &[&since],
-    )? > 0;
+    let failed_since =
+        scalar(conn, "SELECT COUNT(*) FROM audit_log WHERE action = 'backup.failed' AND at > ?1", &[&since])?
+            > 0;
     let age_hours = last.as_ref().and_then(|l| parse(&l.0)).map(|t| (now() - t).whole_hours());
     Ok(BackupStatus {
         last_at: last.as_ref().map(|l| l.0.clone()),
@@ -449,7 +447,14 @@ fn daily_revenue(c: &Ctx) -> Result<Table> {
     let rows = day_money(c)?
         .into_iter()
         .map(|(d, m)| {
-            vec![date(d), int(m.payments), money(m.invoiced), money(m.received), money(m.refunded), money(m.received - m.refunded)]
+            vec![
+                date(d),
+                int(m.payments),
+                money(m.invoiced),
+                money(m.received),
+                money(m.refunded),
+                money(m.received - m.refunded),
+            ]
         })
         .collect();
     Ok(table(&["date", "payments", "invoiced", "received", "refunded", "net"], rows, &[1, 2, 3, 4, 5]))
@@ -467,7 +472,14 @@ fn monthly_revenue(c: &Ctx) -> Result<Table> {
     let rows = months
         .into_iter()
         .map(|(k, (invoiced, received, refunded, n))| {
-            vec![ReportCell::Month { value: k }, int(n), money(invoiced), money(received), money(refunded), money(received - refunded)]
+            vec![
+                ReportCell::Month { value: k },
+                int(n),
+                money(invoiced),
+                money(received),
+                money(refunded),
+                money(received - refunded),
+            ]
         })
         .collect();
     Ok(table(&["month", "payments", "invoiced", "received", "refunded", "net"], rows, &[1, 2, 3, 4, 5]))
@@ -623,7 +635,13 @@ fn profit_loss(c: &Ctx) -> Result<Table> {
     let rows = months
         .into_iter()
         .map(|(k, (received, refunded, spent))| {
-            vec![ReportCell::Month { value: k }, money(received), money(refunded), money(spent), money(received - refunded - spent)]
+            vec![
+                ReportCell::Month { value: k },
+                money(received),
+                money(refunded),
+                money(spent),
+                money(received - refunded - spent),
+            ]
         })
         .collect();
     Ok(table(&["month", "received", "refunded", "expenses", "profit"], rows, &[1, 2, 3, 4]))
@@ -638,7 +656,16 @@ fn cash_closings(c: &Ctx) -> Result<Table> {
              WHERE k.local_date BETWEEN ?1 AND ?2 ORDER BY k.local_date {CAP}"
         ),
         &[&c.from, &c.to],
-        |r| Ok(vec![date(r.get::<_, String>(0)?), money(r.get(1)?), money(r.get(2)?), money(r.get(3)?), opt_text(r.get(4)?), opt_text(r.get(5)?)]),
+        |r| {
+            Ok(vec![
+                date(r.get::<_, String>(0)?),
+                money(r.get(1)?),
+                money(r.get(2)?),
+                money(r.get(3)?),
+                opt_text(r.get(4)?),
+                opt_text(r.get(5)?),
+            ])
+        },
     )?;
     Ok(table(&["date", "expected", "counted", "difference", "reason", "closed_by"], rows, &[1, 2, 3]))
 }
@@ -744,12 +771,21 @@ fn doctor_activity(c: &Ctx) -> Result<Table> {
         &[&c.from, &c.to, &c.lo, &c.hi, &c.doctor],
         |r| Ok(vec![text(r.get::<_, String>(0)?), int(r.get(1)?), int(r.get(2)?), int(r.get(3)?), int(r.get(4)?), int(r.get(5)?)]),
     )?;
-    Ok(table(&["doctor", "visits", "completed", "no_show", "cancelled", "treatments"], rows, &[1, 2, 3, 4, 5]))
+    Ok(table(
+        &["doctor", "visits", "completed", "no_show", "cancelled", "treatments"],
+        rows,
+        &[1, 2, 3, 4, 5],
+    ))
 }
 
 fn recall_rows(c: &Ctx, only_follow_up: bool) -> Result<Rows> {
-    let kinds = if only_follow_up { "r.kind IN ('follow_up', 'no_show')" } else { "r.status IN ('pending', 'contacted')" };
-    let range = if only_follow_up { "r.due_date BETWEEN ?1 AND ?2" } else { "r.due_date <= ?2 AND ?1 IS NOT NULL" };
+    let kinds = if only_follow_up {
+        "r.kind IN ('follow_up', 'no_show')"
+    } else {
+        "r.status IN ('pending', 'contacted')"
+    };
+    let range =
+        if only_follow_up { "r.due_date BETWEEN ?1 AND ?2" } else { "r.due_date <= ?2 AND ?1 IS NOT NULL" };
     collect(
         c,
         &format!(
@@ -779,7 +815,11 @@ fn follow_ups(c: &Ctx) -> Result<Table> {
 
 /// Everyone still waiting to be called back, up to the end of the period (overdue ones included).
 fn recall_list(c: &Ctx) -> Result<Table> {
-    Ok(table(&["due", "patient", "phone", "kind", "status", "contacted", "note"], recall_rows(c, false)?, &[]))
+    Ok(table(
+        &["due", "patient", "phone", "kind", "status", "contacted", "note"],
+        recall_rows(c, false)?,
+        &[],
+    ))
 }
 
 fn referral_sources(c: &Ctx) -> Result<Table> {
@@ -818,23 +858,30 @@ fn stock(c: &Ctx) -> Result<Table> {
             ]
         })
         .collect();
-    Ok(table(&["code", "item", "category", "unit", "on_hand", "usable", "expired", "value", "nearest_expiry"], rows, &[7]))
+    Ok(table(
+        &["code", "item", "category", "unit", "on_hand", "usable", "expired", "value", "nearest_expiry"],
+        rows,
+        &[7],
+    ))
 }
 
 fn low_stock(c: &Ctx) -> Result<Table> {
-    let rows = inventory::list_items(c.conn, &StockItemListParams { only: Some(StockFilter::Low), ..Default::default() })?
-        .into_iter()
-        .map(|i| {
-            vec![
-                opt_code(i.code),
-                ReportCell::Name { value: i.name },
-                ReportCell::Name { value: i.unit },
-                qty(i.usable_qty),
-                qty(i.min_qty),
-                qty((i.min_qty - i.usable_qty).max(0)),
-            ]
-        })
-        .collect();
+    let rows = inventory::list_items(
+        c.conn,
+        &StockItemListParams { only: Some(StockFilter::Low), ..Default::default() },
+    )?
+    .into_iter()
+    .map(|i| {
+        vec![
+            opt_code(i.code),
+            ReportCell::Name { value: i.name },
+            ReportCell::Name { value: i.unit },
+            qty(i.usable_qty),
+            qty(i.min_qty),
+            qty((i.min_qty - i.usable_qty).max(0)),
+        ]
+    })
+    .collect();
     Ok(table(&["code", "item", "unit", "usable", "minimum", "missing"], rows, &[]))
 }
 
@@ -847,7 +894,15 @@ fn purchases(c: &Ctx) -> Result<Table> {
              WHERE p.local_date BETWEEN ?1 AND ?2 ORDER BY p.local_date, p.number {CAP}"
         ),
         &[&c.from, &c.to],
-        |r| Ok(vec![date(r.get::<_, String>(0)?), code(r.get::<_, String>(1)?), text(r.get::<_, String>(2)?), money(r.get(3)?), tag(r.get::<_, String>(4)?)]),
+        |r| {
+            Ok(vec![
+                date(r.get::<_, String>(0)?),
+                code(r.get::<_, String>(1)?),
+                text(r.get::<_, String>(2)?),
+                money(r.get(3)?),
+                tag(r.get::<_, String>(4)?),
+            ])
+        },
     )?;
     // A voided purchase is shown but is not money spent.
     let spent: i64 = rows
@@ -857,7 +912,8 @@ fn purchases(c: &Ctx) -> Result<Table> {
         .sum();
     let mut t = table(&["date", "number", "supplier", "total", "status"], rows, &[]);
     if !t.rows.is_empty() {
-        t.totals = vec![ReportCell::Empty, ReportCell::Empty, ReportCell::Empty, money(spent), ReportCell::Empty];
+        t.totals =
+            vec![ReportCell::Empty, ReportCell::Empty, ReportCell::Empty, money(spent), ReportCell::Empty];
     }
     Ok(t)
 }
@@ -871,46 +927,59 @@ fn consumption(c: &Ctx) -> Result<Table> {
          WHERE m.kind = 'consume' AND m.local_date BETWEEN ?1 AND ?2
          GROUP BY m.item_id ORDER BY 8 DESC",
         &[&c.from, &c.to],
-        |r| Ok(vec![name(r.get(0)?, r.get(1)?, r.get(2)?), name(r.get(3)?, r.get(4)?, r.get(5)?), qty(r.get(6)?), money(r.get(7)?)]),
+        |r| {
+            Ok(vec![
+                name(r.get(0)?, r.get(1)?, r.get(2)?),
+                name(r.get(3)?, r.get(4)?, r.get(5)?),
+                qty(r.get(6)?),
+                money(r.get(7)?),
+            ])
+        },
     )?;
     Ok(table(&["item", "unit", "consumed", "value"], rows, &[3]))
 }
 
 fn expiry(c: &Ctx) -> Result<Table> {
     let days = (parse_date("to", &c.to)? - parse_date("today", &today_iso())?).whole_days().max(60);
-    let rows = inventory::list_batches(c.conn, &StockBatchListParams { expiring_days: Some(days), ..Default::default() })?
-        .into_iter()
-        .filter(|b| b.state != BatchState::Valid)
-        .map(|b| {
-            vec![
-                ReportCell::Name { value: b.item_name },
-                opt_code(b.lot_no),
-                opt_date(b.expiry_date),
-                qty(b.qty_left),
-                ReportCell::Name { value: b.location },
-                tag(if b.state == BatchState::Expired { "expired" } else { "expiring" }),
-                money(b.qty_left * b.unit_cost / 100),
-            ]
-        })
-        .collect();
+    let rows = inventory::list_batches(
+        c.conn,
+        &StockBatchListParams { expiring_days: Some(days), ..Default::default() },
+    )?
+    .into_iter()
+    .filter(|b| b.state != BatchState::Valid)
+    .map(|b| {
+        vec![
+            ReportCell::Name { value: b.item_name },
+            opt_code(b.lot_no),
+            opt_date(b.expiry_date),
+            qty(b.qty_left),
+            ReportCell::Name { value: b.location },
+            tag(if b.state == BatchState::Expired { "expired" } else { "expiring" }),
+            money(b.qty_left * b.unit_cost / 100),
+        ]
+    })
+    .collect();
     Ok(table(&["item", "lot", "expiry", "qty_left", "location", "status", "value"], rows, &[6]))
 }
 
 fn supplier_balance(c: &Ctx) -> Result<Table> {
-    let rows = inventory::list_suppliers(c.conn, &SupplierListParams { kind: None, include_inactive: false, owing_only: false })?
-        .into_iter()
-        .map(|s| {
-            vec![
-                text(s.name),
-                tag(if s.kind == SupplierKind::Lab { "lab" } else { "supplier" }),
-                money(s.purchases_total),
-                money(s.lab_total),
-                money(s.returns_total),
-                money(s.paid_total),
-                money(s.balance),
-            ]
-        })
-        .collect();
+    let rows = inventory::list_suppliers(
+        c.conn,
+        &SupplierListParams { kind: None, include_inactive: false, owing_only: false },
+    )?
+    .into_iter()
+    .map(|s| {
+        vec![
+            text(s.name),
+            tag(if s.kind == SupplierKind::Lab { "lab" } else { "supplier" }),
+            money(s.purchases_total),
+            money(s.lab_total),
+            money(s.returns_total),
+            money(s.paid_total),
+            money(s.balance),
+        ]
+    })
+    .collect();
     Ok(table(&["supplier", "kind", "purchases", "lab", "returns", "paid", "balance"], rows, &[2, 3, 4, 5, 6]))
 }
 
@@ -926,10 +995,19 @@ fn pick(t: &Translations, language: Language) -> String {
         Language::Ps => &t.ps,
         Language::En => &t.en,
     };
-    if s.is_empty() { t.fa.clone() } else { s.clone() }
+    if s.is_empty() {
+        t.fa.clone()
+    } else {
+        s.clone()
+    }
 }
 
-pub fn export(conn: &Connection, actor: &Actor, p: &ExportReportParams, exports_dir: &Path) -> Result<ExportResult> {
+pub fn export(
+    conn: &Connection,
+    actor: &Actor,
+    p: &ExportReportParams,
+    exports_dir: &Path,
+) -> Result<ExportResult> {
     use rust_xlsxwriter::{Format, Workbook};
     let result = run(conn, &p.report)?;
     let mut book = Workbook::new();
@@ -946,11 +1024,19 @@ pub fn export(conn: &Connection, actor: &Actor, p: &ExportReportParams, exports_
         sheet.write_string_with_format(0, i as u16, h, &bold).map_err(xlsx_error)?;
         sheet.set_column_width(i as u16, 20.0).map_err(xlsx_error)?;
     }
-    let write = |sheet: &mut rust_xlsxwriter::Worksheet, row: u32, col: u16, cell: &ReportCell, strong: bool| -> Result<()> {
+    let write = |sheet: &mut rust_xlsxwriter::Worksheet,
+                 row: u32,
+                 col: u16,
+                 cell: &ReportCell,
+                 strong: bool|
+     -> Result<()> {
         let money_fmt = if strong { &total_amount } else { &amount };
         match cell {
             ReportCell::Empty => {}
-            ReportCell::Text { value } | ReportCell::Code { value } | ReportCell::Date { value } | ReportCell::Month { value } => {
+            ReportCell::Text { value }
+            | ReportCell::Code { value }
+            | ReportCell::Date { value }
+            | ReportCell::Month { value } => {
                 sheet.write_string(row, col, value).map_err(xlsx_error)?;
             }
             ReportCell::Tag { value } => {
@@ -963,10 +1049,14 @@ pub fn export(conn: &Connection, actor: &Actor, p: &ExportReportParams, exports_
                 sheet.write_number(row, col, *value as f64).map_err(xlsx_error)?;
             }
             ReportCell::Money { value } | ReportCell::Qty { value } => {
-                sheet.write_number_with_format(row, col, *value as f64 / 100.0, money_fmt).map_err(xlsx_error)?;
+                sheet
+                    .write_number_with_format(row, col, *value as f64 / 100.0, money_fmt)
+                    .map_err(xlsx_error)?;
             }
             ReportCell::Percent { value } => {
-                sheet.write_number_with_format(row, col, *value as f64 / 10_000.0, &percent).map_err(xlsx_error)?;
+                sheet
+                    .write_number_with_format(row, col, *value as f64 / 10_000.0, &percent)
+                    .map_err(xlsx_error)?;
             }
         }
         Ok(())
@@ -998,7 +1088,9 @@ pub fn export(conn: &Connection, actor: &Actor, p: &ExportReportParams, exports_
         Some("report"),
         None,
         None,
-        Some(&json!({ "kind": kind, "from": result.from, "to": result.to, "rows": result.rows.len(), "file": file_name })),
+        Some(
+            &json!({ "kind": kind, "from": result.from, "to": result.to, "rows": result.rows.len(), "file": file_name }),
+        ),
     )?;
     Ok(ExportResult { file_path: path.display().to_string(), file_name, rows: result.rows.len() as u32 })
 }
@@ -1020,12 +1112,24 @@ fn item(
     page: &str,
     patient_id: Option<String>,
 ) -> NotificationItem {
-    NotificationItem { key, kind, level, subject, detail, date, page: page.to_string(), patient_id, read: false }
+    NotificationItem {
+        key,
+        kind,
+        level,
+        subject,
+        detail,
+        date,
+        page: page.to_string(),
+        patient_id,
+        read: false,
+    }
 }
 
 fn read_keys(conn: &Connection, user_id: &str) -> Result<HashSet<String>> {
     let mut stmt = conn.prepare("SELECT key FROM notification_read WHERE user_id = ?1")?;
-    let keys = stmt.query_map([user_id], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<HashSet<String>>>()?;
+    let keys = stmt
+        .query_map([user_id], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<HashSet<String>>>()?;
     Ok(keys)
 }
 
@@ -1047,10 +1151,21 @@ pub fn notifications(conn: &Connection, s: &Session) -> Result<NotificationList>
                AND (?3 IS NULL OR a.doctor_id = ?3) ORDER BY a.start_at LIMIT 30",
         )?;
         let rows: Vec<(String, String, String, String, i64)> = stmt
-            .query_map(params![now_iso(), soon, doctor_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+            .query_map(params![now_iso(), soon, doctor_id], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })?
             .collect::<rusqlite::Result<_>>()?;
         for (id, patient_id, patient, day, start) in rows {
-            items.push(item(format!("appointment_reminder:{id}"), K::AppointmentReminder, L::Info, same(&patient), Some(format_minutes(start)), Some(day), "appointments", Some(patient_id)));
+            items.push(item(
+                format!("appointment_reminder:{id}"),
+                K::AppointmentReminder,
+                L::Info,
+                same(&patient),
+                Some(format_minutes(start)),
+                Some(day),
+                "appointments",
+                Some(patient_id),
+            ));
         }
         let mut stmt = conn.prepare(
             "SELECT r.id, r.patient_id, p.full_name, r.due_date FROM recall r JOIN patient p ON p.id = r.patient_id
@@ -1062,14 +1177,32 @@ pub fn notifications(conn: &Connection, s: &Session) -> Result<NotificationList>
             .collect::<rusqlite::Result<_>>()?;
         for (id, patient_id, patient, due) in rows {
             let level = if due < today { L::Warning } else { L::Info };
-            items.push(item(format!("follow_up_due:{id}"), K::FollowUpDue, level, same(&patient), None, Some(due), "recalls", Some(patient_id)));
+            items.push(item(
+                format!("follow_up_due:{id}"),
+                K::FollowUpDue,
+                level,
+                same(&patient),
+                None,
+                Some(due),
+                "recalls",
+                Some(patient_id),
+            ));
         }
     }
 
     if can(perm::BILLING_VIEW) && doctor_id.is_none() {
         for d in billing::installments_due(conn, &InstallmentsDueParams::default())?.into_iter().take(50) {
             let level = if d.overdue { L::Danger } else { L::Warning };
-            items.push(item(format!("installment_due:{}:{}", d.invoice_id, d.no), K::InstallmentDue, level, same(&d.patient_name), Some(d.unpaid.to_string()), Some(d.due_date), "billing", Some(d.patient_id)));
+            items.push(item(
+                format!("installment_due:{}:{}", d.invoice_id, d.no),
+                K::InstallmentDue,
+                level,
+                same(&d.patient_name),
+                Some(d.unpaid.to_string()),
+                Some(d.due_date),
+                "billing",
+                Some(d.patient_id),
+            ));
         }
     }
 
@@ -1077,28 +1210,86 @@ pub fn notifications(conn: &Connection, s: &Session) -> Result<NotificationList>
         let alerts = inventory::alerts(conn, &StockAlertParams::default())?;
         if doctor_id.is_none() {
             for i in alerts.low {
-                items.push(item(format!("low_stock:{}", i.id), K::LowStock, L::Warning, i.name, None, None, "inventory", None));
+                items.push(item(
+                    format!("low_stock:{}", i.id),
+                    K::LowStock,
+                    L::Warning,
+                    i.name,
+                    None,
+                    None,
+                    "inventory",
+                    None,
+                ));
             }
             for b in alerts.expired {
-                items.push(item(format!("expired_item:{}", b.id), K::ExpiredItem, L::Danger, b.item_name, b.lot_no, b.expiry_date, "inventory", None));
+                items.push(item(
+                    format!("expired_item:{}", b.id),
+                    K::ExpiredItem,
+                    L::Danger,
+                    b.item_name,
+                    b.lot_no,
+                    b.expiry_date,
+                    "inventory",
+                    None,
+                ));
             }
             for b in alerts.expiring {
-                items.push(item(format!("expiring_item:{}", b.id), K::ExpiringItem, L::Warning, b.item_name, b.lot_no, b.expiry_date, "inventory", None));
+                items.push(item(
+                    format!("expiring_item:{}", b.id),
+                    K::ExpiringItem,
+                    L::Warning,
+                    b.item_name,
+                    b.lot_no,
+                    b.expiry_date,
+                    "inventory",
+                    None,
+                ));
             }
         }
         for l in alerts.lab_delayed.into_iter().filter(|l| doctor_id.is_none() || l.doctor_id == doctor_id) {
-            items.push(item(format!("lab_delayed:{}", l.id), K::LabDelayed, L::Warning, same(&l.patient_name), Some(l.days_late.to_string()), l.expected_date, "inventory", Some(l.patient_id)));
+            items.push(item(
+                format!("lab_delayed:{}", l.id),
+                K::LabDelayed,
+                L::Warning,
+                same(&l.patient_name),
+                Some(l.days_late.to_string()),
+                l.expected_date,
+                "inventory",
+                Some(l.patient_id),
+            ));
         }
     }
 
     if can(perm::BACKUP_VIEW) {
         let b = backup_status(conn)?;
         if b.failed_since {
-            let last_failed: i64 = scalar(conn, "SELECT COALESCE(MAX(id), 0) FROM audit_log WHERE action = 'backup.failed'", &[])?;
-            items.push(item(format!("backup_failed:{last_failed}"), K::BackupFailed, L::Danger, same(""), None, None, "backup", None));
+            let last_failed: i64 = scalar(
+                conn,
+                "SELECT COALESCE(MAX(id), 0) FROM audit_log WHERE action = 'backup.failed'",
+                &[],
+            )?;
+            items.push(item(
+                format!("backup_failed:{last_failed}"),
+                K::BackupFailed,
+                L::Danger,
+                same(""),
+                None,
+                None,
+                "backup",
+                None,
+            ));
         } else if b.age_hours.is_none_or(|h| h >= BACKUP_OVERDUE_HOURS) {
             let detail = b.age_hours.map(|h| h.to_string());
-            items.push(item(format!("backup_overdue:{today}"), K::BackupOverdue, L::Warning, same(""), detail, b.last_at.map(|t| local_day(&t)), "backup", None));
+            items.push(item(
+                format!("backup_overdue:{today}"),
+                K::BackupOverdue,
+                L::Warning,
+                same(""),
+                detail,
+                b.last_at.map(|t| local_day(&t)),
+                "backup",
+                None,
+            ));
         }
     }
 
@@ -1210,10 +1401,15 @@ pub fn search(conn: &Connection, p: &SearchParams, access: SearchAccess) -> Resu
         }
     }
     if access.billing {
-        for (kind, table_name, date_col, order_col) in
-            [(SearchKind::Invoice, "invoice", "local_date", "issued_at"), (SearchKind::Receipt, "payment", "local_date", "paid_at")]
-        {
-            let extra = if kind == SearchKind::Invoice { "AND t.deleted_at IS NULL" } else { "AND t.kind = 'payment'" };
+        for (kind, table_name, date_col, order_col) in [
+            (SearchKind::Invoice, "invoice", "local_date", "issued_at"),
+            (SearchKind::Receipt, "payment", "local_date", "paid_at"),
+        ] {
+            let extra = if kind == SearchKind::Invoice {
+                "AND t.deleted_at IS NULL"
+            } else {
+                "AND t.kind = 'payment'"
+            };
             let mut stmt = conn.prepare(&format!(
                 "SELECT t.id, t.patient_id, t.number, p.full_name, t.{date_col}
                  FROM {table_name} t JOIN patient p ON p.id = t.patient_id

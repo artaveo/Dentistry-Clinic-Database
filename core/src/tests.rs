@@ -4482,7 +4482,10 @@ fn dashboard_shows_the_clinic_to_the_owner_and_only_their_own_work_to_a_doctor()
     let doctor = t.login("dr.ahmad", "doctor-pass-1");
     let own = t.ok(m::DASHBOARD_GET, json!({}), Some(&doctor));
     assert_eq!((own["scope"].as_str(), own["doctor_name"].as_str()), (Some("doctor"), Some("دکتر احمد")));
-    assert_eq!((own["revenue_basis"].as_str(), own["revenue_today"].as_i64()), (Some("invoiced"), Some(350_000)));
+    assert_eq!(
+        (own["revenue_basis"].as_str(), own["revenue_today"].as_i64()),
+        (Some("invoiced"), Some(350_000))
+    );
     assert!(own["outstanding"].is_null() && own["low_stock"].is_null() && own["backup"].is_null(), "{own}");
     assert_eq!(own["treatments_completed"], 1);
 
@@ -4546,7 +4549,8 @@ fn every_report_runs_and_the_money_ones_add_up() {
     let owed = t.ok(m::REPORTS_RUN, json!({"kind": "outstanding", "from": from, "to": to}), Some(owner));
     assert_eq!(owed["totals"][6]["value"], 230_000);
     // By doctor, and narrowed to the other doctor.
-    let by_doctor = t.ok(m::REPORTS_RUN, json!({"kind": "doctor_revenue", "from": from, "to": to}), Some(owner));
+    let by_doctor =
+        t.ok(m::REPORTS_RUN, json!({"kind": "doctor_revenue", "from": from, "to": to}), Some(owner));
     assert_eq!(by_doctor["rows"][0][3]["value"], 350_000);
     let other = t.ok(
         m::REPORTS_RUN,
@@ -4559,7 +4563,8 @@ fn every_report_runs_and_the_money_ones_add_up() {
     assert_eq!(done["rows"][0][0]["value"], json!(day(0)), "shown on the clinic's day");
 
     // A wrong period is refused with its rule.
-    let (_, field, rule) = rule_of(t, m::REPORTS_RUN, json!({"kind": "payments", "from": to, "to": from}), owner);
+    let (_, field, rule) =
+        rule_of(t, m::REPORTS_RUN, json!({"kind": "payments", "from": to, "to": from}), owner);
     assert_eq!((field.as_deref(), rule.as_deref()), (Some("to"), Some("period_range")));
 
     // Excel: a real file in the exports folder, audited.
@@ -4595,7 +4600,10 @@ fn reports_need_their_permissions() {
     t.ok(m::REPORTS_RUN, json!({"kind": "payments", "from": from, "to": to}), Some(&acct));
     t.ok(m::REPORTS_RUN, json!({"kind": "stock", "from": from, "to": to}), Some(&acct));
     // The full audit log stays with those who may see it.
-    assert_eq!(t.call(m::AUDIT_LIST, json!({"limit": 10, "offset": 0}), Some(&acct)), Err(ErrorCode::Forbidden));
+    assert_eq!(
+        t.call(m::AUDIT_LIST, json!({"limit": 10, "offset": 0}), Some(&acct)),
+        Err(ErrorCode::Forbidden)
+    );
 }
 
 #[test]
@@ -4609,7 +4617,8 @@ fn notifications_list_what_needs_attention_and_remember_what_was_read() {
     );
     invoiced_and_part_paid(&c);
     let list = t.ok(m::NOTIFICATIONS_LIST, json!({}), Some(owner));
-    let kinds: Vec<&str> = list["items"].as_array().unwrap().iter().map(|i| i["kind"].as_str().unwrap()).collect();
+    let kinds: Vec<&str> =
+        list["items"].as_array().unwrap().iter().map(|i| i["kind"].as_str().unwrap()).collect();
     assert!(kinds.contains(&"follow_up_due"), "{kinds:?}");
     let unread = list["unread"].as_i64().unwrap();
     assert_eq!(unread, list["items"].as_array().unwrap().len() as i64);
@@ -4630,7 +4639,8 @@ fn notifications_list_what_needs_attention_and_remember_what_was_read() {
     let recep = t.login("recep", "recep-pass-1");
     let theirs = t.ok(m::NOTIFICATIONS_LIST, json!({}), Some(&recep));
     assert!(theirs["unread"].as_i64().unwrap() > 0);
-    let kinds: Vec<&str> = theirs["items"].as_array().unwrap().iter().map(|i| i["kind"].as_str().unwrap()).collect();
+    let kinds: Vec<&str> =
+        theirs["items"].as_array().unwrap().iter().map(|i| i["kind"].as_str().unwrap()).collect();
     assert!(!kinds.contains(&"backup_overdue"), "reception may not see backups: {kinds:?}");
 }
 
@@ -4642,12 +4652,23 @@ fn global_search_finds_patients_documents_and_respects_access() {
     let number = inv["number"].as_str().unwrap().to_string();
 
     let by_name = t.ok(m::SEARCH_GLOBAL, json!({"query": "بیمار یکم"}), Some(owner));
-    let kinds: Vec<&str> = by_name["hits"].as_array().unwrap().iter().map(|h| h["kind"].as_str().unwrap()).collect();
-    assert!(kinds.contains(&"patient") && kinds.contains(&"invoice") && kinds.contains(&"receipt"), "{kinds:?}");
+    let kinds: Vec<&str> =
+        by_name["hits"].as_array().unwrap().iter().map(|h| h["kind"].as_str().unwrap()).collect();
+    assert!(
+        kinds.contains(&"patient") && kinds.contains(&"invoice") && kinds.contains(&"receipt"),
+        "{kinds:?}"
+    );
     let by_number = t.ok(m::SEARCH_GLOBAL, json!({"query": number}), Some(owner));
-    assert!(by_number["hits"].as_array().unwrap().iter().any(|h| h["kind"] == "invoice" && h["title"] == json!(number)));
+    assert!(by_number["hits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|h| h["kind"] == "invoice" && h["title"] == json!(number)));
     // One letter is not a search.
-    assert!(t.ok(m::SEARCH_GLOBAL, json!({"query": "ب"}), Some(owner))["hits"].as_array().unwrap().is_empty());
+    assert!(t.ok(m::SEARCH_GLOBAL, json!({"query": "ب"}), Some(owner))["hits"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 
     // An assistant sees patients but never money.
     t.ok(
@@ -4657,8 +4678,12 @@ fn global_search_finds_patients_documents_and_respects_access() {
     );
     let assist = t.login("assist", "assist-pass-1");
     let hits = t.ok(m::SEARCH_GLOBAL, json!({"query": "بیمار یکم"}), Some(&assist));
-    let kinds: Vec<&str> = hits["hits"].as_array().unwrap().iter().map(|h| h["kind"].as_str().unwrap()).collect();
-    assert!(kinds.contains(&"patient") && !kinds.contains(&"invoice") && !kinds.contains(&"receipt"), "{kinds:?}");
+    let kinds: Vec<&str> =
+        hits["hits"].as_array().unwrap().iter().map(|h| h["kind"].as_str().unwrap()).collect();
+    assert!(
+        kinds.contains(&"patient") && !kinds.contains(&"invoice") && !kinds.contains(&"receipt"),
+        "{kinds:?}"
+    );
 }
 
 #[test]
@@ -4679,16 +4704,25 @@ fn the_audit_viewer_filters_and_marks_the_sensitive_actions() {
         t.ok(m::AUDIT_LIST, p, Some(owner))
     };
     let invoice_only = page(json!({"action": "invoice"}));
-    assert!(invoice_only.as_array().unwrap().iter().all(|e| e["action"].as_str().unwrap().contains("invoice")));
+    assert!(invoice_only
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|e| e["action"].as_str().unwrap().contains("invoice")));
     assert!(!invoice_only.as_array().unwrap().is_empty());
     let sensitive = page(json!({"sensitive_only": true}));
-    let acts: Vec<&str> = sensitive.as_array().unwrap().iter().map(|e| e["action"].as_str().unwrap()).collect();
+    let acts: Vec<&str> =
+        sensitive.as_array().unwrap().iter().map(|e| e["action"].as_str().unwrap()).collect();
     assert!(acts.contains(&"patient.update"), "{acts:?}");
     assert!(!acts.contains(&"invoice.create"), "creating an invoice is routine: {acts:?}");
     assert!(sensitive.as_array().unwrap().iter().all(|e| e["sensitive"] == true));
     // The same flag in the unfiltered list, and the user and date filters.
     let everything = page(json!({}));
-    assert!(everything.as_array().unwrap().iter().any(|e| e["action"] == "patient.update" && e["sensitive"] == true));
+    assert!(everything
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|e| e["action"] == "patient.update" && e["sensitive"] == true));
     assert!(!page(json!({"username": "owner", "from": day(0), "to": day(0)})).as_array().unwrap().is_empty());
     assert!(page(json!({"username": "nobody"})).as_array().unwrap().is_empty());
     assert!(page(json!({"from": day(-10), "to": day(-9)})).as_array().unwrap().is_empty());
@@ -4699,7 +4733,16 @@ fn the_audit_viewer_filters_and_marks_the_sensitive_actions() {
 #[test]
 fn sensitive_actions_are_recognised_by_name() {
     use crate::audit::is_sensitive;
-    for a in ["patient.delete", "invoice.void", "purchase.void", "payment.refund", "role.update", "user.reset_password", "expense.delete", "patient.update"] {
+    for a in [
+        "patient.delete",
+        "invoice.void",
+        "purchase.void",
+        "payment.refund",
+        "role.update",
+        "user.reset_password",
+        "expense.delete",
+        "patient.update",
+    ] {
         assert!(is_sensitive(a), "{a}");
     }
     for a in ["invoice.create", "payment.print", "auth.login", "recall.create", "stock.receive"] {

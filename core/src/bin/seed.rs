@@ -210,7 +210,12 @@ fn measure_phase3_and_4(core: &Core, token: &str, patients: usize, enforce: bool
     ] {
         let label: &'static str = Box::leak(format!("reports.run {kind}, 2000-2100").into_boxed_str());
         add(label, report_limit, &mut || {
-            call(core, m::REPORTS_RUN, json!({"kind": kind, "from": "2000-01-01", "to": "2100-01-01"}), Some(token));
+            call(
+                core,
+                m::REPORTS_RUN,
+                json!({"kind": kind, "from": "2000-01-01", "to": "2100-01-01"}),
+                Some(token),
+            );
         });
     }
 

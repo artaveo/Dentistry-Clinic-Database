@@ -78,7 +78,8 @@ const SENSITIVE_EXACT: &[&str] = &[
     "commission.rule",
 ];
 /// SQL `LIKE` patterns (`%` only at the ends), mirrored by [`is_sensitive`].
-const SENSITIVE_LIKE: &[&str] = &["%delete%", "%void%", "%refund%", "role.%", "license.%", "%restore%", "%override%"];
+const SENSITIVE_LIKE: &[&str] =
+    &["%delete%", "%void%", "%refund%", "role.%", "license.%", "%restore%", "%override%"];
 
 /// Whether an audit action is one of the sensitive ones.
 pub fn is_sensitive(action: &str) -> bool {
@@ -130,7 +131,8 @@ pub fn list(conn: &Connection, p: &AuditListParams) -> Result<Vec<AuditEntry>> {
     }
     if p.sensitive_only {
         let exact = SENSITIVE_EXACT.iter().map(|a| format!("'{a}'")).collect::<Vec<_>>().join(", ");
-        let likes = SENSITIVE_LIKE.iter().map(|l| format!("action LIKE '{l}'")).collect::<Vec<_>>().join(" OR ");
+        let likes =
+            SENSITIVE_LIKE.iter().map(|l| format!("action LIKE '{l}'")).collect::<Vec<_>>().join(" OR ");
         sql.push_str(&format!(" AND (action IN ({exact}) OR {likes})"));
     }
     sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");

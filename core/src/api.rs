@@ -611,7 +611,12 @@ impl Core {
                     billing: s.permissions.contains(perm::BILLING_VIEW),
                     labs: s.permissions.contains(perm::INVENTORY_VIEW),
                 };
-                s.require_any(&[perm::PATIENTS_VIEW, perm::APPOINTMENTS_VIEW, perm::BILLING_VIEW, perm::INVENTORY_VIEW])?;
+                s.require_any(&[
+                    perm::PATIENTS_VIEW,
+                    perm::APPOINTMENTS_VIEW,
+                    perm::BILLING_VIEW,
+                    perm::INVENTORY_VIEW,
+                ])?;
                 ok(self.with_db(|o| reports::search(&o.conn, &p, access))?)
             }
             m::PATIENTS_LIST => {
