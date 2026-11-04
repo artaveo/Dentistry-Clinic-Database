@@ -4466,7 +4466,7 @@ fn dashboard_shows_the_clinic_to_the_owner_and_only_their_own_work_to_a_doctor()
     assert_eq!(d["treatments_completed"], 1, "{d}");
     assert_eq!((d["revenue_basis"].as_str(), d["revenue_today"].as_i64()), (Some("received"), Some(100_000)));
     assert_eq!(d["outstanding"], 230_000, "350 000 - 20 000 discount - 100 000 paid: {d}");
-    assert!(d["license"].is_null());
+    assert_eq!(d["license"], "unactivated", "a fresh install is in its free first period");
 
     // A doctor with a login sees only their own work and no cash desk.
     let user = t.ok(

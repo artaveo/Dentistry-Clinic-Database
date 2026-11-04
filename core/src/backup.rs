@@ -1104,8 +1104,10 @@ mod tests {
         // Today 19:10 Kabul -> due.
         assert!(is_due(Some(&last), 19, 0, datetime!(2026-10-02 14:40 UTC)));
         // The minute counts: 19:10 is before a 19:30 schedule, 19:40 is after.
-        assert!(!is_due(Some(&last), 19, 30, datetime!(2026-10-02 14:40 UTC)));
-        assert!(is_due(Some(&last), 19, 30, datetime!(2026-10-02 15:10 UTC)));
+        let late = b("2026-10-01T18:00:00.000Z"); // 22:30 Kabul yesterday
+        assert!(is_due(Some(&late), 19, 0, datetime!(2026-10-02 14:40 UTC)));
+        assert!(!is_due(Some(&late), 19, 30, datetime!(2026-10-02 14:40 UTC)));
+        assert!(is_due(Some(&late), 19, 30, datetime!(2026-10-02 15:10 UTC)));
         // Already backed up today at 19:01 Kabul -> not due at 22:00.
         let today = b("2026-10-02T14:31:00.000Z");
         assert!(!is_due(Some(&today), 19, 0, datetime!(2026-10-02 17:30 UTC)));
