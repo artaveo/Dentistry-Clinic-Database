@@ -4,7 +4,7 @@
 use std::sync::OnceLock;
 
 use artaveo_shared::{AuditEntry, AuditListParams};
-use rusqlite::types::Value;
+use rusqlite::types::Value as SqlValue;
 use rusqlite::{params, params_from_iter, Connection};
 use serde_json::Value;
 
@@ -107,27 +107,27 @@ pub fn list(conn: &Connection, p: &AuditListParams) -> Result<Vec<AuditEntry>> {
         "SELECT id, at, user_id, username, action, entity, entity_id, old_value, new_value, computer
          FROM audit_log WHERE 1 = 1",
     );
-    let mut args: Vec<Value> = Vec::new();
+    let mut args: Vec<SqlValue> = Vec::new();
     let clean = |s: &Option<String>| s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
     if let Some(id) = clean(&p.entity_id) {
         sql.push_str(" AND entity_id = ?");
-        args.push(Value::Text(id));
+        args.push(SqlValue::Text(id));
     }
     if let Some(a) = clean(&p.action) {
         sql.push_str(" AND action LIKE ? ESCAPE '\\'");
-        args.push(Value::Text(format!("%{}%", like_literal(&a))));
+        args.push(SqlValue::Text(format!("%{}%", like_literal(&a))));
     }
     if let Some(u) = clean(&p.username) {
         sql.push_str(" AND username = ?");
-        args.push(Value::Text(u));
+        args.push(SqlValue::Text(u));
     }
     if clean(&p.from).is_some() || clean(&p.to).is_some() {
         let from = clean(&p.from).unwrap_or_else(|| "2000-01-01".into());
         let to = clean(&p.to).unwrap_or_else(|| "2100-01-01".into());
         let (lo, hi) = crate::reports::utc_bounds(&from, &to)?;
         sql.push_str(" AND at >= ? AND at < ?");
-        args.push(Value::Text(lo));
-        args.push(Value::Text(hi));
+        args.push(SqlValue::Text(lo));
+        args.push(SqlValue::Text(hi));
     }
     if p.sensitive_only {
         let exact = SENSITIVE_EXACT.iter().map(|a| format!("'{a}'")).collect::<Vec<_>>().join(", ");
@@ -136,8 +136,8 @@ pub fn list(conn: &Connection, p: &AuditListParams) -> Result<Vec<AuditEntry>> {
         sql.push_str(&format!(" AND (action IN ({exact}) OR {likes})"));
     }
     sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
-    args.push(Value::Integer(i64::from(p.limit.min(500))));
-    args.push(Value::Integer(i64::from(p.offset)));
+    args.push(SqlValue::Integer(i64::from(p.limit.min(500))));
+    args.push(SqlValue::Integer(i64::from(p.offset)));
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(params_from_iter(args.iter()), |r| {
         let action: String = r.get(4)?;
