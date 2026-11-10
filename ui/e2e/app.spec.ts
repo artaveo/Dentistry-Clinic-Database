@@ -141,7 +141,9 @@ test("header status and command palette", async () => {
   try {
     await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
   } catch (e) {
-    throw new Error("TRACE " + trace.slice(-40).join(" | ") + " ## " + String(e).slice(0, 200));
+    // What the server was doing at that moment: still running the request, or never saw it.
+    const server = await page.request.get("http://127.0.0.1:8787/inflight").then((r) => r.text()).catch((x) => "inflight failed: " + x);
+    throw new Error("TRACE " + trace.slice(-40).join(" | ") + " ## SERVER " + server.slice(-900) + " ## " + String(e).slice(0, 200));
   }
   await page.getByTestId("command-palette-open").click();
   await page.getByTestId("command-palette-input").fill("کاربران");
