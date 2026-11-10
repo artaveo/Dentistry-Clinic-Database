@@ -56,6 +56,8 @@ pub enum ClientError {
     ServerNotAuthentic,
     #[error("this computer is not (or no longer) paired with the server")]
     NotPaired,
+    #[error("the server runs version {0}, which this version cannot work with")]
+    Incompatible(String),
     #[error("the server cannot be reached: {0}")]
     Unreachable(String),
 }
@@ -224,6 +226,8 @@ pub enum Notice {
     Offline,
     /// The server no longer accepts this computer (revoked): it must be paired again.
     Revoked,
+    /// The server runs a version this client cannot work with (roadmap 11.2): it needs an update.
+    Incompatible(String),
     Live(LiveEvent),
 }
 
@@ -269,12 +273,17 @@ async fn establish(
     let mut ws = open(&paired.addr, &ClinicVerifier::pinned(paired.fingerprint)).await?;
     let server_name = match roundtrip(
         &mut ws,
-        Frame::Auth { device_id: paired.device_id.clone(), token: paired.token.clone() },
+        Frame::Auth {
+            device_id: paired.device_id.clone(),
+            token: paired.token.clone(),
+            version: crate::protocol::VERSION.to_string(),
+        },
     )
     .await?
     {
         Frame::AuthOk { server_name } => server_name,
         Frame::AuthFailed => return Err(ClientError::NotPaired),
+        Frame::Incompatible { server_version } => return Err(ClientError::Incompatible(server_version)),
         other => return Err(anyhow::anyhow!("unexpected {other:?}").into()),
     };
     let (sink, mut stream) = ws.split();
@@ -367,6 +376,7 @@ impl LanClient {
 
     /// The connect/reconnect loop itself (ends only when the server revokes this computer).
     pub async fn run(self: Arc<Self>) {
+        let mut told_incompatible = false;
         loop {
             let paired = self.paired.lock().unwrap().clone();
             match establish(&paired, self.notices.clone()).await {
@@ -377,6 +387,7 @@ impl LanClient {
                             p.server_name = name;
                         }
                     }
+                    told_incompatible = false;
                     *self.conn.write().await = Some(conn);
                     self.online.store(true, Ordering::Relaxed);
                     let _ = self.notices.send(Notice::Online);
@@ -388,6 +399,12 @@ impl LanClient {
                 Err(ClientError::NotPaired) => {
                     let _ = self.notices.send(Notice::Revoked);
                     return;
+                }
+                Err(ClientError::Incompatible(server_version)) => {
+                    if !told_incompatible {
+                        told_incompatible = true;
+                        let _ = self.notices.send(Notice::Incompatible(server_version));
+                    }
                 }
                 Err(e) => {
                     tracing::debug!(error = %e, addr = %paired.addr, "LAN server not reachable");

@@ -28,3 +28,18 @@
   nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Artaveo Dental LAN"'
   nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Artaveo Dental LAN discovery"'
 !macroend
+
+; Roadmap 11.1 (Data Preservation): uninstalling never deletes clinic data on its own. Only a person
+; running the uninstaller by hand is asked, the answer defaults to No, and an upgrade or a silent
+; uninstall never asks and never deletes. The data folder holds the clinic database, its keys, the
+; backups and the attachments.
+!macro NSIS_HOOK_POSTUNINSTALL
+  ${If} $UpdateMode = 1
+    Goto artaveo_keep_data
+  ${EndIf}
+  IfSilent artaveo_keep_data
+  MessageBox MB_YESNO|MB_ICONEXCLAMATION|MB_DEFBUTTON2 "Artaveo Dental was removed.$\r$\n$\r$\nThe clinic data (patients, invoices, backups, keys) was NOT deleted and stays in $COMMONPROGRAMDATA\ArtaveoDental.$\r$\n$\r$\nDelete the clinic data as well? This cannot be undone." IDNO artaveo_keep_data
+  MessageBox MB_YESNO|MB_ICONSTOP|MB_DEFBUTTON2 "Are you sure? All patient records and backups on this computer will be deleted for good." IDNO artaveo_keep_data
+  RMDir /r "$COMMONPROGRAMDATA\ArtaveoDental"
+  artaveo_keep_data:
+!macroend

@@ -35,12 +35,14 @@ pub mod patient;
 pub mod perio;
 pub mod recall;
 pub mod reports;
+pub mod recovery;
 pub mod restore;
 pub mod scheduling;
 pub mod seeds;
 pub mod session;
 pub mod settings;
 pub mod specialty;
+pub mod support;
 pub mod sysinfo;
 pub mod timeline;
 pub mod treatment;
@@ -51,6 +53,8 @@ mod core;
 mod tests;
 #[cfg(test)]
 mod tests_phase10;
+#[cfg(test)]
+mod tests_phase11;
 
 pub use crate::config::{Config, Environment};
 pub use crate::core::Core;

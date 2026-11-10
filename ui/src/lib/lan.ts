@@ -54,7 +54,7 @@ export function setAutostart(on: boolean): Promise<void> {
 
 // ── live feed ──
 
-export type ConnectionState = { online: boolean; revoked: boolean };
+export type ConnectionState = { online: boolean; revoked: boolean; incompatible?: string };
 
 /** The same events are also accepted as DOM events, so tests can simulate another computer. */
 export const LIVE_DOM_EVENT = "artaveo:live";

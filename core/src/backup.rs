@@ -41,6 +41,8 @@ pub enum Kind {
     Daily,
     /// The safety copy made just before a restore replaces the data (10.7).
     PreRestore,
+    /// The safety copy made just before an update installs (roadmap 11.2).
+    PreUpdate,
 }
 
 impl Kind {
@@ -50,6 +52,7 @@ impl Kind {
             Kind::Manual => "manual",
             Kind::Daily => "daily",
             Kind::PreRestore => "prerestore",
+            Kind::PreUpdate => "preupdate",
         }
     }
 
@@ -57,7 +60,7 @@ impl Kind {
     fn log_kind(self) -> &'static str {
         match self {
             Kind::Daily => "daily",
-            Kind::Manual | Kind::PreRestore => "manual",
+            Kind::Manual | Kind::PreRestore | Kind::PreUpdate => "manual",
         }
     }
 }
@@ -430,7 +433,11 @@ pub fn select_keep(items: &[Item], at: OffsetDateTime, keep: Keep) -> HashSet<St
 pub fn retain_folder(dir: &Path, at: OffsetDateTime, keep: Keep) -> Result<Vec<String>> {
     let items: Vec<Item> = list_folder(dir)
         .into_iter()
-        .map(|(name, at)| Item { protected: name.contains("-prerestore."), name, at })
+        .map(|(name, at)| Item {
+            protected: name.contains("-prerestore.") || name.contains("-preupdate."),
+            name,
+            at,
+        })
         .collect();
     let kept = select_keep(&items, at, keep);
     let mut removed = Vec::new();

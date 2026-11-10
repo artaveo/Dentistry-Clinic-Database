@@ -217,7 +217,11 @@ async fn session(core: Arc<Core>, fp: [u8; 32], ws: Ws, peer: SocketAddr) -> any
                             Frame::PairFailed { reason: "wrong_code".into(), attempts_left: core.lan().pairing_failed() }
                         }
                     }
-                    Frame::Auth { device_id, token } => {
+                    Frame::Auth { version, .. } if !crate::protocol::compatible(&version, crate::protocol::VERSION) => {
+                        tracing::warn!(client = %version, server = crate::protocol::VERSION, "client version is not compatible");
+                        Frame::Incompatible { server_version: crate::protocol::VERSION.to_string() }
+                    }
+                    Frame::Auth { device_id, token, .. } => {
                         let hash = token_hash(&hex::decode(token)?);
                         let (c, id, addr) = (core.clone(), device_id.clone(), peer.ip().to_string());
                         let name =

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Cpu, Database, DatabaseBackup, FolderOpen, GitCommitHorizontal, Globe, HardDrive, KeyRound, Layers, LifeBuoy, Mail, Monitor, Phone, ShieldCheck, ShieldAlert, Activity, Server } from "lucide-react";
+import { FileText, Cpu, Database, DatabaseBackup, FolderOpen, GitCommitHorizontal, Globe, HardDrive, KeyRound, Layers, LifeBuoy, Mail, Monitor, Phone, ShieldCheck, ShieldAlert, Activity, Server } from "lucide-react";
 import type { CalendarSystem, SystemInfo } from "../../../shared/ts/contract";
-import { isSessionError, rpc } from "../lib/api";
+import { isSessionError, revealExport, rpc } from "../lib/api";
 import { digits, formatBytes, formatDateTime } from "../lib/dates";
 import { useI18n } from "../i18n";
 import { Card, CardHeader, Page, PageHeader, Stat } from "../ui/Card";
 import { Badge, ErrorState, Loading, Notice } from "../ui/Feedback";
+import { Button } from "../ui/Button";
 import { ArtaveoMark, DentalPremiumArt } from "../ui/Brand";
 import { SUPPORT } from "../lib/support";
 
@@ -15,6 +16,23 @@ export function SystemInfoPage({ version, calendar }: { version: string; calenda
   const { t, err, lang } = useI18n();
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [error, setError] = useState("");
+  // Roadmap 11.4: the support report is written only when the user asks, after being told what is in it.
+  const [reportStep, setReportStep] = useState<"idle" | "confirm" | "busy" | "done">("idle");
+  const [reportFile, setReportFile] = useState<{ file_name: string; path: string } | null>(null);
+  const [reportError, setReportError] = useState("");
+  const makeReport = async () => {
+    setReportStep("busy");
+    setReportError("");
+    try {
+      const r = await rpc("system.report", {});
+      setReportFile(r);
+      setReportStep("done");
+      revealExport(r.path).catch(() => {});
+    } catch (e) {
+      setReportError(err(e));
+      setReportStep("confirm");
+    }
+  };
 
   const load = () =>
     rpc("system.info", {})
@@ -98,6 +116,25 @@ export function SystemInfoPage({ version, calendar }: { version: string; calenda
           <div><dt><Database aria-hidden />{t("system.dbSize")}</dt><dd><bdi className="ltr num">{db ? formatBytes(db.size_bytes, lang) : "—"}</bdi></dd></div>
           <div><dt><FolderOpen aria-hidden />{t("system.dataDir")}</dt><dd><bdi className="ltr">{info.data_dir}</bdi></dd></div>
         </dl>
+      </Card>
+      <Card data-testid="support-report">
+        <CardHeader icon={FileText} title={t("system.report")} description={t("system.reportHint")} />
+        {reportStep === "idle" && <Button onClick={() => setReportStep("confirm")} data-testid="report-start">{t("system.reportStart")}</Button>}
+        {(reportStep === "confirm" || reportStep === "busy") && (
+          <div className="stack">
+            <Notice tone="info" testId="report-contents">{t("system.reportContents")}</Notice>
+            {reportError && <Notice tone="danger">{reportError}</Notice>}
+            <div className="row">
+              <Button variant="primary" loading={reportStep === "busy"} onClick={makeReport} data-testid="report-create">{t("system.reportCreate")}</Button>
+              <Button variant="subtle" disabled={reportStep === "busy"} onClick={() => setReportStep("idle")}>{t("common.cancel")}</Button>
+            </div>
+          </div>
+        )}
+        {reportStep === "done" && reportFile && (
+          <Notice tone="success" testId="report-done">
+            {t("system.reportDone")} <bdi className="ltr">{reportFile.file_name}</bdi>
+          </Notice>
+        )}
       </Card>
       <p className="subtle t-caption" style={{ textAlign: "center" }}>
         Artaveo Dental <bdi className="ltr">{version}</bdi>

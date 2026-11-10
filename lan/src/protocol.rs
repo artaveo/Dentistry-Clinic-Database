@@ -31,11 +31,18 @@ pub enum Frame {
     Auth {
         device_id: String,
         token: String,
+        /// The program version of the client (roadmap 11.2). Empty from a client that predates it.
+        #[serde(default)]
+        version: String,
     },
     AuthOk {
         server_name: String,
     },
     AuthFailed,
+    /// The server runs a version this client cannot work with: the client must be updated.
+    Incompatible {
+        server_version: String,
+    },
 
     Rpc {
         id: u64,
@@ -54,11 +61,49 @@ pub enum Frame {
     Pong,
 }
 
+/// The version of the program both sides were built from.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Roadmap 11.2: in LAN mode the server and its clients must run compatible versions. Versions
+/// are compatible when major and minor are equal (a patch release never changes what is sent). A
+/// client that does not say its version is accepted: refusing it would lock out every computer
+/// that was installed before this check existed.
+pub fn compatible(client: &str, server: &str) -> bool {
+    let minor = |v: &str| {
+        let mut parts = v.split('.');
+        (parts.next().map(str::to_string), parts.next().map(str::to_string))
+    };
+    client.is_empty() || minor(client) == minor(server)
+}
+
 impl Frame {
     pub fn to_text(&self) -> String {
         serde_json::to_string(self).expect("frame serialises")
     }
     pub fn from_text(s: &str) -> anyhow::Result<Self> {
         Ok(serde_json::from_str(s)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn patch_releases_work_together_but_other_minor_versions_do_not() {
+        assert!(compatible("0.12.0", "0.12.3"));
+        assert!(compatible("0.12.3", "0.12.0"));
+        assert!(!compatible("0.11.1", "0.12.0"));
+        assert!(!compatible("1.0.0", "0.12.0"));
+    }
+
+    #[test]
+    fn a_client_that_does_not_say_its_version_is_accepted() {
+        assert!(compatible("", "0.12.0"));
+        let old = r#"{"type":"auth","device_id":"d","token":"t"}"#;
+        match Frame::from_text(old).unwrap() {
+            Frame::Auth { version, .. } => assert!(version.is_empty()),
+            other => panic!("{other:?}"),
+        }
     }
 }

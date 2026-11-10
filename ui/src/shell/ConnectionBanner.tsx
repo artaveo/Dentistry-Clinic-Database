@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { PlugZap, ServerOff } from "lucide-react";
+import { PlugZap, ServerOff, Download } from "lucide-react";
 import { CONNECTION_DOM_EVENT, UNREACHABLE_DOM_EVENT, onConnection, unpairFromServer } from "../lib/lan";
 import { useI18n } from "../i18n";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
 
-type State = "ok" | "offline" | "revoked";
+type State = "ok" | "offline" | "revoked" | "incompatible";
 
 /**
  * A client computer's link to the clinic server (roadmap 7.2). When the server computer is off the
@@ -17,9 +17,13 @@ export function ConnectionBanner({ onReconnected }: { onReconnected: () => void 
   const toast = useToast();
   const [state, setState] = useState<State>("ok");
   const previous = useRef<State>("ok");
+  const [serverVersion, setServerVersion] = useState("");
 
   useEffect(() => {
-    const offConn = onConnection((s) => setState(s.revoked ? "revoked" : s.online ? "ok" : "offline"));
+    const offConn = onConnection((s) => {
+      setServerVersion(s.incompatible ?? "");
+      setState(s.revoked ? "revoked" : s.incompatible ? "incompatible" : s.online ? "ok" : "offline");
+    });
     const unreachable = () => setState((x) => (x === "revoked" ? x : "offline"));
     window.addEventListener(UNREACHABLE_DOM_EVENT, unreachable);
     return () => {
@@ -51,6 +55,12 @@ export function ConnectionBanner({ onReconnected }: { onReconnected: () => void 
         <div className="conn-banner" data-testid="conn-offline">
           <ServerOff aria-hidden />
           <span><strong>{t("conn.offline.title")}</strong> {t("conn.offline.body")}</span>
+        </div>
+      )}
+      {state === "incompatible" && (
+        <div className="conn-banner danger" data-testid="conn-incompatible">
+          <Download aria-hidden />
+          <span><strong>{t("conn.incompatible.title")}</strong> {t("conn.incompatible.body").replace("{v}", serverVersion)}</span>
         </div>
       )}
       {state === "revoked" && (

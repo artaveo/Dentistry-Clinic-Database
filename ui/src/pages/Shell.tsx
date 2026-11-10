@@ -12,6 +12,8 @@ import { SystemInfoPage } from "./SystemInfo";
 import { BackupPage } from "./Backup";
 import { LicensePage } from "./License";
 import { LicenseBanner } from "../shell/LicenseBanner";
+import { UpdateBanner } from "../shell/UpdateBanner";
+import { setCurrentPage } from "../lib/diagnostics";
 import { UsersPage } from "./Users";
 import { PatientsPage } from "./patients/PatientsPage";
 import { AuditPage } from "./Audit";
@@ -105,6 +107,7 @@ export function Shell({
   const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
 
   const [tab, setTab] = useState<Tab>("dashboard");
+  useEffect(() => setCurrentPage(tab), [tab]);
   /** The patient the global search asked to open (9.7). */
   const [openPatient, setOpenPatient] = useState<{ id: string; n: number } | null>(null);
   const [locked, setLocked] = useState(session.locked);
@@ -265,6 +268,7 @@ export function Shell({
       <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
         {clientOf && <ConnectionBanner onReconnected={() => setGeneration((g) => g + 1)} />}
         <LicenseBanner canManage={can("settings.manage")} onOpen={() => go("license")} />
+        <UpdateBanner canManage={can("settings.manage")} />
         {tab === "dashboard" && <DashboardPage calendar={clinic?.calendar_system ?? "shamsi"} go={go} />}
         {tab === "reports" && <ReportsPage clinic={clinic} canSeeStock={can("inventory.view")} />}
         {tab === "patients" && <PatientsPage openRequest={openPatient} canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}

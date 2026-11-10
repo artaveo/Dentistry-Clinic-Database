@@ -13,6 +13,9 @@ import { ToastProvider } from "./ui/Toast";
 import { ErrorState } from "./ui/Feedback";
 import { ServerOffline } from "./shell/ServerOffline";
 import { brandAssets } from "./ui/Brand";
+import { ErrorBoundary } from "./ui/ErrorBoundary";
+import { SafeMode } from "./setup/SafeMode";
+import { startupState, type StartupState } from "./lib/safe";
 
 const LANG_KEY = "artaveo.lang";
 /** The splash (Artaveo, roadmap 2.1b) stays at least this long so it never flickers. */
@@ -34,6 +37,8 @@ export function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
   const [bootError, setBootError] = useState<unknown>(null);
+  // Safe Startup Mode (roadmap 11.3): the clinic did not open.
+  const [safe, setSafe] = useState<Extract<StartupState, { safe: true }> | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [splash, setSplash] = useState<"on" | "fading" | "off">("on");
   // Whether this computer works on its own database or through the clinic server (roadmap 7.2).
@@ -72,8 +77,14 @@ export function App() {
     };
   }, []);
 
-  const refresh = () => {
+  const refresh = async () => {
     appMode().then(setMode);
+    const startup = await startupState();
+    if (startup.safe) {
+      setSafe(startup);
+      return;
+    }
+    setSafe(null);
     return rpc("app.status", {})
       .then((s) => {
         setStatus(s);
@@ -94,7 +105,8 @@ export function App() {
   };
 
   let page;
-  if (bootError instanceof ApiError && bootError.code === "server_unreachable") page = <ServerOffline onRetry={refresh} />;
+  if (safe) page = <SafeMode state={safe} onResolved={refresh} />;
+  else if (bootError instanceof ApiError && bootError.code === "server_unreachable") page = <ServerOffline onRetry={refresh} />;
   else if (bootError)
     page = (
       <div className="auth">
@@ -116,7 +128,7 @@ export function App() {
     <LangContext.Provider value={{ lang, setLang }}>
       <ThemeContext.Provider value={{ theme, setTheme, perf, setPerf }}>
         <ToastProvider>
-          {page}
+          <ErrorBoundary>{page}</ErrorBoundary>
           {splash !== "off" && (
             <div className={`splash ${splash === "fading" && status ? "done" : ""}`} data-testid="splash" aria-hidden>
               <img src={brandAssets.splashDark} alt="" />

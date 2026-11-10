@@ -289,6 +289,8 @@ impl Core {
 
         let live = self.config.db_path();
         let files = KeyFiles::beside(&live);
+        // A damaged clinic (Safe Startup Mode, roadmap 11.3) is kept aside, never deleted.
+        let kept = crate::recovery::quarantine(&self.config, true)?;
         let result = (|| -> Result<()> {
             remove_db_files(&live);
             fs::write(&files.local, self.protector.protect(&key)?)?;
@@ -303,6 +305,9 @@ impl Core {
             remove_db_files(&live);
             let _ = fs::remove_file(&files.local);
             let _ = fs::remove_file(&files.recovery);
+            if let Some(dir) = &kept {
+                crate::recovery::unquarantine(&self.config, dir);
+            }
             return Err(CoreError::api(ErrorCode::BackupInvalid, e.to_string()));
         }
         if let Some(att) = src.parent().map(|d| d.join("attachments")) {

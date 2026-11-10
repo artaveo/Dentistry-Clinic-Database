@@ -6,6 +6,7 @@ import fa from "./fa.json";
 import ps from "./ps.json";
 import en from "./en.json";
 import { ApiError } from "../lib/api";
+import { errorReference } from "../lib/diagnostics";
 
 export type Key = keyof typeof fa;
 const dictionaries: Record<Language, Record<Key, string>> = { fa, ps, en };
@@ -19,7 +20,10 @@ export function dirOf(lang: Language): "rtl" | "ltr" {
 }
 
 export function errorText(lang: Language, e: unknown): string {
-  return e instanceof ApiError ? translate(lang, `error.${e.code}`) : translate(lang, "error.internal");
+  const text = e instanceof ApiError ? translate(lang, `error.${e.code}`) : translate(lang, "error.internal");
+  // An internal error carries a short reference: the clinic reads it out and support finds the log line.
+  const ref = errorReference(e);
+  return ref ? `${text} (${translate(lang, "error.ref")}: ${ref})` : text;
 }
 
 export const LangContext = createContext<{ lang: Language; setLang: (l: Language) => void }>({ lang: "fa", setLang: () => {} });

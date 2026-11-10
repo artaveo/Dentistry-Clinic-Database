@@ -13,6 +13,7 @@ use artaveo_lan::client::{self, ClientError, ClientStore, LanClient, Notice};
 use artaveo_lan::server::ServerOptions;
 use serde_json::{json, Value};
 use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 use tokio::sync::broadcast::error::RecvError;
 
 mod autostart;
@@ -55,7 +56,59 @@ fn reveal_export(
 enum Backend {
     Ready(Arc<Core>),
     Client(Arc<LanClient>),
-    Failed(String),
+    /// Safe Startup Mode (roadmap 11.3): the clinic did not open.
+    Failed(Problem),
+    /// Safe Startup Mode with a core that has not loaded the damaged database, so that a backup can be
+    /// restored with the Recovery Key.
+    Recovery(Arc<Core>, Problem),
+}
+
+/// Why the clinic did not open: a short code the window translates, and the technical detail for the log.
+#[derive(Clone)]
+struct Problem {
+    reason: &'static str,
+    detail: String,
+}
+
+fn problem_of(e: &artaveo_core::CoreError) -> Problem {
+    use artaveo_core::CoreError as E;
+    let reason = match e {
+        E::Key(_) => "key_unavailable",
+        E::WrongKey => "wrong_key",
+        E::Integrity(_) | E::Sql(_) => "damaged",
+        E::DatabaseNewerThanApp { .. } => "newer_than_app",
+        E::MigrationDrift { .. } | E::MigrationFailed { .. } => "migration",
+        E::Io(io) if io.kind() == std::io::ErrorKind::NotFound => "key_unavailable",
+        _ => "other",
+    };
+    Problem { reason, detail: e.to_string() }
+}
+
+/// Opens this computer's own Core and starts its background work (daily backup, license check).
+fn open_core(config: &Config) -> Backend {
+    match Core::open(config.clone()) {
+        Ok(core) => {
+            // CI's upgrade test reads this line: an existing clinic must still open after an update.
+            tracing::info!(set_up = core.is_set_up(), "core ready");
+            let core = Arc::new(core);
+            let tick = core.clone();
+            std::thread::spawn(move || loop {
+                // Daily local backup (roadmap 1.7); cheap when nothing is due.
+                if let Err(e) = tick.run_due_tasks() {
+                    tracing::error!(error = %e, "scheduled task failed");
+                }
+                // The 7-day license check (roadmap 10.8); quiet when offline.
+                tick.run_license_check();
+                std::thread::sleep(Duration::from_secs(300));
+            });
+            Backend::Ready(core)
+        }
+        Err(e) => {
+            let p = problem_of(&e);
+            tracing::error!(error = %e, reason = p.reason, "core failed to start");
+            Backend::Failed(p)
+        }
+    }
 }
 
 /// The running application. The backend can be swapped when this computer is paired with a server
@@ -86,17 +139,17 @@ async fn rpc(state: tauri::State<'_, Arc<Shell>>, request: RpcRequest) -> Result
     let backend = state.current();
     match backend.as_ref() {
         Backend::Client(c) => Ok(c.call(request).await),
-        Backend::Ready(core) => {
+        Backend::Ready(core) | Backend::Recovery(core, _) => {
             let core = core.clone();
             // Argon2id and backups take real CPU time: keep them off the UI thread.
             tauri::async_runtime::spawn_blocking(move || core.handle(request))
                 .await
                 .map_err(|e| e.to_string())
         }
-        Backend::Failed(detail) => Ok(RpcResponse::Error {
+        Backend::Failed(p) => Ok(RpcResponse::Error {
             error: RpcError {
                 code: ErrorCode::Internal,
-                detail: format!("startup failed: {detail}"),
+                detail: format!("startup failed: {}", p.detail),
                 field: None,
                 rule: None,
             },
@@ -122,6 +175,12 @@ fn start_client(app: tauri::AppHandle, client: Arc<LanClient>) -> Vec<tauri::asy
                 }
                 Ok(Notice::Revoked) => {
                     let _ = app.emit("artaveo://connection", json!({"online": false, "revoked": true}));
+                }
+                Ok(Notice::Incompatible(server_version)) => {
+                    let _ = app.emit(
+                        "artaveo://connection",
+                        json!({"online": false, "revoked": false, "incompatible": server_version}),
+                    );
                 }
                 Err(RecvError::Lagged(_)) => {}
                 Err(RecvError::Closed) => break,
@@ -200,7 +259,7 @@ async fn lan_pair(
             ClientError::Closed => json!({"ok": false, "reason": "closed"}),
             ClientError::LimitReached => json!({"ok": false, "reason": "limit_reached"}),
             ClientError::ServerNotAuthentic => json!({"ok": false, "reason": "not_authentic"}),
-            ClientError::NotPaired | ClientError::Unreachable(_) => {
+            ClientError::NotPaired | ClientError::Incompatible(_) | ClientError::Unreachable(_) => {
                 json!({"ok": false, "reason": "unreachable"})
             }
         }),
@@ -217,7 +276,7 @@ fn lan_unpair(state: tauri::State<'_, Arc<Shell>>) -> Result<(), String> {
     ClientStore::new(&shell.config.data_dir).clear();
     let backend = match Core::open(shell.config.clone()) {
         Ok(core) => Backend::Ready(Arc::new(core)),
-        Err(e) => Backend::Failed(e.to_string()),
+        Err(e) => Backend::Failed(problem_of(&e)),
     };
     shell.replace(backend, Vec::new());
     Ok(())
@@ -282,9 +341,198 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// The background work a running backend needs: the LAN server on a clinic server, the connection
+/// feed on a client.
+fn backend_tasks(handle: &tauri::AppHandle, backend: &Backend) -> Vec<tauri::async_runtime::JoinHandle<()>> {
+    let mut tasks = Vec::new();
+    match backend {
+        Backend::Ready(core) => {
+            // The clinic server: listens while "this computer is the clinic server" is on.
+            tasks.push(tauri::async_runtime::spawn(artaveo_lan::service::supervise(
+                core.clone(),
+                ServerOptions::default(),
+            )));
+            tasks.push(forward_server_events(handle.clone(), core.clone()));
+        }
+        Backend::Client(c) => tasks.extend(start_client(handle.clone(), c.clone())),
+        Backend::Failed(_) | Backend::Recovery(..) => {}
+    }
+    tasks
+}
+
+/// Roadmap 11.3 and the support goal: a crash must say where it happened. The panic message, the
+/// exact file and line, the thread and a backtrace go to the log and to `crashes/crash-<time>.txt`,
+/// which the support report lists. (Patient data is never in a panic message: the Core logs ids, not
+/// names.)
+fn install_panic_hook(config: &Config) {
+    let dir = config.data_dir.join("crashes");
+    std::panic::set_hook(Box::new(move |info| {
+        let place = info.location().map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column())).unwrap_or_default();
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "(no message)".into());
+        let thread = std::thread::current().name().unwrap_or("unnamed").to_string();
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        tracing::error!(%place, %message, %thread, "PANIC");
+        let _ = std::fs::create_dir_all(&dir);
+        let stamp = artaveo_core::clock::now_iso().replace([':', '.'], "-");
+        let text = format!(
+            "Artaveo Dental crash\nversion: {} ({})\narch: {}\nthread: {thread}\nwhere: {place}\nmessage: {message}\n\n{backtrace}\n",
+            artaveo_core::APP_VERSION,
+            artaveo_core::GIT_COMMIT,
+            artaveo_core::sysinfo::build_arch(),
+        );
+        let _ = std::fs::write(dir.join(format!("crash-{stamp}.txt")), text);
+    }));
+}
+
+/// What the window needs to know at start: did the clinic open, and if not, why.
+fn startup_json(shell: &Shell) -> Value {
+    let backend = shell.current();
+    match backend.as_ref() {
+        Backend::Failed(p) | Backend::Recovery(_, p) => {
+            let recovering = matches!(backend.as_ref(), Backend::Recovery(..));
+            // The key on this computer still works, so the newest valid backup can be used at once.
+            let can_recover = matches!(p.reason, "damaged" | "migration" | "other");
+            json!({"safe": true, "reason": p.reason, "detail": p.detail, "recovering": recovering, "can_recover": can_recover})
+        }
+        _ => json!({"safe": false}),
+    }
+}
+
+#[tauri::command]
+fn startup_state(state: tauri::State<'_, Arc<Shell>>) -> Value {
+    startup_json(&state)
+}
+
+/// Safe Startup Mode: try to open the clinic again.
+#[tauri::command]
+fn safe_retry(app: tauri::AppHandle, state: tauri::State<'_, Arc<Shell>>) -> Value {
+    let shell = state.inner().clone();
+    let backend = open_core(&shell.config);
+    let tasks = backend_tasks(&app, &backend);
+    shell.replace(backend, tasks);
+    startup_json(&shell)
+}
+
+/// Safe Startup Mode: replace the damaged database with the newest valid local backup. The damaged
+/// files are kept in the `quarantine` folder. The answer says which backup came back.
+#[tauri::command]
+async fn safe_recover(app: tauri::AppHandle, state: tauri::State<'_, Arc<Shell>>) -> Result<Value, String> {
+    let shell = state.inner().clone();
+    if !matches!(shell.current().as_ref(), Backend::Failed(_)) {
+        return Err("not_in_safe_mode".into());
+    }
+    let config = shell.config.clone();
+    let done = tauri::async_runtime::spawn_blocking(move || {
+        artaveo_core::recovery::recover_from_latest_backup(&config, artaveo_core::keys::default_protector().as_ref())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let recovered = match done {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(error = %e, "recovery from the newest backup failed");
+            return Err(if e.code() == ErrorCode::BackupInvalid { "no_valid_backup".into() } else { e.to_string() });
+        }
+    };
+    let backend = open_core(&shell.config);
+    if let Backend::Ready(core) = &backend {
+        core.record_recovery(&recovered);
+    }
+    let tasks = backend_tasks(&app, &backend);
+    let opened = matches!(backend, Backend::Ready(_));
+    shell.replace(backend, tasks);
+    Ok(json!({
+        "ok": opened,
+        "file_name": recovered.file_name,
+        "created_at": recovered.created_at,
+        "patients": recovered.patients,
+    }))
+}
+
+/// Safe Startup Mode: switch to a core that lets the owner restore a backup with the Recovery Key.
+#[tauri::command]
+fn safe_enter_restore(state: tauri::State<'_, Arc<Shell>>) -> Result<(), String> {
+    let shell = state.inner().clone();
+    let problem = match shell.current().as_ref() {
+        Backend::Failed(p) => p.clone(),
+        Backend::Recovery(..) => return Ok(()),
+        _ => return Err("not_in_safe_mode".into()),
+    };
+    let core = Core::open_for_recovery(shell.config.clone()).map_err(|e| e.to_string())?;
+    shell.replace(Backend::Recovery(Arc::new(core), problem), Vec::new());
+    Ok(())
+}
+
+/// Support report that works even when the clinic does not open (roadmap 11.4).
+#[tauri::command]
+fn safe_report(state: tauri::State<'_, Arc<Shell>>) -> Result<Value, String> {
+    let shell = state.inner().clone();
+    let mut facts = artaveo_core::support::base_facts(&shell.config);
+    if let Backend::Failed(p) | Backend::Recovery(_, p) = shell.current().as_ref() {
+        facts.push(("startup_problem".into(), p.reason.into()));
+        facts.push(("startup_detail".into(), p.detail.clone()));
+    }
+    let report = artaveo_core::support::write_report(&shell.config, &facts).map_err(|e| e.to_string())?;
+    Ok(json!({"file_name": report.file_name, "path": report.path.display().to_string()}))
+}
+
+/// Errors the window itself hit (a screen that crashed, a failed promise) go to the same log as the
+/// Core's, with the screen they came from, so that one search finds the whole story.
+#[tauri::command]
+fn log_ui_error(place: String, message: String, stack: Option<String>) {
+    let cut = |s: &str, n: usize| s.chars().take(n).collect::<String>();
+    tracing::error!(
+        target: "ui",
+        place = %cut(&place, 200),
+        message = %cut(&message, 600),
+        stack = %cut(&stack.unwrap_or_default(), 2000),
+        "UI ERROR"
+    );
+}
+
+/// An update found by `update_check`, waiting for the user to confirm.
+struct PendingUpdate(Mutex<Option<tauri_plugin_updater::Update>>);
+
+/// Looks for a newer signed version (roadmap 11.2). Quiet when offline: the window shows nothing.
+#[tauri::command]
+async fn update_check(app: tauri::AppHandle, pending: tauri::State<'_, PendingUpdate>) -> Result<Value, String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let info = json!({"available": true, "version": update.version, "current": update.current_version, "notes": update.body});
+            *pending.0.lock().unwrap() = Some(update);
+            Ok(info)
+        }
+        Ok(None) => Ok(json!({"available": false})),
+        Err(e) => {
+            tracing::debug!(error = %e, "update check skipped");
+            Err(e.to_string())
+        }
+    }
+}
+
+/// Downloads, verifies the signature of and installs the update found before. The window has already
+/// made the safety backup (`update.prepare`). The installer closes the program and starts it again.
+#[tauri::command]
+async fn update_install(app: tauri::AppHandle, pending: tauri::State<'_, PendingUpdate>) -> Result<(), String> {
+    let update = pending.0.lock().unwrap().take().ok_or("no update was found")?;
+    tracing::info!(version = %update.version, "installing update");
+    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| {
+        tracing::error!(error = %e, "update install failed");
+        e.to_string()
+    })?;
+    app.restart()
+}
+
 fn main() {
     let config = Config::from_env();
     let _log_guard = artaveo_core::logging::init(&config.log_dir(), config.environment).ok();
+    install_panic_hook(&config);
     let exports_dir = ExportsDir(config.exports_dir());
     let documents_dir = print::DocumentsDir(config.exports_dir().join("documents"));
     tracing::info!(
@@ -308,28 +556,7 @@ fn main() {
             tracing::info!(server = %c.server_name(), "client mode");
             Backend::Client(c.clone())
         }
-        None => match Core::open(config.clone()) {
-            Ok(core) => {
-                // CI's upgrade test reads this line: an existing clinic must still open after an update.
-                tracing::info!(set_up = core.is_set_up(), "core ready");
-                let core = Arc::new(core);
-                let tick = core.clone();
-                std::thread::spawn(move || loop {
-                    // Daily local backup (roadmap 1.7); cheap when nothing is due.
-                    if let Err(e) = tick.run_due_tasks() {
-                        tracing::error!(error = %e, "scheduled task failed");
-                    }
-                    // The 7-day license check (roadmap 10.8); quiet when offline.
-                    tick.run_license_check();
-                    std::thread::sleep(Duration::from_secs(300));
-                });
-                Backend::Ready(core)
-            }
-            Err(e) => {
-                tracing::error!(error = %e, "core failed to start");
-                Backend::Failed(e.to_string())
-            }
-        },
+        None => open_core(&config),
     };
     let shell =
         Arc::new(Shell { backend: RwLock::new(Arc::new(backend)), config, tasks: Mutex::new(Vec::new()) });
@@ -340,6 +567,8 @@ fn main() {
         .manage(shell.clone())
         .manage(exports_dir)
         .manage(documents_dir)
+        .manage(PendingUpdate(Mutex::new(None)))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             rpc,
             reveal_export,
@@ -352,24 +581,18 @@ fn main() {
             print::list_printers,
             print::printer_papers,
             print::print_page,
-            print::save_pdf
+            print::save_pdf,
+            startup_state,
+            safe_retry,
+            safe_recover,
+            safe_enter_restore,
+            safe_report,
+            log_ui_error,
+            update_check,
+            update_install
         ])
         .setup(move |app| {
-            let handle = app.handle().clone();
-            let mut tasks = Vec::new();
-            match shell.current().as_ref() {
-                Backend::Ready(core) => {
-                    // The clinic server: listens while "this computer is the clinic server" is on.
-                    let c = core.clone();
-                    tasks.push(tauri::async_runtime::spawn(artaveo_lan::service::supervise(
-                        c,
-                        ServerOptions::default(),
-                    )));
-                    tasks.push(forward_server_events(handle.clone(), core.clone()));
-                }
-                Backend::Client(c) => tasks.extend(start_client(handle.clone(), c.clone())),
-                Backend::Failed(_) => {}
-            }
+            let tasks = backend_tasks(app.handle(), shell.current().as_ref());
             shell.tasks.lock().unwrap().extend(tasks);
             build_tray(app)?;
             if background {

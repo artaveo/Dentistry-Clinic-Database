@@ -3228,6 +3228,14 @@ pub struct SystemInfo {
     pub last_backup: Option<BackupInfo>,
 }
 
+// The support report file written into the exports folder (roadmap 11.4).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SupportReport {
+    pub file_name: String,
+    pub path: String,
+    pub bytes: i64,
+}
+
 // ───────────────────────────── method registry ─────────────────────────────
 
 macro_rules! api {
@@ -3395,6 +3403,8 @@ api! {
     "notifications.mark_read" => NOTIFICATIONS_MARK_READ(NotificationKeysParams) -> NotificationList;
     "search.global"          => SEARCH_GLOBAL(SearchParams) -> SearchResults;
     "system.info"            => SYSTEM_INFO(Empty) -> SystemInfo;
+    "system.report"          => SYSTEM_REPORT(Empty) -> SupportReport;
+    "update.prepare"         => UPDATE_PREPARE(Empty) -> BackupInfo;
     "drafts.get"             => DRAFTS_GET(DraftParams) -> DraftInfo;
     "drafts.save"            => DRAFTS_SAVE(SaveDraftParams) -> Empty;
     "drafts.delete"          => DRAFTS_DELETE(DraftParams) -> Empty;
@@ -3621,6 +3631,7 @@ pub fn typescript_bindings() -> String {
         DatabaseInfo,
         IntegrityInfo,
         SystemInfo,
+        SupportReport,
         PatientStatus,
         PatientInfo,
         CreatePatientParams,

@@ -152,15 +152,27 @@ jobs:
       - name: Build installers (online + offline WebView2)
         working-directory: app
         shell: bash
+        env:
+          # Roadmap 11.2: only a tag build with the update signing key makes signed update files.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           TAURI=../ui/node_modules/.bin/tauri
           OUT=../dist
           mkdir -p "$OUT"
           BUNDLE=../target/${{ matrix.target }}/release/bundle/nsis
-          "$TAURI" build --target ${{ matrix.target }}
+          UPDATER=()
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            UPDATER=(--config tauri.updater.conf.json)
+            echo "signed update files will be made"
+          fi
+          "$TAURI" build --target ${{ matrix.target }} "${UPDATER[@]}"
           cp "$BUNDLE"/*-setup.exe "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}.exe"
-          rm -f "$BUNDLE"/*-setup.exe
+          if ls "$BUNDLE"/*-setup.exe.sig >/dev/null 2>&1; then
+            cp "$BUNDLE"/*-setup.exe.sig "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}.exe.sig"
+          fi
+          rm -f "$BUNDLE"/*-setup.exe "$BUNDLE"/*-setup.exe.sig
           "$TAURI" build --target ${{ matrix.target }} --config tauri.offline.conf.json
           cp "$BUNDLE"/*-setup.exe "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}-offline.exe"
           ls -la "$OUT"
@@ -230,7 +242,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.arch }}
-          path: dist/*.exe
+          path: |
+            dist/*.exe
+            dist/*.sig
 
   release:
     name: Publish GitHub Release
@@ -250,6 +264,8 @@ jobs:
           path: dist
       - name: Checksums
         run: cd dist && sha256sum *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Update manifest (latest.json) from the signed installers
+        run: node scripts/make-update-manifest.mjs dist ${{ github.ref_name }} ${{ github.repository }}
       - uses: softprops/action-gh-release@v2
         with:
           name: Artaveo Dental ${{ github.ref_name }}
@@ -257,4 +273,17 @@ jobs:
           prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
           files: |
             dist/*.exe
+            dist/*.sig
             dist/SHA256SUMS.txt
+      # The app looks for updates at a fixed address: the release called "updater" always holds the
+      # newest latest.json (published releases of v0.x are pre-releases, so "latest" is not usable).
+      - name: Publish latest.json for the updater
+        if: hashFiles('dist/latest.json') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: updater
+          name: Update manifest
+          body: Always holds the newest latest.json for the in-app updater. Not a release.
+          prerelease: true
+          make_latest: false
+          files: dist/latest.json

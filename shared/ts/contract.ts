@@ -217,6 +217,7 @@ build_arch: string,
  * The machine's native architecture (differs when emulated, e.g. x86 on ARM64).
  */
 machine_arch: string, emulated: boolean, os: string, environment: string, computer_name: string, data_dir: string, log_dir: string, database: DatabaseInfo | null, integrity: IntegrityInfo, last_backup: BackupInfo | null, };
+export type SupportReport = { file_name: string, path: string, bytes: number, };
 
 export type PatientStatus = "active" | "inactive";
 
@@ -1930,6 +1931,8 @@ export interface Api {
   "notifications.mark_read": { params: NotificationKeysParams; result: NotificationList };
   "search.global": { params: SearchParams; result: SearchResults };
   "system.info": { params: Empty; result: SystemInfo };
+  "system.report": { params: Empty; result: SupportReport };
+  "update.prepare": { params: Empty; result: BackupInfo };
   "drafts.get": { params: DraftParams; result: DraftInfo };
   "drafts.save": { params: SaveDraftParams; result: Empty };
   "drafts.delete": { params: DraftParams; result: Empty };

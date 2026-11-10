@@ -1672,6 +1672,22 @@ impl Core {
                 ok(self.with_tx(|c| recall::set_recall_status(c, &actor(&s), &p))?)
             }
             m::SYSTEM_INFO => ok(self.system_info()?),
+            m::SYSTEM_REPORT => {
+                s.require(perm::SETTINGS_MANAGE)?;
+                ok(self.support_report(&s)?)
+            }
+            m::UPDATE_PREPARE => {
+                // The safety copy before an update installs (roadmap 11.2); kept like a pre-restore copy.
+                s.require(perm::BACKUP_CREATE)?;
+                let usb = self.usb();
+                ok(self.with_db(|o| {
+                    let info =
+                        backup::create(&o.conn, &o.key, &self.config, backup::Kind::PreUpdate, &actor(&s))?;
+                    backup::distribute(&o.conn, &o.key, &self.config, usb.as_ref(), &info)?;
+                    backup::apply_retention(&o.conn, &self.config)?;
+                    Ok(info)
+                })?)
+            }
             m::DRAFTS_GET => {
                 let p: DraftParams = params(p)?;
                 ok(self.with_db(|o| crate::draft::get(&o.conn, &s.user.id, &p))?)
@@ -1785,6 +1801,43 @@ impl Core {
         self.start_integrity_check();
         tracing::info!("clinic set up");
         ok(SetupResult { recovery_key: recovery.to_display() })
+    }
+
+    /// Roadmap 11.4: a text file for Artaveo support, written only when a user asks for it.
+    fn support_report(&self, s: &Session) -> Result<SupportReport> {
+        let info = self.system_info()?;
+        let mut facts = crate::support::base_facts(&self.config);
+        if let Some(db) = &info.database {
+            facts.push(("schema_version".into(), db.schema_version.to_string()));
+            facts.push(("database_size_bytes".into(), db.size_bytes.to_string()));
+            facts.push(("key_protection".into(), db.key_protection.clone()));
+        }
+        facts.push(("integrity".into(), info.integrity.status.clone()));
+        if let Some(detail) = &info.integrity.detail {
+            facts.push(("integrity_detail".into(), detail.clone()));
+        }
+        facts.push((
+            "last_backup".into(),
+            info.last_backup.as_ref().map_or("none".to_string(), |b| b.created_at.clone()),
+        ));
+        facts.push(("license_state".into(), format!("{:?}", self.license.status().state)));
+        let report = crate::support::write_report(&self.config, &facts)?;
+        self.with_db(|o| {
+            audit::record(
+                &o.conn,
+                &actor(s),
+                "support.report",
+                None,
+                None,
+                None,
+                Some(&json!({ "file": report.file_name })),
+            )
+        })?;
+        Ok(SupportReport {
+            file_name: report.file_name,
+            path: report.path.display().to_string(),
+            bytes: report.bytes as i64,
+        })
     }
 
     pub fn system_info(&self) -> Result<SystemInfo> {

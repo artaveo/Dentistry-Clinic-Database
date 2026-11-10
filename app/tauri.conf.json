@@ -49,5 +49,16 @@
         "installerHooks": "./windows/hooks.nsh"
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNCMUI5RTgzRjI3NTVFRkQKUldUOVhuWHlnNTRiTytGTnlVclZhaXRJY2V1ZDdpTFVmRGp0bUwzcllpbGJpV3VSR0M5S3ZZWVIK",
+      "endpoints": [
+        "https://github.com/artaveo/Dentistry-Clinic-Database/releases/download/updater/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

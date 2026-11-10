@@ -290,6 +290,7 @@ pub fn is_change(method: &str) -> bool {
         "presence",
         "lan",
         "system",
+        "update",
         "geo",
         "permissions",
         "reference",

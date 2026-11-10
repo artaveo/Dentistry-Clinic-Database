@@ -47,6 +47,17 @@ impl Core {
     /// key unwrap → quick validation → migrations (backup first) → seed and
     /// role sync → background full integrity check.
     pub fn with_protector(config: Config, protector: Box<dyn KeyProtector>) -> Result<Self> {
+        Self::build(config, protector, true)
+    }
+
+    /// A core that does not load the clinic database even though one may exist. Safe Startup Mode
+    /// (roadmap 11.3) uses it to restore a backup with the Recovery Key when the database or its key
+    /// on this computer is unusable; the damaged files are moved aside, never deleted.
+    pub fn open_for_recovery(config: Config) -> Result<Self> {
+        Self::build(config, default_protector(), false)
+    }
+
+    fn build(config: Config, protector: Box<dyn KeyProtector>, load_database: bool) -> Result<Self> {
         fs::create_dir_all(&config.data_dir)?;
         // A production build trusts only the production key and needs a license; development and tests do not.
         let production = config.environment == crate::Environment::Production;
@@ -73,7 +84,7 @@ impl Core {
             license,
         };
         let path = core.config.db_path();
-        if path.exists() {
+        if load_database && path.exists() {
             let key = db::load_key(&path, core.protector.as_ref())?;
             let conn = db::connect(&path, &key)?;
             db::quick_validate(&conn)?;
@@ -179,12 +190,17 @@ impl Core {
                 RpcResponse::Ok { result }
             }
             Err(e) => {
+                let mut error = e.to_rpc();
                 if e.code() == ErrorCode::Internal {
-                    tracing::error!(%method, error = %e, "request failed");
+                    // A short reference the clinic can read out on the phone: support searches the log
+                    // for it and lands on this exact failure (method, computer, error text).
+                    let reference = error_reference();
+                    tracing::error!(%method, %reference, %origin, error = %e, "request failed");
+                    error.detail = format!("{} [ref {reference}]", error.detail);
                 } else {
                     tracing::debug!(%method, error = %e, "request rejected");
                 }
-                RpcResponse::Error { error: e.to_rpc() }
+                RpcResponse::Error { error }
             }
         }
     }
@@ -304,4 +320,12 @@ impl Core {
                 .flatten()
         })
     }
+}
+
+/// Six characters (no look-alikes) that tie a failure shown on screen to its line in the log.
+fn error_reference() -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    (0..6).map(|_| ALPHABET[rng.gen_range(0..ALPHABET.len())] as char).collect()
 }
