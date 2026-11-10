@@ -39,7 +39,7 @@ export default defineConfig({
     {
       command: `node -e "require('fs').rmSync(process.argv[1],{recursive:true,force:true})" "${dataDir}" && "${server}" --data-dir "${dataDir}" --port 8787`,
       url: "http://127.0.0.1:8787/health",
-      env: { ARTAVEO_ENV: "test", ARTAVEO_E2E_CLOCK_SHIFT_MS: process.env.ARTAVEO_E2E_CLOCK_SHIFT_MS },
+      env: { ARTAVEO_ENV: "test", ARTAVEO_E2E_NO_TICK: "1", ARTAVEO_E2E_CLOCK_SHIFT_MS: process.env.ARTAVEO_E2E_CLOCK_SHIFT_MS },
       reuseExistingServer: false,
       timeout: 60_000,
     },

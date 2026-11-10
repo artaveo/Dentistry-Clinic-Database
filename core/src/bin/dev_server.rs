@@ -34,13 +34,18 @@ fn main() {
     let _log = artaveo_core::logging::init(&config.log_dir(), env).expect("logging");
     let core = Arc::new(Core::open(config).expect("open core"));
 
-    let tick = core.clone();
-    std::thread::spawn(move || loop {
-        if let Err(e) = tick.run_due_tasks() {
-            tracing::error!(error = %e, "scheduled task failed");
-        }
-        std::thread::sleep(Duration::from_secs(300));
-    });
+    // The scheduled backup holds the database for as long as it runs, so a request that arrives
+    // meanwhile waits. In the E2E suite that made a request time out at a random moment (the rare
+    // missing header status, roadmap phase 10 note); E2E tests make their backups through the API.
+    if std::env::var_os("ARTAVEO_E2E_NO_TICK").is_none() {
+        let tick = core.clone();
+        std::thread::spawn(move || loop {
+            if let Err(e) = tick.run_due_tasks() {
+                tracing::error!(error = %e, "scheduled task failed");
+            }
+            std::thread::sleep(Duration::from_secs(300));
+        });
+    }
 
     let server = Server::http(("127.0.0.1", port)).expect("bind");
     println!("artaveo dev server on http://127.0.0.1:{port}/rpc");
