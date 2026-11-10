@@ -54,25 +54,31 @@ fn main() {
         Header::from_bytes("Access-Control-Allow-Headers", "content-type").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "POST, OPTIONS").unwrap(),
     ];
+    // One thread per request: the loop that accepts requests never waits for a slow one, so a request
+    // that is still being read or answered cannot hold back the next (the E2E header flake: one
+    // request of the page stayed unanswered while the others finished).
     for mut req in server.incoming_requests() {
-        let mut resp = match (req.method(), req.url()) {
-            (Method::Options, _) => Response::from_string(""),
-            (Method::Post, "/rpc") => {
-                let mut body = String::new();
-                let _ = req.as_reader().read_to_string(&mut body);
-                let out = match serde_json::from_str::<RpcRequest>(&body) {
-                    Ok(r) => serde_json::to_string(&core.handle(r)).unwrap(),
-                    Err(e) => serde_json::json!({"status": "error", "error": {"code": "validation", "detail": e.to_string(), "field": null, "rule": null}}).to_string(),
-                };
-                Response::from_string(out)
-                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())
+        let (core, cors) = (core.clone(), cors.clone());
+        std::thread::spawn(move || {
+            let mut resp = match (req.method(), req.url()) {
+                (Method::Options, _) => Response::from_string(""),
+                (Method::Post, "/rpc") => {
+                    let mut body = String::new();
+                    let _ = req.as_reader().read_to_string(&mut body);
+                    let out = match serde_json::from_str::<RpcRequest>(&body) {
+                        Ok(r) => serde_json::to_string(&core.handle(r)).unwrap(),
+                        Err(e) => serde_json::json!({"status": "error", "error": {"code": "validation", "detail": e.to_string(), "field": null, "rule": null}}).to_string(),
+                    };
+                    Response::from_string(out)
+                        .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())
+                }
+                (Method::Get, "/health") => Response::from_string("ok"),
+                _ => Response::from_string("not found").with_status_code(404),
+            };
+            for h in &cors {
+                resp.add_header(h.clone());
             }
-            (Method::Get, "/health") => Response::from_string("ok"),
-            _ => Response::from_string("not found").with_status_code(404),
-        };
-        for h in &cors {
-            resp.add_header(h.clone());
-        }
-        let _ = req.respond(resp);
+            let _ = req.respond(resp);
+        });
     }
 }
