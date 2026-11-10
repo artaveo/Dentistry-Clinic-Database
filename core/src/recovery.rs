@@ -38,7 +38,11 @@ pub struct Recovered {
 }
 
 fn db_files(db: &Path) -> Vec<PathBuf> {
-    vec![db.to_path_buf(), PathBuf::from(format!("{}-wal", db.display())), PathBuf::from(format!("{}-shm", db.display()))]
+    vec![
+        db.to_path_buf(),
+        PathBuf::from(format!("{}-wal", db.display())),
+        PathBuf::from(format!("{}-shm", db.display())),
+    ]
 }
 
 fn stamp() -> String {
@@ -119,8 +123,8 @@ pub fn recover_from_latest_backup(config: &Config, protector: &dyn KeyProtector)
             break;
         }
     }
-    let (src, file_name, preview) = chosen
-        .ok_or_else(|| CoreError::api(ErrorCode::BackupInvalid, "no valid backup on this computer"))?;
+    let (src, file_name, preview) =
+        chosen.ok_or_else(|| CoreError::api(ErrorCode::BackupInvalid, "no valid backup on this computer"))?;
 
     let staged = config.data_dir.join("clinic.db.restoring");
     remove_db_files(&staged);
@@ -143,7 +147,12 @@ pub fn recover_from_latest_backup(config: &Config, protector: &dyn KeyProtector)
         return Err(CoreError::api(ErrorCode::BackupInvalid, e.to_string()));
     }
     tracing::info!(backup = %file_name, patients = preview.patients, "recovered from the newest valid backup");
-    Ok(Recovered { file_name, created_at: preview.created_at, patients: preview.patients, quarantined: moved })
+    Ok(Recovered {
+        file_name,
+        created_at: preview.created_at,
+        patients: preview.patients,
+        quarantined: moved,
+    })
 }
 
 impl Core {

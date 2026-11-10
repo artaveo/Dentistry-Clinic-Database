@@ -54,7 +54,9 @@ fn logs_newest_last(config: &Config) -> Vec<PathBuf> {
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| {
-            p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("artaveo.") && n.ends_with(".log"))
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("artaveo.") && n.ends_with(".log"))
         })
         .collect();
     logs.sort();
@@ -192,8 +194,11 @@ mod tests {
         fs::create_dir_all(dir.path().join("crashes")).unwrap();
         let log = "{\"level\":\"INFO\",\"message\":\"fine\"}\n{\"level\":\"ERROR\",\"message\":\"request failed\",\"reference\":\"K7M2QX\"}\n";
         fs::write(config.log_dir().join("artaveo.2026-11-10.log"), log).unwrap();
-        fs::write(dir.path().join("crashes/crash-1.txt"), "Artaveo Dental crash\nwhere: core/src/billing.rs:10:5\n")
-            .unwrap();
+        fs::write(
+            dir.path().join("crashes/crash-1.txt"),
+            "Artaveo Dental crash\nwhere: core/src/billing.rs:10:5\n",
+        )
+        .unwrap();
         let report = write_report(&config, &base_facts(&config)).unwrap();
         let text = fs::read_to_string(report.path).unwrap();
         let errors = text.split("--- errors in the last two log files ---").nth(1).unwrap();

@@ -35,11 +35,7 @@ fn the_report_holds_no_patient_data() {
     let t = T::new();
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
-    t.ok(
-        m::PATIENTS_CREATE,
-        json!({"full_name": "زرمینه احمدی", "phone": "0700123456"}),
-        Some(&owner),
-    );
+    t.ok(m::PATIENTS_CREATE, json!({"full_name": "زرمینه احمدی", "phone": "0700123456"}), Some(&owner));
     let r = t.ok(m::SYSTEM_REPORT, json!({}), Some(&owner));
     let text = fs::read_to_string(r["path"].as_str().unwrap()).unwrap();
     assert!(!text.contains("زرمینه") && !text.contains("احمدی") && !text.contains("0700123456"));

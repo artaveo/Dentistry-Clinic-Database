@@ -367,7 +367,8 @@ fn backend_tasks(handle: &tauri::AppHandle, backend: &Backend) -> Vec<tauri::asy
 fn install_panic_hook(config: &Config) {
     let dir = config.data_dir.join("crashes");
     std::panic::set_hook(Box::new(move |info| {
-        let place = info.location().map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column())).unwrap_or_default();
+        let place =
+            info.location().map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column())).unwrap_or_default();
         let message = info
             .payload()
             .downcast_ref::<&str>()
@@ -428,7 +429,10 @@ async fn safe_recover(app: tauri::AppHandle, state: tauri::State<'_, Arc<Shell>>
     }
     let config = shell.config.clone();
     let done = tauri::async_runtime::spawn_blocking(move || {
-        artaveo_core::recovery::recover_from_latest_backup(&config, artaveo_core::keys::default_protector().as_ref())
+        artaveo_core::recovery::recover_from_latest_backup(
+            &config,
+            artaveo_core::keys::default_protector().as_ref(),
+        )
     })
     .await
     .map_err(|e| e.to_string())?;
@@ -436,7 +440,11 @@ async fn safe_recover(app: tauri::AppHandle, state: tauri::State<'_, Arc<Shell>>
         Ok(r) => r,
         Err(e) => {
             tracing::error!(error = %e, "recovery from the newest backup failed");
-            return Err(if e.code() == ErrorCode::BackupInvalid { "no_valid_backup".into() } else { e.to_string() });
+            return Err(if e.code() == ErrorCode::BackupInvalid {
+                "no_valid_backup".into()
+            } else {
+                e.to_string()
+            });
         }
     };
     let backend = open_core(&shell.config);
@@ -500,7 +508,10 @@ struct PendingUpdate(Mutex<Option<tauri_plugin_updater::Update>>);
 
 /// Looks for a newer signed version (roadmap 11.2). Quiet when offline: the window shows nothing.
 #[tauri::command]
-async fn update_check(app: tauri::AppHandle, pending: tauri::State<'_, PendingUpdate>) -> Result<Value, String> {
+async fn update_check(
+    app: tauri::AppHandle,
+    pending: tauri::State<'_, PendingUpdate>,
+) -> Result<Value, String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
     match updater.check().await {
         Ok(Some(update)) => {
@@ -519,7 +530,10 @@ async fn update_check(app: tauri::AppHandle, pending: tauri::State<'_, PendingUp
 /// Downloads, verifies the signature of and installs the update found before. The window has already
 /// made the safety backup (`update.prepare`). The installer closes the program and starts it again.
 #[tauri::command]
-async fn update_install(app: tauri::AppHandle, pending: tauri::State<'_, PendingUpdate>) -> Result<(), String> {
+async fn update_install(
+    app: tauri::AppHandle,
+    pending: tauri::State<'_, PendingUpdate>,
+) -> Result<(), String> {
     let update = pending.0.lock().unwrap().take().ok_or("no update was found")?;
     tracing::info!(version = %update.version, "installing update");
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| {
