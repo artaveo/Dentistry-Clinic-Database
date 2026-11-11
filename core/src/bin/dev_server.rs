@@ -3,15 +3,27 @@
 //! the real Core. Never shipped (feature `dev-server`).
 //!
 //!   cargo run -p artaveo-core --features dev-server --bin artaveo-dev-server -- --data-dir .artaveo-e2e --port 8787
+//!
+//! The HTTP side is a few lines of std::net on purpose: one thread per connection, started the moment
+//! the connection is accepted. tiny_http 0.12 (used before) hands each accepted connection to a thread
+//! pool that decides whether to start a new thread by counting idle threads; a woken idle thread is still
+//! counted until it takes a job, so when the browser opens several connections at once two jobs can be
+//! queued for one idle thread. Every pool thread then stays inside a keep-alive connection, and the
+//! queued connection is never read: its request (the header's clinic.get in the E2E suite) waits forever
+//! while the server keeps answering on the other connections.
 
 use std::collections::VecDeque;
+use std::io::{self, BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use artaveo_core::{Config, Core, Environment};
 use artaveo_shared::RpcRequest;
-use tiny_http::{Header, Method, Response, Server};
+
+const CORS: &str = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: content-type\r\n\
+                    Access-Control-Allow-Methods: POST, OPTIONS\r\nAccess-Control-Max-Age: 600\r\n";
 
 fn arg(name: &str) -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
@@ -41,13 +53,17 @@ impl Activity {
         }
     }
 
+    fn note(&mut self, what: String) {
+        self.done.push_back(what);
+        if self.done.len() > 60 {
+            self.done.pop_front();
+        }
+    }
+
     fn finish(&mut self, id: u64) {
         if let Some(i) = self.running.iter().position(|x| x.0 == id) {
             let (_, what, since) = self.running.remove(i);
-            self.done.push_back(format!("{what} {}ms", since.elapsed().as_millis()));
-            if self.done.len() > 40 {
-                self.done.pop_front();
-            }
+            self.note(format!("{what} {}ms", since.elapsed().as_millis()));
         }
     }
 
@@ -61,6 +77,105 @@ impl Activity {
 
 fn lock(activity: &Mutex<Activity>) -> MutexGuard<'_, Activity> {
     activity.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+/// One HTTP/1.1 request as the browser and Playwright send it (a Content-Length body, no chunking).
+struct HttpRequest {
+    method: String,
+    path: String,
+    body: Vec<u8>,
+    close: bool,
+}
+
+/// Reads the next request of a connection; `None` when the client closed it or sent something unreadable.
+fn read_request(reader: &mut BufReader<TcpStream>) -> Option<HttpRequest> {
+    let mut line = String::new();
+    if reader.read_line(&mut line).ok()? == 0 {
+        return None;
+    }
+    let mut parts = line.split_whitespace();
+    let method = parts.next()?.to_string();
+    let path = parts.next()?.to_string();
+    let mut close = parts.next() == Some("HTTP/1.0");
+    let mut length = 0usize;
+    loop {
+        let mut header = String::new();
+        if reader.read_line(&mut header).ok()? == 0 {
+            return None;
+        }
+        let header = header.trim_end();
+        if header.is_empty() {
+            break;
+        }
+        if let Some((name, value)) = header.split_once(':') {
+            let value = value.trim();
+            if name.eq_ignore_ascii_case("content-length") {
+                length = value.parse().ok()?;
+            } else if name.eq_ignore_ascii_case("connection") {
+                close = value.eq_ignore_ascii_case("close");
+            }
+        }
+    }
+    let mut body = vec![0; length];
+    reader.read_exact(&mut body).ok()?;
+    Some(HttpRequest { method, path, body, close })
+}
+
+fn write_response(w: &mut TcpStream, status: &str, kind: &str, body: &str) -> io::Result<()> {
+    let len = body.len();
+    let head = format!("HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {len}\r\n");
+    w.write_all(format!("{head}{CORS}\r\n{body}").as_bytes())?;
+    w.flush()
+}
+
+fn validation_error(e: &serde_json::Error) -> String {
+    let detail = e.to_string();
+    let error = serde_json::json!({"code": "validation", "detail": detail, "field": null, "rule": null});
+    serde_json::json!({"status": "error", "error": error}).to_string()
+}
+
+/// Status, content type and body.
+type Answer = (&'static str, &'static str, String);
+
+fn answer(req: &HttpRequest, core: &Core, activity: &Mutex<Activity>, id: u64, port: u16) -> Answer {
+    match (req.method.as_str(), req.path.as_str()) {
+        ("OPTIONS", _) => ("200 OK", "text/plain", String::new()),
+        ("POST", "/rpc") => {
+            let out = match serde_json::from_slice::<RpcRequest>(&req.body) {
+                Ok(r) => {
+                    let method = r.method.clone();
+                    lock(activity).rename(id, format!("{method} :{port} in core"));
+                    let out = serde_json::to_string(&core.handle(r)).unwrap();
+                    lock(activity).rename(id, format!("{method} :{port} writing"));
+                    out
+                }
+                Err(e) => validation_error(&e),
+            };
+            ("200 OK", "application/json", out)
+        }
+        ("GET", "/health") => ("200 OK", "text/plain", "ok".into()),
+        ("GET", "/inflight") => ("200 OK", "text/plain", lock(activity).report()),
+        _ => ("404 Not Found", "text/plain", "not found".into()),
+    }
+}
+
+/// Answers the requests of one connection in order until the client closes it (keep-alive).
+fn serve_connection(stream: TcpStream, core: &Core, activity: &Mutex<Activity>) {
+    let port = stream.peer_addr().map_or(0, |a| a.port());
+    lock(activity).note(format!("accepted :{port}"));
+    let _ = stream.set_nodelay(true);
+    let Ok(mut writer) = stream.try_clone() else { return };
+    let mut reader = BufReader::new(stream);
+    while let Some(req) = read_request(&mut reader) {
+        let id = lock(activity).start(format!("{} {} :{port}", req.method, req.path));
+        let (status, kind, body) = answer(&req, core, activity, id, port);
+        let written = write_response(&mut writer, status, kind, &body);
+        lock(activity).finish(id);
+        if written.is_err() || req.close {
+            break;
+        }
+    }
+    lock(activity).note(format!("closed :{port}"));
 }
 
 fn main() {
@@ -94,48 +209,13 @@ fn main() {
     }
 
     let activity = Arc::new(Mutex::new(Activity::default()));
-    let server = Server::http(("127.0.0.1", port)).expect("bind");
+    let listener = TcpListener::bind(("127.0.0.1", port)).expect("bind");
     println!("artaveo dev server on http://127.0.0.1:{port}/rpc");
-    let cors = [
-        Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap(),
-        Header::from_bytes("Access-Control-Allow-Headers", "content-type").unwrap(),
-        Header::from_bytes("Access-Control-Allow-Methods", "POST, OPTIONS").unwrap(),
-    ];
-    // One thread per request: the loop that accepts requests never waits for a slow one, so a request
-    // that is still being read or answered cannot hold back the next (the E2E header flake: one
-    // request of the page stayed unanswered while the others finished).
-    for mut req in server.incoming_requests() {
-        let (core, cors, activity) = (core.clone(), cors.clone(), activity.clone());
-        std::thread::spawn(move || {
-            let port = req.remote_addr().map_or(0, |a| a.port());
-            let id = lock(&activity).start(format!("{} {} :{port} reading", req.method(), req.url()));
-            let mut resp = match (req.method(), req.url()) {
-                (Method::Options, _) => Response::from_string(""),
-                (Method::Post, "/rpc") => {
-                    let mut body = String::new();
-                    let _ = req.as_reader().read_to_string(&mut body);
-                    let out = match serde_json::from_str::<RpcRequest>(&body) {
-                        Ok(r) => {
-                            let method = r.method.clone();
-                            lock(&activity).rename(id, format!("{method} :{port} in core"));
-                            let out = serde_json::to_string(&core.handle(r)).unwrap();
-                            lock(&activity).rename(id, format!("{method} :{port} writing"));
-                            out
-                        }
-                        Err(e) => serde_json::json!({"status": "error", "error": {"code": "validation", "detail": e.to_string(), "field": null, "rule": null}}).to_string(),
-                    };
-                    Response::from_string(out)
-                        .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())
-                }
-                (Method::Get, "/health") => Response::from_string("ok"),
-                (Method::Get, "/inflight") => Response::from_string(lock(&activity).report()),
-                _ => Response::from_string("not found").with_status_code(404),
-            };
-            for h in &cors {
-                resp.add_header(h.clone());
-            }
-            let _ = req.respond(resp);
-            lock(&activity).finish(id);
-        });
+    // Every accepted connection gets its own thread at once, so no connection can wait behind another
+    // (see the note at the top of this file).
+    for stream in listener.incoming() {
+        let Ok(stream) = stream else { continue };
+        let (core, activity) = (core.clone(), activity.clone());
+        std::thread::spawn(move || serve_connection(stream, &core, &activity));
     }
 }
