@@ -28,9 +28,10 @@ fn main() {
     let Some(backup) = arg("--backup").map(PathBuf::from) else {
         fail("usage: artaveo-dump --backup <backup.db> [--out dump.sql] [--sqlite plain.sqlite] [--force]");
     };
-    let recovery = arg("--recovery-key")
-        .or_else(|| std::env::var("ARTAVEO_RECOVERY_KEY").ok())
-        .unwrap_or_else(|| fail("the Recovery Key is missing: set ARTAVEO_RECOVERY_KEY or pass --recovery-key"));
+    let recovery =
+        arg("--recovery-key").or_else(|| std::env::var("ARTAVEO_RECOVERY_KEY").ok()).unwrap_or_else(|| {
+            fail("the Recovery Key is missing: set ARTAVEO_RECOVERY_KEY or pass --recovery-key")
+        });
     let force = std::env::args().any(|a| a == "--force");
     let sqlite_out = arg("--sqlite").map(PathBuf::from);
     let sql_out = match (arg("--out"), &sqlite_out) {
@@ -73,5 +74,7 @@ fn main() {
     if let Err(e) = result {
         fail(&e.to_string());
     }
-    eprintln!("WARNING: the output has patient data and is not encrypted. Keep it safe and delete it after use.");
+    eprintln!(
+        "WARNING: the output has patient data and is not encrypted. Keep it safe and delete it after use."
+    );
 }

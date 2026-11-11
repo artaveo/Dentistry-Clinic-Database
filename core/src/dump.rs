@@ -66,10 +66,15 @@ pub fn write_sql(conn: &Connection, out: &mut impl Write) -> Result<DumpReport> 
         .filter_map(|(_, _, names)| names.split('\u{1f}').next().map(str::to_string))
         .collect();
     let is_search_part = |name: &str| {
-        virtual_tables.iter().any(|v| name == v || name.strip_prefix(v.as_str()).is_some_and(|r| r.starts_with('_')))
+        virtual_tables
+            .iter()
+            .any(|v| name == v || name.strip_prefix(v.as_str()).is_some_and(|r| r.starts_with('_')))
     };
 
-    writeln!(out, "-- Artaveo Dental database dump. Contains patient data: keep it safe, delete it after use.")?;
+    writeln!(
+        out,
+        "-- Artaveo Dental database dump. Contains patient data: keep it safe, delete it after use."
+    )?;
     writeln!(out, "-- Search-index (FTS) tables are not included; the program rebuilds them.")?;
     writeln!(out, "PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;")?;
 
@@ -79,7 +84,10 @@ pub fn write_sql(conn: &Connection, out: &mut impl Write) -> Result<DumpReport> 
         let mut parts = names.split('\u{1f}');
         let (name, table) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
         let Some(sql) = sql else { continue };
-        if is_search_part(name) || is_search_part(table) || (kind != "table" && virtual_tables.iter().any(|v| sql.contains(v.as_str()))) {
+        if is_search_part(name)
+            || is_search_part(table)
+            || (kind != "table" && virtual_tables.iter().any(|v| sql.contains(v.as_str())))
+        {
             report.skipped.push(format!("{kind} {name}"));
             continue;
         }
@@ -180,7 +188,8 @@ mod tests {
             })
             .unwrap();
         assert_eq!((name.as_str(), note.as_str(), balance), ("O'Brien", "line1\nline2", 12345));
-        let blob: Vec<u8> = plain.query_row("SELECT photo FROM patient WHERE id = 'p1'", [], |r| r.get(0)).unwrap();
+        let blob: Vec<u8> =
+            plain.query_row("SELECT photo FROM patient WHERE id = 'p1'", [], |r| r.get(0)).unwrap();
         assert_eq!(blob, vec![0x00, 0xff, 0x10]);
         let null_note: Option<String> =
             plain.query_row("SELECT note FROM patient WHERE id = 'p2'", [], |r| r.get(0)).unwrap();
