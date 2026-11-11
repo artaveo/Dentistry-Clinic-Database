@@ -1,0 +1,23 @@
+name: cargo fmt (temporary)
+on:
+  push:
+    branches: ["fmt/**"]
+permissions:
+  contents: write
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all
+      - name: Commit formatting
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "cargo fmt"
+            git config user.email "fmt@users.noreply.github.com"
+            git commit -am "cargo fmt"
+            git push
+          fi
