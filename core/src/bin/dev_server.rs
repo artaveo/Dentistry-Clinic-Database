@@ -4,9 +4,9 @@
 //!
 //!   cargo run -p artaveo-core --features dev-server --bin artaveo-dev-server -- --data-dir .artaveo-e2e --port 8787
 
-use std::path::PathBuf;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use artaveo_core::{Config, Core, Environment};
@@ -22,9 +22,45 @@ fn arg(name: &str) -> Option<String> {
 /// request stays unanswered (GET /inflight). Development only.
 #[derive(Default)]
 struct Activity {
+    /// Id, what (method, client port, stage) and since when.
     running: Vec<(u64, String, Instant)>,
     done: VecDeque<String>,
     next: u64,
+}
+
+impl Activity {
+    fn start(&mut self, what: String) -> u64 {
+        self.next += 1;
+        self.running.push((self.next, what, Instant::now()));
+        self.next
+    }
+
+    fn rename(&mut self, id: u64, what: String) {
+        if let Some(x) = self.running.iter_mut().find(|x| x.0 == id) {
+            x.1 = what;
+        }
+    }
+
+    fn finish(&mut self, id: u64) {
+        if let Some(i) = self.running.iter().position(|x| x.0 == id) {
+            let (_, what, since) = self.running.remove(i);
+            self.done.push_back(format!("{what} {}ms", since.elapsed().as_millis()));
+            if self.done.len() > 40 {
+                self.done.pop_front();
+            }
+        }
+    }
+
+    fn report(&self) -> String {
+        let ms = |x: &(u64, String, Instant)| format!("{} {}ms", x.1, x.2.elapsed().as_millis());
+        let running: Vec<String> = self.running.iter().map(ms).collect();
+        let done: Vec<&str> = self.done.iter().map(String::as_str).collect();
+        format!("running: [{}] | done: [{}]", running.join(", "), done.join(", "))
+    }
+}
+
+fn lock(activity: &Mutex<Activity>) -> MutexGuard<'_, Activity> {
+    activity.lock().unwrap_or_else(|p| p.into_inner())
 }
 
 fn main() {
@@ -71,6 +107,8 @@ fn main() {
     for mut req in server.incoming_requests() {
         let (core, cors, activity) = (core.clone(), cors.clone(), activity.clone());
         std::thread::spawn(move || {
+            let port = req.remote_addr().map_or(0, |a| a.port());
+            let id = lock(&activity).start(format!("{} {} :{port} reading", req.method(), req.url()));
             let mut resp = match (req.method(), req.url()) {
                 (Method::Options, _) => Response::from_string(""),
                 (Method::Post, "/rpc") => {
@@ -78,46 +116,26 @@ fn main() {
                     let _ = req.as_reader().read_to_string(&mut body);
                     let out = match serde_json::from_str::<RpcRequest>(&body) {
                         Ok(r) => {
-                        let (id, method) = {
-                            let mut a = activity.lock().unwrap();
-                            a.next += 1;
-                            let id = a.next;
-                            a.running.push((id, r.method.clone(), Instant::now()));
-                            (id, r.method.clone())
-                        };
-                        let out = serde_json::to_string(&core.handle(r)).unwrap();
-                        let mut a = activity.lock().unwrap();
-                        if let Some(i) = a.running.iter().position(|x| x.0 == id) {
-                            let ms = a.running.remove(i).2.elapsed().as_millis();
-                            a.done.push_back(format!("{method} {ms}ms"));
-                            if a.done.len() > 40 {
-                                a.done.pop_front();
-                            }
+                            let method = r.method.clone();
+                            lock(&activity).rename(id, format!("{method} :{port} in core"));
+                            let out = serde_json::to_string(&core.handle(r)).unwrap();
+                            lock(&activity).rename(id, format!("{method} :{port} writing"));
+                            out
                         }
-                        out
-                    }
                         Err(e) => serde_json::json!({"status": "error", "error": {"code": "validation", "detail": e.to_string(), "field": null, "rule": null}}).to_string(),
                     };
                     Response::from_string(out)
                         .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())
                 }
                 (Method::Get, "/health") => Response::from_string("ok"),
-                (Method::Get, "/inflight") => {
-                    let a = activity.lock().unwrap();
-                    let running: Vec<String> =
-                        a.running.iter().map(|x| format!("{} {}ms", x.1, x.2.elapsed().as_millis())).collect();
-                    Response::from_string(format!(
-                        "running: [{}] | done: [{}]",
-                        running.join(", "),
-                        a.done.iter().cloned().collect::<Vec<_>>().join(", ")
-                    ))
-                }
+                (Method::Get, "/inflight") => Response::from_string(lock(&activity).report()),
                 _ => Response::from_string("not found").with_status_code(404),
             };
             for h in &cors {
                 resp.add_header(h.clone());
             }
             let _ = req.respond(resp);
+            lock(&activity).finish(id);
         });
     }
 }

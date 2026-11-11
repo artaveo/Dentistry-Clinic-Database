@@ -142,8 +142,15 @@ test("header status and command palette", async () => {
     await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
   } catch (e) {
     // What the server was doing at that moment: still running the request, or never saw it.
+    const within = <T,>(p: Promise<T>) => Promise.race([p, new Promise<string>((r) => setTimeout(() => r("NO ANSWER IN 3s"), 3000))]);
     const server = await page.request.get("http://127.0.0.1:8787/inflight").then((r) => r.text()).catch((x) => "inflight failed: " + x);
-    throw new Error("TRACE " + trace.slice(-40).join(" | ") + " ## SERVER " + server.slice(-900) + " ## " + String(e).slice(0, 200));
+    // Can the page itself still reach the server now (a fresh request from the browser)?
+    const fromPage = await within(page.evaluate(() => fetch("http://127.0.0.1:8787/health").then((r) => r.status + " " + r.statusText))).catch((x) => "threw " + String(x).slice(0, 120));
+    // Does the Core answer clinic.get when asked from outside the browser?
+    const rpcCall = (method: string, params: object, token: string | null) => page.request.post("http://127.0.0.1:8787/rpc", { data: { method, params, token }, timeout: 3000 }).then((r) => r.json());
+    const fromNode = await within(rpcCall("auth.login", { username: OWNER.user, password: OWNER.pass }, null).then((l) => rpcCall("clinic.get", {}, l.result?.token ?? null)).then((c) => JSON.stringify(c).slice(0, 120))).catch((x) => "threw " + String(x).slice(0, 120));
+    const after = await page.request.get("http://127.0.0.1:8787/inflight").then((r) => r.text()).catch((x) => "inflight failed: " + x);
+    throw new Error("TRACE " + trace.slice(-40).join(" | ") + " ## SERVER " + server.slice(-1500) + " ## PAGE FETCH " + fromPage + " ## NODE clinic.get " + fromNode + " ## SERVER AFTER " + after.slice(-600) + " ## " + String(e).slice(0, 200));
   }
   await page.getByTestId("command-palette-open").click();
   await page.getByTestId("command-palette-input").fill("کاربران");
