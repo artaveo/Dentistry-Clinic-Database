@@ -18,6 +18,7 @@ pub mod config;
 pub mod db;
 pub mod documents;
 pub mod draft;
+pub mod dump;
 pub mod error;
 pub mod fingerprint;
 pub mod formulary;

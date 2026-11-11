@@ -20,6 +20,10 @@ required-features = ["dev-server"]
 name = "artaveo-seed"
 path = "src/bin/seed.rs"
 
+[[bin]]
+name = "artaveo-dump"
+path = "src/bin/dump.rs"
+
 [dependencies]
 artaveo-shared.workspace = true
 serde.workspace = true

@@ -176,6 +176,12 @@ jobs:
           "$TAURI" build --target ${{ matrix.target }} --config tauri.offline.conf.json
           cp "$BUNDLE"/*-setup.exe "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}-offline.exe"
           ls -la "$OUT"
+      - name: Database dump tool (artaveo-dump) for this architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --release -p artaveo-core --bin artaveo-dump --target ${{ matrix.target }}
+          cp "target/${{ matrix.target }}/release/artaveo-dump.exe" "dist/artaveo-dump-${{ matrix.arch }}.exe"
       - name: Install the previous release v0.1.0 and give it a real clinic (OF-009)
         shell: pwsh
         run: |
