@@ -77,7 +77,7 @@ jobs:
           missing=$(find ~/.cache/ms-playwright -type f \( -name chrome -o -name headless_shell \) -exec ldd {} \; | grep "not found" | sort -u || true)
           if [ -n "$missing" ]; then
             echo "::warning title=Browser libraries missing on the runner::$(echo "$missing" | tr '\n' ' ')"
-            bash ../.github/scripts/run-annotated.sh "Browser system packages" npx playwright install-deps chromium
+            bash ../.github/scripts/run-annotated.sh "Browser system packages" timeout 300 npx playwright install-deps chromium
           fi
       - name: E2E (Playwright, real Core over the dev transport)
         working-directory: ui
