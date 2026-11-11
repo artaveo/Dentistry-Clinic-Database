@@ -65,10 +65,13 @@ jobs:
           cargo build -p artaveo-core --features dev-server --bin artaveo-dev-server --message-format=json | node ../.github/scripts/cargo-annotate.mjs
       - name: E2E - install the browser
         working-directory: ui
-        run: npx playwright install --with-deps chromium
+        run: |
+          echo "::notice title=E2E runner::$(. /etc/os-release && echo "$PRETTY_NAME") / Playwright $(npx playwright --version)"
+          bash ../.github/scripts/run-annotated.sh "Browser system packages" npx playwright install-deps chromium
+          bash ../.github/scripts/run-annotated.sh "Browser download" npx playwright install chromium
       - name: E2E (Playwright, real Core over the dev transport)
         working-directory: ui
-        run: npx playwright test
+        run: bash ../.github/scripts/run-annotated.sh "Playwright" npx playwright test
       - name: Core log of the E2E run, as an annotation (readable without downloading anything)
         if: failure()
         working-directory: ui
