@@ -67,8 +67,18 @@ jobs:
         working-directory: ui
         run: |
           echo "::notice title=E2E runner::$(. /etc/os-release && echo "$PRETTY_NAME") / Playwright $(npx playwright --version)"
-          bash ../.github/scripts/run-annotated.sh "Browser system packages" npx playwright install-deps chromium
           bash ../.github/scripts/run-annotated.sh "Browser download" npx playwright install chromium
+          # The runner image already has the libraries Chromium needs, and the suite needs no system fonts
+          # (the UI ships its own, no screenshot comparisons). "--with-deps" ran apt-get for fonts on every
+          # run, so an Ubuntu mirror outage on the runner failed the release CI (run #149: "Temporary failure
+          # resolving 'azure.archive.ubuntu.com'", apt gave up after 609 s; #146-#148 failed the same ~10
+          # minutes into the install). apt now runs only
+          # when a library the browser links to is really missing.
+          missing=$(find ~/.cache/ms-playwright -type f \( -name chrome -o -name headless_shell \) -exec ldd {} \; | grep "not found" | sort -u || true)
+          if [ -n "$missing" ]; then
+            echo "::warning title=Browser libraries missing on the runner::$(echo "$missing" | tr '\n' ' ')"
+            bash ../.github/scripts/run-annotated.sh "Browser system packages" npx playwright install-deps chromium
+          fi
       - name: E2E (Playwright, real Core over the dev transport)
         working-directory: ui
         run: bash ../.github/scripts/run-annotated.sh "Playwright" npx playwright test
