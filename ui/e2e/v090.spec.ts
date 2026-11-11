@@ -54,7 +54,9 @@ test("Stock: a new item, receiving it, a low-stock flag, and taking some out", a
 
   // Receive 10 pieces: below the minimum of 20, so it is flagged as low.
   await page.getByTestId("receive-open").click();
-  await page.getByTestId("receive-item").selectOption({ label: "سرنگ یکبارمصرف" });
+  // The item is a type-to-filter box: type part of the name, then pick the match.
+  await page.getByTestId("receive-item").fill("سرنگ یکبارمصرف");
+  await page.getByTestId("receive-item-list").getByRole("option", { name: /سرنگ یکبارمصرف/ }).first().click();
   await page.getByTestId("receive-qty").fill("10");
   await page.getByTestId("receive-cost").fill("25");
   await page.getByTestId("receive-lot").fill("S-1");

@@ -35,7 +35,7 @@ test("M5: tooth first — a finding on 36 with its surfaces, then a root canal a
   await page.getByTestId("patient-phone").fill("0700900077");
   await page.getByTestId("patient-save").click();
   await expect(page.getByTestId("page-patient-profile")).toBeVisible();
-  await page.getByTestId("patient-tab-chart").click();
+  await page.getByTestId("patient-tab-care").click();
   await expect(page.getByTestId("odontogram")).toBeVisible();
   // The adult chart: 32 teeth, numbered 1–8 from the midline in each quadrant (v0.6.1 default), in the interface's digits.
   await expect(page.getByTestId("tooth-num-36")).toHaveText("۶");
@@ -58,6 +58,8 @@ test("M5: tooth first — a finding on 36 with its surfaces, then a root canal a
   // Saving closes the dialog: the result is on the chart at once.
   await expect(page.getByTestId("chart-actions")).toHaveCount(0);
   await expect(page.getByTestId("tooth-details-36")).toContainText("پوسیدگی");
+  // The biting-surface row is behind «نمای سطح» since U1.
+  await page.getByTestId("chart-surface-toggle").click();
   await expect(page.getByTestId("surface-36-O")).toHaveAttribute("data-state", "existing");
 
   // Then the work: a two-canal root canal from the catalog, priced from it, into a new plan.
@@ -76,7 +78,6 @@ test("M5: tooth first — a finding on 36 with its surfaces, then a root canal a
 
 test("M5: service first — a whole-mouth service needs no teeth; quadrant buttons select teeth", async () => {
   await page.getByTestId("chart-clear").click();
-  await page.getByTestId("chart-quick-open").click();
   await page.getByTestId("chart-quick-q3").click();
   await expect(page.getByTestId("chart-selection")).toContainText("┌۱–۸");
   await page.getByTestId("chart-clear").click();
@@ -101,7 +102,8 @@ test("M5: service first — a whole-mouth service needs no teeth; quadrant butto
 });
 
 test("5.7: plans — totals from the catalog, an alternative from a ready plan, accepting one, the printed estimate", async () => {
-  await page.getByTestId("patient-tab-plans").click();
+  await page.getByTestId("patient-tab-care").click();
+  await page.getByTestId("patient-sub-plans").click();
   await expect(page.getByTestId("plans-tab")).toBeVisible();
   const first = page.locator(".plan-card").filter({ hasText: "دوکاناله" });
   await expect(first.locator('[data-testid^="plan-total-"]')).toContainText("۳٬۵۰۰");
@@ -172,6 +174,7 @@ test("5.6: a visit note from a template, signed and locked, then an addendum", a
   await expect(page.getByTestId("note-procedure")).not.toHaveValue("");
   await page.getByTestId("note-chief_complaint").fill("درد دندان ۳۶ هنگام جویدن");
   await page.getByTestId("note-save-sign").click();
+  await page.getByTestId("confirm-dialog-confirm").click();
   await expect(toast()).toHaveText("یادداشت امضا و قفل شد.");
   const card = page.locator('[data-testid^="note-status-"]').first();
   await expect(card).toContainText("امضاشده");
@@ -187,7 +190,8 @@ test("5.6: a visit note from a template, signed and locked, then an addendum", a
 });
 
 test("5.5: a perio exam — depths, bleeding, the summary", async () => {
-  await page.getByTestId("patient-tab-chart").click();
+  await page.getByTestId("patient-tab-care").click();
+  await page.getByTestId("patient-sub-chart").click();
   await page.getByTestId("chart-view-perio").click();
   await expect(page.getByTestId("perio-chart")).toBeVisible();
   await page.getByTestId("perio-depth-16-0").fill("5");
@@ -204,6 +208,7 @@ test("5.5: a perio exam — depths, bleeding, the summary", async () => {
 });
 
 test("5.11: the timeline tells the story, newest first, and filters by kind", async () => {
+  await page.getByTestId("patient-tab-history").click();
   await page.getByTestId("patient-tab-timeline").click();
   const timeline = page.getByTestId("timeline");
   await expect(timeline).toBeVisible();
@@ -232,6 +237,7 @@ test("Phase 5 exit: the printed record carries the visit — the chart, the trea
 });
 
 test("clinical lists: the doctor edits tooth conditions, note templates and ready plans", async () => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-clinical").click();
   await page.getByTestId("clinical-tab-conditions").click();
   await expect(page.getByTestId("condition-row-caries")).toContainText("پوسیدگی");

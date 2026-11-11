@@ -18,6 +18,7 @@ the same province/district/reference item has the same ID in every clinic.
 | `tooth_conditions.json` | 5.3: 18 existing tooth conditions for the chart (caries, filling, crown, root canal, missing, extracted, implant, …): chart symbol, surfaces or whole tooth, short mark — fa/ps/en | **doctor to review**; Pashto needs native-speaker review |
 | `note_templates.json` | 5.6: 9 visit-note templates (first exam, toothache, root canal 1st/last session, extraction, filling, scaling, ortho adjustment, implant surgery), the eight note sections in fa/ps/en | **doctor to review** (clinical wording); Pashto needs native-speaker review |
 | `plan_templates.json` | 5.7: 8 ready-made plans (root canal + crown, single implant, extraction + implant, bridge, fixed orthodontics, complete dentures, check-up + cleaning, child prevention) as lists of catalog services with their teeth and phase | **doctor to review** |
+| `stock_items.json` | audit 9.2: 37 starter stock items (gloves, masks, anesthetics, composite, endo files, sutures, alginate, …) with category (`sc-*`) and unit (`su-*`) codes from migration 0016 — fa/ps/en; **no prices, minimum 0** (the clinic sets them) | **doctor to review** (remove what the clinic does not use, add local brands); Pashto needs native-speaker review |
 
 ## Districts
 
@@ -50,6 +51,7 @@ the doctor edits in «فهرست‌های بالینی» and «خدمات و ت�
   doctor's edit, price or switched-off item;
 * a document template the clinic edited is marked `customized` and is never
   overwritten by a newer seed text; «بازگشت به متن اصلی» restores the seed;
+* starter stock items are inserted once as well (`inventory::sync_seeds`, id derived from the code): a renamed, switched-off or deleted item is never touched or brought back;
 * tooth conditions and ready-made plans are inserted once as well; a note template the clinic
   edited is marked `customized` like the document templates;
 * system checklist questions keep their seeded wording (so alerts and

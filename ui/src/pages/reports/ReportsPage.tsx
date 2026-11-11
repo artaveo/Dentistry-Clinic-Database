@@ -2,18 +2,19 @@
 // period and (where it makes sense) a doctor or a service on top, read the table, and take it away as Excel
 // or on paper. The Core builds the numbers; this screen only chooses and shows.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileSpreadsheet, FileX, FolderOpen, Printer } from "lucide-react";
+import { ChevronDown, ChevronUp, FileSpreadsheet, FileX, FolderOpen, Printer } from "lucide-react";
 import type { ClinicProfile, DoctorInfo, ReportKind, ReportParams, ReportResult, ServiceInfo } from "../../../../shared/ts/contract";
 import { isSessionError, revealExport, rpc } from "../../lib/api";
-import { todayIso } from "../../lib/calendar";
+import { presetRange, todayIso } from "../../lib/calendar";
 import { digits } from "../../lib/dates";
-import { GROUPS, PRESETS, REPORTS, TAG_VALUES, isNumeric, presetRange, renderCell, tagLabels } from "../../lib/reports";
-import type { PeriodPreset, ReportGroup } from "../../lib/reports";
+import { GROUPS, POPULAR, REPORTS, TAG_VALUES, isNumeric, renderCell, tagLabels } from "../../lib/reports";
+import type { ReportGroup } from "../../lib/reports";
 import { tr } from "../../lib/medical";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
-import { Card, Page, PageHeader } from "../../ui/Card";
+import { Card, PageHeader } from "../../ui/Card";
 import { DateField } from "../../ui/DateField";
+import { DateRangeField } from "../../ui/DateRangeField";
 import { EmptyState, ErrorState, Notice, SkeletonRows } from "../../ui/Feedback";
 import { Field, Select } from "../../ui/Field";
 import { DocumentPreview } from "../../print/DocumentPreview";
@@ -27,7 +28,14 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
   const groups = GROUPS.filter((g) => g !== "inventory" || canSeeStock);
   const [kind, setKind] = useState<ReportKind>("daily_revenue");
   const meta = REPORTS.find((r) => r.kind === kind)!;
-  const first = useMemo(() => presetRange("month", calendar), [calendar]);
+  // A quick period never ends after today: the reports have nothing to say about days that have not come.
+  const upToToday = (id: "thisMonth" | "thisYear") => {
+    const r = presetRange(id, calendar);
+    const today = todayIso();
+    return { from: r.from, to: r.to > today ? today : r.to };
+  };
+  const first = useMemo(() => upToToday("thisMonth"), [calendar]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [showAll, setShowAll] = useState(false);
   const [from, setFrom] = useState(first.from);
   const [to, setTo] = useState(first.to);
   const [doctor, setDoctor] = useState("");
@@ -93,11 +101,13 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
     setDoctor("");
     setService("");
   };
-  const applyPreset = (p: PeriodPreset) => {
-    const r = presetRange(p, calendar);
+  const applyPeriod = (id: "thisMonth" | "thisYear") => {
+    const r = upToToday(id);
     setFrom(r.from);
     setTo(r.to);
   };
+  // A report chosen from the hidden part keeps the list open, so the highlighted item stays visible.
+  const listOpen = showAll || !POPULAR.includes(kind);
 
   const exportExcel = async () => {
     if (!result) return;
@@ -118,15 +128,23 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
 
   const rows = result?.rows ?? [];
   const ready = !!result && !busy;
+  const excelWhy = !ready ? t("reports.loadingHint") : !rows.length ? t("reports.excelEmpty") : undefined;
+  const printWhy = !ready ? t("reports.loadingHint") : !letterhead ? t("reports.printWait") : undefined;
   return (
-    <Page testId="page-reports">
+    <div className="page page-reports" data-testid="page-reports">
       <PageHeader
         title={t("reports.title")}
         description={t("reports.subtitle")}
         actions={
           <>
-            <Button icon={FileSpreadsheet} onClick={exportExcel} disabled={!ready || !rows.length} data-testid="report-export">{t("reports.excel")}</Button>
-            <Button icon={Printer} onClick={() => setPrinting(true)} disabled={!ready || !letterhead} data-testid="report-print">{t("reports.print")}</Button>
+            <span className="report-tip" title={excelWhy}>
+              <Button icon={FileSpreadsheet} onClick={exportExcel} disabled={!!excelWhy} aria-describedby={excelWhy ? "report-export-why" : undefined} data-testid="report-export">{t("reports.excel")}</Button>
+              {excelWhy && <span id="report-export-why" className="sr-only">{excelWhy}</span>}
+            </span>
+            <span className="report-tip" title={printWhy}>
+              <Button icon={Printer} onClick={() => setPrinting(true)} disabled={!!printWhy} aria-describedby={printWhy ? "report-print-why" : undefined} data-testid="report-print">{t("reports.print")}</Button>
+              {printWhy && <span id="report-print-why" className="sr-only">{printWhy}</span>}
+            </span>
           </>
         }
       />
@@ -135,7 +153,7 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
           {groups.map((g) => (
             <div className="report-group" key={g}>
               <span className="t-overline">{t(`reports.group.${g}`)}</span>
-              {REPORTS.filter((r) => r.group === g).map((r) => (
+              {REPORTS.filter((r) => r.group === g && (listOpen || POPULAR.includes(r.kind))).map((r) => (
                 <button key={r.kind} type="button" className="nav-item" aria-current={kind === r.kind ? "page" : undefined} onClick={() => choose(r.kind)} data-testid={`report-${r.kind}`}>
                   <r.icon aria-hidden />
                   <span>{t(`reports.kind.${r.kind}`)}</span>
@@ -143,6 +161,10 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
               ))}
             </div>
           ))}
+          <button type="button" className="nav-item report-all" aria-expanded={listOpen} disabled={listOpen && !showAll} onClick={() => setShowAll((x) => !x)} data-testid="report-all">
+            {listOpen ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />}
+            <span>{t("reports.all")}</span>
+          </button>
         </nav>
         <div className="stack report-main">
           {/* On a narrow window the list becomes a menu. */}
@@ -159,11 +181,16 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
             </Field>
           </div>
           <div className="report-filters" data-testid="report-filters">
-            {meta.period !== "now" && (
-              <>
-                {meta.period === "range" && <div className="field"><span className="field-label">{t("reports.from")}</span><DateField value={from} onChange={setFrom} calendar={calendar} label={t("reports.from")} testId="report-from" yearsBefore={10} yearsAfter={0} /></div>}
-                <div className="field"><span className="field-label">{meta.period === "range" ? t("reports.to") : t("reports.asOf")}</span><DateField value={to} onChange={setTo} calendar={calendar} label={meta.period === "range" ? t("reports.to") : t("reports.asOf")} testId="report-to" yearsBefore={10} yearsAfter={meta.period === "asOf" ? 3 : 0} /></div>
-              </>
+            <strong className="report-name">{title}</strong>
+            {meta.period === "range" && (
+              <Field label={t("reports.period")}>
+                <DateRangeField value={{ from, to }} onChange={(r) => { setFrom(r.from); setTo(r.to); }} calendar={calendar} label={t("reports.period")} presets={["today", "last7", "thisMonth", "lastMonth", "thisYear"]} testId="report-range" />
+              </Field>
+            )}
+            {meta.period === "asOf" && (
+              <Field label={t("reports.asOf")}>
+                <DateField value={to} onChange={setTo} calendar={calendar} label={t("reports.asOf")} testId="report-to" />
+              </Field>
             )}
             {meta.filters.includes("doctor") && (
               <Field label={t("reports.doctor")}>
@@ -181,13 +208,8 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
                 </Select>
               </Field>
             )}
-            {meta.period === "range" && (
-              <div className="row report-presets" role="group" aria-label={t("reports.quick")}>
-                {PRESETS.map((p) => <Button key={p} size="sm" variant="subtle" onClick={() => applyPreset(p)} data-testid={`report-preset-${p}`}>{t(`reports.preset.${p}`)}</Button>)}
-              </div>
-            )}
+            {meta.period === "now" && <span className="muted report-nowhint" data-testid="report-now-note">{t("reports.nowNote")}</span>}
           </div>
-          {meta.period === "now" && <Notice tone="info">{t("reports.nowNote")}</Notice>}
           {invalid && <Notice tone="warning" testId="report-range-error">{t("rule.period_range")}</Notice>}
           {exported && (
             <Notice tone="success" testId="report-export-done">
@@ -195,7 +217,7 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
               <Button variant="link" icon={FolderOpen} onClick={() => revealExport(exported.path).catch((x) => setError(err(x)))}>{t("patients.export.openFolder")}</Button>
             </Notice>
           )}
-          <Card flush>
+          <Card flush className="report-card">
             {error ? (
               <ErrorState message={error} onRetry={() => setTick((x) => x + 1)} />
             ) : (
@@ -229,13 +251,26 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
                     </tfoot>
                   )}
                 </table>
-                {result && !rows.length && <EmptyState icon={FileX} title={t("reports.empty")}>{t("reports.emptyHint")}</EmptyState>}
+                {result && !rows.length && (
+                  <EmptyState
+                    icon={FileX}
+                    title={t("reports.empty")}
+                    action={meta.period === "range" ? (
+                      <div className="row report-presets" role="group" aria-label={t("reports.quick")}>
+                        <Button size="sm" variant="subtle" onClick={() => applyPeriod("thisMonth")} data-testid="report-preset-month">{t("reports.preset.month")}</Button>
+                        <Button size="sm" variant="subtle" onClick={() => applyPeriod("thisYear")} data-testid="report-preset-year">{t("reports.preset.year")}</Button>
+                      </div>
+                    ) : undefined}
+                  >
+                    {meta.period === "range" ? t("reports.emptyRange") : meta.period === "now" ? t("reports.emptyNow") : t("reports.emptyHint")}
+                  </EmptyState>
+                )}
               </div>
             )}
           </Card>
           {result && (
             <p className="muted report-foot" role="status" data-testid="report-foot">
-              {t("reports.count").replace("{n}", digits(rows.length, lang)).replace("{ms}", digits(result.millis, lang))}
+              {t("reports.count").replace("{n}", digits(rows.length, lang))}
               {result.truncated && <> · <strong>{t("reports.truncated")}</strong></>}
             </p>
           )}
@@ -251,6 +286,6 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
           sheet={<ReportSheet result={result} title={title} showPeriod={meta.period === "range"} letterhead={letterhead} lang={lang} calendar={calendar} />}
         />
       )}
-    </Page>
+    </div>
   );
 }

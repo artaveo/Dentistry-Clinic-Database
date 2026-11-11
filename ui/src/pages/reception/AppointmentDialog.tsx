@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Printer, Save } from "lucide-react";
 import type { AppointmentInfo, CalendarSystem, ChairInfo, DoctorInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
-import { fromMinutes, nowMinutes, toMinutes, todayIso } from "../../lib/calendar";
+import { addDays, fromMinutes, nowMinutes, toMinutes, todayIso } from "../../lib/calendar";
 import { digits, formatTime } from "../../lib/dates";
 import { useForm } from "../../lib/validation";
 import { serviceName, specialtiesText, useCatalog, useClinicSettings, useSpecialties } from "../../lib/clinical";
@@ -55,6 +55,12 @@ function defaultStartTime(date: string, explicit?: string): string {
   return fromMinutes(Math.min(1425, Math.floor(nowMinutes() / 15) * 15 + 15));
 }
 
+/** A new booking with no day picked: today, but from 20:00 on tomorrow (a late-evening slot is rarely meant). */
+function defaultDate(explicit?: string): string {
+  if (explicit) return explicit;
+  return nowMinutes() >= 1200 ? addDays(todayIso(), 1) : todayIso();
+}
+
 type Values = { doctor_id: string; chair_id: string; date: string; start_time: string; duration: string; reason: string; notes: string; service_id: string; treatment_item_id: string; session_no: string };
 
 /**
@@ -96,8 +102,8 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
     {
       doctor_id: appointment?.doctor_id ?? defaults?.doctorId ?? doctors[0]?.id ?? "",
       chair_id: appointment?.chair_id ?? defaults?.chairId ?? "",
-      date: appointment?.date ?? defaults?.date ?? todayIso(),
-      start_time: defaultStartTime(appointment?.date ?? defaults?.date ?? todayIso(), appointment?.start_time ?? defaults?.start),
+      date: appointment?.date ?? defaultDate(defaults?.date),
+      start_time: defaultStartTime(appointment?.date ?? defaultDate(defaults?.date), appointment?.start_time ?? defaults?.start),
       duration: String(initialDuration),
       reason: appointment?.reason ?? defaults?.reason ?? "",
       notes: appointment?.notes ?? "",
@@ -110,6 +116,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
       duration: (s, all) => (toMinutes(all.start_time) + Number(s) > 1440 ? "rule.time_range" : null),
     },
   );
+  const [dateBad, setDateBad] = useState(false);
   const [busy, setBusy] = useState<"save" | "reschedule" | null>(null);
   const [error, setError] = useState("");
   const [offerOverride, setOfferOverride] = useState<string | null>(null);
@@ -188,7 +195,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
     setClash(null);
     setPatientError("");
     if (!patient) return setPatientError(t("rule.required"));
-    if (!form.validate()) return;
+    if (!form.validate() || dateBad) return;
     const v = form.values;
     const link = { treatment_item_id: v.treatment_item_id || null, session_no: v.treatment_item_id && v.session_no ? Number(v.session_no) : null };
     const body = { doctor_id: v.doctor_id, chair_id: v.chair_id || null, date: v.date, start_time: v.start_time, end_time: endTime, override_schedule: override, service_id: v.service_id || null, ...link };
@@ -232,6 +239,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
   return (
     <>
       <Dialog
+        dismissOnScrim={false}
         title={editing ? t("appt.edit") : t("appt.new")}
         description={current ? <span className="row"><Badge tone={STATUS_TONE[current.status]} dot testId="appt-status-badge">{t(`appt.status.${current.status}`)}</Badge>{current.queue_number != null && <span className="subtle">{t("queue.ticket")} <bdi className="num">{current.queue_number}</bdi></span>}</span> : t("appt.newHint")}
         onClose={onClose}
@@ -341,8 +349,8 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
               </Select>
             </Field>
             )}
-            <Field label={t("appt.date")} error={e("date")}>
-              <DateField value={form.values.date} onChange={(d) => form.set("date", d)} calendar={calendar} label={t("appt.date")} testId="appt-date" disabled={!movable || readOnly} />
+            <Field label={t("appt.date")} error={dateBad ? t("ui.date.invalid") : e("date")}>
+              <DateField value={form.values.date} onChange={(d) => form.set("date", d)} calendar={calendar} label={t("appt.date")} testId="appt-date" disabled={!movable || readOnly} min={editing ? undefined : todayIso()} onInvalidChange={setDateBad} />
             </Field>
             <Field label={t("appt.start")} error={e("start_time")}>
               <TimePicker12 value={form.values.start_time} onChange={(x) => form.set("start_time", x)} label={t("appt.start")} testId="appt-start" />

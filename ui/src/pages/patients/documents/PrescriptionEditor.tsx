@@ -11,6 +11,7 @@ import { Checkbox, Segmented } from "../../../ui/Controls";
 import { Field, Select, Textarea, TextInput } from "../../../ui/Field";
 import { Notice } from "../../../ui/Feedback";
 import { Dialog } from "../../../ui/Overlay";
+import { useConfirm } from "../../../ui/ConfirmDialog";
 import { rxInstructions } from "../../../print/docText";
 import { DocumentSheet } from "../../../print/DocumentSheet";
 import type { Letterhead } from "../../../print/letterhead";
@@ -49,6 +50,7 @@ export function PrescriptionEditor({ patient, letterhead, calendar, onClose, onI
   onIssued: (d: DocumentInfo) => void;
 }) {
   const { t, err, lang: uiLang } = useI18n();
+  const { confirm, dialog } = useConfirm();
   const [doctors, setDoctors] = useState<DoctorInfo[] | null>(null);
   const [drugs, setDrugs] = useState<DrugInfo[]>([]);
   const [templates, setTemplates] = useState<RxTemplateInfo[]>([]);
@@ -116,8 +118,8 @@ export function PrescriptionEditor({ patient, letterhead, calendar, onClose, onI
   const removeLine = (n: number) => setItems((list) => list.filter((_, i) => i !== n));
   const addDrug = (d: DrugInfo) => setItems((list) => [...list, fromDrug(d)]);
   const addFree = (name: string) => setItems((list) => [...list, { drug_id: null, name, form: "tablet", strength: null, quantity: null, dose: null, times_per_day: null, timing: null, days: null, as_needed: false, note: null }]);
-  const applyTemplate = (tp: RxTemplateInfo) => {
-    if (items.length && !window.confirm(t("rx.templateReplace"))) return;
+  const applyTemplate = async (tp: RxTemplateInfo) => {
+    if (items.length && !(await confirm({ title: t("cleanup.confirm.title"), text: t("rx.templateReplace") }))) return;
     // Template lines point at the formulary; a medicine the clinic switched off still comes by name.
     setItems(tp.items.map((i) => ({ ...i })));
   };
@@ -294,6 +296,7 @@ export function PrescriptionEditor({ patient, letterhead, calendar, onClose, onI
         <LivePreview paper={paper}>
           <DocumentSheet doc={previewDoc} letterhead={letterhead} calendar={calendar} />
         </LivePreview>
+        {dialog}
       </div>
     </Dialog>
   );

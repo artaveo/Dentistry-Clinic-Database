@@ -61,6 +61,7 @@ test("Offline activation shows a request code and refuses a wrong response", asy
 });
 
 test("The backup page shows where the data is and makes a backup", async ({ request }) => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-backup").click();
   await expect(page.getByTestId("page-backup")).toBeVisible();
   await expect(page.getByTestId("backup-destinations")).toBeVisible();
@@ -105,6 +106,7 @@ test("Restore compares, asks for the password and signs everybody out", async ({
   await call(request, "backup.create", {});
   await call(request, "patients.create", { full_name: "E2E Restore Later" });
 
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-backup").click();
   await page.getByTestId("bk-tab-restore").click();
   await expect(page.getByTestId("restore-list")).toBeVisible();
@@ -126,6 +128,7 @@ test("Restore compares, asks for the password and signs everybody out", async ({
   const found = await call(request, "patients.list", { query: "E2E Restore Later", limit: 10, offset: 0 });
   expect(found.items.length).toBe(0);
   // The safety copy of what was replaced is in the list.
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-backup").click();
   await expect(page.getByTestId("backup-list")).toContainText("پیش از بازیابی");
 });

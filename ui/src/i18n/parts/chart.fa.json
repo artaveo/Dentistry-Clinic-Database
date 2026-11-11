@@ -1,0 +1,16 @@
+{
+  "patients.tab.care": "چارت و درمان",
+  "patients.tab.finance": "حساب مالی",
+  "patients.tab.docs": "اسناد",
+  "patients.tab.history": "تاریخچه",
+  "patients.moreActions": "گزینه‌های بیشتر",
+  "patients.backShort": "فهرست بیماران",
+  "patients.header.age": "{n} ساله",
+  "chart.panel.title": "جزئیات دندان",
+  "chart.panel.emptyHint": "جزئیات دندان انتخاب‌شده همین‌جا نمایش داده می‌شود.",
+  "chart.panel.multiHint": "چند دندان انتخاب شده است. برای ثبت، یکی از دکمه‌های بالا را بزنید؛ برای دیدن جزئیات، فقط یک دندان انتخاب کنید.",
+  "chart.panel.nextHint": "قدم بعدی: نوع ثبت را بزنید. جزئیات دندان در پایین است.",
+  "chart.panel.nextHintMany": "قدم بعدی: نوع ثبت را برای این دندان‌ها بزنید.",
+  "chart.surfaceView": "نمای سطح",
+  "chart.surfaceViewHint": "نمایش سطح جویدن هر دندان برای انتخاب سطح‌ها (چارت بلندتر می‌شود)"
+}

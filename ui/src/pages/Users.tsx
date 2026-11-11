@@ -12,6 +12,7 @@ import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../ui/Feedb
 import { Dialog } from "../ui/Overlay";
 import { Avatar } from "../ui/Brand";
 import { useToast } from "../ui/Toast";
+import { useConfirm } from "../ui/ConfirmDialog";
 import { roleText, ruleText } from "./reception/labels";
 
 export function UsersPage({ currentUserId }: { currentUserId: string }) {
@@ -299,6 +300,7 @@ const PERMISSION_GROUPS: { key: string; codes: string[] }[] = [
 function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; permissions: PermissionInfo[]; onClose: () => void; onSaved: () => void }) {
   const { t, err } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const readOnly = role?.code === "owner";
   // A built-in role keeps its name; its permissions can be changed (OF-028).
   const named = !role?.is_system;
@@ -343,7 +345,7 @@ function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; 
   };
 
   const remove = async () => {
-    if (!role || !window.confirm(t("roles.deleteConfirm"))) return;
+    if (!role || !(await confirm({ title: t("cleanup.confirm.title"), text: t("roles.deleteConfirm"), confirm: t("common.delete"), danger: true }))) return;
     try {
       await rpc("roles.delete", { code: role.code, version: role.version });
       toast.success(t("roles.deleted"));
@@ -389,6 +391,7 @@ function RoleDialog({ role, permissions, onClose, onSaved }: { role?: RoleInfo; 
             ))}
           </fieldset>
         ))}
+        {dialog}
       </form>
     </Dialog>
   );

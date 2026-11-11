@@ -50,6 +50,13 @@ export const REPORTS: ReportMeta[] = [
 
 export const GROUPS: ReportGroup[] = ["financial", "clinical", "inventory"];
 
+/** The reports an owner opens every week (audit §7); the rest sit under «all reports». All 26 stay reachable. */
+export const POPULAR: ReportKind[] = [
+  "daily_revenue", "monthly_revenue", "payments", "outstanding", "doctor_revenue", "service_revenue", "expenses", "profit_loss", "cash_closings",
+  "patients", "treatments", "recall_list", "doctor_activity",
+  "low_stock", "stock", "expiry",
+];
+
 export type PeriodPreset = "today" | "week" | "month" | "lastMonth" | "year";
 export const PRESETS: PeriodPreset[] = ["today", "week", "month", "lastMonth", "year"];
 

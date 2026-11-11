@@ -109,13 +109,14 @@ test("attachments: upload an image, view it, then delete it (3.5)", async () => 
   await page.getByTestId("viewer-zoom-in").click();
   await page.keyboard.press("Escape");
 
-  page.once("dialog", (d) => d.accept());
   await page.locator('[data-testid^="attachment-delete-"]').first().click();
+  await page.getByTestId("confirm-dialog-confirm").click();
   await expect(toast()).toHaveText("پیوست حذف شد.");
   await expect(page.getByTestId("attachment-grid")).not.toContainText("رادیوگرافی");
 });
 
 test("patient audit history is scoped to this patient", async () => {
+  await page.getByTestId("patient-tab-history").click();
   await page.getByTestId("patient-tab-audit").click();
   await expect(page.getByTestId("patient-audit-list")).toContainText("ویرایش بیمار");
   await expect(page.getByTestId("patient-audit-list")).toContainText("به‌روزرسانی سوابق پزشکی");
@@ -124,6 +125,7 @@ test("patient audit history is scoped to this patient", async () => {
 test("merge folds the record you're viewing into the one you pick", async () => {
   // We're on احمد خان's profile; picking Someone Else as the target means
   // احمد خان (the record being viewed) becomes the one that is folded away.
+  await page.getByTestId("patient-more").click();
   await page.getByTestId("patient-merge-open").click();
   await page.getByTestId("merge-search").fill("Someone Else");
   await page.locator('[data-testid^="merge-candidate-"]').first().click();
@@ -137,11 +139,13 @@ test("merge folds the record you're viewing into the one you pick", async () => 
   await expect(mergedRow.locator(".badge")).toHaveText("غیرفعال");
   await page.getByTestId("patients-search").fill("Someone Else");
   const keptRow = page.getByTestId("patient-list").locator("tbody tr").first();
-  await expect(keptRow.locator(".badge")).toHaveText("فعال");
+  // The list only marks inactive patients (U13): the kept record carries no badge.
+  await expect(keptRow.locator(".badge")).toHaveCount(0);
 });
 
 test("import: preview reports row errors, commit only adds valid rows", async () => {
   await page.getByTestId("patients-search").fill("");
+  await page.getByTestId("patients-more").click();
   await page.getByTestId("patients-import-open").click();
   const csv = "full_name,father_name,phone,secondary_phone,date_of_birth,address\nوارده شده,کریم,0799000111,,,کابل\n,بد,123,,,";
   await page.getByTestId("import-file-input").setInputFiles({ name: "patients.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf-8") });
@@ -155,8 +159,9 @@ test("import: preview reports row errors, commit only adds valid rows", async ()
 test("delete removes a patient from the active list", async () => {
   await page.getByTestId("patients-search").fill("وارده شده");
   await page.getByTestId("patient-list").getByText("وارده شده").click();
-  page.once("dialog", (d) => d.accept());
+  await page.getByTestId("patient-more").click();
   await page.getByTestId("patient-delete").click();
+  await page.getByTestId("confirm-dialog-confirm").click();
   await expect(toast()).toHaveText("پرونده بیمار حذف شد.");
   await expect(page.getByTestId("page-patients")).toBeVisible();
   await page.getByTestId("patients-search").fill("وارده شده");

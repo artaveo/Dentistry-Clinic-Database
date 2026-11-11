@@ -118,7 +118,7 @@ test("OF-044: dragging shows the exact landing time, snaps to 5 minutes, and sav
   await appt.click();
   await expect(page.getByTestId("appt-start-hour")).toHaveValue("5");
   await expect(page.getByTestId("appt-start-minute")).toHaveValue("10");
-  await expect(page.getByTestId("appt-start-pm")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("appt-start-pm")).toHaveAttribute("aria-checked", "true");
   await page.keyboard.press("Escape");
 });
 
@@ -140,6 +140,7 @@ async function pdfPageMm(): Promise<{ w: number; h: number }> {
 }
 
 test("M3: the service catalog is seeded from the spec, prices are set by the clinic", async () => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-catalog").click();
   await expect(page.getByTestId("page-catalog")).toBeVisible();
   await expect(page.getByTestId("catalog-row-END-01D")).toContainText("دوکاناله");
@@ -166,6 +167,7 @@ test("M3: the service catalog is seeded from the spec, prices are set by the cli
 });
 
 test("clinical lists: the clinic edits the checklist, medicines and the template texts", async () => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-clinical").click();
   await expect(page.getByTestId("question-row-heart_disease")).toBeVisible();
   await shot("02-clinical-lists");
@@ -194,8 +196,8 @@ test("clinical lists: the clinic edits the checklist, medicines and the template
   await page.getByTestId("tpl-save").click();
   await expect(page.getByTestId("tpl-row-post_op_extraction")).toContainText("ویرایش‌شده");
   await page.getByTestId("tpl-edit-post_op_extraction").click();
-  page.once("dialog", (d) => d.accept());
   await page.getByTestId("tpl-reset").click();
+  await page.getByTestId("confirm-dialog-confirm").click();
   await expect(page.getByTestId("tpl-row-post_op_extraction")).not.toContainText("ویرایش‌شده");
 });
 
@@ -221,7 +223,8 @@ test("5.9: a prescription warns about the checklist, is numbered, prints at A5 a
   await expect(page.getByTestId("medical-alert-banner")).toContainText("حامله");
   await shot("03-medical-history");
 
-  await page.getByTestId("patient-tab-prescriptions").click();
+  await page.getByTestId("patient-tab-documents").click();
+  await page.getByTestId("patient-sub-prescriptions").click();
   await page.getByTestId("rx-new").click();
   await expect(page.getByTestId("rx-language-ps")).toHaveAttribute("aria-checked", "true");
   await page.getByTestId("rx-doctor").selectOption({ label: "داکتر احمد رحیمی" });
@@ -269,6 +272,7 @@ test("5.9: a prescription warns about the checklist, is numbered, prints at A5 a
 
 test("5.10 / 5.10b: a consent form from its template and a medical certificate with rest", async () => {
   await page.getByTestId("patient-tab-documents").click();
+  await page.getByTestId("patient-sub-documents").click();
   await page.getByTestId("doc-new").click();
   await page.getByTestId("doc-new-consent").click();
   await page.getByTestId("doc-template").selectOption({ label: "رضایت‌نامه کشیدن دندان" });
@@ -316,6 +320,7 @@ test("M2 / 5.10: booking a service lists its specialty's doctors first and sugge
   await page.getByTestId("appt-save").click();
   await expect(toast()).toHaveText("نوبت ثبت شد.");
   // Today's queue reminds reception to ask a new patient's medical history.
+  await page.getByTestId("tab-appointments").click();
   await page.getByTestId("tab-queue").click();
   const card = page.locator('[data-testid^="queue-card-"]').filter({ hasText: "بیمار کشیدن دندان" });
   await expect(card.locator('[data-testid^="queue-review-"]')).toBeVisible();

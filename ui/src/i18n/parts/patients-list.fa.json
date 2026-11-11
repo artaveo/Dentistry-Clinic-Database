@@ -1,0 +1,6 @@
+{
+  "patients.column.age": "سن",
+  "patients.showing": "نمایش {shown} از {total} بیمار",
+  "patients.loadMore": "نمایش بیشتر",
+  "patients.moreActions": "کارهای بیشتر"
+}

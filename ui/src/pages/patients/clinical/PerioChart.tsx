@@ -11,6 +11,7 @@ import { Button } from "../../../ui/Button";
 import { Field, Select, Textarea } from "../../../ui/Field";
 import { EmptyState, ErrorState, Loading, Notice } from "../../../ui/Feedback";
 import { useToast } from "../../../ui/Toast";
+import { useConfirm } from "../../../ui/ConfirmDialog";
 import { chartTeeth, isMolar, toothInfo } from "../../../chart/geometry";
 import { toothLabel } from "../../../chart/numbering";
 
@@ -52,6 +53,7 @@ function siteOrder(fdi: number, lingual: boolean): number[] {
 export function PerioChart({ patient, chart, canEdit, numbering }: { patient: PatientInfo; chart: ChartInfo; canEdit: boolean; numbering: ToothNumbering }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const conditions = useToothConditions();
   const [exams, setExams] = useState<PerioExamInfo[] | null>(null);
   const [error, setError] = useState("");
@@ -159,7 +161,7 @@ export function PerioChart({ patient, chart, canEdit, numbering }: { patient: Pa
   };
   const remove = async () => {
     const exam = exams?.find((e) => e.id === current);
-    if (!exam || !window.confirm(t("perio.deleteConfirm"))) return;
+    if (!exam || !(await confirm({ title: t("cleanup.confirm.title"), text: t("perio.deleteConfirm"), confirm: t("common.delete"), danger: true }))) return;
     try {
       await rpc("perio.delete", { id: exam.id, version: exam.version });
       toast.success(t("perio.deleted"));
@@ -248,6 +250,7 @@ export function PerioChart({ patient, chart, canEdit, numbering }: { patient: Pa
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

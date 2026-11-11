@@ -16,6 +16,7 @@ import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../ui/Feedb
 import { Dialog } from "../ui/Overlay";
 import { TranslationsField } from "../ui/TranslationsField";
 import { useToast } from "../ui/Toast";
+import { useConfirm } from "../ui/ConfirmDialog";
 import { emptyTranslations, hasText, useFailure, useList } from "./clinicalListsShared";
 import { ConditionsTab, NoteTemplatesTab, PlanTemplatesTab } from "./ClinicalLists5B";
 
@@ -490,6 +491,7 @@ function TemplatesTab() {
 
 function TemplateDialog({ x, kind, onClose, onSaved }: { x?: DocumentTemplateInfo; kind: DocumentKind; onClose: () => void; onSaved: () => void }) {
   const { t } = useI18n();
+  const { confirm, dialog } = useConfirm();
   const fail = useFailure();
   const [title, setTitle] = useState<Translations>(x?.title ?? empty);
   const [body, setBody] = useState<Translations>(x?.body ?? empty);
@@ -512,7 +514,7 @@ function TemplateDialog({ x, kind, onClose, onSaved }: { x?: DocumentTemplateInf
     }
   };
   const reset = async () => {
-    if (!x || !window.confirm(t("clinical.templates.resetConfirm"))) return;
+    if (!x || !(await confirm({ title: t("cleanup.confirm.title"), text: t("clinical.templates.resetConfirm") }))) return;
     setBusy("reset");
     try {
       await rpc("document_templates.reset", { id: x.id, version: x.version });
@@ -545,6 +547,7 @@ function TemplateDialog({ x, kind, onClose, onSaved }: { x?: DocumentTemplateInf
           </div>
           {x && <Switch checked={active} onChange={setActive} label={t("clinical.active")} testId="tpl-active" />}
         </div>
+        {dialog}
       </div>
     </Dialog>
   );

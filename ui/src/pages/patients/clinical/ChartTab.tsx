@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Activity, Baby, CircleDot, Grid3x3, Layers, ScanLine, Smile, Tag, Tags, Wrench } from "lucide-react";
+import { Activity, Baby, CircleDot, Eye, Grid3x3, Layers, ScanLine, Smile, Tag, Tags, Wrench } from "lucide-react";
 import type { ChartInfo, ClinicProfile, PatientInfo, ServiceInfo } from "../../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../../lib/api";
 import { useCatalog, useClinicSettings, useToothConditions } from "../../../lib/clinical";
 import { tr } from "../../../lib/medical";
 import { useI18n } from "../../../i18n";
+import { Button } from "../../../ui/Button";
 import { Card } from "../../../ui/Card";
 import { Segmented } from "../../../ui/Controls";
 import { ErrorState, Loading } from "../../../ui/Feedback";
@@ -18,7 +19,7 @@ import type { Surface } from "../../../chart/geometry";
 import { itemState, layersOf, marksOf, spansOf, STATES, viewForSymbol } from "../../../chart/model";
 import type { ChartState, ChartView } from "../../../chart/model";
 import { chartNumber, teethLabel, toothLabel } from "../../../chart/numbering";
-import { ChartRecordDialog, ChartSelectionBar, ToothDetails } from "./ChartPanel";
+import { ChartQuickSelect, ChartRecordDialog, ChartSidePanel } from "./ChartPanel";
 import type { ChartMode, QuickPick } from "./ChartPanel";
 import { PerioChart } from "./PerioChart";
 import { ToothHistory } from "./ToothHistory";
@@ -36,7 +37,8 @@ const VIEWS: { value: ChartView; icon: LucideIcon }[] = [
  * Patient profile → «چارت دندان» (5.2–5.5, M5): the odontogram with its specialty views, selecting
  * teeth and surfaces (quick buttons for jaws and quadrants), recording what is there, planning work
  * service-first or tooth-first, and each tooth's history. The periodontal chart is the «پریو» view.
- * v0.6.1: a bar under the chart (kept on screen) shows the selection and the three kinds of record; each
+ * U1: the chart is compact (the biting-surface row waits behind «نمای سطح») and fitted to the window, with the
+ * detail panel beside it — the selected tooth, the main action for it and the three kinds of record; each
  * opens the record dialog, so the chart never scrolls away and the result shows as soon as it is saved.
  */
 export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: PatientInfo; canEdit: boolean; clinic: ClinicProfile | null; onChanged?: () => void }) {
@@ -57,6 +59,8 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
   const [history, setHistory] = useState<number | null>(null);
   const [mode, setMode] = useState<ChartMode>("plan");
   const [recording, setRecording] = useState(false);
+  // The biting-surface row is off by default (U1): the compact chart fits the window without a page scroll.
+  const [showOcc, setShowOcc] = useState(false);
 
   const load = useCallback(
     () =>
@@ -184,99 +188,112 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
     onChanged?.();
   };
   const workingPlans = chart.plans.filter((p) => p.status !== "cancelled" && p.status !== "completed");
-  const one = selected.length === 1 ? selected[0] : null;
+  // Fitted to the window: only the compact chart (no biting-surface row) and never the periodontal chart.
+  const fit = !showOcc && view !== "perio";
+  const dentitionSwitch = (
+    <Segmented<ChartInfo["dentition"]>
+      value={chart.dentition}
+      onChange={(d) => canEdit && setDentition(d)}
+      label={t("chart.dentition")}
+      options={[
+        { value: "permanent", label: t("chart.dentition.permanent"), icon: Smile, testId: "chart-dentition-permanent" },
+        { value: "mixed", label: t("chart.dentition.mixed"), icon: CircleDot, testId: "chart-dentition-mixed" },
+        { value: "primary", label: t("chart.dentition.primary"), icon: Baby, testId: "chart-dentition-primary" },
+      ]}
+    />
+  );
 
   return (
-    <div className="chart-tab stack-lg" data-testid="chart-tab">
-        <Card flush className="chart-card">
-          <div className="chart-toolbar">
-            <Segmented<ChartView>
-              value={view}
-              onChange={setView}
-              label={t("chart.views")}
-              options={VIEWS.map((v) => ({ value: v.value, label: t(`chart.view.${v.value}`), icon: v.icon, testId: `chart-view-${v.value}` }))}
-            />
-            <span className="grow" />
-            {view !== "perio" && (
-              <Segmented<ChartInfo["dentition"]>
-                value={chart.dentition}
-                onChange={(d) => canEdit && setDentition(d)}
-                label={t("chart.dentition")}
+    <div className={`chart-tab chart-layout ${fit ? "fit" : ""} ${view === "perio" ? "perio" : ""}`} data-testid="chart-tab">
+      <Card flush className="chart-card">
+        <div className="chart-toolbar">
+          <Segmented<ChartView>
+            value={view}
+            onChange={setView}
+            label={t("chart.views")}
+            options={VIEWS.map((v) => ({ value: v.value, label: t(`chart.view.${v.value}`), icon: v.icon, testId: `chart-view-${v.value}` }))}
+          />
+          <span className="grow" />
+          {view !== "perio" && (
+            <Button size="sm" variant={showOcc ? "secondary" : "subtle"} icon={Eye} aria-pressed={showOcc} onClick={() => setShowOcc((x) => !x)} title={t("chart.surfaceViewHint")} data-testid="chart-surface-toggle">
+              {t("chart.surfaceView")}
+            </Button>
+          )}
+        </div>
+        {view === "perio" ? (
+          <PerioChart patient={patient} chart={chart} canEdit={canEdit} numbering={numbering} />
+        ) : (
+          <>
+            <div className="chart-canvas">
+              <Odontogram
+                dentition={chart.dentition}
+                primarySlots={chart.primary_slots}
+                layers={layers}
+                spans={spans}
+                callouts={callouts}
+                labels={labels}
+                view={view}
+                selected={selected}
+                selectedSurfaces={surfaces}
+                showOcclusal={showOcc}
+                fitHeight={fit}
+                maxRows={fit ? 1 : undefined}
+                numberOf={(fdi) => chartNumber(fdi, numbering, lang)}
+                titleOf={(fdi) => `${t("chart.tooth")} ${toothLabel(fdi, numbering, lang)} — ${t(`chart.type.${toothInfo(fdi).type}`)} — ${t(`chart.quadrant.${toothInfo(fdi).quadrant}`)}`}
+                ariaLabel={t("patients.tab.dentalChart")}
+                sideLabels={{ right: t("chart.patientRight"), left: t("chart.patientLeft") }}
+                quadrantLabels={numbering === "quadrant" || numbering === "palmer" ? [1, 2, 3, 4].map((q) => t(`chart.quadrantShort.${q}`)) : undefined}
+                onTooth={onTooth}
+                onSurface={onSurface}
+              />
+            </div>
+            {wholeMouth.length > 0 && (
+              <div className="chart-mouth" data-testid="chart-whole-mouth">
+                <span className="subtle t-caption">{t("chart.wholeMouth")}</span>
+                {wholeMouth.map((m) => (
+                  <span key={m.key} className={`chart-mouth-chip st-${m.state}`}>
+                    <span className="odo-callout-dot" aria-hidden />
+                    {itemService(catalog, m.item!, lang)} — {stateText(t, m.state)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <ChartQuickSelect onQuick={quick} />
+            <div className="chart-foot">
+              <Legend />
+              <span className="grow" />
+              {workingPlans.length > 1 && (
+                <label className="chart-plan-pick">
+                  <span className="subtle t-caption">{t("chart.showingPlan")}</span>
+                  <Select value={workingPlan ?? ""} onChange={(e) => setWorkingPlan(e.target.value || null)} data-testid="chart-working-plan">
+                    {workingPlans.map((p) => <option key={p.id} value={p.id}>{p.title} · {t(`plan.status.${p.status}`)}</option>)}
+                  </Select>
+                </label>
+              )}
+              <Segmented<"all" | "selected">
+                value={labels}
+                onChange={setLabels}
+                label={t("chart.labels")}
                 options={[
-                  { value: "permanent", label: t("chart.dentition.permanent"), icon: Smile, testId: "chart-dentition-permanent" },
-                  { value: "mixed", label: t("chart.dentition.mixed"), icon: CircleDot, testId: "chart-dentition-mixed" },
-                  { value: "primary", label: t("chart.dentition.primary"), icon: Baby, testId: "chart-dentition-primary" },
+                  { value: "all", label: t("chart.labels.all"), icon: Tags, testId: "chart-labels-all" },
+                  { value: "selected", label: t("chart.labels.selected"), icon: Tag, testId: "chart-labels-selected" },
                 ]}
               />
-            )}
-          </div>
-          {view === "perio" ? (
-            <PerioChart patient={patient} chart={chart} canEdit={canEdit} numbering={numbering} />
-          ) : (
-            <>
-              <div className="chart-canvas">
-                <Odontogram
-                  dentition={chart.dentition}
-                  primarySlots={chart.primary_slots}
-                  layers={layers}
-                  spans={spans}
-                  callouts={callouts}
-                  labels={labels}
-                  view={view}
-                  selected={selected}
-                  selectedSurfaces={surfaces}
-                  numberOf={(fdi) => chartNumber(fdi, numbering, lang)}
-                  titleOf={(fdi) => `${t("chart.tooth")} ${toothLabel(fdi, numbering, lang)} — ${t(`chart.type.${toothInfo(fdi).type}`)} — ${t(`chart.quadrant.${toothInfo(fdi).quadrant}`)}`}
-                  ariaLabel={t("patients.tab.dentalChart")}
-                  sideLabels={{ right: t("chart.patientRight"), left: t("chart.patientLeft") }}
-                  quadrantLabels={numbering === "quadrant" || numbering === "palmer" ? [1, 2, 3, 4].map((q) => t(`chart.quadrantShort.${q}`)) : undefined}
-                  onTooth={onTooth}
-                  onSurface={onSurface}
-                />
-              </div>
-              {wholeMouth.length > 0 && (
-                <div className="chart-mouth" data-testid="chart-whole-mouth">
-                  <span className="subtle t-caption">{t("chart.wholeMouth")}</span>
-                  {wholeMouth.map((m) => (
-                    <span key={m.key} className={`chart-mouth-chip st-${m.state}`}>
-                      <span className="odo-callout-dot" aria-hidden />
-                      {itemService(catalog, m.item!, lang)} — {stateText(t, m.state)}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <ChartSelectionBar selected={selected} surfaces={surfaces} numbering={numbering} canEdit={canEdit} onQuick={quick} onOpen={(m) => { setMode(m); setRecording(true); }} />
-              <div className="chart-foot">
-                <Legend />
-                <span className="grow" />
-                {workingPlans.length > 1 && (
-                  <label className="chart-plan-pick">
-                    <span className="subtle t-caption">{t("chart.showingPlan")}</span>
-                    <Select value={workingPlan ?? ""} onChange={(e) => setWorkingPlan(e.target.value || null)} data-testid="chart-working-plan">
-                      {workingPlans.map((p) => <option key={p.id} value={p.id}>{p.title} · {t(`plan.status.${p.status}`)}</option>)}
-                    </Select>
-                  </label>
-                )}
-                <Segmented<"all" | "selected">
-                  value={labels}
-                  onChange={setLabels}
-                  label={t("chart.labels")}
-                  options={[
-                    { value: "all", label: t("chart.labels.all"), icon: Tags, testId: "chart-labels-all" },
-                    { value: "selected", label: t("chart.labels.selected"), icon: Tag, testId: "chart-labels-selected" },
-                  ]}
-                />
-              </div>
-            </>
-          )}
-        </Card>
-      {view !== "perio" && one != null && (
-        <ToothDetails
+            </div>
+          </>
+        )}
+      </Card>
+      {view !== "perio" && (
+        <ChartSidePanel
           patient={patient}
           chart={chart}
-          canEdit={canEdit}
-          tooth={one}
+          selected={selected}
+          surfaces={surfaces}
           numbering={numbering}
+          canEdit={canEdit}
+          mode={mode}
+          onClear={() => quick("none")}
+          onOpen={(m) => { setMode(m); setRecording(true); }}
           onChanged={refresh}
           onHistory={(fdi) => setHistory(fdi)}
           onToggleSlot={(fdi) => {
@@ -284,6 +301,7 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
             const slots = chart.primary_slots.includes(place) ? chart.primary_slots.filter((x) => x !== place) : [...chart.primary_slots, place];
             setDentition("mixed", slots);
           }}
+          footer={dentitionSwitch}
         />
       )}
       {recording && canEdit && (

@@ -1,0 +1,9 @@
+{
+  "stock.receive.newItem": "+ New item",
+  "stock.receive.noItems": "No items yet",
+  "stock.receive.noItemsHint": "Add the item first, then receive stock for it.",
+  "stock.receive.addItem": "Add item",
+  "stock.receive.noMatch": "No item with this name",
+  "stock.receive.moreOptions": "More options",
+  "stock.receive.lessOptions": "Fewer options"
+}

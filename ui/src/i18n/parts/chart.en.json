@@ -1,0 +1,16 @@
+{
+  "patients.tab.care": "Chart & treatment",
+  "patients.tab.finance": "Financial",
+  "patients.tab.docs": "Documents",
+  "patients.tab.history": "History",
+  "patients.moreActions": "More actions",
+  "patients.backShort": "Patients",
+  "patients.header.age": "{n} yrs",
+  "chart.panel.title": "Tooth details",
+  "chart.panel.emptyHint": "The details of the selected tooth appear here.",
+  "chart.panel.multiHint": "Several teeth are selected. Use a button above to record; select just one tooth to see its details.",
+  "chart.panel.nextHint": "Next step: pick the kind of record. The tooth's details are below.",
+  "chart.panel.nextHintMany": "Next step: pick the kind of record for these teeth.",
+  "chart.surfaceView": "Surface view",
+  "chart.surfaceViewHint": "Show each tooth's biting surface to pick surfaces (the chart gets taller)"
+}

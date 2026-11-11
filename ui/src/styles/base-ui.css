@@ -1,0 +1,121 @@
+/* Shared UI foundation: floating panels, calendar, date fields, range field, combobox.
+   Loaded after styles.css. Logical properties only, so RTL and LTR both work. */
+
+/* The dialog itself can take focus (focus trap fallback); no ring around the whole dialog. */
+.dialog:focus { outline: none; }
+
+/* aria-checked replaces the invalid aria-pressed on role="radio" (Segmented, OptionCards). */
+.segmented button[aria-checked="true"] { background: var(--glass-overlay); color: var(--text); box-shadow: var(--shadow-1), 0 0 0 1px var(--line); }
+.option[aria-checked="true"] { border-color: var(--accent-text); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-text) inset; }
+.option[aria-checked="true"] .option-icon { background: var(--accent); color: var(--on-accent); }
+.option[aria-checked="true"] .option-check { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+
+/* Native <select> list: follow the theme where the browser lets CSS reach it. */
+.control select { color: var(--text); }
+.control select option { background: var(--glass-overlay); color: var(--text); padding: 6px 10px; }
+.control select option:checked { background: var(--accent-soft); color: var(--accent-text); }
+.control select option:disabled { color: var(--text-disabled); }
+
+/* ───────── floating panel (drawn on <body>) ───────── */
+.floating-panel {
+  position: fixed; z-index: 70; border-radius: var(--radius-lg); padding: var(--space-3);
+  max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto;
+  animation: pop-in var(--dur-base) var(--ease);
+}
+
+/* ───────── typed date field ───────── */
+.bu-datefield, .bu-rangefield, .bu-combo { position: relative; min-width: 0; }
+.bu-date-input { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.bu-date-input .control input { text-align: start; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+[dir="rtl"] .bu-date-input .control input { text-align: right; }
+.bu-date-input .control-suffix { padding-inline-end: 0; display: flex; align-items: center; }
+.bu-date-msg { margin: 0; }
+.bu-date-pop { width: 296px; }
+.bu-pop-foot { display: flex; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--line); }
+
+/* ───────── calendar ───────── */
+.bu-cal { width: 272px; }
+.bu-cal-head { display: flex; align-items: center; gap: var(--space-1); margin-bottom: var(--space-2); }
+.bu-cal-title {
+  flex: 1; height: 34px; border: none; background: transparent; border-radius: var(--radius-md);
+  color: var(--text); font-weight: 600; font-size: var(--text-body); cursor: pointer;
+}
+.bu-cal-title:hover { background: var(--fill-hover); }
+.bu-cal-nav {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: none; background: transparent;
+  border-radius: var(--radius-md); color: var(--text-2); cursor: pointer;
+}
+.bu-cal-nav:hover { background: var(--fill-hover); color: var(--text); }
+.bu-cal-nav svg { width: 18px; height: 18px; }
+.bu-cal-body { min-height: 232px; }
+.bu-cal-week, .bu-cal-days { display: grid; grid-template-columns: repeat(7, 1fr); }
+.bu-cal-week span { height: 28px; display: grid; place-items: center; font-size: var(--text-caption); color: var(--text-3); font-weight: 600; }
+.bu-cal-days { row-gap: 2px; }
+.bu-cal-day {
+  position: relative; height: 34px; border: none; background: transparent; color: var(--text); font-size: 13.5px;
+  font-variant-numeric: tabular-nums; border-radius: var(--radius-md); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.bu-cal-day:hover:not(:disabled) { background: var(--fill-hover); }
+.bu-cal-day.out { color: var(--text-3); opacity: .7; }
+.bu-cal-day:disabled { color: var(--text-disabled); cursor: default; opacity: .5; }
+.bu-cal-day.today { box-shadow: inset 0 0 0 1px var(--accent-text); }
+.bu-cal-day.mid { background: var(--accent-soft); border-radius: 0; color: var(--text); }
+.bu-cal-day.on { background: var(--accent); color: var(--on-accent); font-weight: 600; opacity: 1; }
+.bu-cal-day.on:hover:not(:disabled) { background: var(--accent-hover); }
+.bu-cal-day.first { border-start-end-radius: 0; border-end-end-radius: 0; }
+.bu-cal-day.last { border-start-start-radius: 0; border-end-start-radius: 0; }
+.bu-cal-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); padding-block: var(--space-2); }
+.bu-cal-cell {
+  height: 52px; border: none; background: transparent; border-radius: var(--radius-md); color: var(--text);
+  font-size: var(--text-body); cursor: pointer;
+}
+.bu-cal-cell:hover { background: var(--fill-hover); }
+.bu-cal-cell.today { box-shadow: inset 0 0 0 1px var(--accent-text); }
+.bu-cal-cell.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+/* ───────── range field ───────── */
+.bu-range-trigger {
+  width: 100%; gap: var(--space-2); padding: 0 var(--space-3); text-align: start; cursor: pointer;
+  font-size: var(--text-body); color: var(--text);
+}
+.bu-range-trigger:disabled { cursor: default; }
+.bu-range-icon { width: 18px; height: 18px; flex: none; color: var(--text-3); }
+.bu-range-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bu-range-empty { color: var(--text-3); }
+.bu-range-trigger .chevron { flex: none; width: 16px; height: 16px; color: var(--text-3); }
+.bu-range-pop { display: flex; gap: var(--space-3); width: min(480px, calc(100vw - 16px)); }
+.bu-range-presets { flex: none; width: 124px; display: flex; flex-direction: column; gap: 2px; padding-inline-end: var(--space-3); border-inline-end: 1px solid var(--line); }
+.bu-range-preset {
+  height: 34px; padding: 0 var(--space-3); border: none; background: transparent; border-radius: var(--radius-md);
+  text-align: start; color: var(--text); font-size: 13.5px; cursor: pointer;
+}
+.bu-range-preset:hover:not(:disabled) { background: var(--fill-hover); }
+.bu-range-preset:disabled { color: var(--text-disabled); cursor: default; }
+.bu-range-preset[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.bu-range-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.bu-range-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.bu-range-box { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bu-range-box .control { height: 36px; }
+.bu-range-main .bu-cal { width: 100%; }
+@media (max-width: 520px) {
+  .bu-range-pop { flex-direction: column; }
+  .bu-range-presets { width: auto; flex-direction: row; flex-wrap: wrap; padding-inline-end: 0; border-inline-end: none; padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); }
+}
+
+/* ───────── combobox ───────── */
+.bu-combo .control input { text-overflow: ellipsis; }
+.bu-combo-pop { padding: var(--space-1); min-width: 220px; }
+.bu-combo-list { max-height: 264px; overflow: auto; display: flex; flex-direction: column; gap: 1px; }
+.bu-combo-opt {
+  display: flex; align-items: center; gap: var(--space-3); min-height: 38px; padding: 6px var(--space-3);
+  border-radius: var(--radius-md); cursor: pointer; color: var(--text); font-size: var(--text-body);
+}
+.bu-combo-opt.active { background: var(--fill-hover); }
+.bu-combo-opt.chosen { color: var(--accent-text); font-weight: 600; }
+.bu-combo-opt.disabled { color: var(--text-disabled); cursor: default; }
+.bu-combo-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bu-combo-hint { flex: none; color: var(--text-3); font-size: 12px; }
+.bu-combo-empty { padding: var(--space-3); color: var(--text-3); font-size: 13px; text-align: center; }
+.bu-combo-create { margin-top: var(--space-1); border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-md) var(--radius-md); color: var(--accent-text); font-weight: 600; }
+.bu-combo-create svg { width: 16px; height: 16px; flex: none; }

@@ -1,0 +1,4 @@
+/* Forms polish: stock receive dialog. */
+.receive-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed var(--border, rgba(127, 127, 127, 0.4)); border-radius: 8px; }
+.receive-empty p { margin: 0; }
+.receive-more { align-self: flex-start; }

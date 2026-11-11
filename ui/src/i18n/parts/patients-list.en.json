@@ -1,0 +1,6 @@
+{
+  "patients.column.age": "Age",
+  "patients.showing": "Showing {shown} of {total} patients",
+  "patients.loadMore": "Show more",
+  "patients.moreActions": "More actions"
+}

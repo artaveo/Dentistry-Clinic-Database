@@ -58,18 +58,27 @@ export const SIDE_H = 150;
 export const OCC_H = 66;
 const OCC_GAP = 8;
 const MID_GAP = 16;
-/** Vertical bands, top to bottom. */
-export const BANDS = (() => {
+export type Bands = { upperNum: number; upperSideTop: number; upperEdge: number; upperOccTop: number; midY: number; lowerOccTop: number; lowerEdge: number; lowerNum: number; height: number };
+
+/**
+ * Vertical bands, top to bottom. With `occlusal` false (the compact chart, U1) the two rows of biting
+ * surfaces are left out: the jaws sit closer together and the chart is about 30% shorter.
+ */
+export function bandsFor(occlusal: boolean): Bands {
   const upperNum = 0;
   const upperSideTop = NUM_H;
   const upperEdge = upperSideTop + SIDE_H;
   const upperOccTop = upperEdge + OCC_GAP;
-  const midY = upperOccTop + OCC_H + MID_GAP / 2;
-  const lowerOccTop = upperOccTop + OCC_H + MID_GAP;
-  const lowerEdge = lowerOccTop + OCC_H + OCC_GAP;
+  const gap = occlusal ? OCC_H + MID_GAP : MID_GAP;
+  const midY = occlusal ? upperOccTop + OCC_H + MID_GAP / 2 : upperEdge + MID_GAP / 2;
+  const lowerOccTop = occlusal ? upperOccTop + gap : upperEdge + MID_GAP;
+  const lowerEdge = occlusal ? lowerOccTop + OCC_H + OCC_GAP : upperEdge + MID_GAP;
   const lowerNum = lowerEdge + SIDE_H;
   return { upperNum, upperSideTop, upperEdge, upperOccTop, midY, lowerOccTop, lowerEdge, lowerNum, height: lowerNum + NUM_H };
-})();
+}
+
+/** The full chart: front views and biting surfaces. */
+export const BANDS = bandsFor(true);
 
 const W_BASE = 18;
 const W_PER_MM = 5.6;

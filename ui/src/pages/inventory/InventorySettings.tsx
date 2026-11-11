@@ -99,6 +99,7 @@ function LookupDialog({ kind, item, onClose, onDone }: { kind: LookupKind; item?
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t(item ? "invset.edit" : "invset.add")}
       onClose={onClose}
       wide

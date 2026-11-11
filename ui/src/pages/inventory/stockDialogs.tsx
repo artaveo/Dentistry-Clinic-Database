@@ -1,7 +1,7 @@
 // The forms of the stock screen: an item, receiving stock, taking it out, and the three corrections of
 // one batch — adjust, move to another place, return to the supplier.
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Minus, PackagePlus, Save, Undo2 } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, ChevronUp, Minus, PackagePlus, Plus, Save, Undo2 } from "lucide-react";
 import type { CalendarSystem, StockBatchInfo, StockItemInfo, Translations } from "../../../../shared/ts/contract";
 import { rpc } from "../../lib/api";
 import { amountRule, parseAfn } from "../../lib/billing";
@@ -12,13 +12,14 @@ import { useForm } from "../../lib/validation";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Segmented, Switch } from "../../ui/Controls";
+import { Combobox } from "../../ui/Combobox";
 import { DateField } from "../../ui/DateField";
 import { Notice } from "../../ui/Feedback";
 import { Field, Select, TextInput, Textarea } from "../../ui/Field";
 import { Dialog } from "../../ui/Overlay";
 import { TranslationsField } from "../../ui/TranslationsField";
 import { AmountInput } from "../billing/common";
-import { ExpiryInput, QtyInput, useAction, useItemOptions, useSupplierOptions } from "./common";
+import { QtyInput, useAction, useItemOptions, useSupplierOptions } from "./common";
 
 const required = (s: string) => (s.trim() ? null : "rule.required");
 
@@ -67,6 +68,7 @@ export function ItemFormDialog({ item, onClose, onDone }: { item?: StockItemInfo
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t(item ? "stock.item.edit" : "stock.item.new")}
       onClose={onClose}
       wide
@@ -123,6 +125,12 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
   const suppliers = useSupplierOptions("supplier");
   const [date, setDate] = useState(todayIso());
   const [expiry, setExpiry] = useState<string | null>(null);
+  const [dateBad, setDateBad] = useState(false);
+  const [expiryBad, setExpiryBad] = useState(false);
+  // Items added from inside this form (the list above was loaded before them).
+  const [added, setAdded] = useState<StockItemInfo[]>([]);
+  const [newItem, setNewItem] = useState(false);
+  const [more, setMore] = useState(false);
   const { busy, error, run } = useAction();
   const form = useForm(
     { item: item?.id ?? "", qty: "", cost: "", lot: "", place: "", supplier: "", reason: "" },
@@ -131,12 +139,18 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
   useEffect(() => {
     if (!form.values.place && places.items?.length) form.set("place", places.items[0].id);
   }, [places.items]);
-  const picked = item ?? options?.find((i) => i.id === form.values.item);
+  const all = item ? [item] : [...(options ?? []), ...added];
+  const picked = item ?? all.find((i) => i.id === form.values.item);
   const unitName = picked ? tr(picked.unit, lang) : "";
+  const noItems = !item && options !== null && all.length === 0;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.validate()) return;
+    const ok = form.validate();
+    if (!ok || dateBad || expiryBad) {
+      if (expiryBad) setMore(true);
+      return;
+    }
     void run(
       async () => {
         onDone(
@@ -153,62 +167,101 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
           }),
         );
       },
-      (x) => form.serverError(x, { item_id: "item", location_id: "place", unit_cost: "cost", supplier_id: "supplier", lot_no: "lot" }),
+      (x) => {
+        const field = (x as { field?: string }).field;
+        if (field === "lot_no" || field === "supplier_id" || field === "expiry_date") setMore(true);
+        return form.serverError(x, { item_id: "item", location_id: "place", unit_cost: "cost", supplier_id: "supplier", lot_no: "lot" });
+      },
     );
   };
   return (
-    <Dialog
-      title={t("stock.receive.title")}
-      description={t("stock.receive.hint")}
-      onClose={onClose}
-      testId="receive-dialog"
-      footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" icon={PackagePlus} loading={busy} onClick={submit} data-testid="receive-save">{t("stock.receive.save")}</Button></>}
-    >
-      <form className="stack" onSubmit={submit} noValidate>
-        {error && <Notice tone="danger">{error}</Notice>}
-        <Field label={t("stock.col.item")} error={form.error("item") && t(form.error("item")!)}>
-          <Select value={form.values.item} disabled={!!item} onChange={(e) => form.set("item", e.target.value)} data-testid="receive-item">
-            <option value="">{t("stock.pick.item")}</option>
-            {(item ? [item] : options ?? []).map((i) => <option key={i.id} value={i.id}>{tr(i.name, lang)}</option>)}
-          </Select>
-        </Field>
-        <div className="grid-2">
-          <Field label={t("stock.qty")} error={form.error("qty") && t(form.error("qty")!)}>
-            <QtyInput value={form.values.qty} onChange={(v) => form.set("qty", v)} unit={unitName} testId="receive-qty" />
-          </Field>
-          <Field label={t("stock.unitCost")} hint={t("stock.unitCostHint")} error={form.error("cost") && t(form.error("cost")!)} optional>
-            <AmountInput value={form.values.cost} onChange={(v) => form.set("cost", v)} testId="receive-cost" />
-          </Field>
-        </div>
-        <div className="grid-2">
-          <Field label={t("stock.lot")} optional>
-            <TextInput value={form.values.lot} onChange={(e) => form.set("lot", e.target.value)} maxLength={60} dir="ltr" data-testid="receive-lot" />
-          </Field>
-          <Field label={t("stock.place")} error={form.error("place") && t(form.error("place")!)}>
-            <Select value={form.values.place} onChange={(e) => form.set("place", e.target.value)} data-testid="receive-place">
-              {places.items?.map((p) => <option key={p.id} value={p.id}>{tr(p.name, lang)}</option>)}
-            </Select>
-          </Field>
-        </div>
-        <Field label={t("stock.expiry")} optional>
-          <ExpiryInput value={expiry} onChange={setExpiry} calendar={calendar} label={t("stock.expiry")} testId="receive-expiry" />
-        </Field>
-        <div className="grid-2">
-          <Field label={t("stock.supplier")} optional>
-            <Select value={form.values.supplier} onChange={(e) => form.set("supplier", e.target.value)} data-testid="receive-supplier">
-              <option value="">{t("stock.noSupplier")}</option>
-              {suppliers.list?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </Select>
-          </Field>
-          <Field label={t("doc.date")}>
-            <DateField value={date} onChange={setDate} calendar={calendar} label={t("doc.date")} testId="receive-date" yearsBefore={1} yearsAfter={0} />
-          </Field>
-        </div>
-        <Field label={t("stock.reason")} hint={t("stock.receive.reasonHint")} optional>
-          <TextInput value={form.values.reason} onChange={(e) => form.set("reason", e.target.value)} maxLength={300} data-testid="receive-reason" />
-        </Field>
-      </form>
-    </Dialog>
+    <>
+      <Dialog
+        dismissOnScrim={false}
+        title={t("stock.receive.title")}
+        description={t("stock.receive.hint")}
+        onClose={onClose}
+        testId="receive-dialog"
+        footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" icon={PackagePlus} loading={busy} disabled={noItems} onClick={submit} data-testid="receive-save">{t("stock.receive.save")}</Button></>}
+      >
+        <form className="stack" onSubmit={submit} noValidate>
+          {error && <Notice tone="danger">{error}</Notice>}
+          {noItems ? (
+            <div className="receive-empty" data-testid="receive-no-items">
+              <strong>{t("stock.receive.noItems")}</strong>
+              <p className="subtle">{t("stock.receive.noItemsHint")}</p>
+              <Button variant="primary" icon={Plus} onClick={() => setNewItem(true)} data-testid="receive-add-item">{t("stock.receive.addItem")}</Button>
+            </div>
+          ) : (
+            <Field label={t("stock.col.item")} error={form.error("item") && t(form.error("item")!)}>
+              <Combobox
+                options={all.map((i) => ({ value: i.id, label: tr(i.name, lang), hint: tr(i.unit, lang) }))}
+                value={form.values.item}
+                onChange={(v) => form.set("item", v)}
+                placeholder={t("stock.pick.item")}
+                emptyText={t("stock.receive.noMatch")}
+                disabled={!!item}
+                onCreate={item ? undefined : () => setNewItem(true)}
+                createLabel={t("stock.receive.newItem")}
+                testId="receive-item"
+              />
+            </Field>
+          )}
+          <div className="grid-2">
+            <Field label={t("stock.qty")} error={form.error("qty") && t(form.error("qty")!)}>
+              <QtyInput value={form.values.qty} onChange={(v) => form.set("qty", v)} unit={unitName} testId="receive-qty" />
+            </Field>
+            <Field label={t("stock.unitCost")} hint={t("stock.unitCostHint")} error={form.error("cost") && t(form.error("cost")!)} optional>
+              <AmountInput value={form.values.cost} onChange={(v) => form.set("cost", v)} testId="receive-cost" />
+            </Field>
+          </div>
+          <div className="grid-2">
+            <Field label={t("stock.place")} error={form.error("place") && t(form.error("place")!)}>
+              <Select value={form.values.place} onChange={(e) => form.set("place", e.target.value)} data-testid="receive-place">
+                {places.items?.map((p) => <option key={p.id} value={p.id}>{tr(p.name, lang)}</option>)}
+              </Select>
+            </Field>
+            <Field label={t("doc.date")}>
+              <DateField value={date} onChange={setDate} calendar={calendar} label={t("doc.date")} testId="receive-date" max={todayIso()} onInvalidChange={setDateBad} />
+            </Field>
+          </div>
+          <Button variant="subtle" size="sm" className="receive-more" icon={more ? ChevronUp : ChevronDown} onClick={() => setMore((x) => !x)} aria-expanded={more} data-testid="receive-more">
+            {t(more ? "stock.receive.lessOptions" : "stock.receive.moreOptions")}
+          </Button>
+          {more && (
+            <>
+              <div className="grid-2">
+                <Field label={t("stock.expiry")} optional>
+                  <DateField value={expiry ?? ""} onChange={(v) => setExpiry(v || null)} calendar={calendar} label={t("stock.expiry")} testId="receive-expiry" clearable onInvalidChange={setExpiryBad} />
+                </Field>
+                <Field label={t("stock.lot")} optional>
+                  <TextInput value={form.values.lot} onChange={(e) => form.set("lot", e.target.value)} maxLength={60} dir="ltr" data-testid="receive-lot" />
+                </Field>
+              </div>
+              <Field label={t("stock.supplier")} optional>
+                <Select value={form.values.supplier} onChange={(e) => form.set("supplier", e.target.value)} data-testid="receive-supplier">
+                  <option value="">{t("stock.noSupplier")}</option>
+                  {suppliers.list?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </Select>
+              </Field>
+              <Field label={t("stock.reason")} hint={t("stock.receive.reasonHint")} optional>
+                <TextInput value={form.values.reason} onChange={(e) => form.set("reason", e.target.value)} maxLength={300} data-testid="receive-reason" />
+              </Field>
+            </>
+          )}
+        </form>
+      </Dialog>
+      {newItem && (
+        <ItemFormDialog
+          onClose={() => setNewItem(false)}
+          onDone={(i) => {
+            setAdded((a) => [...a, i]);
+            form.set("item", i.id);
+            setNewItem(false);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -234,6 +287,7 @@ export function ConsumeDialog({ item, onClose, onDone }: { item: StockItemInfo; 
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t("stock.consume.title")}
       description={`${tr(item.name, lang)} · ${t("stock.consume.available")}: ${formatQty(item.usable_qty, lang)} ${tr(item.unit, lang)}`}
       onClose={onClose}
@@ -283,6 +337,7 @@ export function AdjustDialog({ batch, onClose, onDone }: { batch: StockBatchInfo
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t("stock.adjust.title")}
       description={batchTitle(batch, lang)}
       onClose={onClose}
@@ -325,6 +380,7 @@ export function TransferDialog({ batch, onClose, onDone }: { batch: StockBatchIn
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t("stock.transfer.title")}
       description={`${batchTitle(batch, lang)} · ${tr(batch.location, lang)}`}
       onClose={onClose}
@@ -370,6 +426,7 @@ export function ReturnDialog({ batch, onClose, onDone }: { batch: StockBatchInfo
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t("stock.return.title")}
       description={batchTitle(batch, lang)}
       onClose={onClose}

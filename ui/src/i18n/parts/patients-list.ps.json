@@ -1,0 +1,6 @@
+{
+  "patients.column.age": "عمر",
+  "patients.showing": "له {total} ناروغانو څخه {shown} ښودل کیږي",
+  "patients.loadMore": "نور وښيه",
+  "patients.moreActions": "نور کارونه"
+}

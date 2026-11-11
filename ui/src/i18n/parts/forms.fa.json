@@ -1,0 +1,9 @@
+{
+  "stock.receive.newItem": "+ جنس جدید",
+  "stock.receive.noItems": "هنوز جنسی ثبت نشده است",
+  "stock.receive.noItemsHint": "برای دریافت موجودی، اول جنس را اضافه کنید.",
+  "stock.receive.addItem": "افزودن جنس",
+  "stock.receive.noMatch": "جنسی با این نام پیدا نشد",
+  "stock.receive.moreOptions": "گزینه‌های بیشتر",
+  "stock.receive.lessOptions": "گزینه‌های کمتر"
+}

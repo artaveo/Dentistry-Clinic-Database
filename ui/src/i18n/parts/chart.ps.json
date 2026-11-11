@@ -1,0 +1,16 @@
+{
+  "patients.tab.care": "چارټ او درملنه",
+  "patients.tab.finance": "مالي حساب",
+  "patients.tab.docs": "اسناد",
+  "patients.tab.history": "تاریخچه",
+  "patients.moreActions": "نور انتخابونه",
+  "patients.backShort": "د ناروغانو فهرست",
+  "patients.header.age": "{n} کلن",
+  "chart.panel.title": "د غاښ جزئیات",
+  "chart.panel.emptyHint": "د ټاکل شوي غاښ جزئیات همدلته ښکاري.",
+  "chart.panel.multiHint": "څو غاښونه ټاکل شوي دي. د ثبت لپاره پورته یو تڼۍ ووهئ؛ د جزئیاتو لیدو لپاره یوازې یو غاښ وټاکئ.",
+  "chart.panel.nextHint": "بل ګام: د ثبت ډول ووهئ. د غاښ جزئیات لاندې دي.",
+  "chart.panel.nextHintMany": "بل ګام: د دې غاښونو لپاره د ثبت ډول ووهئ.",
+  "chart.surfaceView": "د سطحې لید",
+  "chart.surfaceViewHint": "د هر غاښ د ژولو سطحه ښکاره کړئ ترڅو سطحې وټاکئ (چارټ اوږدېږي)"
+}

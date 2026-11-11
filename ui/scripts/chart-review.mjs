@@ -15,7 +15,7 @@ await page.getByTestId("login-submit").click();
 if (lang !== "fa") await page.getByTestId(`lang-${lang}`).first().click();
 await page.getByTestId("tab-patients").click();
 await page.locator("tr, [role=row]").filter({ hasText: "احمد خان" }).first().click();
-await page.getByTestId("patient-tab-chart").click();
+await page.getByTestId("patient-tab-care").click();
 await page.getByTestId("odontogram").waitFor();
 await page.getByTestId("chart-tab").evaluate((el) => el.scrollIntoView({ block: "start" }));
 await page.waitForTimeout(400);
@@ -52,7 +52,7 @@ await shot("08-after-plan");
 await page.getByTestId("tooth-details-36").scrollIntoViewIfNeeded();
 await shot("09-tooth-details");
 await page.getByTestId("chart-clear").click();
-await page.getByTestId("chart-quick-open").click();
+
 await shot("10-quick");
 await browser.close();
 console.log("done");

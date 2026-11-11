@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { CalendarCheck2, Check, ChevronDown, ClipboardPlus, History, Plus, Stethoscope, Trash2, Undo2, X } from "lucide-react";
+import { CalendarCheck2, Check, ChevronDown, ClipboardPlus, History, MousePointerClick, Plus, Stethoscope, Trash2, Undo2, X } from "lucide-react";
 import type { ChartInfo, ClinicProfile, PatientInfo, ServiceInfo, ToothConditionInfo, ToothNumbering } from "../../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../../lib/api";
 import { formatDate, latinDigits, digits } from "../../../lib/dates";
@@ -13,8 +13,9 @@ import { Card, CardHeader } from "../../../ui/Card";
 import { Segmented } from "../../../ui/Controls";
 import { Field, Select, TextInput } from "../../../ui/Field";
 import { Badge, Notice } from "../../../ui/Feedback";
-import { Dialog, Popover } from "../../../ui/Overlay";
+import { Dialog } from "../../../ui/Overlay";
 import { useToast } from "../../../ui/Toast";
+import { useConfirm } from "../../../ui/ConfirmDialog";
 import { toothInfo } from "../../../chart/geometry";
 import type { Surface } from "../../../chart/geometry";
 import { scopeFits } from "../../../chart/model";
@@ -34,52 +35,86 @@ export const MODES: { value: ChartMode; icon: LucideIcon; state: "existing" | "p
 ];
 
 /**
- * Under the chart, kept at the bottom of the screen while the chart is in view (v0.6.1): ① what is
- * selected (or how to select), quick selection of a jaw or quadrant, and ② the three kinds of record in
- * the chart's own colours — an existing condition (blue), work for the plan (red), work done today
- * (green). Each opens the record dialog, so the chart never scrolls away.
+ * The detail panel beside the chart (U1), always on screen while the chart is: ① what is selected (or
+ * the next step when nothing is: click a tooth), ② the main action for it («ثبت برای دندان ۱۶») and the
+ * three kinds of record in the chart's own colours — an existing condition (blue), work for the plan
+ * (red), work done today (green) — each opening the record dialog, ③ what is on the selected tooth now.
+ * The jaw and quadrant buttons are `ChartQuickSelect`, kept under the chart.
  */
-export function ChartSelectionBar(p: { selected: number[]; surfaces: Surface[]; numbering: ToothNumbering; canEdit: boolean; onQuick: (k: QuickPick) => void; onOpen: (m: ChartMode) => void }) {
+export function ChartSidePanel(p: {
+  patient: PatientInfo;
+  chart: ChartInfo;
+  selected: number[];
+  surfaces: Surface[];
+  numbering: ToothNumbering;
+  canEdit: boolean;
+  mode: ChartMode;
+  onClear: () => void;
+  onOpen: (m: ChartMode) => void;
+  onChanged: () => void;
+  onHistory: (fdi: number) => void;
+  onToggleSlot: (fdi: number) => void;
+  /** Kept at the bottom of the panel (the dentition switch). */
+  footer?: React.ReactNode;
+}) {
   const { t, lang } = useI18n();
-  const [quick, setQuick] = useState(false);
   const has = p.selected.length > 0;
+  const one = p.selected.length === 1 ? p.selected[0] : null;
+  const where = teethLabel(p.selected, p.numbering, lang);
+  const primary = !has ? t("chart.recordTitle") : one != null ? `${t("chart.recordForTooth")} ${where}` : `${t("chart.recordFor")} ${where}`;
   return (
-    <div className="chart-selbar" data-testid="chart-selbar">
-      <span className={`bench-step-n ${has ? "on" : ""}`} aria-hidden>{digits(1, lang)}</span>
-      {has ? (
-        <span className="chart-selection" data-testid="chart-selection" aria-live="polite">
-          <span className="bench-teeth"><bdi>{teethLabel(p.selected, p.numbering, lang)}</bdi></span>
-          {p.surfaces.length > 0 && <Badge tone="accent">{surfacesText(p.surfaces.join(""), p.selected[0])}</Badge>}
-          <IconButton icon={X} size="sm" label={t("chart.clearSelection")} onClick={() => p.onQuick("none")} data-testid="chart-clear" />
-        </span>
-      ) : (
-        <span className="bench-hint">{t("chart.step.teethHint")}</span>
-      )}
-      <Popover
-        open={quick}
-        onClose={() => setQuick(false)}
-        align="start"
-        width={280}
-        testId="chart-quick"
-        trigger={<Button size="sm" variant="subtle" icon={ChevronDown} onClick={() => setQuick((x) => !x)} data-testid="chart-quick-open">{t("chart.quick")}</Button>}
-      >
-        <div className="chart-quick" role="group" aria-label={t("chart.quick")}>
-          {(["upper", "lower", "q1", "q2", "q3", "q4", "all"] as const).map((k) => (
-            <button key={k} type="button" className="chip-toggle" onClick={() => { p.onQuick(k); setQuick(false); }} data-testid={`chart-quick-${k}`}>{t(`chart.quick.${k}`)}</button>
-          ))}
-        </div>
-      </Popover>
-      <span className="grow" />
-      {p.canEdit && (
-        <span className="chart-selbar-modes" role="group" aria-label={t("chart.step.mode")}>
-          <span className="bench-step-n" aria-hidden>{digits(2, lang)}</span>
-          {MODES.map((m) => (
-            <Button key={m.value} size="sm" variant="secondary" className={`selbar-mode st-${m.state}`} icon={m.icon} onClick={() => p.onOpen(m.value)} data-testid={`chart-mode-${m.value}`}>
-              {t(`chart.mode.${m.value}`)}
+    <aside className="chart-panel" data-testid="chart-panel" aria-label={t("chart.panel.title")}>
+      <div className="chart-panel-head">
+        {has ? (
+          <span className="chart-selection" data-testid="chart-selection" aria-live="polite">
+            <span className="bench-teeth"><bdi>{where}</bdi></span>
+            {p.surfaces.length > 0 && <Badge tone="accent">{surfacesText(p.surfaces.join(""), p.selected[0])}</Badge>}
+            <span className="grow" />
+            <IconButton icon={X} size="sm" label={t("chart.clearSelection")} onClick={p.onClear} data-testid="chart-clear" />
+          </span>
+        ) : (
+          <p className="chart-cue" data-testid="chart-cue" aria-live="polite">
+            <MousePointerClick aria-hidden />
+            <span>{t("chart.step.teethHint")}</span>
+          </p>
+        )}
+        {p.canEdit && (
+          <>
+            <Button variant={has ? "primary" : "secondary"} block icon={Plus} onClick={() => p.onOpen(p.mode)} data-testid="chart-record-primary">
+              {primary}
             </Button>
-          ))}
-        </span>
-      )}
+            <div className="chart-panel-modes" role="group" aria-label={t("chart.step.mode")}>
+              {MODES.map((m) => (
+                <Button key={m.value} size="sm" variant="secondary" className={`selbar-mode st-${m.state}`} icon={m.icon} onClick={() => p.onOpen(m.value)} data-testid={`chart-mode-${m.value}`}>
+                  {t(`chart.mode.${m.value}`)}
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
+        {has && p.canEdit && <p className="bench-hint chart-next" data-testid="chart-next-hint">{t(one != null ? "chart.panel.nextHint" : "chart.panel.nextHintMany")}</p>}
+      </div>
+      <div className="chart-panel-body">
+        {one != null ? (
+          <ToothDetails embedded patient={p.patient} chart={p.chart} canEdit={p.canEdit} tooth={one} numbering={p.numbering} onChanged={p.onChanged} onHistory={p.onHistory} onToggleSlot={p.onToggleSlot} />
+        ) : (
+          <p className="subtle t-caption chart-panel-empty">{t(has ? "chart.panel.multiHint" : "chart.panel.emptyHint")}</p>
+        )}
+      </div>
+      {p.footer && <div className="chart-panel-foot">{p.footer}</div>}
+    </aside>
+  );
+}
+
+/** Jaws and quadrants in one click, kept under the chart (U1: the quick selection is always in view). */
+export function ChartQuickSelect({ onQuick }: { onQuick: (k: QuickPick) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="chart-quickrow" role="group" aria-label={t("chart.quick")} data-testid="chart-quick">
+      <span className="subtle t-caption">{t("chart.quick")}:</span>
+      {(["upper", "lower", "q1", "q2", "q3", "q4", "all"] as const).map((k) => (
+        <button key={k} type="button" className="chip-toggle" onClick={() => onQuick(k)} data-testid={`chart-quick-${k}`}>{t(`chart.quick.${k}`)}</button>
+      ))}
     </div>
   );
 }
@@ -455,9 +490,10 @@ function ItemForm(p: {
 }
 
 /** What is on one tooth now — its conditions and its work — with its history and, in a mixed mouth, baby or adult. */
-export function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdit: boolean; tooth: number; numbering: ToothNumbering; onChanged: () => void; onHistory: (fdi: number) => void; onToggleSlot: (fdi: number) => void }) {
+export function ToothDetails(p: { embedded?: boolean; patient: PatientInfo; chart: ChartInfo; canEdit: boolean; tooth: number; numbering: ToothNumbering; onChanged: () => void; onHistory: (fdi: number) => void; onToggleSlot: (fdi: number) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const catalog = useCatalog();
   const conditions = useToothConditions();
   const info = toothInfo(p.tooth);
@@ -466,7 +502,7 @@ export function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdi
   const plans = useMemo(() => new Map(p.chart.plans.map((x) => [x.id, x])), [p.chart.plans]);
   const mixedSlot = p.chart.dentition === "mixed" && info.n <= 5;
   const remove = async (id: string, version: number) => {
-    if (!window.confirm(t("chart.removeFindingConfirm"))) return;
+    if (!(await confirm({ title: t("cleanup.confirm.title"), text: t("chart.removeFindingConfirm"), confirm: t("common.delete"), danger: true }))) return;
     try {
       await rpc("chart.remove_finding", { id, version });
       toast.success(t("chart.findingRemoved"));
@@ -475,14 +511,22 @@ export function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdi
       if (!isSessionError(x)) toast.error(err(x));
     }
   };
-  return (
-    <Card className="chart-details" data-testid="chart-details">
+  const historyButton = <Button size="sm" icon={History} onClick={() => p.onHistory(p.tooth)} data-testid="tooth-history-open">{t("chart.history")}</Button>;
+  const content = (
       <div className="stack" data-testid={`tooth-details-${p.tooth}`}>
-        <CardHeader
-          title={<>{t("chart.tooth")} <bdi>{toothLabel(p.tooth, p.numbering, lang)}</bdi></>}
-          description={t(`chart.type.${info.type}`) + " · " + t(`chart.quadrant.${info.quadrant}`)}
-          actions={<Button size="sm" icon={History} onClick={() => p.onHistory(p.tooth)} data-testid="tooth-history-open">{t("chart.history")}</Button>}
-        />
+        {p.embedded ? (
+          <div className="chart-details-head">
+            <span className="subtle t-caption">{t("chart.tooth")} <bdi>{toothLabel(p.tooth, p.numbering, lang)}</bdi> · {t(`chart.type.${info.type}`)} · {t(`chart.quadrant.${info.quadrant}`)}</span>
+            <span className="grow" />
+            {historyButton}
+          </div>
+        ) : (
+          <CardHeader
+            title={<>{t("chart.tooth")} <bdi>{toothLabel(p.tooth, p.numbering, lang)}</bdi></>}
+            description={t(`chart.type.${info.type}`) + " · " + t(`chart.quadrant.${info.quadrant}`)}
+            actions={historyButton}
+          />
+        )}
         {mixedSlot && p.canEdit && (
           <Button size="sm" variant="subtle" icon={Undo2} onClick={() => p.onToggleSlot(p.tooth)} data-testid="tooth-toggle-primary">
             {info.primary ? t("chart.showPermanent") : t("chart.showPrimary")}
@@ -529,7 +573,8 @@ export function ToothDetails(p: { patient: PatientInfo; chart: ChartInfo; canEdi
             <p className="subtle t-caption">{t("chart.noWork")}</p>
           )}
         </section>
+        {dialog}
       </div>
-    </Card>
   );
+  return p.embedded ? <div className="chart-details embedded" data-testid="chart-details">{content}</div> : <Card className="chart-details" data-testid="chart-details">{content}</Card>;
 }

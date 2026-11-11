@@ -7,7 +7,8 @@ import { formatDate } from "../lib/dates";
 import { useI18n } from "../i18n";
 import { EmptyState } from "../ui/Feedback";
 
-export type PaletteItem = { id: string; label: string; icon?: LucideIcon; onSelect: () => void };
+/** `group` is a translated heading; items without one are listed under "Pages". */
+export type PaletteItem = { id: string; label: string; icon?: LucideIcon; group?: string; onSelect: () => void };
 
 const KIND_ICON: Record<SearchKind, LucideIcon> = { patient: UserRound, appointment: CalendarDays, invoice: ReceiptText, receipt: Receipt, lab_case: FlaskConical };
 const KINDS: SearchKind[] = ["patient", "appointment", "invoice", "receipt", "lab_case"];
@@ -54,7 +55,7 @@ export function CommandPalette({ items, calendar, onOpenHit, onClose }: { items:
 
   const entries = useMemo<Entry[]>(() => {
     const lower = q.toLowerCase();
-    const pages = (lower ? items.filter((i) => i.label.toLowerCase().includes(lower)) : items).map<Entry>((i) => ({ id: i.id, group: t("shell.commandPalette.pages"), label: i.label, icon: i.icon, run: i.onSelect }));
+    const pages = (lower ? items.filter((i) => i.label.toLowerCase().includes(lower)) : items).map<Entry>((i) => ({ id: i.id, group: i.group ?? t("shell.commandPalette.pages"), label: i.label, icon: i.icon, run: i.onSelect }));
     const found = KINDS.flatMap((k) =>
       hits.filter((h) => h.kind === k).map<Entry>((h) => ({ id: `${h.kind}-${h.id}`, group: t(`search.kind.${h.kind}`), label: h.title, sub: h.subtitle ?? undefined, date: h.date ?? undefined, icon: KIND_ICON[h.kind], run: () => onOpenHit(h) })),
     );

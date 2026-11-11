@@ -50,7 +50,7 @@ test("treatment done → invoice with a discount → partial payment → receipt
   const svc = catalog.services.find((s: { code: string }) => s.code === "SRG-01");
   await call(request, "treatment_items.add", { patient_id: patientId, service_id: svc.id, teeth: [48], perform_now: true, unit_price: 350000 });
 
-  await page.getByTestId("patient-tab-invoices").click();
+  await page.getByTestId("patient-tab-finance").click();
   await expect(page.getByTestId("unbilled-notice")).toBeVisible();
   await page.getByTestId("invoice-new").click();
   await expect(page.getByTestId("invoice-billable")).toContainText("۸┐");

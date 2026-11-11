@@ -289,6 +289,8 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
     // services point at document templates), and old free-text doctor specialties matched to the list.
     crate::formulary::sync_seeds(&tx)?;
     crate::catalog::sync_seeds(&tx)?;
+    // Starter stock items (audit 9.2): categories and units come from migration 0016.
+    crate::inventory::sync_seeds(&tx)?;
     crate::chart::sync_seeds(&tx)?;
     crate::treatment::sync_seeds(&tx)?;
     crate::notes::sync_seeds(&tx)?;

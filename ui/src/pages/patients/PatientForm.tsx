@@ -1,7 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Save, UserPlus } from "lucide-react";
-import type { LabeledItem, PatientInfo } from "../../../../shared/ts/contract";
+import type { CalendarSystem, LabeledItem, PatientInfo } from "../../../../shared/ts/contract";
 import { rpc } from "../../lib/api";
+import { todayIso } from "../../lib/calendar";
+import { DateField } from "../../ui/DateField";
 import { focusFirstInvalid, useForm, v } from "../../lib/validation";
 import { ageOn, digits } from "../../lib/dates";
 import { useFormDraft } from "../../lib/draft";
@@ -113,6 +115,12 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
   const derivedAge = exactBirth && form.values.date_of_birth ? ageOn(form.values.date_of_birth) : null;
   const ageText = form.values.approximate_age.trim();
   const estimatedYear = !exactBirth && /^\d{1,3}$/.test(ageText) ? new Date().getFullYear() - Number(ageText) : null;
+  // B6: the birth date is a typed box in the clinic's calendar; unreadable text blocks saving.
+  const [birthBad, setBirthBad] = useState(false);
+  const [calendar, setCalendar] = useState<CalendarSystem>("shamsi");
+  useEffect(() => {
+    rpc("clinic.get", {}).then((c) => setCalendar(c.calendar_system)).catch(() => {});
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [duplicates, setDuplicates] = useState<PatientInfo[] | null>(null);
@@ -142,7 +150,8 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
 
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!form.validate()) {
+    const birthInvalid = exactBirth && birthBad;
+    if (!form.validate() || birthInvalid) {
       // OF-029: the first wrong box gets focus; its error is drawn in the same render.
       setTimeout(() => focusFirstInvalid(formRef.current), 0);
       return;
@@ -186,8 +195,8 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
             <Field label={t("patient.field.approximateAge")} optional={!exactBirth} error={exactBirth ? undefined : e("approximate_age")} hint={exactBirth ? t("patient.birth.ageFromDate") : estimatedYear !== null ? t("patient.birth.estimatedYear").replace("{year}", digits(estimatedYear, lang)) : undefined}>
               <TextInput type="number" dir="ltr" min={0} max={120} readOnly={exactBirth} disabled={exactBirth} value={exactBirth ? (derivedAge ?? "") : form.values.approximate_age} onChange={(x) => form.set("approximate_age", x.target.value)} data-testid="patient-age" />
             </Field>
-            <Field label={t("patient.field.dateOfBirth")} optional={!exactBirth} error={exactBirth ? e("date_of_birth") : undefined}>
-              <TextInput type="date" dir="ltr" disabled={!exactBirth} value={form.values.date_of_birth} onChange={(x) => form.set("date_of_birth", x.target.value)} data-testid="patient-dob" />
+            <Field label={t("patient.field.dateOfBirth")} optional={!exactBirth} error={exactBirth ? (birthBad ? t("ui.date.invalid") : e("date_of_birth")) : undefined}>
+              <DateField value={form.values.date_of_birth} onChange={(d) => form.set("date_of_birth", d)} calendar={calendar} label={t("patient.field.dateOfBirth")} disabled={!exactBirth} max={todayIso()} clearable onInvalidChange={setBirthBad} testId="patient-dob" />
             </Field>
             <Field label={t("patient.field.preferredLanguage")} optional>
               <Select value={form.values.preferred_language} onChange={(x) => form.set("preferred_language", x.target.value)} data-testid="patient-language">

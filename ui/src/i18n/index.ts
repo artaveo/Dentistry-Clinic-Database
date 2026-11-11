@@ -9,10 +9,24 @@ import { ApiError } from "../lib/api";
 import { errorReference } from "../lib/diagnostics";
 
 export type Key = keyof typeof fa;
-const dictionaries: Record<Language, Record<Key, string>> = { fa, ps, en };
+
+// Extra strings live in small per-area files `parts/<area>.<lang>.json` so that several
+// people can add keys without touching the three big files. Parts win over the base files.
+// `scripts/check-i18n.mjs` reads the same files and keeps fa/ps/en in sync.
+const parts = (modules: Record<string, Record<string, string>>): Record<string, string> =>
+  Object.assign({}, ...Object.keys(modules).sort().map((k) => modules[k]));
+const faParts = parts(import.meta.glob("./parts/*.fa.json", { eager: true, import: "default" }));
+const psParts = parts(import.meta.glob("./parts/*.ps.json", { eager: true, import: "default" }));
+const enParts = parts(import.meta.glob("./parts/*.en.json", { eager: true, import: "default" }));
+
+const dictionaries: Record<Language, Record<string, string>> = {
+  fa: { ...fa, ...faParts },
+  ps: { ...ps, ...psParts },
+  en: { ...en, ...enParts },
+};
 
 export function translate(lang: Language, key: Key | string): string {
-  return (dictionaries[lang] as Record<string, string>)[key] ?? (fa as Record<string, string>)[key] ?? key;
+  return dictionaries[lang][key] ?? dictionaries.fa[key] ?? key;
 }
 
 export function dirOf(lang: Language): "rtl" | "ltr" {

@@ -7,6 +7,7 @@
 use artaveo_shared::*;
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
+use serde::Deserialize;
 use serde_json::json;
 
 use crate::audit::{self, Actor};
@@ -17,7 +18,7 @@ use crate::clock::{now_iso, today_iso};
 use crate::db::expect_one_row;
 use crate::error::{CoreError, Result};
 use crate::formulary::clean_translations;
-use crate::ids::new_id;
+use crate::ids::{new_id, seed_id};
 use crate::scheduling::{format_date, parse_date};
 
 /// Largest quantity of one line: 1 000 000 units.
@@ -25,6 +26,51 @@ const MAX_QTY: i64 = 100_000_000;
 const MAX_AMOUNT: i128 = 100_000_000_000;
 const EXPIRING_DEFAULT: i64 = 60;
 const MAX_LIST: usize = 1000;
+
+const STOCK_ITEMS_JSON: &str = include_str!("../seeds/stock_items.json");
+
+// ───────────────────────────── seed ─────────────────────────────
+
+/// One starter stock item of `core/seeds/stock_items.json` (audit 9.2): names, a category and a unit
+/// that already exist in migration 0016. No price and no minimum: the clinic sets those itself.
+#[derive(Deserialize)]
+struct StockItemSeed {
+    code: String,
+    category: String,
+    unit: String,
+    name: Translations,
+}
+
+fn stock_item_seeds() -> Result<Vec<StockItemSeed>> {
+    serde_json::from_str(STOCK_ITEMS_JSON)
+        .map_err(|e| CoreError::validation(format!("stock_items.json: {e}")))
+}
+
+/// Writes the starter stock items once. Afterwards every row is the clinic's: a later start never
+/// overwrites an edited name or minimum, never brings back an item the clinic switched off or deleted
+/// (the row stays, so its deterministic id is still taken).
+pub fn sync_seeds(conn: &Connection) -> Result<()> {
+    let now = now_iso();
+    for item in stock_item_seeds()? {
+        conn.execute(
+            "INSERT INTO stock_item(id, code, name_fa, name_ps, name_en, category_id, unit_id, min_qty, is_active,
+                created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 1, ?8, ?8)
+             ON CONFLICT(id) DO NOTHING",
+            params![
+                seed_id("stock_item", &item.code),
+                item.code,
+                item.name.fa,
+                item.name.ps,
+                item.name.en,
+                item.category,
+                item.unit,
+                now
+            ],
+        )?;
+    }
+    Ok(())
+}
 
 // ───────────────────────────── helpers ─────────────────────────────
 
@@ -2037,4 +2083,78 @@ pub fn lab_report(conn: &Connection, p: &PeriodParams) -> Result<LabReport> {
     let total_cost: i64 = rows.iter().map(|r| r.cost).sum();
     let total_billed: i64 = rows.iter().filter_map(|r| r.billed).sum();
     Ok(LabReport { rows, total_cost, total_billed })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    #[test]
+    fn stock_item_seed_file_is_valid() {
+        let items = stock_item_seeds().unwrap();
+        assert!(items.len() >= 30);
+        let mut codes = HashSet::new();
+        for i in &items {
+            assert!(codes.insert(i.code.clone()), "duplicate code {}", i.code);
+            for n in [&i.name.fa, &i.name.ps, &i.name.en] {
+                assert!(!n.trim().is_empty(), "{}: empty name", i.code);
+            }
+            // Dari labels use Persian ی/ک, never Arabic ي/ك (search and sorting depend on it).
+            assert!(!i.name.fa.contains(['ي', 'ك']), "{}: {}", i.code, i.name.fa);
+        }
+    }
+
+    #[test]
+    fn stock_item_seeds_point_at_existing_categories_and_units_and_are_idempotent() {
+        let t = crate::tests::T::new();
+        t.setup();
+        let items = stock_item_seeds().unwrap();
+        t.core
+            .with_db(|o| {
+                for i in &items {
+                    let known = |table: &str, id: &str| -> Result<i64> {
+                        Ok(o.conn.query_row(
+                            &format!("SELECT COUNT(*) FROM {table} WHERE id = ?1"),
+                            [id],
+                            |r| r.get(0),
+                        )?)
+                    };
+                    assert_eq!(known("stock_category", &i.category)?, 1, "{}: category", i.code);
+                    assert_eq!(known("stock_unit", &i.unit)?, 1, "{}: unit", i.code);
+                }
+                let count = |c: &Connection| -> Result<i64> {
+                    Ok(c.query_row("SELECT COUNT(*) FROM stock_item", [], |r| r.get(0))?)
+                };
+                assert_eq!(count(&o.conn)?, items.len() as i64, "seeded on the first start");
+                // The clinic renames one item and deletes another; a second sync touches neither.
+                let renamed = seed_id("stock_item", &items[0].code);
+                let deleted = seed_id("stock_item", &items[1].code);
+                o.conn.execute(
+                    "UPDATE stock_item SET name_en = 'Our gloves', min_qty = 5 WHERE id = ?1",
+                    [&renamed],
+                )?;
+                o.conn.execute(
+                    "UPDATE stock_item SET deleted_at = ?2 WHERE id = ?1",
+                    params![deleted, now_iso()],
+                )?;
+                sync_seeds(&o.conn)?;
+                assert_eq!(count(&o.conn)?, items.len() as i64, "no duplicates, nothing brought back");
+                let (name, min): (String, i64) = o.conn.query_row(
+                    "SELECT name_en, min_qty FROM stock_item WHERE id = ?1",
+                    [&renamed],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )?;
+                assert_eq!((name.as_str(), min), ("Our gloves", 5));
+                let still_deleted: Option<String> = o.conn.query_row(
+                    "SELECT deleted_at FROM stock_item WHERE id = ?1",
+                    [&deleted],
+                    |r| r.get(0),
+                )?;
+                assert!(still_deleted.is_some());
+                Ok(())
+            })
+            .unwrap();
+    }
 }

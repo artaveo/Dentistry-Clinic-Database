@@ -35,6 +35,7 @@ const live = (topic: string, method: string) =>
   page.evaluate(([t, m]) => window.dispatchEvent(new CustomEvent("artaveo:live", { detail: { topic: t, method: m } })), [topic, method]);
 
 test("Network page: server mode, pairing code, list of computers", async ({ request }) => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-network").click();
   await expect(page.getByTestId("page-network")).toBeVisible();
   await expect(page.getByTestId("lan-switch")).not.toBeChecked();
@@ -68,6 +69,7 @@ test("a change made on another computer refreshes the screen at once", async () 
   page.on("request", (r) => {
     if (r.url().endsWith("/rpc") && (r.postData() ?? "").includes('"appointments.list"')) loads++;
   });
+  await page.getByTestId("tab-appointments").click();
   await page.getByTestId("tab-queue").click();
   await expect.poll(() => loads).toBeGreaterThan(0);
 

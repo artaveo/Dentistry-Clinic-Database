@@ -1,0 +1,10 @@
+{
+  "reports.count": "{n} مورد",
+  "reports.all": "همهٔ گزارش‌ها",
+  "reports.period": "بازه",
+  "reports.excelEmpty": "گزارش خالی است؛ چیزی برای خروجی Excel نیست.",
+  "reports.loadingHint": "گزارش در حال بارگیری است.",
+  "reports.printWait": "سربرگ کلینیک هنوز بارگیری نشده؛ کمی بعد دوباره امتحان کنید.",
+  "reports.emptyRange": "در این بازه چیزی ثبت نشده است. بازه را عوض کنید:",
+  "reports.emptyNow": "در حال حاضر موردی برای نمایش نیست."
+}

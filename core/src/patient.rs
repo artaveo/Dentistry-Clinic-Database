@@ -531,6 +531,12 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         "invoice",
         "payment",
         "credit_note",
+        // B1: scans/X-rays, lab work and stock taken for the patient follow the patient too.
+        // Not moved on purpose: `patient_medical_answer` (one answer per question per patient; two
+        // histories need the doctor to decide which answer is right) stays on the merged-away record.
+        "patient_attachment",
+        "lab_case",
+        "stock_movement",
     ] {
         conn.execute(
             &format!("UPDATE {table} SET patient_id = ?1 WHERE patient_id = ?2"),
@@ -759,5 +765,39 @@ mod tests {
     fn fts_match_query_prefixes_every_token() {
         assert_eq!(fts_match_query("ahmad kh"), "\"ahmad\"* \"kh\"*");
         assert_eq!(fts_match_query(""), "");
+    }
+
+    /// B1: a scan uploaded to the merged-away record is found under the kept patient afterwards.
+    #[test]
+    fn merge_moves_attachments_to_the_kept_patient() {
+        use artaveo_shared::methods as m;
+        use serde_json::json;
+
+        let t = crate::tests::T::new();
+        t.setup();
+        let owner = t.login("owner", "owner-pass-1");
+        let keep = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
+        let dupe = t.ok(
+            m::PATIENTS_CREATE,
+            json!({"full_name": "Ahmad Khan", "phone": "0700000002", "allow_duplicate": true}),
+            Some(&owner),
+        );
+        t.ok(
+            m::ATTACHMENTS_UPLOAD,
+            json!({
+                "patient_id": dupe["id"], "kind": "xray", "file_name": "molar.png",
+                "data_base64": data_encoding::BASE64.encode(b"fake x-ray bytes")
+            }),
+            Some(&owner),
+        );
+        t.ok(
+            m::PATIENTS_MERGE,
+            json!({"keep_id": keep["id"], "merge_id": dupe["id"], "merge_id_version": dupe["version"]}),
+            Some(&owner),
+        );
+        let kept = t.ok(m::ATTACHMENTS_LIST, json!({"patient_id": keep["id"]}), Some(&owner));
+        assert_eq!(kept.as_array().unwrap().len(), 1);
+        let left = t.ok(m::ATTACHMENTS_LIST, json!({"patient_id": dupe["id"]}), Some(&owner));
+        assert!(left.as_array().unwrap().is_empty());
     }
 }

@@ -5,7 +5,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const load = (l) => JSON.parse(fs.readFileSync(path.join(root, `src/i18n/${l}.json`), "utf8"));
+// Base file plus the small per-area files in `src/i18n/parts/<area>.<lang>.json` (parts win).
+const partsDir = path.join(root, "src/i18n/parts");
+const load = (l) => {
+  const base = JSON.parse(fs.readFileSync(path.join(root, `src/i18n/${l}.json`), "utf8"));
+  if (!fs.existsSync(partsDir)) return base;
+  const files = fs.readdirSync(partsDir).filter((f) => f.endsWith(`.${l}.json`)).sort();
+  return Object.assign(base, ...files.map((f) => JSON.parse(fs.readFileSync(path.join(partsDir, f), "utf8"))));
+};
 const [fa, ps, en] = ["fa", "ps", "en"].map(load);
 let bad = 0;
 for (const [name, dict] of [["ps", ps], ["en", en]]) {

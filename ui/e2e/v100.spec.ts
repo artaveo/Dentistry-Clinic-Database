@@ -41,6 +41,7 @@ test("The dashboard is the first page and shows today's numbers", async () => {
   await expect(page.getByTestId("dash-attention")).toBeVisible();
   // A state is a word and an icon, never only a colour.
   await expect(page.getByTestId("dash-license")).toContainText("فعال نشده");
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-system").click();
   await page.getByTestId("tab-dashboard").click();
   await expect(page.getByTestId("dash-stats")).toBeVisible();
@@ -54,20 +55,27 @@ test("A report runs for a period, narrows by doctor, exports to Excel and prints
 
   await page.getByTestId("report-doctor_revenue").click();
   await expect(page.getByTestId("report-doctor")).toBeVisible();
-  await page.getByTestId("report-preset-year").click();
+  // The period is one range control; its popup holds the quick periods (applying one closes it).
+  await page.getByTestId("report-range").click();
+  await page.getByTestId("report-range-preset-thisYear").click();
   await expect(page.getByTestId("report-foot")).toBeVisible();
 
   // A report of the state today has no period.
   await page.getByTestId("report-stock").click();
-  await expect(page.getByTestId("report-from")).toHaveCount(0);
+  await expect(page.getByTestId("report-range")).toHaveCount(0);
+  await expect(page.getByTestId("report-now-note")).toBeVisible();
 
   await page.getByTestId("report-payments").click();
-  await page.getByTestId("report-preset-year").click();
+  // The period is one range control; its popup holds the quick periods (applying one closes it).
+  await page.getByTestId("report-range").click();
+  await page.getByTestId("report-range-preset-thisYear").click();
   await expect(page.getByTestId("report-foot")).toBeVisible();
 
   // Profit and loss always has the months of the period; its Excel file lands in the exports folder.
   await page.getByTestId("report-profit_loss").click();
-  await page.getByTestId("report-preset-year").click();
+  // The period is one range control; its popup holds the quick periods (applying one closes it).
+  await page.getByTestId("report-range").click();
+  await page.getByTestId("report-range-preset-thisYear").click();
   await expect(page.getByTestId("report-foot")).toBeVisible();
   const export_ = page.getByTestId("report-export");
   if (await export_.isEnabled()) {
@@ -117,6 +125,7 @@ test("Ctrl+K finds a patient and opens the profile", async ({ request }) => {
 });
 
 test("The audit log narrows to the sensitive actions", async () => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-audit").click();
   await expect(page.getByTestId("audit-list")).toBeVisible();
   await page.getByTestId("audit-filter-sensitive").click();

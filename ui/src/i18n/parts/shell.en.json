@@ -1,0 +1,10 @@
+{
+  "hub.general": "General settings",
+  "hub.nav": "Settings sections",
+  "appts.subnav": "Appointment sections",
+  "appts.sub.calendar": "Calendar",
+  "palette.group.actions": "Actions",
+  "palette.newPatient": "New patient",
+  "palette.newAppointment": "New appointment",
+  "palette.receivePayment": "Receive payment"
+}

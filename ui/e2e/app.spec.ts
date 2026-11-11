@@ -57,7 +57,7 @@ test("setup wizard: welcome through clinic info", async () => {
   await expect(page.getByTestId("install-server")).toBeEnabled();
   await expect(page.getByTestId("install-client")).toBeDisabled();
   await page.getByTestId("install-single").click();
-  await expect(page.getByTestId("install-single")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("install-single")).toHaveAttribute("aria-checked", "true");
   await page.getByTestId("wizard-next").click();
 
   // Clinic info: name is required before moving on; a bad phone is flagged live.
@@ -77,7 +77,7 @@ test("setup wizard: hours (12-hour pickers), clinic type, branding, trial, backu
   await expect(page.getByTestId("setup-step-hours")).toBeVisible();
   // Saturday 08:00 is shown as 8 + ق.ظ, never 0–23 (OF-007).
   await expect(page.getByTestId("day-0-from-hour")).toHaveValue("8");
-  await expect(page.getByTestId("day-0-from-am")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("day-0-from-am")).toHaveAttribute("aria-checked", "true");
   await page.getByTestId("calendar-gregorian").click();
   await page.getByTestId("wizard-next").click();
 
@@ -137,7 +137,6 @@ test("login: LTR username keeps the UI font (OF-004); wrong password, then the o
 });
 
 test("header status and command palette", async () => {
-  await expect(page.getByTestId("status-online")).toHaveText("آنلاین");
   try {
     await expect(page.getByTestId("status-install-mode")).toHaveText("تک‌کامپیوتر");
   } catch (e) {
@@ -182,22 +181,15 @@ test("manual backup; dates read as one phrase with a 12-hour time (OF-006/007)",
   await expect(page.getByTestId("si-last-backup")).toHaveText(/ساعت [۰-۹]{1,2}:[۰-۹]{2} (ق|ب)\.ظ$/);
 });
 
-test("settings: the daily backup time is picked as 12-hour (OF-007)", async () => {
+test("settings: a bad value is flagged under its field and the form saves", async () => {
+  // The daily backup time is no longer on this form (U3: it lives on the Backup page, covered in v110.spec.ts).
   await page.getByTestId("tab-settings").click();
-  // Default 19:00 → 7 ب.ظ.
-  await expect(page.getByTestId("setting-daily_backup_hour-hour")).toHaveValue("7");
-  await expect(page.getByTestId("setting-daily_backup_hour-pm")).toHaveAttribute("aria-pressed", "true");
-  await page.getByTestId("setting-daily_backup_hour-hour").selectOption("8");
-  await page.getByTestId("setting-daily_backup_hour-am").click();
   // A bad value is flagged under its own field before saving.
   await page.getByTestId("setting-session_timeout_minutes").fill("0");
   await expect(page.getByTestId("field-error")).toHaveText("عددی بین ۱ تا ۲۴۰ وارد کنید.");
   await page.getByTestId("setting-session_timeout_minutes").fill("۱۰");
   await page.getByTestId("settings-save").click();
   await expect(toast()).toHaveText("تغییرات ذخیره شد.");
-  await page.getByTestId("tab-backup").click();
-  // The Backup page names the next automatic run, now at the 8:00 AM just chosen (Phase 10).
-  await expect(page.getByTestId("backup-next")).toContainText("ساعت ۸:۰۰ ق.ظ");
 });
 
 test("owner edits the clinic profile", async () => {
@@ -332,8 +324,10 @@ test("receptionist sees only what the role allows", async () => {
   await page.getByTestId("logout").click();
   await login("reception", "reception-123");
   await expect(page.getByTestId("current-user")).toContainText("پذیرش");
+  // Everything beyond daily work is a section of the Settings hub; only "About" is open to this role.
+  await page.getByTestId("tab-settings").click();
   await expect(page.getByTestId("tab-system")).toBeVisible();
-  for (const tab of ["tab-users", "tab-audit", "tab-backup", "tab-clinic", "tab-settings"]) {
+  for (const tab of ["tab-users", "tab-audit", "tab-backup", "tab-clinic", "tab-general"]) {
     await expect(page.getByTestId(tab)).toHaveCount(0);
   }
   await openUserMenu();

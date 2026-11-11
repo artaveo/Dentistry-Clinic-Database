@@ -239,6 +239,7 @@ function PurchaseDialog({ calendar, perms, onClose, onDone }: { calendar: Calend
   const showRule = (l: Line) => (submitted ? lineRule(l) : null);
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t("purchase.new")}
       description={t("purchase.newHint")}
       onClose={onClose}

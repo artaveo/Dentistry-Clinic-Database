@@ -4,7 +4,8 @@
 // decides how months and years are cut and named. The Afghan week starts on
 // Saturday (day 0) and ends on Friday (day 6).
 import { CalendarDate, GregorianCalendar, PersianCalendar, toCalendar } from "@internationalized/date";
-import type { CalendarSystem } from "../../../shared/ts/contract";
+import type { CalendarSystem, Language } from "../../../shared/ts/contract";
+import { digits, latinDigits } from "./dates";
 
 export type Iso = string;
 
@@ -126,4 +127,84 @@ export function nowMinutes(now: Date = new Date()): number {
   const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kabul", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
   const get = (t: string) => Number(p.find((x) => x.type === t)?.value ?? "0");
   return (get("hour") % 24) * 60 + get("minute");
+}
+
+// ───────────────────────── typed dates and range presets ─────────────────────────
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** First and last day (ISO) of the year containing `iso`, in the clinic's calendar. */
+export function yearRange(iso: Iso, calendar: CalendarSystem): { from: Iso; to: Iso; year: number } {
+  const { year } = inCalendar(iso, calendar);
+  const last = monthsInYear(year, calendar);
+  return { from: fromCalendar(year, 1, 1, calendar)!, to: fromCalendar(year, last, daysInMonth(year, last, calendar), calendar)!, year };
+}
+
+/** "1405/08/20" (digits per language) for the typed date field; "" for an empty or malformed ISO date. */
+export function formatTypedDate(iso: Iso, calendar: CalendarSystem, lang: Language): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const { year, month, day } = inCalendar(iso, calendar);
+  return digits(`${String(year).padStart(4, "0")}/${pad2(month)}/${pad2(day)}`, lang);
+}
+
+/**
+ * Reads typed text such as "1405/08/20", "۱۴۰۵-۸-۲۰" or "14050820" in the clinic's calendar
+ * (Persian, Arabic-Indic and ASCII digits; any non-digit separator). `null` if it is not a real day.
+ */
+export function parseTypedDate(text: string, calendar: CalendarSystem): Iso | null {
+  const s = latinDigits(text).replace(/[\u200c\u200e\u200f]/g, "").trim();
+  const m = /^(\d{4})\D+(\d{1,2})\D+(\d{1,2})$/.exec(s) ?? /^(\d{4})(\d{2})(\d{2})$/.exec(s);
+  if (!m) return null;
+  const year = Number(m[1]);
+  if (year < 1) return null;
+  return fromCalendar(year, Number(m[2]), Number(m[3]), calendar);
+}
+
+/**
+ * Live mask for the typed date: keeps digits only, puts the "/" in by itself (year 4, month 2, day 2),
+ * pads a one-digit month the moment a separator is typed after it, and shows the digits of `lang`.
+ */
+export function maskTypedDate(raw: string, lang: Language): string {
+  const lim = [4, 2, 2];
+  const v = ["", "", ""];
+  let f = 0;
+  for (const ch of latinDigits(raw)) {
+    if (ch >= "0" && ch <= "9") {
+      if (v[f].length >= lim[f]) {
+        if (f === 2) break;
+        f++;
+      }
+      v[f] += ch;
+    } else if (v[f].length > 0 && f < 2) {
+      if (f > 0 && v[f].length === 1) v[f] = "0" + v[f];
+      f++;
+    }
+  }
+  let out = v[0];
+  for (let i = 1; i <= f; i++) out += "/" + v[i];
+  return digits(out, lang);
+}
+
+export type RangePresetId = "today" | "last7" | "thisMonth" | "lastMonth" | "thisYear";
+
+/** The inclusive ISO range of a quick-pick ("last7" = today and the 6 days before). */
+export function presetRange(id: RangePresetId, calendar: CalendarSystem, today: Iso = todayIso()): { from: Iso; to: Iso } {
+  switch (id) {
+    case "today":
+      return { from: today, to: today };
+    case "last7":
+      return { from: addDays(today, -6), to: today };
+    case "thisMonth": {
+      const r = monthRange(today, calendar);
+      return { from: r.from, to: r.to };
+    }
+    case "lastMonth": {
+      const r = monthRange(shiftMonth(monthRange(today, calendar).from, calendar, -1), calendar);
+      return { from: r.from, to: r.to };
+    }
+    case "thisYear": {
+      const r = yearRange(today, calendar);
+      return { from: r.from, to: r.to };
+    }
+  }
 }

@@ -1,0 +1,10 @@
+{
+  "reports.count": "{n} items",
+  "reports.all": "All reports",
+  "reports.period": "Period",
+  "reports.excelEmpty": "The report is empty; there is nothing to export to Excel.",
+  "reports.loadingHint": "The report is still loading.",
+  "reports.printWait": "The clinic letterhead is not loaded yet; try again in a moment.",
+  "reports.emptyRange": "Nothing was recorded in this period. Change the period:",
+  "reports.emptyNow": "There is nothing to show right now."
+}

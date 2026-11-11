@@ -18,6 +18,7 @@ test.beforeAll(async ({ browser }) => {
   await page.getByTestId("login-username").fill(OWNER.user);
   await page.getByTestId("login-password").fill(OWNER.pass);
   await page.getByTestId("login-submit").click();
+  await page.getByTestId("tab-settings").click();
   await expect(page.getByTestId("tab-doctors")).toBeVisible();
 });
 
@@ -30,6 +31,7 @@ async function pickNewPatient(prefix: string, name: string, phone: string) {
 }
 
 test("doctors and chairs: add them, validate live, set a schedule and a leave", async () => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-doctors").click();
   await expect(page.getByTestId("doctor-list")).toBeVisible();
 
@@ -50,15 +52,15 @@ test("doctors and chairs: add them, validate live, set a schedule and a leave", 
   await expect(page.getByTestId("doctor-list")).toContainText("داکتر فرید سلطانی");
 
   await page.getByTestId("chair-add-open").click();
-  await page.getByTestId("chair-name").fill("چوکی ۱");
+  await page.getByTestId("chair-name").fill("یونیت ۱");
   await page.getByTestId("chair-save").click();
   await page.getByTestId("chair-add-open").click();
-  await page.getByTestId("chair-name").fill("چوکی ۱");
+  await page.getByTestId("chair-name").fill("یونیت ۱");
   await page.getByTestId("chair-save").click();
-  await expect(page.getByTestId("field-error")).toContainText("چوکی‌ای با این نام وجود دارد"); // Core error under the field
-  await page.getByTestId("chair-name").fill("چوکی ۲");
+  await expect(page.getByTestId("field-error")).toContainText("یونیتی با این نام وجود دارد"); // Core error under the field
+  await page.getByTestId("chair-name").fill("یونیت ۲");
   await page.getByTestId("chair-save").click();
-  await expect(page.getByTestId("chair-list")).toContainText("چوکی ۲");
+  await expect(page.getByTestId("chair-list")).toContainText("یونیت ۲");
 
   // The second doctor works Saturday mornings only; the first has no hour limit.
   await page.getByTestId("doctor-schedule-داکتر فرید سلطانی").click();
@@ -137,6 +139,7 @@ test("the appointment card shows the visit and can be printed", async () => {
 });
 
 test("queue: arrival gets a number, treatment, completion with a follow-up", async () => {
+  await page.getByTestId("tab-appointments").click();
   await page.getByTestId("tab-queue").click();
   await expect(page.getByTestId("queue-count-expected")).toHaveText("۲");
   const card = page.getByTestId("queue-expected").locator('[data-testid^="queue-card-"]').filter({ hasText: "بیمار آزمایشی یکم" });
@@ -174,6 +177,7 @@ test("walk-in joins the queue behind the others; a no-show leaves it", async () 
 });
 
 test("call list: the follow-up and the no-show are there; record a call, then book from the list", async () => {
+  await page.getByTestId("tab-appointments").click();
   await page.getByTestId("tab-recalls").click();
   const list = page.getByTestId("recall-list");
   await expect(list).toContainText("بیمار آزمایشی یکم");
@@ -216,6 +220,7 @@ test("patient profile lists the visits and recalls of the patient", async () => 
 });
 
 test("roles: a custom role limits what its users see; reset password and unlock", async () => {
+  await page.getByTestId("tab-settings").click();
   await page.getByTestId("tab-users").click();
   await page.getByTestId("role-add-open").click();
   await page.getByTestId("role-name").fill("پذیرش شبانه");
@@ -249,6 +254,7 @@ test("roles: a custom role limits what its users see; reset password and unlock"
   await page.getByTestId("login-username").fill(OWNER.user);
   await page.getByTestId("login-password").fill(OWNER.pass);
   await page.getByTestId("login-submit").click();
+  await page.getByTestId("tab-settings").click();
   await expect(page.getByTestId("tab-users")).toBeVisible();
   await page.getByTestId("tab-users").click();
 
@@ -276,8 +282,12 @@ test("roles: a custom role limits what its users see; reset password and unlock"
   await page.getByTestId("login-password").fill("brand-new-pass-1");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("tab-appointments")).toBeVisible();
+  await page.getByTestId("tab-appointments").click();
   await expect(page.getByTestId("tab-queue")).toBeVisible();
+  // The Settings hub only lists the sections this role may open.
+  await page.getByTestId("tab-settings").click();
   for (const tab of ["tab-doctors", "tab-users", "tab-audit", "tab-clinic"]) await expect(page.getByTestId(tab)).toHaveCount(0);
+  await page.getByTestId("tab-appointments").click();
   await page.getByTestId("tab-queue").click();
   await expect(page.getByTestId("walk-in-open")).toBeVisible();
   await expect(page.getByTestId("appt-action-in_treatment")).toHaveCount(0); // booking yes, treatment no
@@ -286,11 +296,13 @@ test("roles: a custom role limits what its users see; reset password and unlock"
   await page.getByTestId("login-username").fill(OWNER.user);
   await page.getByTestId("login-password").fill(OWNER.pass);
   await page.getByTestId("login-submit").click();
+  await page.getByTestId("tab-settings").click();
   await expect(page.getByTestId("tab-doctors")).toBeVisible();
 });
 
 test("import: map the columns of a file with Dari headers in another order", async () => {
   await page.getByTestId("tab-patients").click();
+  await page.getByTestId("patients-more").click();
   await page.getByTestId("patients-import-open").click();
   const csv = "شماره;نام و تخلص;نام پدر\n0700555111;وارد شده با نگاشت;کریم\n12;شماره بد;\n";
   await page.getByTestId("import-file-input").setInputFiles({ name: "bimaran.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "utf-8") });

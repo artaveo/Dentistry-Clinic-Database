@@ -15,6 +15,7 @@ import { Field, Select, Textarea } from "../../../ui/Field";
 import { Badge, EmptyState, ErrorState, Loading, Notice } from "../../../ui/Feedback";
 import { Dialog } from "../../../ui/Overlay";
 import { useToast } from "../../../ui/Toast";
+import { useConfirm } from "../../../ui/ConfirmDialog";
 import { isSolo, useScheduling } from "../../reception/useScheduling";
 import { itemTitle } from "./labels";
 
@@ -70,12 +71,13 @@ export function NotesTab({ patient, clinic, canEdit, calendar, initialItem, onCh
 function NoteCard({ note, canEdit, calendar, onEdit, onChanged }: { note: ClinicalNoteInfo; canEdit: boolean; calendar: CalendarSystem; onEdit: () => void; onChanged: () => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const [adding, setAdding] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const signed = note.status === "signed";
   const sign = async () => {
-    if (!window.confirm(t("note.signConfirm"))) return;
+    if (!(await confirm({ title: t("cleanup.confirm.title"), text: t("note.signConfirm") }))) return;
     try {
       await rpc("notes.sign", { id: note.id, version: note.version });
       toast.success(t("note.signed"));
@@ -85,7 +87,7 @@ function NoteCard({ note, canEdit, calendar, onEdit, onChanged }: { note: Clinic
     }
   };
   const remove = async () => {
-    if (!window.confirm(t("note.deleteConfirm"))) return;
+    if (!(await confirm({ title: t("cleanup.confirm.title"), text: t("note.deleteConfirm"), confirm: t("common.delete"), danger: true }))) return;
     try {
       await rpc("notes.delete", { id: note.id, version: note.version });
       toast.success(t("note.deleted"));
@@ -162,6 +164,7 @@ function NoteCard({ note, canEdit, calendar, onEdit, onChanged }: { note: Clinic
           </div>
         </div>
       )}
+      {dialog}
     </Card>
   );
 }
@@ -178,6 +181,7 @@ export function NoteEditor({ patient, clinic, calendar, note, item, onClose, onS
 }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const templates = useNoteTemplates();
   const catalog = useCatalog();
   const settings = useClinicSettings();
@@ -204,10 +208,10 @@ export function NoteEditor({ patient, clinic, calendar, note, item, onClose, onS
   const draft = useFormDraft(`note.${patient.id}.${note?.id ?? "new"}`, values, true);
   const set = (k: string, v: string) => setValues((x) => ({ ...x, [k]: v }));
   const empty = NOTE_FIELDS.every((k) => !values[k]?.trim());
-  const apply = (tp: NoteTemplateInfo) => {
+  const apply = async (tp: NoteTemplateInfo) => {
     const body = tp.body[lang];
     const filled = NOTE_FIELDS.some((k) => values[k]?.trim());
-    if (filled && !window.confirm(t("note.templateReplace"))) return;
+    if (filled && !(await confirm({ title: t("cleanup.confirm.title"), text: t("note.templateReplace") }))) return;
     setValues((v) => ({ ...v, ...body, template_id: tp.id }));
   };
   const items = useMemo(() => (item && !openItems.some((i) => i.id === item.id) ? [item, ...openItems] : openItems), [openItems, item]);
@@ -215,7 +219,7 @@ export function NoteEditor({ patient, clinic, calendar, note, item, onClose, onS
     setSubmitted(true);
     setError("");
     if (empty) return;
-    if (sign && !window.confirm(t("note.signConfirm"))) return;
+    if (sign && !(await confirm({ title: t("cleanup.confirm.title"), text: t("note.signConfirm") }))) return;
     setBusy(sign ? "sign" : "save");
     try {
       const fields = Object.fromEntries(NOTE_FIELDS.map((k) => [k, values[k] ?? ""])) as NoteFields;
@@ -298,6 +302,7 @@ export function NoteEditor({ patient, clinic, calendar, note, item, onClose, onS
           ))}
         </div>
         <Notice tone="info">{t("note.lockHint")}</Notice>
+        {dialog}
       </div>
     </Dialog>
   );

@@ -415,8 +415,12 @@ impl Core {
             m::SESSION_UNLOCK => {
                 let UnlockParams { password } = params(p)?;
                 let good = self.with_db(|o| {
-                    let good = auth::check_password(&o.conn, &s.user.id, &password)?;
-                    let action = if good { "session.unlock" } else { "session.unlock_failed" };
+                    // B3: the same failed-attempt counter and lockout as login. The counter is
+                    // written by `verify_unlock` itself (no transaction here), so it survives the
+                    // error returned below; a blocked attempt is audited as a failed one.
+                    let outcome = auth::verify_unlock(&o.conn, &s.user.id, &password);
+                    let unlocked = matches!(outcome, Ok(true));
+                    let action = if unlocked { "session.unlock" } else { "session.unlock_failed" };
                     audit::record(
                         &o.conn,
                         &actor(&s),
@@ -426,7 +430,7 @@ impl Core {
                         None,
                         None,
                     )?;
-                    Ok(good)
+                    outcome
                 })?;
                 if !good {
                     return Err(CoreError::api(ErrorCode::InvalidCredentials, "wrong password")
@@ -1876,5 +1880,56 @@ impl Core {
             integrity: self.integrity(),
             last_backup,
         })
+    }
+}
+
+#[cfg(test)]
+mod unlock_tests {
+    use artaveo_shared::{methods as m, ErrorCode};
+    use serde_json::json;
+
+    use crate::tests::T;
+
+    /// B3: the lock screen counts wrong passwords like the login does, and locks the account.
+    #[test]
+    fn unlock_failures_lock_the_account_like_login() {
+        let t = T::new();
+        t.setup();
+        let tok = t.login("owner", "owner-pass-1");
+        t.ok(m::SESSION_LOCK, json!({}), Some(&tok));
+        for _ in 0..crate::auth::MAX_FAILED_ATTEMPTS {
+            assert_eq!(
+                t.call(m::SESSION_UNLOCK, json!({"password": "wrong"}), Some(&tok)),
+                Err(ErrorCode::InvalidCredentials)
+            );
+        }
+        // Locked: even the right password is refused, here and at the login screen.
+        assert_eq!(
+            t.call(m::SESSION_UNLOCK, json!({"password": "owner-pass-1"}), Some(&tok)),
+            Err(ErrorCode::AccountLocked)
+        );
+        assert_eq!(
+            t.call(m::AUTH_LOGIN, json!({"username": "owner", "password": "owner-pass-1"}), None),
+            Err(ErrorCode::AccountLocked)
+        );
+    }
+
+    /// A right password clears the counter, so earlier mistakes do not add up across unlocks.
+    #[test]
+    fn successful_unlock_resets_the_counter() {
+        let t = T::new();
+        t.setup();
+        let tok = t.login("owner", "owner-pass-1");
+        for _ in 0..2 {
+            t.ok(m::SESSION_LOCK, json!({}), Some(&tok));
+            for _ in 0..crate::auth::MAX_FAILED_ATTEMPTS - 1 {
+                assert_eq!(
+                    t.call(m::SESSION_UNLOCK, json!({"password": "wrong"}), Some(&tok)),
+                    Err(ErrorCode::InvalidCredentials)
+                );
+            }
+            let state = t.ok(m::SESSION_UNLOCK, json!({"password": "owner-pass-1"}), Some(&tok));
+            assert_eq!(state["locked"], false);
+        }
     }
 }

@@ -1,0 +1,10 @@
+{
+  "reports.count": "{n} توکي",
+  "reports.all": "ټول راپورونه",
+  "reports.period": "موده",
+  "reports.excelEmpty": "راپور تش دی؛ د Excel لپاره څه نشته.",
+  "reports.loadingHint": "راپور لا بارېږي.",
+  "reports.printWait": "د کلینیک سرلیک لا نه دی بار شوی؛ لږ وروسته بیا هڅه وکړئ.",
+  "reports.emptyRange": "په دې موده کې څه نه دي ثبت شوي. موده بدله کړئ:",
+  "reports.emptyNow": "اوس مهال د ښودلو لپاره څه نشته."
+}

@@ -44,19 +44,19 @@ test("OF-027: at the smallest window (800x600) nothing sticks out sideways", asy
   await page.setViewportSize({ width: 1280, height: 800 });
 });
 
-test("OF-021: the patient number column is called ID", async () => {
+test("OF-021: the patient number column is called «شماره‌ی بیمار»", async () => {
   await page.getByTestId("tab-patients").click();
-  await expect(page.getByTestId("patient-list").locator("thead")).toContainText("ID بیمار");
+  await expect(page.getByTestId("patient-list").locator("thead")).toContainText("شماره‌ی بیمار");
 });
 
 test("OF-019: an age and a birth date are never typed twice", async () => {
   await page.getByTestId("add-patient-open").click();
   await page.getByTestId("patient-full-name").fill("سن تقریبی");
-  await expect(page.getByTestId("patient-dob")).toBeDisabled();
+  await expect(page.getByTestId("patient-dob-input")).toBeDisabled();
   await page.getByTestId("patient-age").fill("28");
   await page.getByTestId("patient-exact-birth").check();
   await expect(page.getByTestId("patient-age")).toBeDisabled();
-  await page.getByTestId("patient-dob").fill("1990-05-20");
+  await page.getByTestId("patient-dob-input").fill("1990-05-20");
   const now = new Date();
   let age = now.getFullYear() - 1990;
   if (now < new Date(now.getFullYear(), 4, 20)) age -= 1;
@@ -118,6 +118,7 @@ test("OF-020: an unfinished patient form comes back after leaving the page", asy
 
 test("OF-022 / OF-043: the export is a real Excel file, reported, and reads back with Persian text", async () => {
   await page.getByTestId("tab-patients").click();
+  await page.getByTestId("patients-more").click();
   await page.getByTestId("patients-export").click();
   await expect(page.getByTestId("export-done")).toBeVisible();
   await expect(page.getByTestId("export-done")).toContainText(".xlsx");
@@ -126,6 +127,7 @@ test("OF-022 / OF-043: the export is a real Excel file, reported, and reads back
   expect(newest).toBeTruthy();
   expect(fs.readFileSync(path.join(EXPORTS, newest)).subarray(0, 2).toString()).toBe("PK");
 
+  await page.getByTestId("patients-more").click();
   await page.getByTestId("patients-import-open").click();
   await page.getByTestId("import-file-input").setInputFiles(path.join(EXPORTS, newest));
   await expect(page.getByTestId("import-mapping")).toContainText("نام و تخلص");
@@ -134,6 +136,7 @@ test("OF-022 / OF-043: the export is a real Excel file, reported, and reads back
 });
 
 test("OF-042: a sheet without a title row is read as data, and the import says why it cannot run", async () => {
+  await page.getByTestId("patients-more").click();
   await page.getByTestId("patients-import-open").click();
   await page.getByTestId("import-file-input").setInputFiles(path.join(FIXTURES, "no-titles.xlsx"));
   await expect(page.getByTestId("import-has-header")).not.toBeChecked();
@@ -156,6 +159,7 @@ test("OF-042: a sheet without a title row is read as data, and the import says w
 });
 
 test("OF-042: a sheet with Dari titles maps itself and imports the valid rows", async () => {
+  await page.getByTestId("patients-more").click();
   await page.getByTestId("patients-import-open").click();
   await page.getByTestId("import-file-input").setInputFiles(path.join(FIXTURES, "dari-titles.xlsx"));
   await expect(page.getByTestId("import-has-header")).toBeChecked();

@@ -171,6 +171,7 @@ function ContactDialog({ recall, onClose, onConfirm }: { recall: RecallInfo; onC
       title={t("recall.contactTitle")}
       description={<span>{recall.patient_name} · <bdi className="ltr">{recall.patient_phone ?? "—"}</bdi></span>}
       onClose={onClose}
+      dismissOnScrim={false}
       testId="recall-contact-dialog"
       footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" icon={Phone} onClick={() => onConfirm(note.trim() || null)} data-testid="recall-contact-confirm">{t("recall.contacted")}</Button></>}
     >
@@ -222,6 +223,7 @@ export function RecallDialog({ recall, patient: fixed, calendar, canCreatePatien
       description={t("recall.addHint")}
       onClose={onClose}
       wide
+      dismissOnScrim={false}
       testId="recall-dialog"
       footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" loading={busy} onClick={submit} data-testid="recall-save">{t("common.save")}</Button></>}
     >

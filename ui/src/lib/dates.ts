@@ -21,6 +21,13 @@ export function monthName(calendar: CalendarSystem, month: number, lang: Languag
   return (calendar === "gregorian" ? GREGORIAN_MONTHS : SHAMSI_MONTHS)[lang][month - 1];
 }
 
+/** Short weekday names, Saturday first (the Afghan week), for calendar headers. */
+export const WEEKDAYS_SHORT: Record<Language, string[]> = {
+  fa: ["ش", "ی", "د", "س", "چ", "پ", "ج"],
+  ps: ["ش", "ی", "د", "س", "چ", "پ", "ج"],
+  en: ["Sa", "Su", "Mo", "Tu", "We", "Th", "Fr"],
+};
+
 /** Morning / afternoon markers (owner decision, ADR-07). */
 export const PERIODS: Record<Language, { am: string; pm: string }> = {
   fa: { am: "ق.ظ", pm: "ب.ظ" },

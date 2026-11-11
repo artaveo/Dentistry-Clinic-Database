@@ -43,6 +43,7 @@ export function MergeDialog({ patient, onClose, onMerged }: { patient: PatientIn
       title={t("patients.merge.title")}
       description={t("patients.merge.hint")}
       onClose={onClose}
+      dismissOnScrim={false}
       testId="merge-dialog"
       footer={
         <>

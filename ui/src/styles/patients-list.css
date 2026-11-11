@@ -1,0 +1,3 @@
+/* Patients list: keyboard focus on rows (B11) and the "showing X of N" footer (B2). */
+.patient-row:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: -2px; }
+.patients-list-foot { display: flex; align-items: center; gap: var(--space-3); }

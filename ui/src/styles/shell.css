@@ -1,0 +1,26 @@
+/* Shell: 7-item sidebar, Settings hub, appointments sub-tabs (U3). Loaded after styles.css. */
+
+/* One flat list of daily items, no group titles: 7 × 40px + footer fits 1366×768 without scrolling. */
+.app-sidebar .nav-group.nav-flat { margin-bottom: 0; gap: 4px; }
+
+/* Settings hub: section list on the start side, the chosen page beside it. */
+.settings-hub { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-5); align-items: start; width: 100%; max-width: calc(var(--content-max) + 260px); margin: 0 auto; padding: var(--space-7) var(--space-7) 0; }
+.hub-nav { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: 2px; padding: var(--space-2); border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--fill-subtle); }
+.hub-nav .t-overline { padding: var(--space-3) var(--space-3) var(--space-1); }
+.hub-nav .t-overline:first-child { padding-top: var(--space-1); }
+.hub-nav-item { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; padding: 0 var(--space-3); border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-2); font-weight: 500; text-align: start; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.hub-nav-item svg { width: 18px; height: 18px; flex: none; stroke-width: 1.8; }
+.hub-nav-item:hover { background: var(--fill-hover); color: var(--text); }
+.hub-nav-item[aria-current="page"] { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.hub-body { min-width: 0; }
+/* The embedded page keeps its own layout; only its outer padding is taken over by the hub. */
+.hub-body > .page { padding-inline: 0; padding-top: 0; max-width: none; }
+@media (max-width: 900px) {
+  .settings-hub { grid-template-columns: minmax(0, 1fr); padding-inline: var(--space-4); }
+  .hub-nav { position: static; flex-direction: row; flex-wrap: wrap; }
+  .hub-nav .t-overline { display: none; }
+}
+
+/* Appointments: calendar / queue / call list as tabs over the existing pages. */
+.appts-tabs { width: 100%; max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) var(--space-7) 0; }
+.appts-wrap > .page { padding-top: var(--space-4); }

@@ -152,6 +152,7 @@ function SupplierDialog({ supplier, onClose, onDone }: { supplier?: SupplierInfo
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t(supplier ? "supplier.edit" : "supplier.new")}
       onClose={onClose}
       testId="supplier-dialog"
@@ -327,6 +328,7 @@ function PayDialog({ supplier, calendar, onClose, onDone }: { supplier: Supplier
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t("supplier.pay")}
       description={`${supplier.name} · ${t("supplier.balance")}: ${formatAmount(supplier.balance, lang)}`}
       onClose={onClose}

@@ -8,6 +8,7 @@ import { Button, IconButton } from "../../ui/Button";
 import { Card, CardHeader } from "../../ui/Card";
 import { EmptyState, ErrorState, SkeletonRows } from "../../ui/Feedback";
 import { useToast } from "../../ui/Toast";
+import { useConfirm } from "../../ui/ConfirmDialog";
 import { UploadAttachmentDialog } from "./UploadAttachmentDialog";
 import { AttachmentViewer } from "./AttachmentViewer";
 
@@ -27,6 +28,7 @@ function isImage(mime: string) {
 export function AttachmentsTab({ patientId, canEdit }: { patientId: string; canEdit: boolean }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const [items, setItems] = useState<AttachmentInfo[] | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -49,7 +51,7 @@ export function AttachmentsTab({ patientId, canEdit }: { patientId: string; canE
   }, [patientId]);
 
   const remove = async (a: AttachmentInfo) => {
-    if (!window.confirm(t("attachments.deleteConfirm"))) return;
+    if (!(await confirm({ title: t("cleanup.confirm.title"), text: t("attachments.deleteConfirm"), confirm: t("common.delete"), danger: true }))) return;
     await rpc("attachments.delete", { id: a.id, version: a.version });
     toast.success(t("attachments.deleted"));
     load();
@@ -81,6 +83,7 @@ export function AttachmentsTab({ patientId, canEdit }: { patientId: string; canE
       {items?.length === 0 && !error && <EmptyState icon={Images} title={t("attachments.empty")} />}
       {uploading && <UploadAttachmentDialog patientId={patientId} onClose={() => setUploading(false)} onUploaded={() => { setUploading(false); load(); }} />}
       {viewing && <AttachmentViewer attachment={viewing} onClose={() => setViewing(null)} />}
+      {dialog}
     </Card>
   );
 }

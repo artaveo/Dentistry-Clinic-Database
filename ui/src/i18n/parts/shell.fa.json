@@ -1,0 +1,10 @@
+{
+  "hub.general": "تنظیمات عمومی",
+  "hub.nav": "بخش‌های تنظیمات",
+  "appts.subnav": "بخش‌های نوبت‌ها",
+  "appts.sub.calendar": "تقویم نوبت‌ها",
+  "palette.group.actions": "کارها",
+  "palette.newPatient": "بیمار جدید",
+  "palette.newAppointment": "نوبت جدید",
+  "palette.receivePayment": "دریافت پول"
+}

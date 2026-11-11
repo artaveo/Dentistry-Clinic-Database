@@ -1,0 +1,9 @@
+{
+  "stock.receive.newItem": "+ نوی توکی",
+  "stock.receive.noItems": "تر اوسه هیڅ توکی نه دی ثبت شوی",
+  "stock.receive.noItemsHint": "د سټاک د ترلاسه کولو لپاره لومړی توکی ورزیات کړئ.",
+  "stock.receive.addItem": "توکی ورزیاتول",
+  "stock.receive.noMatch": "د دې نوم توکی ونه موندل شو",
+  "stock.receive.moreOptions": "نور انتخابونه",
+  "stock.receive.lessOptions": "لږ انتخابونه"
+}

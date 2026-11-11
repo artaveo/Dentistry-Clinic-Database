@@ -751,12 +751,7 @@ pub fn login(conn: &Connection, username: &str, password: &str) -> Result<UserIn
         }
     }
     if !c.is_active || !verify_password(&c.hash, password) {
-        let failed = c.failed + 1;
-        let lock = (failed >= MAX_FAILED_ATTEMPTS).then(|| iso(now() + Duration::minutes(LOCKOUT_MINUTES)));
-        conn.execute(
-            "UPDATE app_user SET failed_attempts = ?1, locked_until = ?2 WHERE id = ?3",
-            params![if lock.is_some() { 0 } else { failed }, lock, c.id],
-        )?;
+        let (failed, lock) = register_failure(conn, &c.id, c.failed)?;
         audit::record(
             conn,
             &actor,
@@ -771,6 +766,40 @@ pub fn login(conn: &Connection, username: &str, password: &str) -> Result<UserIn
     conn.execute("UPDATE app_user SET failed_attempts = 0, locked_until = NULL WHERE id = ?1", [&c.id])?;
     audit::record(conn, &actor, "auth.login", Some("app_user"), Some(&c.id), None, None)?;
     get_user(conn, &c.id)
+}
+
+/// Counts one more wrong password for the user. After `MAX_FAILED_ATTEMPTS` the account is locked for
+/// `LOCKOUT_MINUTES` and the counter starts again. Returns the attempt number and the lock end, if any.
+fn register_failure(conn: &Connection, user_id: &str, failed_before: i64) -> Result<(i64, Option<String>)> {
+    let failed = failed_before + 1;
+    let lock = (failed >= MAX_FAILED_ATTEMPTS).then(|| iso(now() + Duration::minutes(LOCKOUT_MINUTES)));
+    conn.execute(
+        "UPDATE app_user SET failed_attempts = ?1, locked_until = ?2 WHERE id = ?3",
+        params![if lock.is_some() { 0 } else { failed }, lock, user_id],
+    )?;
+    Ok((failed, lock))
+}
+
+/// Checks the password typed on the lock screen with the same failed-attempt counter and lockout as
+/// `login`. While the account is locked it fails with `AccountLocked` without checking the password;
+/// a wrong password counts as a failed attempt (and may start the lockout); a right one clears the counter.
+pub fn verify_unlock(conn: &Connection, user_id: &str, password: &str) -> Result<bool> {
+    let (hash, failed, locked_until): (String, i64, Option<String>) = conn.query_row(
+        "SELECT password_hash, failed_attempts, locked_until FROM app_user WHERE id = ?1",
+        [user_id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+    )?;
+    if let Some(until) = locked_until.as_deref().and_then(parse) {
+        if until > now() {
+            return Err(CoreError::api(ErrorCode::AccountLocked, format!("locked until {}", iso(until))));
+        }
+    }
+    if verify_password(&hash, password) {
+        conn.execute("UPDATE app_user SET failed_attempts = 0, locked_until = NULL WHERE id = ?1", [user_id])?;
+        return Ok(true);
+    }
+    register_failure(conn, user_id, failed)?;
+    Ok(false)
 }
 
 pub fn check_password(conn: &Connection, user_id: &str, password: &str) -> Result<bool> {

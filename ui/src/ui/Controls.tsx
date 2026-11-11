@@ -46,7 +46,7 @@ export function Segmented<V extends string>({ value, onChange, options, label, b
   return (
     <div className={["segmented", block && "block"].filter(Boolean).join(" ")} role="radiogroup" aria-label={label}>
       {options.map((o) => (
-        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} aria-pressed={value === o.value} onClick={() => onChange(o.value)} data-testid={o.testId}>
+        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)} data-testid={o.testId}>
           {o.icon && <o.icon aria-hidden />}
           {o.label}
         </button>
@@ -62,7 +62,7 @@ export function OptionCards<V extends string>({ value, onChange, options, label,
   return (
     <div className="options" role="radiogroup" aria-label={label} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
       {options.map((o) => (
-        <button key={o.value} type="button" className="option" role="radio" aria-checked={value === o.value} aria-pressed={value === o.value} disabled={o.disabled} onClick={() => onChange(o.value)} data-testid={o.testId}>
+        <button key={o.value} type="button" className="option" role="radio" aria-checked={value === o.value} disabled={o.disabled} onClick={() => onChange(o.value)} data-testid={o.testId}>
           {o.icon && <span className="option-icon"><o.icon aria-hidden /></span>}
           <span className="option-body">
             <span className="option-title">{o.title}{o.badge}</span>

@@ -1,8 +1,8 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import type { Dentition } from "../../../shared/ts/contract";
-import { BANDS, CHART_W, NUM_H, OCC_H, layout, occlusal, place, shapesOf } from "./geometry";
-import type { Placer, Slot, Surface } from "./geometry";
+import { CHART_W, NUM_H, OCC_H, bandsFor, layout, occlusal, place, shapesOf } from "./geometry";
+import type { Bands, Placer, Slot, Surface } from "./geometry";
 import type { ChartState, ChartView, ToothLayers } from "./model";
 
 /** One label outside the chart: "۳۶ — عصب‌کشی — جلسه ۲ از ۳ — در حال انجام" (owner's idea, M5). */
@@ -38,6 +38,12 @@ type Props = {
   onTooth: (fdi: number, mode: "single" | "toggle" | "range") => void;
   onSurface: (fdi: number, s: Surface) => void;
   testId?: string;
+  /** Draw the biting-surface row too (default). Off: the compact chart of the patient profile (U1). */
+  showOcclusal?: boolean;
+  /** Scale the chart by the height its container gives (the container must have a fixed height), not only by the width. */
+  fitHeight?: boolean;
+  /** Most label rows above and below the chart (default 4; the compact chart uses 1). */
+  maxRows?: number;
 };
 
 const ROW_H = 26;
@@ -70,7 +76,7 @@ type Placed = Callout & { x: number; w: number; row: number; anchor: number; upp
  * labels before it allow; a row that is full sends the label to the next one. Leader lines run under the
  * labels' solid backgrounds, so no line is ever drawn across a label's text.
  */
-function placeLabels(items: (Callout & { anchor: number; upper: boolean })[], width: number): { placed: Placed[]; rows: { upper: number; lower: number }; hidden: number } {
+function placeLabels(items: (Callout & { anchor: number; upper: boolean })[], width: number, maxRows: number): { placed: Placed[]; rows: { upper: number; lower: number }; hidden: number } {
   const placed: Placed[] = [];
   let hidden = 0;
   const rows = { upper: 0, lower: 0 };
@@ -82,7 +88,7 @@ function placeLabels(items: (Callout & { anchor: number; upper: boolean })[], wi
       const w = Math.min(width * 0.46, Math.ceil(textWidth(c.head, HEAD_FONT) + textWidth(c.text) + 46));
       const want = Math.max(6, Math.min(width - 6 - w, c.anchor - w / 2));
       let done = false;
-      for (let r = 0; r < MAX_ROWS && !done; r++) {
+      for (let r = 0; r < maxRows && !done; r++) {
         const end = ends[r] ?? -Infinity;
         const x = Math.max(want, end + 6);
         if (x + w <= width - 6 && x - want <= width * 0.3) {
@@ -114,15 +120,20 @@ const STATE_VAR: Record<ChartState, string> = {
 export function Odontogram(p: Props) {
   const uid = useId().replace(/:/g, "");
   const box = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(1000);
+  const [size, setSize] = useState({ w: 1000, h: 0 });
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(Math.max(320, el.clientWidth)));
+    const measure = () => {
+      const next = { w: Math.max(320, el.clientWidth), h: el.clientHeight };
+      setSize((cur) => (cur.w === next.w && cur.h === next.h ? cur : next));
+    };
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    setWidth(Math.max(320, el.clientWidth));
+    measure();
     return () => ro.disconnect();
   }, []);
+  const width = size.w;
   const [hover, setHover] = useState<number | null>(null);
   const [hoverLabel, setHoverLabel] = useState<string | null>(null);
   const [fontsReady, setFontsReady] = useState(0);
@@ -131,25 +142,48 @@ export function Odontogram(p: Props) {
   }, []);
   const { upper, lower } = useMemo(() => layout(p.dentition, p.primarySlots), [p.dentition, p.primarySlots]);
   const slots = useMemo(() => new Map([...upper, ...lower].map((s) => [s.fdi, s])), [upper, lower]);
-  const s = width / CHART_W;
-  const center = (fdi: number) => {
+  const showOcc = p.showOcclusal ?? true;
+  const BANDS: Bands = useMemo(() => bandsFor(showOcc), [showOcc]);
+  const maxRows = p.maxRows ?? MAX_ROWS;
+  const centerAt = (sc: number) => (fdi: number) => {
     const sl = slots.get(fdi);
-    return sl ? (sl.x + sl.w / 2) * s : null;
+    return sl ? (sl.x + sl.w / 2) * sc : null;
   };
-
-  const shown = p.callouts
-    .filter((c) => (p.labels === "all" && !c.finding) || c.teeth.some((t) => p.selected.includes(t)))
-    .map((c) => {
-      const xs = c.teeth.map(center).filter((x): x is number => x != null);
-      const up = c.teeth.filter((t) => slots.get(t)?.info.upper).length >= c.teeth.length / 2;
-      return xs.length ? { ...c, anchor: xs.reduce((a, b) => a + b, 0) / xs.length, upper: up } : null;
-    })
-    .filter((c): c is Callout & { anchor: number; upper: boolean } => !!c);
-  const { placed, rows, hidden } = useMemo(() => placeLabels(shown, width), [JSON.stringify(shown.map((c) => [c.key, c.anchor, c.text, c.head])), width, fontsReady]);
+  // The callouts at a scale: each one's anchor is the middle of its teeth.
+  const shownAt = (sc: number) => {
+    const c0 = centerAt(sc);
+    return p.callouts
+      .filter((c) => (p.labels === "all" && !c.finding) || c.teeth.some((t) => p.selected.includes(t)))
+      .map((c) => {
+        const xs = c.teeth.map(c0).filter((x): x is number => x != null);
+        const up = c.teeth.filter((t) => slots.get(t)?.info.upper).length >= c.teeth.length / 2;
+        return xs.length ? { ...c, anchor: xs.reduce((a, b) => a + b, 0) / xs.length, upper: up } : null;
+      })
+      .filter((c): c is Callout & { anchor: number; upper: boolean } => !!c);
+  };
+  const sig = (list: (Callout & { anchor: number })[]) => JSON.stringify(list.map((c) => [c.key, c.anchor, c.text, c.head]));
   // With a 1–8 numbering, a row naming the quadrants sits between the tooth numbers and the labels.
   const quadH = p.quadrantLabels ? QUAD_H : 0;
-  const topBand = (rows.upper ? rows.upper * ROW_H + 18 : 8) + quadH;
-  const bottomBand = (rows.lower ? rows.lower * ROW_H + 18 : 8) + quadH;
+  const bandsOf = (r: { upper: number; lower: number }) => ({
+    top: (r.upper ? r.upper * ROW_H + 18 : 8) + quadH,
+    bottom: (r.lower ? r.lower * ROW_H + 18 : 8) + quadH,
+  });
+
+  // First by the width alone; when the height is the tighter limit (compact chart, no page scroll) the
+  // scale shrinks to what is left of it after the label rows, and the labels are placed again at that scale.
+  const sWidth = width / CHART_W;
+  const shown1 = shownAt(sWidth);
+  const first = useMemo(() => placeLabels(shown1, width, maxRows), [sig(shown1), width, maxRows, fontsReady]);
+  const b1 = bandsOf(first.rows);
+  const fit = !!p.fitHeight && size.h > 0;
+  const s = fit ? Math.max(0.2, Math.min(sWidth, (size.h - b1.top - b1.bottom) / BANDS.height)) : sWidth;
+  const drawW = CHART_W * s;
+  const offX = (width - drawW) / 2;
+  const shown2 = s === sWidth ? shown1 : shownAt(s);
+  const second = useMemo(() => (s === sWidth ? first : placeLabels(shown2, drawW, maxRows)), [s === sWidth, first, sig(shown2), drawW, maxRows, fontsReady]);
+  const { placed, rows, hidden } = second;
+  const center = centerAt(s);
+  const { top: topBand, bottom: bottomBand } = bandsOf(rows);
   const chartH = BANDS.height * s;
   const height = topBand + chartH + bottomBand;
   const y = (v: number) => topBand + v * s;
@@ -168,6 +202,7 @@ export function Odontogram(p: Props) {
     <div className="odo" ref={box} data-testid={p.testId ?? "odontogram"} data-view={p.view}>
       <svg className="odo-svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={p.ariaLabel}>
         <Defs uid={uid} />
+        <g transform={offX ? `translate(${offX} 0)` : undefined}>
         {/* Leader lines first: the labels' solid chips are drawn over them. */}
         <g className="odo-leaders">
           {placed.map((c) => {
@@ -191,14 +226,16 @@ export function Odontogram(p: Props) {
         </g>
 
         <g transform={`translate(0 ${topBand}) scale(${s})`}>
-          <Guides uid={uid} sideLabels={p.sideLabels} />
-          <GumBand uid={uid} slots={upper} />
-          <GumBand uid={uid} slots={lower} />
+          <Guides sideLabels={p.sideLabels} B={BANDS} />
+          <GumBand uid={uid} slots={upper} B={BANDS} />
+          <GumBand uid={uid} slots={lower} B={BANDS} />
           {[...upper, ...lower].map((slot) => (
             <ToothColumn
               key={slot.fdi}
               uid={uid}
               slot={slot}
+              B={BANDS}
+              showOcc={showOcc}
               layers={p.layers.get(slot.fdi)}
               view={p.view}
               selected={p.selected.includes(slot.fdi)}
@@ -212,7 +249,7 @@ export function Odontogram(p: Props) {
               onSurface={(srf) => p.onSurface(slot.fdi, srf)}
             />
           ))}
-          <SpanOverlay spans={p.spans} slots={slots} />
+          <SpanOverlay spans={p.spans} slots={slots} B={BANDS} />
         </g>
 
         {/* Tooth numbers, outside the drawing (FDI by default, ADR-14), at screen size. */}
@@ -248,9 +285,9 @@ export function Odontogram(p: Props) {
               const w = textWidth(label, QUAD_FONT) + 22;
               return (
                 <g key={i}>
-                  <line x1={fx < 0.5 ? 10 : width / 2 + 10} x2={fx < 0.5 ? width / 2 - 10 : width - 10} y1={cy} y2={cy} className="odo-quadrant-rule" />
-                  <rect x={width * fx - w / 2} y={cy - 9} width={w} height={18} rx={9} className="odo-quadrant-chip" />
-                  <text x={width * fx} y={cy + 4} textAnchor="middle" className="odo-quadrant">{label}</text>
+                  <line x1={fx < 0.5 ? 10 : drawW / 2 + 10} x2={fx < 0.5 ? drawW / 2 - 10 : drawW - 10} y1={cy} y2={cy} className="odo-quadrant-rule" />
+                  <rect x={drawW * fx - w / 2} y={cy - 9} width={w} height={18} rx={9} className="odo-quadrant-chip" />
+                  <text x={drawW * fx} y={cy + 4} textAnchor="middle" className="odo-quadrant">{label}</text>
                 </g>
               );
             })}
@@ -277,6 +314,7 @@ export function Odontogram(p: Props) {
               </foreignObject>
             );
           })}
+        </g>
         </g>
       </svg>
       {hidden > 0 && <div className="odo-hidden" data-testid="odo-hidden">+{hidden}</div>}
@@ -338,14 +376,14 @@ function Defs({ uid }: { uid: string }) {
 }
 
 /** Midline, occlusal plane and which side is the patient's right. */
-function Guides({ sideLabels }: { uid: string; sideLabels: { right: string; left: string } }) {
+function Guides({ sideLabels, B }: { sideLabels: { right: string; left: string }; B: Bands }) {
   const cx = CHART_W / 2;
   return (
     <g className="odo-guides" aria-hidden>
-      <line x1={cx} x2={cx} y1={BANDS.upperSideTop - 4} y2={BANDS.lowerNum + 4} className="odo-midline" />
-      <line x1={14} x2={CHART_W - 14} y1={BANDS.midY} y2={BANDS.midY} className="odo-occlusal-plane" />
-      <text x={22} y={BANDS.midY + 4} className="odo-side" textAnchor="start" direction="ltr">{sideLabels.right}</text>
-      <text x={CHART_W - 22} y={BANDS.midY + 4} className="odo-side" textAnchor="end" direction="ltr">{sideLabels.left}</text>
+      <line x1={cx} x2={cx} y1={B.upperSideTop - 4} y2={B.lowerNum + 4} className="odo-midline" />
+      <line x1={14} x2={CHART_W - 14} y1={B.midY} y2={B.midY} className="odo-occlusal-plane" />
+      <text x={22} y={B.midY + 4} className="odo-side" textAnchor="start" direction="ltr">{sideLabels.right}</text>
+      <text x={CHART_W - 22} y={B.midY + 4} className="odo-side" textAnchor="end" direction="ltr">{sideLabels.left}</text>
     </g>
   );
 }
@@ -355,9 +393,11 @@ function fillOf(uid: string, st: ChartState): string {
   return st === "planned" ? `url(#${uid}-hatch-planned)` : STATE_VAR[st];
 }
 
-function ToothColumn({ uid, slot, layers, view, selected, highlighted, selectedSurfaces, title, onClick, onKey, onEnter, onLeave, onSurface }: {
+function ToothColumn({ uid, slot, B, showOcc, layers, view, selected, highlighted, selectedSurfaces, title, onClick, onKey, onEnter, onLeave, onSurface }: {
   uid: string;
   slot: Slot;
+  B: Bands;
+  showOcc: boolean;
   layers: ToothLayers | undefined;
   view: ChartView;
   selected: boolean;
@@ -371,8 +411,8 @@ function ToothColumn({ uid, slot, layers, view, selected, highlighted, selectedS
   onSurface: (s: Surface) => void;
 }) {
   const upper = slot.info.upper;
-  const P = place(slot, upper ? BANDS.upperEdge : BANDS.lowerEdge);
-  const occ = occlusal(slot, upper ? BANDS.upperOccTop : BANDS.lowerOccTop);
+  const P = place(slot, upper ? B.upperEdge : B.lowerEdge);
+  const occ = showOcc ? occlusal(slot, upper ? B.upperOccTop : B.lowerOccTop) : null;
   const sh = shapesOf(slot.info);
   const L = layers;
   const dim = view !== "general" && view !== "perio" && !L?.relevant;
@@ -381,8 +421,8 @@ function ToothColumn({ uid, slot, layers, view, selected, highlighted, selectedS
   const artificial = !!L?.pontic || (!!L?.denture && !!L?.ghost);
   const crownPath = P.path(sh.crown);
   const clip = `${uid}-clip-${slot.fdi}`;
-  const colTop = upper ? BANDS.upperNum : BANDS.lowerOccTop - 2;
-  const colBottom = upper ? BANDS.upperOccTop + OCC_H + 2 : BANDS.lowerNum + NUM_H;
+  const colTop = upper ? B.upperNum : (showOcc ? B.lowerOccTop : B.lowerEdge) - 2;
+  const colBottom = upper ? (showOcc ? B.upperOccTop + OCC_H : B.upperEdge) + 2 : B.lowerNum + NUM_H;
   const tilt = L?.impacted ? `rotate(${upper ? -12 : 12} ${P.x(0.5)} ${P.y(0.3)})` : undefined;
 
   return (
@@ -429,7 +469,7 @@ function ToothColumn({ uid, slot, layers, view, selected, highlighted, selectedS
       </g>
 
       {/* biting surface and its five surfaces */}
-      <g className="odo-occ-view">
+      {occ && <g className="odo-occ-view">
         {ghost ? (
           <path className="odo-ghost" d={occ.outline} onClick={onClick} />
         ) : (
@@ -464,7 +504,7 @@ function ToothColumn({ uid, slot, layers, view, selected, highlighted, selectedS
           </>
         )}
         {L?.extraction && <Cross x1={occ.cx - occ.a * 0.7} x2={occ.cx + occ.a * 0.7} y1={occ.cy - occ.b * 0.8} y2={occ.cy + occ.b * 0.8} state={L.extraction} />}
-      </g>
+      </g>}
     </g>
   );
 }
@@ -473,10 +513,10 @@ function ToothColumn({ uid, slot, layers, view, selected, highlighted, selectedS
  * The gum of one jaw: a soft band behind the roots, fading towards the apices, its edge following the
  * necks of the teeth with a papilla between each two (gives the chart its "mouth").
  */
-function GumBand({ uid, slots }: { uid: string; slots: Slot[] }) {
+function GumBand({ uid, slots, B }: { uid: string; slots: Slot[]; B: Bands }) {
   if (!slots.length) return null;
   const upper = slots[0].info.upper;
-  const edge = upper ? BANDS.upperEdge : BANDS.lowerEdge;
+  const edge = upper ? B.upperEdge : B.lowerEdge;
   const dir = upper ? -1 : 1;
   const cej = (s: Slot) => edge + dir * s.crownH;
   const depth = Math.max(...slots.map((s) => s.crownH + s.rootH * 0.5));
@@ -583,14 +623,14 @@ function Implant({ P, uid, layers, crownPath }: { P: Placer; uid: string; layers
 }
 
 /** Bridges joined across their teeth, the wire through brackets, the denture base under its teeth. */
-function SpanOverlay({ spans, slots }: { spans: Span[]; slots: Map<number, Slot> }) {
+function SpanOverlay({ spans, slots, B }: { spans: Span[]; slots: Map<number, Slot>; B: Bands }) {
   return (
     <g className="odo-spans odo-nopointer">
       {spans.map((sp) => {
         const list = sp.teeth.map((t) => slots.get(t)).filter((x): x is Slot => !!x).sort((a, b) => a.x - b.x);
         if (list.length < 2) return null;
         const upper = list[0].info.upper;
-        const edge = upper ? BANDS.upperEdge : BANDS.lowerEdge;
+        const edge = upper ? B.upperEdge : B.lowerEdge;
         const st = STATE_VAR[sp.state];
         if (sp.symbol === "bridge") {
           const yv = (sl: Slot) => (upper ? edge - sl.crownH * 0.55 : edge + sl.crownH * 0.55);

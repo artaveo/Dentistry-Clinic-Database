@@ -14,6 +14,7 @@ import { Badge, ErrorState, Notice, SkeletonRows } from "../ui/Feedback";
 import { Dialog } from "../ui/Overlay";
 import { TranslationsField } from "../ui/TranslationsField";
 import { useToast } from "../ui/Toast";
+import { useConfirm } from "../ui/ConfirmDialog";
 import { CHART_SYMBOLS } from "../chart/model";
 import { NOTE_FIELDS } from "./patients/clinical/NotesTab";
 import { emptyTranslations, hasText, useFailure, useList } from "./clinicalListsShared";
@@ -156,6 +157,7 @@ export function NoteTemplatesTab() {
 
 function NoteTemplateDialog({ x, onClose, onSaved }: { x?: NoteTemplateInfo; onClose: () => void; onSaved: () => void }) {
   const { t, lang: uiLang } = useI18n();
+  const { confirm, dialog } = useConfirm();
   const fail = useFailure();
   const [name, setName] = useState<Translations>(x?.name ?? emptyTranslations);
   const [body, setBody] = useState<NoteTemplateTexts>(x?.body ?? { fa: { ...EMPTY_FIELDS }, ps: { ...EMPTY_FIELDS }, en: { ...EMPTY_FIELDS } });
@@ -179,7 +181,7 @@ function NoteTemplateDialog({ x, onClose, onSaved }: { x?: NoteTemplateInfo; onC
     }
   };
   const reset = async () => {
-    if (!x || !window.confirm(t("clinical.templates.resetConfirm"))) return;
+    if (!x || !(await confirm({ title: t("cleanup.confirm.title"), text: t("clinical.templates.resetConfirm") }))) return;
     setBusy("reset");
     try {
       await rpc("note_templates.reset", { id: x.id, version: x.version });
@@ -217,6 +219,7 @@ function NoteTemplateDialog({ x, onClose, onSaved }: { x?: NoteTemplateInfo; onC
         </div>
         <Notice tone="info">{t("clinical.notes.languagesHint")}</Notice>
         {x && <Switch checked={active} onChange={setActive} label={t("clinical.active")} testId="note-template-active" />}
+        {dialog}
       </div>
     </Dialog>
   );

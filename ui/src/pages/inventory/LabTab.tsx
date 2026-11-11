@@ -209,6 +209,7 @@ function LabCaseDialog({ item, calendar, canCreatePatients, onClose, onDone }: {
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t(item ? "labcase.edit" : "labcase.new")}
       description={item?.number}
       onClose={onClose}
@@ -297,6 +298,7 @@ function StatusDialog({ item, to, calendar, onClose, onDone }: { item: LabCaseIn
   };
   return (
     <Dialog
+      dismissOnScrim={false}
       title={t(`labcase.action.${to}`)}
       description={`${item.number} · ${item.patient_name} · ${item.work_type}`}
       onClose={onClose}

@@ -10,7 +10,7 @@ import { todayIso } from "../../../lib/calendar";
 import { useI18n } from "../../../i18n";
 import { Button, IconButton } from "../../../ui/Button";
 import { Card, CardHeader } from "../../../ui/Card";
-import { Switch } from "../../../ui/Controls";
+import { ConfirmDialog, useConfirm } from "../../../ui/ConfirmDialog";
 import { DateField } from "../../../ui/DateField";
 import { Field, Select, Textarea, TextInput } from "../../../ui/Field";
 import { Badge, EmptyState, ErrorState, Loading, Notice } from "../../../ui/Feedback";
@@ -222,6 +222,7 @@ function ItemRow({ item, plan, patient, clinic, canEdit, calendar, booking, clin
 }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const catalog = useCatalog();
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -264,7 +265,7 @@ function ItemRow({ item, plan, patient, clinic, canEdit, calendar, booking, clin
           {canEdit && open && <IconButton icon={CalendarCheck2} size="sm" label={t("item.recordSession")} onClick={() => setRecording(true)} data-testid={`item-record-${item.id}`} />}
           {booking.edit && open && remaining > 0 && <IconButton icon={CalendarPlus} size="sm" label={t("item.bookSession")} onClick={() => setBook(true)} data-testid={`item-book-${item.id}`} />}
           {canEdit && open && <IconButton icon={Pencil} size="sm" label={t("common.edit")} onClick={() => setEditing(true)} data-testid={`item-edit-${item.id}`} />}
-          {canEdit && open && <IconButton icon={CheckCheck} size="sm" label={t("item.complete")} onClick={() => window.confirm(t("item.completeConfirm")) && setStatus("completed").catch(() => {})} data-testid={`item-complete-${item.id}`} />}
+          {canEdit && open && <IconButton icon={CheckCheck} size="sm" label={t("item.complete")} onClick={async () => { if (await confirm({ title: t("cleanup.confirm.title"), text: t("item.completeConfirm") })) setStatus("completed").catch(() => {}); }} data-testid={`item-complete-${item.id}`} />}
           {canEdit && open && <IconButton icon={Ban} size="sm" label={t("item.cancel")} onClick={() => setCancelling(true)} data-testid={`item-cancel-${item.id}`} />}
           {canEdit && item.status === "cancelled" && (!plan || (plan.status !== "cancelled" && plan.status !== "completed")) && <IconButton icon={Undo2} size="sm" label={t("item.restore")} onClick={() => setStatus("planned").catch(() => {})} data-testid={`item-restore-${item.id}`} />}
         </span>
@@ -284,6 +285,7 @@ function ItemRow({ item, plan, patient, clinic, canEdit, calendar, booking, clin
         )}
         {book && <BookSession item={item} patient={patient} clinic={clinic} calendar={calendar} booking={booking} clinicName={clinicName} onClose={() => setBook(false)} onBooked={onChanged} />}
         {cancelling && <ReasonDialog title={t("item.cancelTitle")} hint={t("item.cancelHint")} confirm={t("item.cancel")} onClose={() => setCancelling(false)} onConfirm={(reason) => setStatus("cancelled", reason).then(() => setCancelling(false))} testId="item-cancel-dialog" />}
+        {dialog}
       </td>
     </tr>
   );
@@ -656,25 +658,6 @@ function RenameDialog({ plan, onClose, onSaved }: { plan: TreatmentPlanInfo; onC
         <Field label={t("plan.notes")} optional>
           <Textarea rows={3} value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} />
         </Field>
-      </div>
-    </Dialog>
-  );
-}
-
-function ConfirmDialog({ title, text, switchLabel, confirm, onClose, onConfirm, testId }: { title: string; text: string; switchLabel: string; confirm: string; onClose: () => void; onConfirm: (flag: boolean) => Promise<unknown>; testId: string }) {
-  const { t } = useI18n();
-  const [flag, setFlag] = useState(true);
-  const [busy, setBusy] = useState(false);
-  return (
-    <Dialog
-      title={title}
-      onClose={onClose}
-      testId={testId}
-      footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" loading={busy} onClick={() => { setBusy(true); onConfirm(flag).catch(() => {}).finally(() => setBusy(false)); }} data-testid={`${testId}-confirm`}>{confirm}</Button></>}
-    >
-      <div className="stack">
-        <p>{text}</p>
-        <Switch checked={flag} onChange={setFlag} label={switchLabel} testId={`${testId}-switch`} />
       </div>
     </Dialog>
   );

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Archive, CalendarDays, DatabaseBackup, Printer, Save, ShieldCheck, Stethoscope, Timer } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import { CalendarDays, Printer, Save, ShieldCheck, Stethoscope, Timer } from "lucide-react";
 import { isDesktop, listPrinters, loadProfile, saveProfile, type PrintProfile } from "../print/engine";
 import { invalidateLetterhead } from "../print/letterhead";
 import { Select } from "../ui/Field";
@@ -15,8 +16,39 @@ import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
 import { Field, TextInput } from "../ui/Field";
 import { Segmented } from "../ui/Controls";
 import { ErrorState, Loading, Notice } from "../ui/Feedback";
-import { HourPicker12 } from "../ui/TimePicker";
 import { useToast } from "../ui/Toast";
+
+/** One entry of the Settings hub: an existing page, embedded unchanged. `group` is a translated heading. */
+export type HubSection = { id: string; group: string; label: string; icon: LucideIcon; render: () => ReactNode };
+
+/**
+ * U3: everything that is not daily work (clinic, doctors, services, lists, users, backup, licence, audit,
+ * network, about) lives here as a list of sections; the chosen section's own page is shown beside the list.
+ * The caller already filtered `sections` by permission.
+ */
+export function SettingsHub({ sections, active, onSelect }: { sections: HubSection[]; active: string; onSelect: (id: string) => void }) {
+  const { t } = useI18n();
+  const current = sections.find((s) => s.id === active) ?? sections[0];
+  return (
+    <div className="settings-hub" data-testid="page-settings-hub">
+      <nav className="hub-nav" aria-label={t("hub.nav")}>
+        {sections.map((s, i) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.id} style={{ display: "contents" }}>
+              {(i === 0 || sections[i - 1].group !== s.group) && <span className="t-overline">{s.group}</span>}
+              <button type="button" className="hub-nav-item" aria-current={current.id === s.id ? "page" : undefined} onClick={() => onSelect(s.id)} data-testid={`tab-${s.id}`}>
+                <Icon aria-hidden />
+                <span>{s.label}</span>
+              </button>
+            </div>
+          );
+        })}
+      </nav>
+      <div className="hub-body" key={current.id}>{current.render()}</div>
+    </div>
+  );
+}
 
 export function SettingsPage() {
   const { err } = useI18n();
@@ -35,11 +67,9 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const form = useForm(
-    { session_timeout_minutes: digits(initial.session_timeout_minutes, lang), backup_keep_daily: digits(initial.backup_keep_daily, lang) },
-    { session_timeout_minutes: v.intRange(1, 240, "rule.session_timeout_range"), backup_keep_daily: v.intRange(1, 365, "rule.backup_keep_range") },
+    { session_timeout_minutes: digits(initial.session_timeout_minutes, lang) },
+    { session_timeout_minutes: v.intRange(1, 240, "rule.session_timeout_range") },
   );
-  const [hour, setHour] = useState(initial.daily_backup_hour);
-  const [hourError, setHourError] = useState("");
   const [snap, setSnap] = useState(initial.calendar_snap_minutes);
   const [brandFooter, setBrandFooter] = useState(initial.print_brand_footer);
   const [restrict, setRestrict] = useState(initial.restrict_service_specialty);
@@ -56,7 +86,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
   };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const e = (k: "session_timeout_minutes" | "backup_keep_daily") => form.error(k) && t(form.error(k)!);
+  const e = (k: "session_timeout_minutes") => form.error(k) && t(form.error(k)!);
 
   const save = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -66,8 +96,9 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
     try {
       const saved = await rpc("settings.update", {
         session_timeout_minutes: Number(latinDigits(form.values.session_timeout_minutes)),
-        daily_backup_hour: hour,
-        backup_keep_daily: Number(latinDigits(form.values.backup_keep_daily)),
+        // The backup schedule is edited on the Backup page only; the saved values are sent back as they are.
+        daily_backup_hour: initial.daily_backup_hour,
+        backup_keep_daily: initial.backup_keep_daily,
         calendar_snap_minutes: snap,
         print_brand_footer: brandFooter,
         restrict_service_specialty: restrict,
@@ -80,8 +111,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
       window.dispatchEvent(new Event(SESSION_CHECK_EVENT));
       toast.success(t("common.saved"));
     } catch (x) {
-      if (x && (x as { field?: string }).field === "daily_backup_hour") setHourError(t("rule.backup_hour_range"));
-      else if (!form.serverError(x)) setError(err(x));
+      if (!form.serverError(x)) setError(err(x));
     } finally {
       setBusy(false);
     }
@@ -97,17 +127,6 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
           <div className="grid-2">
             <Field label={t("settings.timeout")} hint={t("hint.timeout")} error={e("session_timeout_minutes")}>
               <TextInput icon={Timer} inputMode="numeric" suffix={t("common.minutes")} value={form.values.session_timeout_minutes} onChange={(x) => form.set("session_timeout_minutes", x.target.value)} data-testid="setting-session_timeout_minutes" />
-            </Field>
-          </div>
-        </Card>
-        <Card>
-          <CardHeader icon={DatabaseBackup} title={t("settings.backup")} description={t("settings.backupHint")} />
-          <div className="grid-2">
-            <Field label={t("settings.backupHour")} hint={t("hint.backupHour")} error={hourError || null}>
-              <HourPicker12 value={hour} onChange={(h) => { setHour(h); setHourError(""); }} label={t("settings.backupHour")} testId="setting-daily_backup_hour" />
-            </Field>
-            <Field label={t("settings.keep")} hint={t("hint.keep")} error={e("backup_keep_daily")}>
-              <TextInput icon={Archive} inputMode="numeric" suffix={t("common.copies")} value={form.values.backup_keep_daily} onChange={(x) => form.set("backup_keep_daily", x.target.value)} data-testid="setting-backup_keep_daily" />
             </Field>
           </div>
         </Card>

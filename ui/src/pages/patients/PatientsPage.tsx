@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { FileDown, FileUp, FolderOpen, Search, UserPlus, UserRound, Users } from "lucide-react";
+import type { KeyboardEvent } from "react";
+import { FileDown, FileUp, FolderOpen, MoreHorizontal, Search, UserPlus, UserRound, Users } from "lucide-react";
 import type { ClinicProfile, ExportResult, PatientInfo } from "../../../../shared/ts/contract";
 import type { Perms } from "../reception/useScheduling";
 import { isSessionError, revealExport, rpc } from "../../lib/api";
-import { digits, formatDate } from "../../lib/dates";
+import { ageOn, digits, formatDate } from "../../lib/dates";
 import { useI18n } from "../../i18n";
-import { Button } from "../../ui/Button";
+import { Button, IconButton } from "../../ui/Button";
 import { Card, Page, PageHeader } from "../../ui/Card";
 import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../../ui/Feedback";
+import { Popover } from "../../ui/Overlay";
 import { PatientForm } from "./PatientForm";
 import { PatientProfile } from "./PatientProfile";
 import type { BillingPerms } from "../billing/common";
@@ -31,6 +33,24 @@ export function PatientsPage({ canEdit, billing, clinical, appointments, clinic,
   return <PatientList canEdit={canEdit} onCreate={() => setView({ kind: "create" })} onOpen={(id) => setView({ kind: "profile", id })} />;
 }
 
+const PAGE = 100;
+
+/** B11: a table row that opens something is reachable by Tab and opens with Enter or Space. */
+const rowKeys = (open: () => void) => (e: KeyboardEvent<HTMLElement>) => {
+  if (e.target !== e.currentTarget) return;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    open();
+  }
+};
+
+/** Age from the exact birth date, else the approximate age typed at registration (marked with ~). */
+function ageText(p: PatientInfo, lang: Parameters<typeof digits>[1]): string {
+  const exact = p.date_of_birth ? ageOn(p.date_of_birth) : null;
+  if (exact !== null) return digits(exact, lang);
+  return p.approximate_age !== null ? `~${digits(p.approximate_age, lang)}` : "—";
+}
+
 function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate: () => void; onOpen: (id: string) => void }) {
   const { t, err, lang } = useI18n();
   const [items, setItems] = useState<PatientInfo[] | null>(null);
@@ -38,15 +58,43 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
   const [exported, setExported] = useState<ExportResult | null>(null);
+  const [total, setTotal] = useState(0);
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const debounce = useRef<number | undefined>(undefined);
+  // A newer search must win over a slower older answer.
+  const seq = useRef(0);
 
-  const load = (q: string) =>
-    rpc("patients.list", { query: q || null, status: null, limit: 100, offset: 0 })
+  const load = (q: string) => {
+    const mine = ++seq.current;
+    return rpc("patients.list", { query: q || null, status: null, limit: PAGE, offset: 0 })
       .then((r) => {
+        if (mine !== seq.current) return;
         setItems(r.items);
+        setTotal(r.total);
         setError("");
       })
-      .catch((e) => !isSessionError(e) && setError(err(e)));
+      .catch((e) => {
+        if (mine === seq.current && !isSessionError(e)) setError(err(e));
+      });
+  };
+
+  // B2: the next page is appended; the list never stops silently.
+  const loadMore = () => {
+    if (!items || moreBusy) return;
+    const mine = seq.current;
+    setMoreBusy(true);
+    rpc("patients.list", { query: query || null, status: null, limit: PAGE, offset: items.length })
+      .then((r) => {
+        if (mine !== seq.current) return;
+        setItems((prev) => (prev ? [...prev, ...r.items.filter((x) => !prev.some((y) => y.id === x.id))] : r.items));
+        setTotal(r.total);
+      })
+      .catch((e) => {
+        if (!isSessionError(e)) setError(err(e));
+      })
+      .finally(() => setMoreBusy(false));
+  };
 
   useEffect(() => {
     load("");
@@ -77,8 +125,18 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
         actions={
           canEdit ? (
             <>
-              <Button icon={FileUp} onClick={() => setImporting(true)} data-testid="patients-import-open">{t("patients.import")}</Button>
-              <Button icon={FileDown} onClick={exportPatients} data-testid="patients-export">{t("patients.export")}</Button>
+              <Popover
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                width={240}
+                testId="patients-more-menu"
+                trigger={<IconButton icon={MoreHorizontal} label={t("patients.moreActions")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} data-testid="patients-more" />}
+              >
+                <div className="menu-section" role="menu">
+                  <button type="button" role="menuitem" className="menu-item" onClick={() => { setMenuOpen(false); setImporting(true); }} data-testid="patients-import-open"><FileUp aria-hidden />{t("patients.import")}</button>
+                  <button type="button" role="menuitem" className="menu-item" onClick={() => { setMenuOpen(false); exportPatients(); }} data-testid="patients-export"><FileDown aria-hidden />{t("patients.export")}</button>
+                </div>
+              </Popover>
               <Button variant="primary" icon={UserPlus} onClick={onCreate} data-testid="add-patient-open">{t("patients.add")}</Button>
             </>
           ) : undefined
@@ -108,20 +166,20 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
                   <th>{t("patients.column.name")}</th>
                   <th>{t("patients.column.father")}</th>
                   <th>{t("patients.column.phone")}</th>
+                  <th>{t("patients.column.age")}</th>
                   <th>{t("patients.column.registered")}</th>
-                  <th>{t("patients.column.status")}</th>
                 </tr>
               </thead>
               <tbody>
                 {!items && <SkeletonRows cols={6} />}
                 {items?.map((p) => (
-                  <tr key={p.id} onClick={() => onOpen(p.id)} style={{ cursor: "pointer" }} data-testid={`patient-row-${p.patient_number}`}>
+                  <tr key={p.id} className="patient-row" tabIndex={0} onClick={() => onOpen(p.id)} onKeyDown={rowKeys(() => onOpen(p.id))} style={{ cursor: "pointer" }} data-testid={`patient-row-${p.patient_number}`}>
                     <td><bdi className="ltr num">{p.patient_number}</bdi></td>
-                    <td className="cell-strong">{p.full_name}</td>
+                    <td className="cell-strong">{p.full_name}{p.status !== "active" && <> <Badge dot>{t("patients.status.inactive")}</Badge></>}</td>
                     <td>{p.father_name ?? "—"}</td>
                     <td><bdi className="ltr">{p.phone ?? "—"}</bdi></td>
+                    <td>{ageText(p, lang)}</td>
                     <td>{formatDate(p.registration_date, lang)}</td>
-                    <td>{p.status === "active" ? <Badge tone="success" dot>{t("patients.status.active")}</Badge> : <Badge dot>{t("patients.status.inactive")}</Badge>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -130,6 +188,12 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
           </div>
         )}
       </Card>
+      {items && items.length > 0 && !error && (
+        <div className="patients-list-foot" data-testid="patients-count">
+          <span className="subtle t-caption">{t("patients.showing").replace("{shown}", digits(items.length, lang)).replace("{total}", digits(total, lang))}</span>
+          {total > items.length && <Button size="sm" loading={moreBusy} onClick={loadMore} data-testid="patients-load-more">{t("patients.loadMore")}</Button>}
+        </div>
+      )}
       {importing && (
         <ImportDialog
           onClose={() => setImporting(false)}

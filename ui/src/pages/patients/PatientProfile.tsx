@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Activity, CalendarClock, ClipboardList, FileHeart, FileText, Grid3x3, Images, Merge, NotebookPen,
-  History, Pencil, Pill, Receipt, ScrollText, Trash2, Wallet,
+  CalendarClock, Ellipsis, FileHeart, FileText, Grid3x3, History, Images, Merge, NotebookPen, Pencil, ScrollText, Trash2, TriangleAlert, Wallet,
 } from "lucide-react";
-import type { ClinicProfile, PatientInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
+import type { ClinicProfile, MedicalHistoryInfo, PatientInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
-import { digits, formatDate } from "../../lib/dates";
+import { ageOn, digits, formatDate } from "../../lib/dates";
+import { alertsOf, tr, useMedicalQuestions } from "../../lib/medical";
 import { useI18n } from "../../i18n";
 import { BackButton, Button, IconButton } from "../../ui/Button";
-import { Card, CardHeader, Page, PageHeader } from "../../ui/Card";
+import { Card, CardHeader, Page } from "../../ui/Card";
+import { Segmented } from "../../ui/Controls";
 import { Badge, ErrorState, Loading, Notice } from "../../ui/Feedback";
 import { Avatar } from "../../ui/Brand";
+import { Popover } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
+import { useConfirm } from "../../ui/ConfirmDialog";
 import { MedicalAlertBanner } from "./MedicalAlertBanner";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { AttachmentsTab } from "./AttachmentsTab";
@@ -33,31 +36,87 @@ import { TreatmentsTab } from "./clinical/TreatmentsTab";
 import { TimelineTab } from "./clinical/TimelineTab";
 import { CourseCard } from "./clinical/CourseCard";
 
-type TabId = "overview" | "medical" | "appointments" | "chart" | "notes" | "plans" | "treatments" | "prescriptions" | "invoices" | "payments" | "documents" | "timeline" | "audit";
+/** U2: seven tabs. «چارت و درمان», «حساب مالی» and «اسناد» hold several of the former tabs as sub-sections; history is in a menu. */
+type MainTab = "overview" | "care" | "notes" | "medical" | "appointments" | "finance" | "documents" | "timeline" | "audit";
+type CareSub = "chart" | "treatments" | "plans";
+type FinanceSub = "invoices" | "payments";
+type DocSub = "documents" | "prescriptions";
+/** The thirteen former tabs: other screens and links still name a place by these. */
+type Target = "overview" | "medical" | "appointments" | "chart" | "notes" | "plans" | "treatments" | "prescriptions" | "invoices" | "payments" | "documents" | "timeline" | "audit";
 
-const TABS: { id: TabId; icon: LucideIcon; labelKey: string; ready: boolean }[] = [
-  { id: "overview", icon: FileText, labelKey: "patients.tab.overview", ready: true },
-  { id: "medical", icon: FileHeart, labelKey: "patients.tab.medicalHistory", ready: true },
-  { id: "appointments", icon: CalendarClock, labelKey: "patients.tab.appointments", ready: false },
-  { id: "chart", icon: Grid3x3, labelKey: "patients.tab.dentalChart", ready: true },
-  { id: "notes", icon: NotebookPen, labelKey: "patients.tab.clinicalNotes", ready: true },
-  { id: "plans", icon: ClipboardList, labelKey: "patients.tab.treatmentPlans", ready: true },
-  { id: "treatments", icon: Activity, labelKey: "patients.tab.treatments", ready: true },
-  { id: "prescriptions", icon: Pill, labelKey: "patients.tab.prescriptions", ready: true },
-  { id: "invoices", icon: Receipt, labelKey: "patients.tab.invoices", ready: true },
-  { id: "payments", icon: Wallet, labelKey: "patients.tab.payments", ready: true },
-  { id: "documents", icon: Images, labelKey: "patients.tab.documents", ready: true },
-  { id: "timeline", icon: History, labelKey: "patients.tab.timeline", ready: true },
-  { id: "audit", icon: ScrollText, labelKey: "patients.tab.audit", ready: true },
+const TABS: { id: Exclude<MainTab, "timeline" | "audit">; icon: LucideIcon; labelKey: string }[] = [
+  { id: "overview", icon: FileText, labelKey: "patients.tab.overview" },
+  { id: "care", icon: Grid3x3, labelKey: "patients.tab.care" },
+  { id: "notes", icon: NotebookPen, labelKey: "patients.tab.clinicalNotes" },
+  { id: "medical", icon: FileHeart, labelKey: "patients.tab.medicalHistory" },
+  { id: "appointments", icon: CalendarClock, labelKey: "patients.tab.appointments" },
+  { id: "finance", icon: Wallet, labelKey: "patients.tab.finance" },
+  { id: "documents", icon: Images, labelKey: "patients.tab.docs" },
 ];
+
+/** Header chip: the first medical alert, with the others (and their details) in a popover. */
+function AlertChip({ patientId, refreshKey, onOpenHistory }: { patientId: string; refreshKey: number; onOpenHistory: () => void }) {
+  const { t, lang } = useI18n();
+  const questions = useMedicalQuestions();
+  const [history, setHistory] = useState<MedicalHistoryInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let live = true;
+    rpc("medical_history.get", { patient_id: patientId }).then((h) => live && setHistory(h)).catch(() => live && setHistory(null));
+    return () => {
+      live = false;
+    };
+  }, [patientId, refreshKey]);
+  if (!history || !questions) return null;
+  const alerts = alertsOf(questions, history.answers);
+  if (!alerts.length) return null;
+  const text = (a: (typeof alerts)[number]) => {
+    const parts = [a.a.detail_text && (a.q.detail_kind === "months" ? `${digits(a.a.detail_text, lang)} ${t("medicalHistory.months")}` : a.a.detail_text), a.a.detail_choice && t(`mh.choice.${a.a.detail_choice}`)].filter(Boolean);
+    return parts.length ? `${tr(a.q.label, lang)} (${parts.join("، ")})` : tr(a.q.label, lang);
+  };
+  return (
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      align="start"
+      width={320}
+      testId="profile-alert-pop"
+      trigger={
+        <button type="button" className="profile-alert" aria-expanded={open} onClick={() => setOpen((x) => !x)} data-testid="profile-alert-chip">
+          <TriangleAlert aria-hidden />
+          <span className="profile-alert-text">{tr(alerts[0].q.label, lang)}</span>
+          {alerts.length > 1 && <span className="profile-alert-more">+{digits(alerts.length - 1, lang)}</span>}
+        </button>
+      }
+    >
+      <div className="profile-alert-list" role="alert">
+        <ul className="medical-alert-list">
+          {alerts.map((a) => (
+            <li key={a.q.id}>
+              <strong>{text(a)}</strong>
+              {a.q.alert_note && <span className="medical-alert-note"> — {tr(a.q.alert_note, lang)}</span>}
+            </li>
+          ))}
+        </ul>
+        <Button size="sm" variant="link" onClick={() => { setOpen(false); onOpenHistory(); }}>{t("medicalHistory.open")}</Button>
+      </div>
+    </Popover>
+  );
+}
 
 export function PatientProfile({ patientId, canEdit, billing, clinical, appointments, clinic, clinicName, onBack, onEdit }: { patientId: string; canEdit: boolean; billing: BillingPerms; clinical: ClinicalPerms; appointments: AppointmentPerms; clinic: ClinicProfile | null; clinicName: string; onBack: () => void; onEdit: (p: PatientInfo) => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const [patient, setPatient] = useState<PatientInfo | null>(null);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<MainTab>("overview");
+  const [careSub, setCareSub] = useState<CareSub>("chart");
+  const [financeSub, setFinanceSub] = useState<FinanceSub>("invoices");
+  const [docSub, setDocSub] = useState<DocSub>("documents");
   const [merging, setMerging] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [historyMenu, setHistoryMenu] = useState(false);
   const [blockedBy, setBlockedBy] = useState<number | null>(null);
   // A note opened from a treatment (5.6: each session has its own note).
   const [noteFor, setNoteFor] = useState<TreatmentItemInfo | null>(null);
@@ -68,6 +127,30 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
   const [medicalRefreshKey, setMedicalRefreshKey] = useState(0);
   const genders = useReferenceList("gender");
   const referrals = useReferenceList("referral_source");
+
+  /** Go to the place a former tab now lives in. */
+  const go = (target: Target) => {
+    switch (target) {
+      case "chart":
+      case "treatments":
+      case "plans":
+        setCareSub(target);
+        setTab("care");
+        break;
+      case "invoices":
+      case "payments":
+        setFinanceSub(target);
+        setTab("finance");
+        break;
+      case "documents":
+      case "prescriptions":
+        setDocSub(target);
+        setTab("documents");
+        break;
+      default:
+        setTab(target);
+    }
+  };
 
   const load = () =>
     rpc("patients.get", { patient_id: patientId })
@@ -89,7 +172,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
 
   // OF-041: a patient with open visits is not deleted; say how many, and where to cancel them.
   const remove = async () => {
-    if (!patient || !window.confirm(t("patients.deleteConfirm"))) return;
+    if (!patient || !(await confirm({ title: t("cleanup.confirm.title"), text: t("patients.deleteConfirm"), confirm: t("common.delete"), danger: true }))) return;
     try {
       await rpc("patients.delete", { id: patient.id, version: patient.version });
     } catch (x) {
@@ -111,55 +194,97 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
 
   const genderLabel = genders.find((g) => g.id === patient.gender_id)?.label;
   // Clinical tabs need clinical.view (reception sees the visits and the files, not the medical record).
-  const CLINICAL: TabId[] = ["medical", "prescriptions", "chart", "notes", "plans", "treatments", "timeline"];
-  const available = (id: TabId, ready: boolean) =>
-    id === "appointments" ? appointments.view : id === "invoices" || id === "payments" ? ready && billing.view : CLINICAL.includes(id) ? ready && clinical.view : ready;
+  const available = (id: MainTab) =>
+    id === "appointments" ? appointments.view : id === "finance" ? billing.view : id === "care" || id === "notes" || id === "medical" || id === "timeline" ? clinical.view : true;
   const referralLabel = referrals.find((r) => r.id === patient.referral_source_id)?.label;
+  const age = patient.date_of_birth ? ageOn(patient.date_of_birth) : patient.approximate_age;
+  const inChart = tab === "care" && careSub === "chart";
 
   return (
-    <Page testId="page-patient-profile">
-      <PageHeader
-        title={patient.full_name}
-        description={<bdi className="ltr num">{patient.patient_number}</bdi>}
-        actions={
-          canEdit ? (
+    <div className="page profile-page" data-testid="page-patient-profile">
+      <div className="profile-sticky">
+        <header className="profile-head">
+          <BackButton onBack={onBack} label={t("patients.backShort")} testId="patient-back" />
+          <Avatar name={patient.full_name} size="sm" />
+          <h1 className="profile-name" data-testid="page-title">{patient.full_name}</h1>
+          <bdi className="ltr num profile-id">{patient.patient_number}</bdi>
+          {age != null && <span className="profile-age">{patient.date_of_birth ? "" : "~"}{t("patients.header.age").replace("{n}", digits(age, lang))}</span>}
+          {patient.status !== "active" && <Badge dot>{t("patients.status.inactive")}</Badge>}
+          {clinical.view && <AlertChip patientId={patient.id} refreshKey={medicalRefreshKey} onOpenHistory={() => go("medical")} />}
+          <span className="grow" />
+          {canEdit && (
             <>
-              <Button icon={Merge} onClick={() => setMerging(true)} data-testid="patient-merge-open">{t("patients.merge")}</Button>
-              <Button icon={Pencil} onClick={() => onEdit(patient)} data-testid="patient-edit-open">{t("common.edit")}</Button>
-              <IconButton icon={Trash2} label={t("patients.delete")} onClick={remove} data-testid="patient-delete" />
+              <Button size="sm" icon={Pencil} onClick={() => onEdit(patient)} data-testid="patient-edit-open">{t("common.edit")}</Button>
+              <Popover
+                open={menu}
+                onClose={() => setMenu(false)}
+                width={240}
+                testId="patient-menu"
+                trigger={<IconButton icon={Ellipsis} size="sm" label={t("patients.moreActions")} aria-expanded={menu} onClick={() => setMenu((x) => !x)} data-testid="patient-more" />}
+              >
+                <button type="button" className="menu-item" onClick={() => { setMenu(false); setMerging(true); }} data-testid="patient-merge-open">
+                  <Merge aria-hidden /> {t("patients.merge")}
+                </button>
+                <button type="button" className="menu-item danger" onClick={() => { setMenu(false); remove(); }} data-testid="patient-delete">
+                  <Trash2 aria-hidden /> {t("patients.delete")}
+                </button>
+              </Popover>
             </>
-          ) : undefined
-        }
-      />
-      <BackButton onBack={onBack} label={t("patients.back")} testId="patient-back" />
+          )}
+        </header>
+
+        <div className="profile-tabs" role="tablist">
+          {TABS.map(({ id, icon: Icon, labelKey }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              disabled={!available(id)}
+              title={available(id) ? undefined : t("patients.tab.comingSoon")}
+              className="profile-tab"
+              onClick={() => available(id) && setTab(id)}
+              data-testid={`patient-tab-${id}`}
+            >
+              <Icon aria-hidden />
+              <span>{t(labelKey)}</span>
+            </button>
+          ))}
+          <span className="grow" />
+          <Popover
+            open={historyMenu}
+            onClose={() => setHistoryMenu(false)}
+            width={240}
+            testId="patient-history-menu"
+            trigger={
+              <button type="button" className="profile-tab" role="tab" aria-selected={tab === "timeline" || tab === "audit"} aria-expanded={historyMenu} onClick={() => setHistoryMenu((x) => !x)} data-testid="patient-tab-history">
+                <History aria-hidden />
+                <span>{t("patients.tab.history")}</span>
+              </button>
+            }
+          >
+            {clinical.view && (
+              <button type="button" className="menu-item" onClick={() => { setHistoryMenu(false); setTab("timeline"); }} data-testid="patient-tab-timeline">
+                <History aria-hidden /> {t("patients.tab.timeline")}
+              </button>
+            )}
+            <button type="button" className="menu-item" onClick={() => { setHistoryMenu(false); setTab("audit"); }} data-testid="patient-tab-audit">
+              <ScrollText aria-hidden /> {t("patients.tab.audit")}
+            </button>
+          </Popover>
+        </div>
+      </div>
+
       <PresenceBanner others={others} />
 
       {blockedBy !== null && (
         <Notice tone="warning" testId="patient-delete-blocked">
           {t("patients.delete.blocked").replace("{n}", digits(blockedBy, lang))}{" "}
-          <Button variant="link" onClick={() => { setBlockedBy(null); setTab("appointments"); }} data-testid="patient-delete-show">{t("patients.delete.show")}</Button>
+          <Button variant="link" onClick={() => { setBlockedBy(null); go("appointments"); }} data-testid="patient-delete-show">{t("patients.delete.show")}</Button>
         </Notice>
       )}
-      {clinical.view && <MedicalAlertBanner key={`alert-${medicalRefreshKey}`} patientId={patient.id} hideReview={tab === "medical"} onOpenHistory={() => setTab("medical")} />}
-
-      <div className="profile-tabs" role="tablist">
-        {TABS.map(({ id, icon: Icon, labelKey, ready }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            disabled={!available(id, ready)}
-            title={available(id, ready) ? undefined : t("patients.tab.comingSoon")}
-            className="profile-tab"
-            onClick={() => available(id, ready) && setTab(id)}
-            data-testid={`patient-tab-${id}`}
-          >
-            <Icon aria-hidden />
-            <span>{t(labelKey)}</span>
-          </button>
-        ))}
-      </div>
+      {/* On the chart the header chip carries the allergies, so the chart keeps the whole height. */}
+      {clinical.view && !inChart && <MedicalAlertBanner key={`alert-${medicalRefreshKey}`} patientId={patient.id} hideReview={tab === "medical"} onOpenHistory={() => go("medical")} />}
 
       {tab === "overview" && (
         <Card>
@@ -186,27 +311,78 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
           </dl>
         </Card>
       )}
-      {tab === "overview" && clinical.view && <CourseCard key={`course-${clinicalKey}`} patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} onOpen={() => setTab("plans")} />}
+      {tab === "overview" && clinical.view && <CourseCard key={`course-${clinicalKey}`} patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} onOpen={() => go("plans")} />}
       {tab === "medical" && (
         <MedicalHistoryTab patientId={patient.id} female={genders.find((g) => g.id === patient.gender_id)?.code === "female"} canEdit={clinical.edit} onSaved={() => setMedicalRefreshKey((k) => k + 1)} />
       )}
       {tab === "appointments" && <PatientAppointmentsTab patient={patient} perms={appointments} clinic={clinic} clinicName={clinicName} />}
-      {tab === "prescriptions" && <PrescriptionsTab patient={patient} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} />}
-      {tab === "documents" && (clinical.view ? (
-        <DocumentsTab patient={patient} gender={genders.find((g) => g.id === patient.gender_id)?.code ?? null} canEdit={clinical.edit} canEditFiles={canEdit} calendar={clinic?.calendar_system ?? "shamsi"} />
-      ) : (
-        <AttachmentsTab patientId={patient.id} canEdit={canEdit} />
-      ))}
-      {tab === "chart" && <ChartTab patient={patient} canEdit={clinical.edit} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
-      {tab === "plans" && (
-        <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} />
-      )}
-      {tab === "treatments" && (
-        <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => setTab("chart")} onNote={(i) => { setNoteFor(i); setTab("notes"); }} onInvoice={billing.edit ? () => setTab("invoices") : undefined} canTakeMaterials={clinical.edit} />
+
+      {tab === "care" && (
+        <>
+          <div className="profile-sub">
+            <Segmented<CareSub>
+              value={careSub}
+              onChange={setCareSub}
+              label={t("patients.tab.care")}
+              options={[
+                { value: "chart", label: t("patients.tab.dentalChart"), testId: "patient-sub-chart" },
+                { value: "treatments", label: t("patients.tab.treatments"), testId: "patient-sub-treatments" },
+                { value: "plans", label: t("patients.tab.treatmentPlans"), testId: "patient-sub-plans" },
+              ]}
+            />
+          </div>
+          {careSub === "chart" && <ChartTab patient={patient} canEdit={clinical.edit} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
+          {careSub === "treatments" && (
+            <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => go("chart")} onNote={(i) => { setNoteFor(i); go("notes"); }} onInvoice={billing.edit ? () => go("invoices") : undefined} canTakeMaterials={clinical.edit} />
+          )}
+          {careSub === "plans" && (
+            <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} />
+          )}
+        </>
       )}
       {tab === "notes" && <NotesTab key={noteFor?.id ?? "notes"} patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} initialItem={noteFor} onChanged={() => setNoteFor(null)} />}
-      {tab === "invoices" && <PatientInvoicesTab patient={patient} perms={billing} canOverride={billing.override} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
-      {tab === "payments" && <PatientPaymentsTab patient={patient} perms={billing} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
+
+      {tab === "finance" && (
+        <>
+          <div className="profile-sub">
+            <Segmented<FinanceSub>
+              value={financeSub}
+              onChange={setFinanceSub}
+              label={t("patients.tab.finance")}
+              options={[
+                { value: "invoices", label: t("patients.tab.invoices"), testId: "patient-sub-invoices" },
+                { value: "payments", label: t("patients.tab.payments"), testId: "patient-sub-payments" },
+              ]}
+            />
+          </div>
+          {financeSub === "invoices" && <PatientInvoicesTab patient={patient} perms={billing} canOverride={billing.override} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
+          {financeSub === "payments" && <PatientPaymentsTab patient={patient} perms={billing} clinic={clinic} onChanged={() => setClinicalKey((k) => k + 1)} />}
+        </>
+      )}
+
+      {tab === "documents" && (
+        <>
+          {clinical.view && (
+            <div className="profile-sub">
+              <Segmented<DocSub>
+                value={docSub}
+                onChange={setDocSub}
+                label={t("patients.tab.docs")}
+                options={[
+                  { value: "documents", label: t("patients.tab.documents"), testId: "patient-sub-documents" },
+                  { value: "prescriptions", label: t("patients.tab.prescriptions"), testId: "patient-sub-prescriptions" },
+                ]}
+              />
+            </div>
+          )}
+          {clinical.view && docSub === "prescriptions" && <PrescriptionsTab patient={patient} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} />}
+          {clinical.view && docSub === "documents" && (
+            <DocumentsTab patient={patient} gender={genders.find((g) => g.id === patient.gender_id)?.code ?? null} canEdit={clinical.edit} canEditFiles={canEdit} calendar={clinic?.calendar_system ?? "shamsi"} />
+          )}
+          {!clinical.view && <AttachmentsTab patientId={patient.id} canEdit={canEdit} />}
+        </>
+      )}
+
       {tab === "timeline" && <TimelineTab patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} />}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 
@@ -221,6 +397,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
           }}
         />
       )}
-    </Page>
+      {dialog}
+    </div>
   );
 }
