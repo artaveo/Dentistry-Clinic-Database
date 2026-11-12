@@ -59,6 +59,7 @@ test("Stock: a new item, receiving it, a low-stock flag, and taking some out", a
   await page.getByTestId("receive-item-list").getByRole("option", { name: /سرنگ یکبارمصرف/ }).first().click();
   await page.getByTestId("receive-qty").fill("10");
   await page.getByTestId("receive-cost").fill("25");
+  await page.getByTestId("receive-more").click(); // lot number lives under "more options"
   await page.getByTestId("receive-lot").fill("S-1");
   await page.getByTestId("receive-save").click();
   await expect(page.getByTestId("receive-dialog")).toBeHidden();

@@ -57,7 +57,7 @@ test("doctors and chairs: add them, validate live, set a schedule and a leave", 
   await page.getByTestId("chair-add-open").click();
   await page.getByTestId("chair-name").fill("یونیت ۱");
   await page.getByTestId("chair-save").click();
-  await expect(page.getByTestId("field-error")).toContainText("یونیتی با این نام وجود دارد"); // Core error under the field
+  await expect(page.getByTestId("field-error")).toContainText("یونیت‌ای با این نام وجود دارد"); // Core error under the field
   await page.getByTestId("chair-name").fill("یونیت ۲");
   await page.getByTestId("chair-save").click();
   await expect(page.getByTestId("chair-list")).toContainText("یونیت ۲");
