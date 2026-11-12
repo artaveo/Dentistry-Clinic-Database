@@ -543,7 +543,9 @@ fn merge_medical_history(conn: &Connection, keep_id: &str, merge_id: &str) -> Re
     let assignments: Vec<String> = columns
         .iter()
         .map(|c| {
-            let other = format!("(SELECT {c} FROM patient_medical_history WHERE patient_id = ?2 AND deleted_at IS NULL)");
+            let other = format!(
+                "(SELECT {c} FROM patient_medical_history WHERE patient_id = ?2 AND deleted_at IS NULL)"
+            );
             format!(
                 "{c} = CASE WHEN {other} IS NULL OR TRIM({other}) = '' OR {other} = {c} THEN {c}
                             WHEN {c} IS NULL OR TRIM({c}) = '' THEN {other}

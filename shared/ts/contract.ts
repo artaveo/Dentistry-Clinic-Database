@@ -194,7 +194,15 @@ restrict_service_specialty: boolean,
 /**
  * ADR-14: how tooth numbers are shown on the chart and on documents (FDI by default).
  */
-tooth_numbering: ToothNumbering, };
+tooth_numbering: ToothNumbering, 
+/**
+ * The gum (Perio) chart: off hides the Perio view and everything that only exists for it.
+ */
+show_perio_chart: boolean, 
+/**
+ * The stock module (items, lots, purchases, lab work, stock reports): off hides all of it.
+ */
+use_stock_module: boolean, };
 
 export type DatabaseInfo = { encrypted: boolean, cipher_version: string, sqlite_version: string, 
 /**
@@ -1502,6 +1510,8 @@ low: boolean, version: number, };
 
 export type SaveStockItemParams = { id: string | null, code: string | null, name: Translations, category_id: string, unit_id: string, min_qty: number, note: string | null, is_active: boolean, version: number | null, };
 
+export type DeleteStockItemResult = { archived: boolean, };
+
 export type StockItemListParams = { search: string | null, category_id: string | null, only: StockFilter | null, include_inactive: boolean, 
 /**
  * Days ahead that count as "expiring soon" (default 60).
@@ -2032,6 +2042,7 @@ export interface Api {
   "stock_items.list": { params: StockItemListParams; result: Array<StockItemInfo> };
   "stock_items.get": { params: IdParams; result: StockItemInfo };
   "stock_items.save": { params: SaveStockItemParams; result: StockItemInfo };
+  "stock_items.delete": { params: IdParams; result: DeleteStockItemResult };
   "stock_batches.list": { params: StockBatchListParams; result: Array<StockBatchInfo> };
   "stock_movements.list": { params: StockMovementListParams; result: Array<StockMovementInfo> };
   "stock_alerts.list": { params: StockAlertParams; result: StockAlerts };
