@@ -2147,11 +2147,10 @@ mod tests {
                     |r| Ok((r.get(0)?, r.get(1)?)),
                 )?;
                 assert_eq!((name.as_str(), min), ("Our gloves", 5));
-                let still_deleted: Option<String> = o.conn.query_row(
-                    "SELECT deleted_at FROM stock_item WHERE id = ?1",
-                    [&deleted],
-                    |r| r.get(0),
-                )?;
+                let still_deleted: Option<String> =
+                    o.conn.query_row("SELECT deleted_at FROM stock_item WHERE id = ?1", [&deleted], |r| {
+                        r.get(0)
+                    })?;
                 assert!(still_deleted.is_some());
                 Ok(())
             })

@@ -795,7 +795,10 @@ pub fn verify_unlock(conn: &Connection, user_id: &str, password: &str) -> Result
         }
     }
     if verify_password(&hash, password) {
-        conn.execute("UPDATE app_user SET failed_attempts = 0, locked_until = NULL WHERE id = ?1", [user_id])?;
+        conn.execute(
+            "UPDATE app_user SET failed_attempts = 0, locked_until = NULL WHERE id = ?1",
+            [user_id],
+        )?;
         return Ok(true);
     }
     register_failure(conn, user_id, failed)?;
