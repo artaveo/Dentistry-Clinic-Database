@@ -493,7 +493,7 @@ pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) 
 /// * checklist answers: a question only one record answered moves over; when both answered, the
 ///   more careful answer wins ("yes" beats "no", any real answer beats "unknown"; on a tie the
 ///   survivor's own answer stays);
-/// * the free-text fields: an empty one takes the other's text, two different texts are joined.
+/// * the notes: an empty one takes the other's text, two different texts are joined.
 fn merge_medical_history(conn: &Connection, keep_id: &str, merge_id: &str) -> Result<()> {
     // Where both answered and the merged-away answer is the more careful one, it replaces the survivor's.
     conn.execute(
@@ -532,14 +532,8 @@ fn merge_medical_history(conn: &Connection, keep_id: &str, merge_id: &str) -> Re
         )?;
         return Ok(());
     }
-    let columns = [
-        "allergies",
-        "current_medications",
-        "chronic_conditions",
-        "dental_history",
-        "previous_surgeries",
-        "notes",
-    ];
+    // Earlier free-text fields were folded into `notes` by migration 0010: it is the only text left.
+    let columns = ["notes"];
     let assignments: Vec<String> = columns
         .iter()
         .map(|c| {

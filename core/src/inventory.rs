@@ -2244,7 +2244,7 @@ mod tests {
 
         // The next start brings neither of them back (and does not switch the archived one on).
         t.core.with_db(|o| sync_seeds(&o.conn)).unwrap();
-        assert_eq!(list(false).len(), before - 1);
+        assert_eq!(list(false).len(), before - 2, "neither comes back (one archived, one removed)");
         assert!(!list(true).iter().any(|i| i["id"] == unused.as_str()));
     }
 }
