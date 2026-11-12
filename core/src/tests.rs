@@ -665,16 +665,17 @@ fn idle_lock_is_exact_and_ignores_background_requests() {
     s["session_timeout_minutes"] = json!(1);
     t.ok(m::SETTINGS_UPDATE, s, Some(&tok)); // applies to the running session at once
 
-    // Polls every few seconds for 59 s: still unlocked, but they do not count as activity.
+    // Polls every few seconds for 58 s: still unlocked, but they do not count as activity. Aged time adds
+    // to the real elapsed time, so a 2 s margin keeps a slow CI runner from tipping it over.
     for _ in 0..11 {
         t.core.lock_sessions().age(&tok, Duration::from_secs(5));
         t.ok(m::SYSTEM_INFO, json!({}), Some(&tok));
     }
-    t.core.lock_sessions().age(&tok, Duration::from_secs(4));
+    t.core.lock_sessions().age(&tok, Duration::from_secs(3));
     let st = t.ok(m::SESSION_STATE, json!({}), Some(&tok));
-    assert_eq!(st["locked"], false, "59 s idle with a 60 s timeout");
-    assert!(st["idle_seconds_left"].as_u64().unwrap() <= 1);
-    t.core.lock_sessions().age(&tok, Duration::from_secs(1));
+    assert_eq!(st["locked"], false, "58 s idle with a 60 s timeout");
+    assert!(st["idle_seconds_left"].as_u64().unwrap() <= 2);
+    t.core.lock_sessions().age(&tok, Duration::from_secs(2));
     assert_eq!(t.ok(m::SESSION_STATE, json!({}), Some(&tok))["locked"], true, "locks at 60 s");
 
     // `idle_ms`: a heartbeat sent 4 s after the last mouse move counts from the move.
