@@ -3184,6 +3184,12 @@ pub struct Settings {
     /// ADR-14: how tooth numbers are shown on the chart and on documents (FDI by default).
     #[serde(default)]
     pub tooth_numbering: ToothNumbering,
+    /// The gum (Perio) chart: off hides the Perio view and everything that only exists for it.
+    #[serde(default = "yes")]
+    pub show_perio_chart: bool,
+    /// The stock module (items, lots, purchases, lab work, stock reports): off hides all of it.
+    #[serde(default = "yes")]
+    pub use_stock_module: bool,
 }
 
 fn default_calendar_snap() -> u32 {
@@ -3503,6 +3509,7 @@ api! {
     "stock_items.list"           => STOCK_ITEMS_LIST(StockItemListParams) -> Vec<StockItemInfo>;
     "stock_items.get"            => STOCK_ITEMS_GET(IdParams) -> StockItemInfo;
     "stock_items.save"           => STOCK_ITEMS_SAVE(SaveStockItemParams) -> StockItemInfo;
+    "stock_items.delete"         => STOCK_ITEMS_DELETE(IdParams) -> DeleteStockItemResult;
     "stock_batches.list"         => STOCK_BATCHES_LIST(StockBatchListParams) -> Vec<StockBatchInfo>;
     "stock_movements.list"       => STOCK_MOVEMENTS_LIST(StockMovementListParams) -> Vec<StockMovementInfo>;
     "stock_alerts.list"          => STOCK_ALERTS_LIST(StockAlertParams) -> StockAlerts;
@@ -3862,6 +3869,7 @@ pub fn typescript_bindings() -> String {
         SaveStockLookupParams,
         StockItemInfo,
         SaveStockItemParams,
+        DeleteStockItemResult,
         StockItemListParams,
         StockBatchInfo,
         StockBatchListParams,

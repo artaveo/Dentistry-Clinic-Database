@@ -19,7 +19,7 @@ type Entry = { id: string; group: string; label: string; sub?: string; date?: st
 
 /** `Ctrl+K` (roadmap 2.2; Raycast pattern): jumps between pages and, since Phase 9, finds patients, visits,
  * invoices, receipts and lab cases from one box (9.7). The Core answers from its indexes, not by scanning. */
-export function CommandPalette({ items, calendar, onOpenHit, onClose }: { items: PaletteItem[]; calendar: CalendarSystem; onOpenHit: (hit: SearchHit) => void; onClose: () => void }) {
+export function CommandPalette({ items, calendar, hideLabCases, onOpenHit, onClose }: { items: PaletteItem[]; calendar: CalendarSystem; /** Lab work belongs to the stock module: no lab-case hits when it is off. */ hideLabCases?: boolean; onOpenHit: (hit: SearchHit) => void; onClose: () => void }) {
   const { t, lang } = useI18n();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -56,12 +56,12 @@ export function CommandPalette({ items, calendar, onOpenHit, onClose }: { items:
   const entries = useMemo<Entry[]>(() => {
     const lower = q.toLowerCase();
     const pages = (lower ? items.filter((i) => i.label.toLowerCase().includes(lower)) : items).map<Entry>((i) => ({ id: i.id, group: i.group ?? t("shell.commandPalette.pages"), label: i.label, icon: i.icon, run: i.onSelect }));
-    const found = KINDS.flatMap((k) =>
+    const found = KINDS.filter((k) => !(hideLabCases && k === "lab_case")).flatMap((k) =>
       hits.filter((h) => h.kind === k).map<Entry>((h) => ({ id: `${h.kind}-${h.id}`, group: t(`search.kind.${h.kind}`), label: h.title, sub: h.subtitle ?? undefined, date: h.date ?? undefined, icon: KIND_ICON[h.kind], run: () => onOpenHit(h) })),
     );
     // What was found comes first once a search has an answer: that is what the person typed for.
     return found.length ? [...found, ...pages] : pages;
-  }, [items, hits, q, t, onOpenHit]);
+  }, [items, hits, q, t, onOpenHit, hideLabCases]);
   const [active, setActive] = useState(0);
   useEffect(() => setActive(0), [q, hits]);
 

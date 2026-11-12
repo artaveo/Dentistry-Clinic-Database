@@ -1,0 +1,10 @@
+{
+  "stock.showInactive": "Show inactive items",
+  "stock.item.deactivate": "Deactivate",
+  "stock.item.reactivate": "Reactivate",
+  "stock.item.deactivated": "The item is inactive and hidden from lists. Its history is kept.",
+  "stock.item.reactivated": "The item is active again.",
+  "stock.item.deleteConfirm": "Delete this item? If it has stock history it is not removed, only archived (switched off).",
+  "stock.item.deleted": "Item deleted.",
+  "stock.item.archived": "This item has stock history, so it was archived (switched off) instead of deleted. Its history stays readable."
+}

@@ -16,6 +16,8 @@ pub const DEFAULTS: Settings = Settings {
     print_brand_footer: true,
     restrict_service_specialty: false,
     tooth_numbering: ToothNumbering::Quadrant,
+    show_perio_chart: true,
+    use_stock_module: true,
 };
 
 /// OF-044: the steps an appointment can be dragged in.
@@ -52,6 +54,8 @@ pub fn get(conn: &Connection) -> Result<Settings> {
             Some("quadrant") => ToothNumbering::Quadrant,
             _ => DEFAULTS.tooth_numbering,
         },
+        show_perio_chart: flag(conn, "show_perio_chart", DEFAULTS.show_perio_chart)?,
+        use_stock_module: flag(conn, "use_stock_module", DEFAULTS.use_stock_module)?,
     })
 }
 
@@ -93,6 +97,8 @@ pub fn update(conn: &Connection, actor: &Actor, new: &Settings) -> Result<Settin
         ("calendar_snap_minutes", new.calendar_snap_minutes),
         ("print_brand_footer", new.print_brand_footer as u32),
         ("restrict_service_specialty", new.restrict_service_specialty as u32),
+        ("show_perio_chart", new.show_perio_chart as u32),
+        ("use_stock_module", new.use_stock_module as u32),
     ] {
         conn.execute(
             "INSERT INTO setting(key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)

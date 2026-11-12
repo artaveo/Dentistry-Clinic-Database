@@ -40,6 +40,7 @@ import { CommandPalette } from "../shell/CommandPalette";
 import type { PaletteItem } from "../shell/CommandPalette";
 import { NotificationBell } from "../shell/NotificationBell";
 import { UserMenu } from "../shell/UserMenu";
+import { useModules } from "../shell/modules";
 import { Button } from "../ui/Button";
 import { Field, PasswordInput } from "../ui/Field";
 import { Avatar, ClinicMark, DentalMark } from "../ui/Brand";
@@ -88,8 +89,11 @@ export function Shell({
 }) {
   const { t } = useI18n();
   const can = (p: string) => session.permissions.includes(p);
+  // The clinic may switch the stock module off (Settings): then its page, reports, alerts and search hits are hidden.
+  const modules = useModules();
+  const canStock = can("inventory.view") && modules.stock;
   // The same permission checks as before the sidebar was simplified, only grouped differently.
-  const tabAllowed: Record<Tab, boolean> = { dashboard: true, patients: can("patients.view"), appointments: can("appointments.view"), billing: can("billing.view"), inventory: can("inventory.view"), reports: can("reports.view"), settings: true };
+  const tabAllowed: Record<Tab, boolean> = { dashboard: true, patients: can("patients.view"), appointments: can("appointments.view"), billing: can("billing.view"), inventory: canStock, reports: can("reports.view"), settings: true };
   const tabs = TAB_ORDER.filter((x) => tabAllowed[x]);
   const sectionAllowed: Record<Section, boolean> = {
     general: can("settings.manage"),
@@ -277,7 +281,7 @@ export function Shell({
           <span className="kbds"><kbd>Ctrl</kbd><kbd>K</kbd></span>
         </button>
         <div className="header-end">
-          <NotificationBell calendar={clinic?.calendar_system ?? "shamsi"} go={go} />
+          <NotificationBell calendar={clinic?.calendar_system ?? "shamsi"} go={go} hideStock={!modules.stock} />
           <UserMenu
             displayName={session.user.display_name}
             roleLabel={roleText(t, session.user.role, session.user.role_label)}
@@ -315,8 +319,8 @@ export function Shell({
         {clientOf && <ConnectionBanner onReconnected={() => setGeneration((g) => g + 1)} />}
         <LicenseBanner canManage={can("settings.manage")} onOpen={() => go("license")} />
         <UpdateBanner canManage={can("settings.manage")} />
-        {tab === "dashboard" && <DashboardPage calendar={clinic?.calendar_system ?? "shamsi"} go={go} />}
-        {tab === "reports" && <ReportsPage clinic={clinic} canSeeStock={can("inventory.view")} />}
+        {tab === "dashboard" && <DashboardPage calendar={clinic?.calendar_system ?? "shamsi"} go={go} stock={modules.stock} />}
+        {tab === "reports" && <ReportsPage clinic={clinic} canSeeStock={canStock} />}
         {tab === "patients" && <PatientsPage key={patientsNav} openRequest={openPatient} canEdit={can("patients.edit")} billing={billing} clinical={{ view: can("clinical.view"), edit: can("clinical.edit") }} appointments={{ ...perms, view: can("appointments.view") }} clinic={clinic} clinicName={clinicName} />}
         {tab === "appointments" && (
           <div className="appts-wrap">
@@ -340,7 +344,7 @@ export function Shell({
         {tab === "settings" && <SettingsHub sections={hubSections} active={activeSection} onSelect={(id) => setSection(id as Section)} />}
       </main>
 
-      {paletteOpen && <CommandPalette items={paletteItems} calendar={clinic?.calendar_system ?? "shamsi"} onOpenHit={openHit} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && <CommandPalette items={paletteItems} calendar={clinic?.calendar_system ?? "shamsi"} hideLabCases={!modules.stock} onOpenHit={openHit} onClose={() => setPaletteOpen(false)} />}
       {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
       {locked && <LockScreen name={session.user.display_name} onUnlocked={unlocked} onLogout={logout} />}
     </div>

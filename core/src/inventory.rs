@@ -468,6 +468,48 @@ pub fn save_item(conn: &Connection, actor: &Actor, p: &SaveStockItemParams) -> R
     }
 }
 
+/// Deletes a stock item. Seeded and user-made items are treated the same. An item that was ever received,
+/// moved or bought has a history that must stay readable, so it is only archived (switched off); an item
+/// without any history is removed (soft delete). `archived` in the result tells which one happened.
+pub fn delete_item(conn: &Connection, actor: &Actor, id: &str) -> Result<DeleteStockItemResult> {
+    let before = get_item(conn, id)?;
+    let history: i64 = conn.query_row(
+        "SELECT (SELECT COUNT(*) FROM stock_batch WHERE item_id = ?1)
+              + (SELECT COUNT(*) FROM stock_movement WHERE item_id = ?1)
+              + (SELECT COUNT(*) FROM purchase_line WHERE item_id = ?1)",
+        [id],
+        |r| r.get(0),
+    )?;
+    let now = now_iso();
+    let archived = history > 0;
+    let changed = if archived {
+        conn.execute(
+            "UPDATE stock_item SET is_active = 0, updated_at = ?1, updated_by = ?2, version = version + 1
+             WHERE id = ?3 AND deleted_at IS NULL",
+            params![now, actor.user_id, id],
+        )?
+    } else {
+        // The materials a service lists are plain settings, not history: they go with the item.
+        conn.execute("DELETE FROM service_material WHERE item_id = ?1", [id])?;
+        conn.execute(
+            "UPDATE stock_item SET deleted_at = ?1, updated_at = ?1, updated_by = ?2, version = version + 1
+             WHERE id = ?3 AND deleted_at IS NULL",
+            params![now, actor.user_id, id],
+        )?
+    };
+    expect_one_row(changed, "stock item")?;
+    audit::record(
+        conn,
+        actor,
+        if archived { "stock_item.archive" } else { "stock_item.delete" },
+        Some("stock_item"),
+        Some(id),
+        Some(&json!({"name": before.name, "is_active": before.is_active})),
+        None,
+    )?;
+    Ok(DeleteStockItemResult { archived })
+}
+
 // ───────────────────────────── batches and the ledger ─────────────────────────────
 
 const BATCH_SELECT: &str = "SELECT b.id, b.item_id, i.name_fa, i.name_ps, i.name_en, u.name_fa, u.name_ps, u.name_en,
@@ -2155,5 +2197,54 @@ mod tests {
                 Ok(())
             })
             .unwrap();
+    }
+
+    #[test]
+    fn deleting_an_item_archives_it_when_it_has_history_and_removes_it_otherwise() {
+        use serde_json::{json, Value};
+
+        let t = crate::tests::T::new();
+        t.setup();
+        let owner = t.login("owner", "owner-pass-1");
+        let places = t.ok("stock_locations.list", json!({}), Some(&owner));
+        let place = places[0]["id"].as_str().unwrap().to_string();
+        let list = |inactive: bool| -> Vec<Value> {
+            t.ok("stock_items.list", json!({"include_inactive": inactive}), Some(&owner))
+                .as_array()
+                .unwrap()
+                .clone()
+        };
+        // Starter (seeded) items are deleted exactly like the ones the clinic made.
+        let items = list(false);
+        let used = items[0]["id"].as_str().unwrap().to_string();
+        let unused = items[1]["id"].as_str().unwrap().to_string();
+        let before = items.len();
+        t.ok(
+            "stock.receive",
+            json!({"item_id": used, "qty": 100, "unit_cost": 0, "location_id": place}),
+            Some(&owner),
+        );
+
+        let r = t.ok("stock_items.delete", json!({"id": used}), Some(&owner));
+        assert_eq!(r["archived"], true, "an item with history is archived, not removed");
+        assert_eq!(list(false).len(), before - 1, "an archived item is hidden from the normal list");
+        let archived = t.ok("stock_items.get", json!({"id": used}), Some(&owner));
+        assert_eq!(archived["is_active"], false);
+        assert_eq!(archived["qty"], 100, "its stock and history stay readable");
+        let moves = t.ok("stock_movements.list", json!({"item_id": used}), Some(&owner));
+        assert_eq!(moves.as_array().unwrap().len(), 1);
+        assert!(list(true).iter().any(|i| i["id"] == used.as_str()), "still there to switch on");
+
+        let r = t.ok("stock_items.delete", json!({"id": unused}), Some(&owner));
+        assert_eq!(r["archived"], false, "an item without history is removed");
+        assert!(!list(true).iter().any(|i| i["id"] == unused.as_str()));
+        assert!(t.call("stock_items.get", json!({"id": unused}), Some(&owner)).is_err());
+        let again = t.call("stock_items.delete", json!({"id": unused}), Some(&owner));
+        assert!(again.is_err(), "no second delete");
+
+        // The next start brings neither of them back (and does not switch the archived one on).
+        t.core.with_db(|o| sync_seeds(&o.conn)).unwrap();
+        assert_eq!(list(false).len(), before - 1);
+        assert!(!list(true).iter().any(|i| i["id"] == unused.as_str()));
     }
 }

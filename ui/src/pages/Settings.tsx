@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, Printer, Save, ShieldCheck, Stethoscope, Timer } from "lucide-react";
+import { CalendarDays, Printer, Puzzle, Save, ShieldCheck, Stethoscope, Timer } from "lucide-react";
 import { isDesktop, listPrinters, loadProfile, saveProfile, type PrintProfile } from "../print/engine";
 import { invalidateLetterhead } from "../print/letterhead";
 import { Select } from "../ui/Field";
@@ -74,6 +74,8 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
   const [brandFooter, setBrandFooter] = useState(initial.print_brand_footer);
   const [restrict, setRestrict] = useState(initial.restrict_service_specialty);
   const [numbering, setNumbering] = useState<ToothNumbering>(initial.tooth_numbering);
+  const [showPerio, setShowPerio] = useState(initial.show_perio_chart);
+  const [useStock, setUseStock] = useState(initial.use_stock_module);
   // This computer's printer (ADR-13: printers belong to a computer, not to the clinic).
   const [profile, setProfile] = useState<PrintProfile>(loadProfile());
   const [printers, setPrinters] = useState<string[]>([]);
@@ -103,6 +105,8 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
         print_brand_footer: brandFooter,
         restrict_service_specialty: restrict,
         tooth_numbering: numbering,
+        show_perio_chart: showPerio,
+        use_stock_module: useStock,
       });
       onSaved(saved);
       invalidateLetterhead();
@@ -176,6 +180,19 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
               options={(["quadrant", "fdi", "palmer", "universal"] as ToothNumbering[]).map((n) => ({ value: n, label: t(`settings.toothNumbering.${n}`), testId: `setting-numbering-${n}` }))}
             />
           </Field>
+        </Card>
+        <Card>
+          <CardHeader icon={Puzzle} title={t("settings.modules")} description={t("settings.modulesHint")} />
+          <div className="setting-modules">
+            <div className="setting-module">
+              <Switch checked={showPerio} onChange={setShowPerio} label={t("settings.showPerio")} testId="setting-show-perio" />
+              <p className="setting-module-hint">{t("settings.showPerioHint")}</p>
+            </div>
+            <div className="setting-module">
+              <Switch checked={useStock} onChange={setUseStock} label={t("settings.useStock")} testId="setting-use-stock" />
+              <p className="setting-module-hint">{t("settings.useStockHint")}</p>
+            </div>
+          </div>
         </Card>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="settings-save">{t("common.save")}</Button>

@@ -14,6 +14,7 @@ import { teethLabel } from "../../../chart/numbering";
 import { isSolo, useScheduling } from "../../reception/useScheduling";
 import { ITEM_TONE, itemService, surfacesText } from "./labels";
 import { SessionDots } from "./SessionDots";
+import { useModules } from "../../../shell/modules";
 
 /**
  * Patient profile → «درمان‌ها» (5.8): every treatment done or under way — date, tooth, surface, doctor,
@@ -40,16 +41,19 @@ export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, 
   useEffect(() => {
     load();
   }, [patient.id]);
+  // The clinic may have switched the stock module off: then no materials are offered at all.
+  const stockOn = useModules().stock;
+  const takeMaterialsAllowed = !!canTakeMaterials && stockOn;
   // Phase 8 (8.2): a service with materials set offers to take them out of stock once the treatment is done.
   const [withMaterials, setWithMaterials] = useState<Set<string>>(new Set());
   const [taken, setTaken] = useState<Set<string>>(new Set());
   useEffect(() => {
-    if (!canTakeMaterials || !items) return;
+    if (!takeMaterialsAllowed || !items) return;
     const services = [...new Set(items.filter((i) => i.status !== "cancelled").map((i) => i.service_id))];
     Promise.all(services.map((id) => rpc("service_materials.list", { service_id: id }).then((m) => (m.length ? id : null))))
       .then((ids) => setWithMaterials(new Set(ids.filter((x): x is string => !!x))))
       .catch(() => {});
-  }, [canTakeMaterials, items]);
+  }, [takeMaterialsAllowed, items]);
   const takeMaterials = async (item: TreatmentItemInfo) => {
     try {
       await rpc("stock.consume_treatment", { treatment_item_id: item.id });
@@ -116,7 +120,7 @@ export function TreatmentsTab({ patient, clinic, calendar, onOpenChart, onNote, 
                     <span className="stack" style={{ gap: 2 }}>
                       <Badge tone={ITEM_TONE[i.status]} dot>{t(`item.status.${i.status}`)}</Badge>
                       {i.status === "completed" && !i.billed && (onInvoice ? <Button size="sm" variant="link" icon={ReceiptText} onClick={onInvoice} data-testid={`treatment-invoice-${i.id}`}>{t("item.readyForInvoice")}</Button> : <span className="t-caption subtle">{t("item.readyForInvoice")}</span>)}{i.billed && <span className="t-caption subtle">{t("item.billed")}</span>}
-                      {canTakeMaterials && i.status === "completed" && withMaterials.has(i.service_id) && !taken.has(i.id) && <Button size="sm" variant="link" icon={PackageMinus} onClick={() => takeMaterials(i)} data-testid={`treatment-materials-${i.id}`}>{t("treatments.takeMaterials")}</Button>}
+                      {takeMaterialsAllowed && i.status === "completed" && withMaterials.has(i.service_id) && !taken.has(i.id) && <Button size="sm" variant="link" icon={PackageMinus} onClick={() => takeMaterials(i)} data-testid={`treatment-materials-${i.id}`}>{t("treatments.takeMaterials")}</Button>}
                       <Button size="sm" variant="link" icon={NotebookPen} onClick={() => onNote(i)} data-testid={`treatment-note-${i.id}`}>{t("treatments.writeNote")}</Button>
                     </span>
                   </td>

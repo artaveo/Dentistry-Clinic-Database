@@ -25,16 +25,18 @@ const required = (s: string) => (s.trim() ? null : "rule.required");
 
 // ───────────────────────────── an item ─────────────────────────────
 
-export function ItemFormDialog({ item, onClose, onDone }: { item?: StockItemInfo; onClose: () => void; onDone: (i: StockItemInfo) => void }) {
+export function ItemFormDialog({ item, initialName, onClose, onDone }: { item?: StockItemInfo; initialName?: string; onClose: () => void; onDone: (i: StockItemInfo) => void }) {
   const { t, lang } = useI18n();
   const categories = useStockLookup("categories", !!item);
   const units = useStockLookup("units", !!item);
-  const [names, setNames] = useState<Translations>(item?.name ?? { fa: "", ps: "", en: "" });
+  // A new item may start from text already typed elsewhere; it goes into the current language.
+  const typed = (initialName ?? "").trim();
+  const [names, setNames] = useState<Translations>(item?.name ?? { fa: "", ps: "", en: "", [lang]: typed });
   const [active, setActive] = useState(item?.is_active ?? true);
   const { busy, error, run } = useAction();
   // `name` carries what is typed in any language, so the same live check as every other field applies.
   const form = useForm(
-    { name: item ? "x" : "", code: item?.code ?? "", category: item?.category_id ?? "", unit: item?.unit_id ?? "", min: item ? qtyInput(item.min_qty) : "", note: item?.note ?? "" },
+    { name: item || typed ? "x" : "", code: item?.code ?? "", category: item?.category_id ?? "", unit: item?.unit_id ?? "", min: item ? qtyInput(item.min_qty) : "", note: item?.note ?? "" },
     { name: required, category: required, unit: required, min: (s) => (s.trim() ? qtyRule(s, true) : null) },
   );
   useEffect(() => {
@@ -129,7 +131,8 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
   const [expiryBad, setExpiryBad] = useState(false);
   // Items added from inside this form (the list above was loaded before them).
   const [added, setAdded] = useState<StockItemInfo[]>([]);
-  const [newItem, setNewItem] = useState(false);
+  // null = closed; otherwise the text typed in the item picker (may be empty).
+  const [newItem, setNewItem] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const { busy, error, run } = useAction();
   const form = useForm(
@@ -190,7 +193,7 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
             <div className="receive-empty" data-testid="receive-no-items">
               <strong>{t("stock.receive.noItems")}</strong>
               <p className="subtle">{t("stock.receive.noItemsHint")}</p>
-              <Button variant="primary" icon={Plus} onClick={() => setNewItem(true)} data-testid="receive-add-item">{t("stock.receive.addItem")}</Button>
+              <Button variant="primary" icon={Plus} onClick={() => setNewItem("")} data-testid="receive-add-item">{t("stock.receive.addItem")}</Button>
             </div>
           ) : (
             <Field label={t("stock.col.item")} error={form.error("item") && t(form.error("item")!)}>
@@ -201,7 +204,7 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
                 placeholder={t("stock.pick.item")}
                 emptyText={t("stock.receive.noMatch")}
                 disabled={!!item}
-                onCreate={item ? undefined : () => setNewItem(true)}
+                onCreate={item ? undefined : (text) => setNewItem(text)}
                 createLabel={t("stock.receive.newItem")}
                 testId="receive-item"
               />
@@ -251,13 +254,14 @@ export function ReceiveDialog({ item, calendar, onClose, onDone }: { item?: Stoc
           )}
         </form>
       </Dialog>
-      {newItem && (
+      {newItem !== null && (
         <ItemFormDialog
-          onClose={() => setNewItem(false)}
+          initialName={newItem}
+          onClose={() => setNewItem(null)}
           onDone={(i) => {
             setAdded((a) => [...a, i]);
             form.set("item", i.id);
-            setNewItem(false);
+            setNewItem(null);
           }}
         />
       )}

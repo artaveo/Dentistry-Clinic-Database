@@ -416,6 +416,33 @@ fn clinic_get_has_defaults_and_update_is_audited_and_permissioned() {
 }
 
 #[test]
+fn perio_and_stock_module_settings_default_on_and_round_trip() {
+    let t = T::new();
+    t.setup();
+    let owner = t.login("owner", "owner-pass-1");
+    let mut s = t.ok(m::SETTINGS_GET, json!({}), Some(&owner));
+    assert_eq!(s["show_perio_chart"], true);
+    assert_eq!(s["use_stock_module"], true);
+
+    s["show_perio_chart"] = json!(false);
+    s["use_stock_module"] = json!(false);
+    let saved = t.ok(m::SETTINGS_UPDATE, s, Some(&owner));
+    assert_eq!(saved["show_perio_chart"], false);
+    assert_eq!(saved["use_stock_module"], false);
+    let again = t.ok(m::SETTINGS_GET, json!({}), Some(&owner));
+    assert_eq!(again["show_perio_chart"], false);
+    assert_eq!(again["use_stock_module"], false);
+
+    // An old client that does not send the new fields leaves the clinic with both on.
+    let mut old = again.clone();
+    old.as_object_mut().unwrap().remove("show_perio_chart");
+    old.as_object_mut().unwrap().remove("use_stock_module");
+    let back = t.ok(m::SETTINGS_UPDATE, old, Some(&owner));
+    assert_eq!(back["show_perio_chart"], true);
+    assert_eq!(back["use_stock_module"], true);
+}
+
+#[test]
 fn reopen_persists_and_background_integrity_check_passes() {
     let t = T::new();
     t.setup();

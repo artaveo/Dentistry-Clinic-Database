@@ -203,6 +203,18 @@ function answer(method: string, p: any): unknown {
       items.push(i);
       return itemInfo(i);
     }
+    case "stock_items.delete": {
+      const at = items.findIndex((x) => x.id === p.id);
+      if (at < 0) throw new Fail("not_found", "item_id");
+      // History (a batch or a movement) keeps the item: it is only switched off.
+      if (batches.some((b) => b.item_id === p.id) || moves.some((m) => m.item_id === p.id)) {
+        items[at].is_active = false;
+        items[at].version += 1;
+        return { archived: true };
+      }
+      items.splice(at, 1);
+      return { archived: false };
+    }
     case "stock_batches.list":
       return batches.filter((b) => (p.include_empty || b.qty_left > 0) && (!p.item_id || b.item_id === p.item_id)).sort((a, b) => (a.expiry_date ?? "9999").localeCompare(b.expiry_date ?? "9999")).map((b) => batchInfo(b, p.expiring_days ?? 60));
     case "stock_movements.list":

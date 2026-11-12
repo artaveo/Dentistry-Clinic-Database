@@ -1302,6 +1302,11 @@ impl Core {
                 let p: SaveStockItemParams = params(p)?;
                 ok(self.with_tx(|c| inventory::save_item(c, &actor(&s), &p))?)
             }
+            m::STOCK_ITEMS_DELETE => {
+                s.require(perm::INVENTORY_MANAGE)?;
+                let IdParams { id } = params(p)?;
+                ok(self.with_tx(|c| inventory::delete_item(c, &actor(&s), &id))?)
+            }
             m::STOCK_BATCHES_LIST => {
                 s.require(perm::INVENTORY_VIEW)?;
                 let p: StockBatchListParams = params(p)?;

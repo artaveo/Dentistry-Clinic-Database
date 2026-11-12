@@ -15,7 +15,7 @@ import type { LucideIcon } from "lucide-react";
 
 type Go = (page: string) => void;
 
-export function DashboardPage({ calendar, go }: { calendar: CalendarSystem; go: Go }) {
+export function DashboardPage({ calendar, go, stock = true }: { calendar: CalendarSystem; go: Go; /** The clinic's stock module is on: show the low-stock and lab rows. */ stock?: boolean }) {
   const { t, lang, err } = useI18n();
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
@@ -91,10 +91,10 @@ export function DashboardPage({ calendar, go }: { calendar: CalendarSystem; go: 
             {data.outstanding !== null && (
               <Row icon={Landmark} label={t("dash.outstanding")} value={formatAmount(data.outstanding, lang)} bad={data.outstanding > 0} badText={t("dash.owed")} onClick={() => go("billing")} testId="dash-outstanding" />
             )}
-            {data.low_stock !== null && (
+            {stock && data.low_stock !== null && (
               <Row icon={PackageMinus} label={t("dash.lowStock")} value={n(data.low_stock)} bad={data.low_stock > 0} badText={t("dash.needsOrder")} onClick={() => go("inventory")} testId="dash-lowstock" />
             )}
-            {data.pending_lab !== null && (
+            {stock && data.pending_lab !== null && (
               <Row icon={FlaskConical} label={t("dash.pendingLab")} value={n(data.pending_lab)} onClick={() => go("inventory")} testId="dash-lab" />
             )}
             {data.backup && (

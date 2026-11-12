@@ -98,7 +98,7 @@ const state = {
   logo: null as string | null,
   users: [] as U[],
   sessions: new Map<string, Session>(),
-  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false, tooth_numbering: "quadrant" } as Settings,
+  settings: { session_timeout_minutes: 10, daily_backup_hour: 19, backup_keep_daily: 14, calendar_snap_minutes: 5, print_brand_footer: true, restrict_service_specialty: false, tooth_numbering: "quadrant", show_perio_chart: true, use_stock_module: true } as Settings,
   backups: [] as BackupInfo[],
   audit: [] as AuditEntry[],
   recoveryKey: "",

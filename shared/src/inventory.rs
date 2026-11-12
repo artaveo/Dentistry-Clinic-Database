@@ -140,6 +140,13 @@ pub struct SaveStockItemParams {
     pub version: Option<i64>,
 }
 
+/// Result of deleting a stock item: `archived` = it has history (batches, movements or purchases), so it
+/// was only switched off and stays readable; otherwise it was removed.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DeleteStockItemResult {
+    pub archived: bool,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 pub struct StockItemListParams {
     #[serde(default)]

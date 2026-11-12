@@ -1,0 +1,8 @@
+{
+  "settings.modules": "Parts of the program",
+  "settings.modulesHint": "Switch off what this clinic does not use; it disappears from the menus, reports and search.",
+  "settings.showPerio": "Gum (Perio) chart",
+  "settings.showPerioHint": "Off: the Perio view is hidden in the tooth chart. Saved Perio records are kept.",
+  "settings.useStock": "Stock module",
+  "settings.useStockHint": "Off: the Stock page (items, purchases, suppliers and lab work), stock reports, stock alerts and their search results are hidden. All saved data is kept."
+}

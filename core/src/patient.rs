@@ -488,6 +488,79 @@ pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) 
     Ok(())
 }
 
+/// Folds the medical history of the merged-away record into the survivor's, so nothing about the
+/// patient is lost (an allergy found on either record must stay visible).
+/// * checklist answers: a question only one record answered moves over; when both answered, the
+///   more careful answer wins ("yes" beats "no", any real answer beats "unknown"; on a tie the
+///   survivor's own answer stays);
+/// * the free-text fields: an empty one takes the other's text, two different texts are joined.
+fn merge_medical_history(conn: &Connection, keep_id: &str, merge_id: &str) -> Result<()> {
+    // Where both answered and the merged-away answer is the more careful one, it replaces the survivor's.
+    conn.execute(
+        "UPDATE patient_medical_answer
+         SET answer = (SELECT o.answer FROM patient_medical_answer o
+                       WHERE o.patient_id = ?2 AND o.question_id = patient_medical_answer.question_id),
+             detail_text = (SELECT o.detail_text FROM patient_medical_answer o
+                            WHERE o.patient_id = ?2 AND o.question_id = patient_medical_answer.question_id),
+             detail_choice = (SELECT o.detail_choice FROM patient_medical_answer o
+                              WHERE o.patient_id = ?2 AND o.question_id = patient_medical_answer.question_id)
+         WHERE patient_id = ?1
+           AND EXISTS (SELECT 1 FROM patient_medical_answer o
+                       WHERE o.patient_id = ?2 AND o.question_id = patient_medical_answer.question_id
+                         AND ((patient_medical_answer.answer = 'unknown' AND o.answer <> 'unknown')
+                              OR (patient_medical_answer.answer = 'no' AND o.answer = 'yes')))",
+        params![keep_id, merge_id],
+    )?;
+    // Everything the survivor has not answered moves over; what is left of the merged-away answers
+    // (the survivor's answer was kept) is dropped, since the survivor already holds that question.
+    conn.execute(
+        "UPDATE OR IGNORE patient_medical_answer SET patient_id = ?1 WHERE patient_id = ?2",
+        params![keep_id, merge_id],
+    )?;
+    conn.execute("DELETE FROM patient_medical_answer WHERE patient_id = ?1", [merge_id])?;
+
+    // One history row per patient (UNIQUE): move it when the survivor has none, otherwise fold the texts.
+    let kept_has_row: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM patient_medical_history WHERE patient_id = ?1)",
+        [keep_id],
+        |r| r.get(0),
+    )?;
+    if !kept_has_row {
+        conn.execute(
+            "UPDATE patient_medical_history SET patient_id = ?1 WHERE patient_id = ?2",
+            params![keep_id, merge_id],
+        )?;
+        return Ok(());
+    }
+    let columns = [
+        "allergies",
+        "current_medications",
+        "chronic_conditions",
+        "dental_history",
+        "previous_surgeries",
+        "notes",
+    ];
+    let assignments: Vec<String> = columns
+        .iter()
+        .map(|c| {
+            let other = format!("(SELECT {c} FROM patient_medical_history WHERE patient_id = ?2 AND deleted_at IS NULL)");
+            format!(
+                "{c} = CASE WHEN {other} IS NULL OR TRIM({other}) = '' OR {other} = {c} THEN {c}
+                            WHEN {c} IS NULL OR TRIM({c}) = '' THEN {other}
+                            ELSE {c} || char(10) || {other} END"
+            )
+        })
+        .collect();
+    conn.execute(
+        &format!(
+            "UPDATE patient_medical_history SET {}, updated_at = ?3, version = version + 1 WHERE patient_id = ?1",
+            assignments.join(", ")
+        ),
+        params![keep_id, merge_id, now_iso()],
+    )?;
+    Ok(())
+}
+
 /// Folds `merge_id` into `keep_id`: the losing record is marked inactive and
 /// points at the survivor (3.1). Appointments and recalls (Phase 4) move to the
 /// survivor; later phases (invoices, …) must add their own re-parenting here.
@@ -532,8 +605,7 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         "payment",
         "credit_note",
         // B1: scans/X-rays, lab work and stock taken for the patient follow the patient too.
-        // Not moved on purpose: `patient_medical_answer` (one answer per question per patient; two
-        // histories need the doctor to decide which answer is right) stays on the merged-away record.
+        // (The medical checklist and its notes are folded in `merge_medical_history` below.)
         "patient_attachment",
         "lab_case",
         "stock_movement",
@@ -543,6 +615,7 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
             params![p.keep_id, p.merge_id],
         )?;
     }
+    merge_medical_history(conn, &p.keep_id, &p.merge_id)?;
     conn.execute(
         "UPDATE OR IGNORE dental_chart SET patient_id = ?1 WHERE patient_id = ?2",
         params![p.keep_id, p.merge_id],
@@ -799,5 +872,57 @@ mod tests {
         assert_eq!(kept.as_array().unwrap().len(), 1);
         let left = t.ok(m::ATTACHMENTS_LIST, json!({"patient_id": dupe["id"]}), Some(&owner));
         assert!(left.as_array().unwrap().is_empty());
+    }
+
+    /// A medical answer and the history notes of the merged-away record survive the merge: a question
+    /// only it answered moves over, and where both answered the more careful answer ("yes") wins.
+    #[test]
+    fn merge_folds_medical_history_into_the_kept_patient() {
+        use artaveo_shared::methods as m;
+        use serde_json::json;
+
+        let t = crate::tests::T::new();
+        t.setup();
+        let owner = t.login("owner", "owner-pass-1");
+        let questions = t.ok(m::MEDICAL_QUESTIONS_LIST, json!({"include_inactive": true}), Some(&owner));
+        let id_of = |code: &str| -> serde_json::Value {
+            questions.as_array().unwrap().iter().find(|q| q["code"] == code).unwrap()["id"].clone()
+        };
+        let (anticoag, diabetes) = (id_of("anticoagulants"), id_of("diabetes"));
+        let keep = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
+        let dupe = t.ok(
+            m::PATIENTS_CREATE,
+            json!({"full_name": "Ahmad Khan", "phone": "0700000002", "allow_duplicate": true}),
+            Some(&owner),
+        );
+        // Survivor: "no" to anticoagulants. Merged-away: "yes" to both, plus a note.
+        t.ok(
+            m::MEDICAL_HISTORY_UPDATE,
+            json!({"patient_id": keep["id"], "version": 0, "answers": [
+                {"question_id": anticoag, "answer": "no"}
+            ], "notes": "first note"}),
+            Some(&owner),
+        );
+        t.ok(
+            m::MEDICAL_HISTORY_UPDATE,
+            json!({"patient_id": dupe["id"], "version": 0, "answers": [
+                {"question_id": anticoag, "answer": "yes", "detail_text": "Warfarin"},
+                {"question_id": diabetes, "answer": "yes", "detail_choice": "uncontrolled"}
+            ], "notes": "second note"}),
+            Some(&owner),
+        );
+        t.ok(
+            m::PATIENTS_MERGE,
+            json!({"keep_id": keep["id"], "merge_id": dupe["id"], "merge_id_version": dupe["version"]}),
+            Some(&owner),
+        );
+        let history = t.ok(m::MEDICAL_HISTORY_GET, json!({"patient_id": keep["id"]}), Some(&owner));
+        let answers = history["answers"].as_array().unwrap();
+        assert_eq!(answers.len(), 2, "the question only the merged-away record answered moved over");
+        let anticoag_answer = answers.iter().find(|a| a["question_id"] == anticoag).unwrap();
+        assert_eq!(anticoag_answer["answer"], "yes", "the more careful answer wins");
+        assert_eq!(anticoag_answer["detail_text"], "Warfarin");
+        let notes = history["notes"].as_str().unwrap();
+        assert!(notes.contains("first note") && notes.contains("second note"), "notes were joined: {notes}");
     }
 }

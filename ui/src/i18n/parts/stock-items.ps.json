@@ -1,0 +1,10 @@
+{
+  "stock.showInactive": "غیرفعال توکي وښودل شي",
+  "stock.item.deactivate": "غیرفعال کول",
+  "stock.item.reactivate": "بیا فعالول",
+  "stock.item.deactivated": "توکی غیرفعال شو او له لیستونو پټ دی. سابقه یې ساتل کیږي.",
+  "stock.item.reactivated": "توکی بیا فعال شو.",
+  "stock.item.deleteConfirm": "دا توکی ړنګ شي؟ که د ننوتلو یا وتلو سابقه ولري نه ړنګیږي او یوازې آرشیف (غیرفعال) کیږي.",
+  "stock.item.deleted": "توکی ړنګ شو.",
+  "stock.item.archived": "دا توکی د ګدام سابقه لري، نو ړنګ نه شو او آرشیف (غیرفعال) شو. سابقه یې لا هم لیدل کیږي."
+}

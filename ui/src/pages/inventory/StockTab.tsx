@@ -1,7 +1,7 @@
 // «موجودی» — what is on the shelf (8.1), what is running out (8.3) and what is expiring or expired (8.4),
 // with the day-to-day stock operations: receive, take out, and the corrections of one batch (8.2).
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, CalendarX2, ChevronRight, FlaskConical, Hourglass, Minus, PackageMinus, PackagePlus, Pencil, Plus, Search, Undo2, TriangleAlert, SlidersHorizontal } from "lucide-react";
+import { ArrowLeftRight, CalendarX2, ChevronRight, FlaskConical, Hourglass, Minus, PackageMinus, PackagePlus, Pencil, Plus, Power, Search, Trash2, Undo2, TriangleAlert, SlidersHorizontal } from "lucide-react";
 import type { CalendarSystem, StockAlerts, StockBatchInfo, StockFilter, StockItemInfo, StockMovementInfo } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
 import { digits, formatDate } from "../../lib/dates";
@@ -12,9 +12,10 @@ import { formatAmount } from "../../lib/money";
 import { useI18n } from "../../i18n";
 import { Button, IconButton } from "../../ui/Button";
 import { Card, CardHeader, Stat } from "../../ui/Card";
-import { Segmented } from "../../ui/Controls";
+import { Segmented, Switch } from "../../ui/Controls";
 import { Badge, EmptyState, ErrorState, SkeletonRows } from "../../ui/Feedback";
 import { Select, TextInput } from "../../ui/Field";
+import { useConfirm } from "../../ui/ConfirmDialog";
 import { Dialog } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
 import { Level, canConsume } from "./common";
@@ -36,6 +37,8 @@ export function StockTab({ perms, calendar, onOpenLab }: { perms: InventoryPerms
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  // Switched-off items are hidden by default; this brings them back so they can be switched on again.
+  const [showOff, setShowOff] = useState(false);
   const [items, setItems] = useState<StockItemInfo[] | null>(null);
   const [alerts, setAlerts] = useState<StockAlerts | null>(null);
   const [error, setError] = useState("");
@@ -49,13 +52,13 @@ export function StockTab({ perms, calendar, onOpenLab }: { perms: InventoryPerms
     return () => window.clearTimeout(id);
   }, [search]);
   useEffect(() => {
-    rpc("stock_items.list", itemQ({ search: query || null, category_id: category || null, only: filter === "all" ? null : filter }))
+    rpc("stock_items.list", itemQ({ search: query || null, category_id: category || null, only: filter === "all" ? null : filter, include_inactive: showOff }))
       .then((r) => {
         setItems(r);
         setError("");
       })
       .catch((e) => !isSessionError(e) && setError(err(e)));
-  }, [query, category, filter, tick]);
+  }, [query, category, filter, showOff, tick]);
   useEffect(() => {
     rpc("stock_alerts.list", { expiring_days: null }).then(setAlerts).catch(() => {});
   }, [tick]);
@@ -112,6 +115,9 @@ export function StockTab({ perms, calendar, onOpenLab }: { perms: InventoryPerms
               { value: "expired", label: t("stock.filter.expired"), testId: "stock-filter-expired" },
             ]}
           />
+          <div className="stock-show-off">
+            <Switch checked={showOff} onChange={setShowOff} label={t("stock.showInactive")} testId="stock-show-inactive" />
+          </div>
         </div>
         <div className="table-wrap">
           <table className="table" data-testid="stock-table">
@@ -208,6 +214,7 @@ function ItemDetail({ item, perms, calendar, tick, onClose, onChanged, onEdit, o
 }) {
   const { t, lang, err } = useI18n();
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const [info, setInfo] = useState(item);
   const [batches, setBatches] = useState<StockBatchInfo[] | null>(null);
   const [moves, setMoves] = useState<StockMovementInfo[] | null>(null);
@@ -230,6 +237,39 @@ function ItemDetail({ item, perms, calendar, tick, onClose, onChanged, onEdit, o
     setLocal((x) => x + 1);
     onChanged();
   };
+  // Switch the item off or on again: the same save as the form, with only the active flag changed.
+  const toggleActive = async () => {
+    try {
+      await rpc("stock_items.save", {
+        id: info.id,
+        code: info.code,
+        name: info.name,
+        category_id: info.category_id,
+        unit_id: info.unit_id,
+        min_qty: info.min_qty,
+        note: info.note,
+        is_active: !info.is_active,
+        version: info.version,
+      });
+      toast.success(t(info.is_active ? "stock.item.deactivated" : "stock.item.reactivated"));
+      setLocal((x) => x + 1);
+      onChanged();
+    } catch (e) {
+      if (!isSessionError(e)) setError(err(e));
+    }
+  };
+  // Delete: an item with history is only archived by the core, and the message says which one happened.
+  const removeItem = async () => {
+    if (!(await confirm({ title: t("cleanup.confirm.title"), text: t("stock.item.deleteConfirm"), confirm: t("common.delete"), danger: true }))) return;
+    try {
+      const r = await rpc("stock_items.delete", { id: info.id });
+      toast.success(t(r.archived ? "stock.item.archived" : "stock.item.deleted"));
+      onChanged();
+      onClose();
+    } catch (e) {
+      if (!isSessionError(e)) setError(err(e));
+    }
+  };
   const unit = tr(info.unit, lang);
   const sign = (q: number) => `${q > 0 ? "+" : "−"}${formatQty(Math.abs(q), lang)}`;
   return (
@@ -242,6 +282,8 @@ function ItemDetail({ item, perms, calendar, tick, onClose, onChanged, onEdit, o
       footer={
         <>
           {perms.manage && <Button icon={Pencil} onClick={() => onEdit(info)} data-testid="item-edit-open">{t("common.edit")}</Button>}
+          {perms.manage && <Button icon={Power} onClick={() => void toggleActive()} data-testid="item-toggle-active">{t(info.is_active ? "stock.item.deactivate" : "stock.item.reactivate")}</Button>}
+          {perms.manage && <Button variant="danger" icon={Trash2} onClick={() => void removeItem()} data-testid="item-delete">{t("common.delete")}</Button>}
           {canConsume(perms) && <Button icon={Minus} disabled={info.usable_qty <= 0} onClick={() => onConsume(info)}>{t("stock.consume.title")}</Button>}
           {perms.manage && <Button variant="primary" icon={PackagePlus} onClick={() => onReceive(info)}>{t("stock.receive.title")}</Button>}
         </>
@@ -327,7 +369,8 @@ function ItemDetail({ item, perms, calendar, tick, onClose, onChanged, onEdit, o
           {moves && !moves.length && <p className="muted pad">{t("stock.history.none")}</p>}
         </div>
       </div>
-      {sub?.kind === "adjust" && <AdjustDialog batch={sub.batch} onClose={() => setSub(null)} onDone={() => changed(t("stock.adjust.done"))} />}
+      {dialog}
+      {sub?.kind === "adjust" &&<AdjustDialog batch={sub.batch} onClose={() => setSub(null)} onDone={() => changed(t("stock.adjust.done"))} />}
       {sub?.kind === "transfer" && <TransferDialog batch={sub.batch} onClose={() => setSub(null)} onDone={() => changed(t("stock.transfer.done"))} />}
       {sub?.kind === "return" && <ReturnDialog batch={sub.batch} onClose={() => setSub(null)} onDone={() => changed(t("stock.return.done"))} />}
     </Dialog>

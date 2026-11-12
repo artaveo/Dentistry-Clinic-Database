@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellOff, CheckCheck, Info, TriangleAlert } from "lucide-react";
-import type { CalendarSystem, NotificationItem, NotificationList } from "../../../shared/ts/contract";
+import type { CalendarSystem, NotificationItem, NotificationKind, NotificationList } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "../lib/api";
 import { digits, formatDate, formatTime } from "../lib/dates";
 import { tr } from "../lib/medical";
@@ -15,6 +15,8 @@ import { Popover } from "../ui/Overlay";
 /** How often the list is asked for again while the app is open. */
 const POLL_MS = 60_000;
 const OS_KEY = "artaveo.osNotifications";
+/** Alerts that only exist because of the stock module (lab work belongs to it). */
+const STOCK_KINDS: NotificationKind[] = ["low_stock", "expiring_item", "expired_item", "lab_delayed"];
 
 function osEnabled(): boolean {
   try {
@@ -38,10 +40,16 @@ export function notificationText(i: NotificationItem, t: (k: string) => string, 
 }
 
 /** Notification Bell (roadmap 2.2) with its content (9.6): what needs attention, quietest changes first read. */
-export function NotificationBell({ calendar, go }: { calendar: CalendarSystem; go: (page: string) => void }) {
+export function NotificationBell({ calendar, go, hideStock }: { calendar: CalendarSystem; go: (page: string) => void; hideStock?: boolean }) {
   const { t, lang } = useI18n();
   const [open, setOpen] = useState(false);
-  const [list, setList] = useState<NotificationList | null>(null);
+  const [rawList, setList] = useState<NotificationList | null>(null);
+  // Stock module off: its alerts (low stock, expiry, late lab work) are not shown and not counted.
+  const list = useMemo<NotificationList | null>(() => {
+    if (!rawList || !hideStock) return rawList;
+    const items = rawList.items.filter((i) => !STOCK_KINDS.includes(i.kind));
+    return { ...rawList, items, unread: items.filter((i) => !i.read).length };
+  }, [rawList, hideStock]);
   const [os, setOs] = useState(osEnabled());
   const seen = useRef<Set<string> | null>(null);
   // `t` is a new function on every render; the poll must not restart each time, so it reads the latest through a ref.

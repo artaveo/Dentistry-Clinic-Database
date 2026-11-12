@@ -1,0 +1,4 @@
+/* Stock screen: the "show inactive items" switch sits at the end of the toolbar row. */
+.stock-show-off {
+  margin-inline-start: auto;
+}

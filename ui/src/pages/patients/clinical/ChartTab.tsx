@@ -4,6 +4,7 @@ import { Activity, Baby, CircleDot, Eye, Grid3x3, Layers, ScanLine, Smile, Tag, 
 import type { ChartInfo, ClinicProfile, PatientInfo, ServiceInfo } from "../../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../../lib/api";
 import { useCatalog, useClinicSettings, useToothConditions } from "../../../lib/clinical";
+import { useModules } from "../../../shell/modules";
 import { tr } from "../../../lib/medical";
 import { useI18n } from "../../../i18n";
 import { Button } from "../../../ui/Button";
@@ -50,7 +51,10 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
   const numbering = settings?.tooth_numbering ?? "fdi";
   const [chart, setChart] = useState<ChartInfo | null>(null);
   const [error, setError] = useState("");
-  const [view, setView] = useState<ChartView>("general");
+  const { perio: perioOn } = useModules();
+  const [chosenView, setView] = useState<ChartView>("general");
+  // The gum (Perio) view exists only while the clinic keeps it on in Settings.
+  const view: ChartView = chosenView === "perio" && !perioOn ? "general" : chosenView;
   const [labels, setLabels] = useState<"all" | "selected">("all");
   const [selected, setSelected] = useState<number[]>([]);
   const [surfaces, setSurfaces] = useState<Surface[]>([]);
@@ -211,7 +215,7 @@ export function ChartTab({ patient, canEdit, clinic, onChanged }: { patient: Pat
             value={view}
             onChange={setView}
             label={t("chart.views")}
-            options={VIEWS.map((v) => ({ value: v.value, label: t(`chart.view.${v.value}`), icon: v.icon, testId: `chart-view-${v.value}` }))}
+            options={VIEWS.filter((v) => v.value !== "perio" || perioOn).map((v) => ({ value: v.value, label: t(`chart.view.${v.value}`), icon: v.icon, testId: `chart-view-${v.value}` }))}
           />
           <span className="grow" />
           {view !== "perio" && (
