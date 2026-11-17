@@ -104,12 +104,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Roadmap rule 16 (owner decision): only x64 and ARM64, online installer only. x86 (32-bit) and the
+        # offline (bundled WebView2) installer are not built, tested or published until the owner asks.
         include:
           - arch: x64
             target: x86_64-pc-windows-msvc
-            runner: windows-latest
-          - arch: x86
-            target: i686-pc-windows-msvc
             runner: windows-latest
           - arch: arm64
             target: aarch64-pc-windows-msvc
@@ -168,7 +167,7 @@ jobs:
         if: failure() && steps.app_clippy.outcome == 'failure'
         continue-on-error: true
         run: cargo clippy -p artaveo-app --target ${{ matrix.target }} --message-format=json -- -D warnings | node .github/scripts/cargo-annotate.mjs
-      - name: Build installers (online + offline WebView2)
+      - name: Build the installer (online WebView2 bootstrapper)
         working-directory: app
         shell: bash
         env:
@@ -191,9 +190,6 @@ jobs:
           if ls "$BUNDLE"/*-setup.exe.sig >/dev/null 2>&1; then
             cp "$BUNDLE"/*-setup.exe.sig "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}.exe.sig"
           fi
-          rm -f "$BUNDLE"/*-setup.exe "$BUNDLE"/*-setup.exe.sig
-          "$TAURI" build --target ${{ matrix.target }} --config tauri.offline.conf.json
-          cp "$BUNDLE"/*-setup.exe "$OUT/ArtaveoDental-Setup-${{ matrix.arch }}-offline.exe"
           ls -la "$OUT"
       - name: Database dump tool (artaveo-dump) for this architecture
         shell: bash

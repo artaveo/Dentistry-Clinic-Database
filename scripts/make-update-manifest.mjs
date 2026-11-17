@@ -1,6 +1,7 @@
 // Builds latest.json for the Tauri updater (roadmap 11.2) from the signed installers of one release.
 // Usage: node scripts/make-update-manifest.mjs <dist-folder> <tag> <github-repo>
-// Reads ArtaveoDental-Setup-<arch>.exe.sig for x64, x86 and arm64; writes <dist-folder>/latest.json.
+// Reads ArtaveoDental-Setup-<arch>.exe.sig for x64 and arm64 (the only builds, roadmap rule 16);
+// writes <dist-folder>/latest.json.
 // Prints nothing and writes nothing when no signature exists (the release was built without the
 // signing key), so a release without updater support still publishes.
 import fs from "node:fs";
@@ -12,7 +13,7 @@ if (!dist || !tag || !repo) {
   process.exit(2);
 }
 const version = tag.replace(/^v/, "");
-const targets = { x64: "windows-x86_64", x86: "windows-i686", arm64: "windows-aarch64" };
+const targets = { x64: "windows-x86_64", arm64: "windows-aarch64" };
 
 const platforms = {};
 for (const [arch, target] of Object.entries(targets)) {
