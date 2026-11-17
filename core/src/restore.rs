@@ -65,7 +65,7 @@ pub fn inspect(src: &Path, key: &DataKey, work_dir: &Path) -> RestorePreview {
     // BR-4: an encrypted database is always a whole number of 4096-byte pages. A file that is empty or
     // cut short (or a plain text file) is damaged; it must not be reported as "wrong key".
     let size = fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0);
-    if size == 0 || size % 4096 != 0 {
+    if size == 0 || !size.is_multiple_of(4096) {
         remove_db_files(&tmp);
         return problem("damaged", 0);
     }

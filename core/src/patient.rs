@@ -376,6 +376,8 @@ fn fts_match_query(q: &str) -> String {
     words
 }
 
+type PatientIndexRow = (String, String, String, Option<String>, Option<String>, Option<String>);
+
 /// Rebuilds the search index once when its format changed (version stored in `setting`).
 pub fn ensure_search_index(conn: &Connection) -> Result<()> {
     const VERSION: &str = "2";
@@ -389,7 +391,7 @@ pub fn ensure_search_index(conn: &Connection) -> Result<()> {
         "SELECT id, patient_number, full_name, father_name, phone, secondary_phone
          FROM patient WHERE deleted_at IS NULL",
     )?;
-    let rows: Vec<(String, String, String, Option<String>, Option<String>, Option<String>)> = stmt
+    let rows: Vec<PatientIndexRow> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?
         .collect::<rusqlite::Result<_>>()?;
     drop(stmt);
