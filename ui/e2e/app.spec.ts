@@ -234,7 +234,9 @@ test("tables: LTR cells align with their column header in RTL (OF-005)", async (
 
 test("audit log records everything, with 12-hour times", async () => {
   await page.getByTestId("tab-audit").click();
-  for (const action of ["app.setup", "auth.login_failed", "auth.login", "backup.create", "clinic.update", "user.create", "settings.update"]) {
+  // The log shows each action as a Dari label (the raw codes app.setup, auth.login_failed, auth.login,
+  // backup.create, clinic.update, user.create, settings.update stay in the Core).
+  for (const action of ["راه‌اندازی کلینیک", "ورود ناموفق", "ورود", "پشتیبان‌گیری", "ویرایش اطلاعات کلینیک", "افزودن کاربر", "تغییر تنظیمات"]) {
     await expect(page.getByTestId("audit-list")).toContainText(action);
   }
   await expect(page.getByTestId("audit-list").locator("tbody tr").first()).toContainText(/(ق|ب)\.ظ/);
@@ -324,12 +326,15 @@ test("receptionist sees only what the role allows", async () => {
   await page.getByTestId("logout").click();
   await login("reception", "reception-123");
   await expect(page.getByTestId("current-user")).toContainText("پذیرش");
-  // Everything beyond daily work is a section of the Settings hub; only "About" is open to this role.
-  await page.getByTestId("tab-settings").click();
-  await expect(page.getByTestId("tab-system")).toBeVisible();
+  // Everything beyond daily work is a section of the Settings hub, which this role does not get at all (U-16);
+  // only "About" is open to it, from the user menu.
+  await expect(page.getByTestId("tab-settings")).toHaveCount(0);
   for (const tab of ["tab-users", "tab-audit", "tab-backup", "tab-clinic", "tab-general"]) {
     await expect(page.getByTestId(tab)).toHaveCount(0);
   }
+  await openUserMenu();
+  await page.getByTestId("menu-about").click();
+  await expect(page.getByTestId("si-version")).toBeVisible();
   await openUserMenu();
   await page.getByTestId("logout").click();
 });

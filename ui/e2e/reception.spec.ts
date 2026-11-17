@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { newClinicPage } from "./clinicClock";
+import { CLOCK_SHIFT_MS, newClinicPage } from "./clinicClock";
 
 // Phase 4: staff, doctors, appointments and the reception workflow against the real Core.
 // Runs after app.spec.ts and patients.spec.ts in the same shared clinic (single worker), so
@@ -170,10 +170,16 @@ test("walk-in joins the queue behind the others; a no-show leaves it", async () 
 
   const expected = page.getByTestId("queue-expected").locator('[data-testid^="queue-card-"]');
   await expect(expected).toHaveCount(1);
+  // "Did not come" shows only once the appointment time has begun (PA-04/PA-28): move this page's clock
+  // (the Date only, no timers) to the evening, as if the clinic day went on: the booking made earlier by
+  // default sits at 9:15 PM, and 10:00 + 12 h is still the same clinic day.
+  await page.clock.setSystemTime(new Date(Date.now() + CLOCK_SHIFT_MS + 12 * 3_600_000));
+  await expect(expected.getByTestId("appt-action-no_show")).toBeVisible({ timeout: 20_000 });
   await expected.getByTestId("appt-action-no_show").click();
   await page.getByTestId("appt-reason-confirm").click();
   await expect(toast()).toHaveText("به‌عنوان نیامده ثبت شد.");
   await expect(page.getByTestId("queue-closed")).toBeVisible();
+  await page.clock.setSystemTime(new Date(Date.now() + CLOCK_SHIFT_MS));
 });
 
 test("call list: the follow-up and the no-show are there; record a call, then book from the list", async () => {
@@ -284,10 +290,9 @@ test("roles: a custom role limits what its users see; reset password and unlock"
   await expect(page.getByTestId("tab-appointments")).toBeVisible();
   await page.getByTestId("tab-appointments").click();
   await expect(page.getByTestId("tab-queue")).toBeVisible();
-  // The Settings hub only lists the sections this role may open.
-  await page.getByTestId("tab-settings").click();
+  // A role with no settings permission has no Settings entry at all (U-16), so no section of it.
+  await expect(page.getByTestId("tab-settings")).toHaveCount(0);
   for (const tab of ["tab-doctors", "tab-users", "tab-audit", "tab-clinic"]) await expect(page.getByTestId(tab)).toHaveCount(0);
-  await page.getByTestId("tab-appointments").click();
   await page.getByTestId("tab-queue").click();
   await expect(page.getByTestId("walk-in-open")).toBeVisible();
   await expect(page.getByTestId("appt-action-in_treatment")).toHaveCount(0); // booking yes, treatment no

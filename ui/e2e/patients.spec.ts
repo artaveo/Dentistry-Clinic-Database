@@ -86,7 +86,7 @@ test("medical history: the checklist's important answers show in the alert banne
   await page.getByTestId("mh-save").click();
   await expect(toast()).toHaveText("سوابق پزشکی ذخیره شد.");
   await expect(page.getByTestId("medical-alert-banner")).toContainText("پنی‌سیلین");
-  await expect(page.getByTestId("medical-alert-banner")).toContainText("مرض شکر (دیابت) (کنترل‌نشده)");
+  await expect(page.getByTestId("medical-alert-banner")).toContainText("مرض شکر (دیابت) — کنترل‌نشده");
   await expect(page.getByTestId("medical-review-reminder")).toHaveCount(0);
   await expect(page.getByTestId("mh-reviewed")).toBeVisible();
 });

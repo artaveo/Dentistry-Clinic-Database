@@ -160,7 +160,7 @@ test("M4: a session recorded, the next one suggested and booked — the visit sh
   await expect(toast()).toHaveText("نوبت ثبت شد.");
   await expect(row.locator('[data-testid^="item-next-"]')).toBeVisible();
   await expect(row).toContainText("در حال انجام");
-  await expect(row).toContainText("جلسه ۲ از ۲");
+  await expect(row).toContainText("۱ از ۲ جلسه انجام شد");
   await shot("04-sessions");
 });
 

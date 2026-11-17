@@ -94,6 +94,8 @@ test("Stock: a new item, receiving it, a low-stock flag, and taking some out", a
   await expect(page.getByTestId("item-batches")).toContainText("OLD");
   await expect(page.getByTestId("item-history")).toContainText("S-1");
   await page.keyboard.press("Escape");
+  // The lot was received through the API, outside this page: the list is read again by choosing a filter.
+  await page.getByTestId("stock-filter-expired").click();
   await expect(page.getByTestId(`stock-expired-${id}`)).toBeVisible();
 });
 
