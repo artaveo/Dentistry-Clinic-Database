@@ -16,7 +16,9 @@ env:
 jobs:
   checks:
     name: Linux — lint, tests, contract, E2E
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: the label moved to Ubuntu 26.04, which Playwright 1.56 cannot install
+    # Chromium on ("Playwright does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
