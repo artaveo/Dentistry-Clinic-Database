@@ -532,7 +532,8 @@ pub fn tooth_is_absent(conn: &Connection, patient_id: &str, tooth: u8) -> Result
             |r| r.get::<_, bool>(0),
         )?)
     };
-    Ok(has("'missing', 'extraction'")? && !has("'implant', 'abutment', 'implant_crown', 'bridge', 'denture'")?)
+    Ok(has("'missing', 'extraction'")?
+        && !has("'implant', 'abutment', 'implant_crown', 'bridge', 'denture'")?)
 }
 
 pub fn add_findings(conn: &Connection, actor: &Actor, p: &AddFindingsParams) -> Result<Vec<ToothFinding>> {

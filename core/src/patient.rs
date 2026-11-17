@@ -581,7 +581,9 @@ pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) 
     }
     // PA-09: a patient with money or treatment on record is archived (inactive), never deleted:
     // the invoices, payments and the clinical record must stay attached to a real patient.
-    for table in ["invoice", "payment", "credit_note", "treatment_plan", "clinical_note", "patient_attachment"] {
+    for table in
+        ["invoice", "payment", "credit_note", "treatment_plan", "clinical_note", "patient_attachment"]
+    {
         let has: bool = conn.query_row(
             &format!(
                 "SELECT EXISTS(SELECT 1 FROM {table} WHERE patient_id = ?1{})",

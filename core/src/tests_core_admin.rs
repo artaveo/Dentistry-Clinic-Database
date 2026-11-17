@@ -105,13 +105,16 @@ fn administrator_cannot_touch_the_owner_account() {
 fn patient_export_and_purchase_data_are_limited_to_the_right_roles() {
     let (t, owner, tokens) = staff();
     for role in ["receptionist", "doctor", "accountant", "assistant"] {
-        assert_eq!(t.call(m::PATIENTS_EXPORT, json!({}), Some(token(&tokens, role))), Err(ErrorCode::Forbidden), "{role}");
+        assert_eq!(
+            t.call(m::PATIENTS_EXPORT, json!({}), Some(token(&tokens, role))),
+            Err(ErrorCode::Forbidden),
+            "{role}"
+        );
     }
     t.ok(m::PATIENTS_EXPORT, json!({}), Some(token(&tokens, "administrator")));
     t.ok(m::PATIENTS_EXPORT, json!({}), Some(&owner));
 
-    let supplier =
-        t.ok(m::SUPPLIERS_SAVE, json!({"kind": "supplier", "name": "Kabul Supply"}), Some(&owner));
+    let supplier = t.ok(m::SUPPLIERS_SAVE, json!({"kind": "supplier", "name": "Kabul Supply"}), Some(&owner));
     let sid = id_of(&supplier);
     for role in ["receptionist", "doctor", "assistant"] {
         let tok = token(&tokens, role);
@@ -197,7 +200,11 @@ fn stock_item_codes_are_unique_and_nearest_expiry_ignores_expired_lots() {
     };
     receive(day(-30));
     let item = receive(day(40));
-    assert_eq!(item["nearest_expiry"], json!(day(40)), "the expired lot cannot be used, so it is not 'nearest'");
+    assert_eq!(
+        item["nearest_expiry"],
+        json!(day(40)),
+        "the expired lot cannot be used, so it is not 'nearest'"
+    );
 }
 
 #[test]
@@ -226,16 +233,26 @@ fn patient_input_is_validated_and_search_finds_phone_and_joined_names() {
     let owner = t.login("owner", "owner-pass-1");
     let create = |body: Value| t.call(m::PATIENTS_CREATE, body, Some(&owner));
     // PA-03 birth dates, PA-07 registration dates, PA-15 names.
-    assert_eq!(create(json!({"full_name": "Ali", "date_of_birth": "2031-01-01"})), Err(ErrorCode::Validation));
-    assert_eq!(create(json!({"full_name": "Ali", "date_of_birth": "1800-01-01"})), Err(ErrorCode::Validation));
-    assert_eq!(create(json!({"full_name": "Ali", "registration_date": day(400)})), Err(ErrorCode::Validation));
+    assert_eq!(
+        create(json!({"full_name": "Ali", "date_of_birth": "2031-01-01"})),
+        Err(ErrorCode::Validation)
+    );
+    assert_eq!(
+        create(json!({"full_name": "Ali", "date_of_birth": "1800-01-01"})),
+        Err(ErrorCode::Validation)
+    );
+    assert_eq!(
+        create(json!({"full_name": "Ali", "registration_date": day(400)})),
+        Err(ErrorCode::Validation)
+    );
     assert_eq!(create(json!({"full_name": "12345"})), Err(ErrorCode::Validation));
     assert_eq!(create(json!({"full_name": "<script>x</script>"})), Err(ErrorCode::Validation));
     // PA-16: an unknown list id is a validation error, not a raw database error.
     assert_eq!(create(json!({"full_name": "Ali Reza", "gender_id": "nope"})), Err(ErrorCode::Validation));
 
-    let p = create(json!({"full_name": "علی‌رضا احمدی", "phone": "0700 123 456", "date_of_birth": "1990-05-20"}))
-        .unwrap();
+    let p =
+        create(json!({"full_name": "علی‌رضا احمدی", "phone": "0700 123 456", "date_of_birth": "1990-05-20"}))
+            .unwrap();
     create(json!({"full_name": "کریم یوسفی", "phone": "+93 788 555 666"})).unwrap();
     let find = |q: &str| {
         t.ok(m::PATIENTS_LIST, json!({"query": q, "limit": 50, "offset": 0}), Some(&owner))["items"]
@@ -265,17 +282,18 @@ fn search_index_is_rebuilt_once_for_an_old_database() {
     let owner = t.login("owner", "owner-pass-1");
     t.ok(m::PATIENTS_CREATE, json!({"full_name": "علی‌رضا احمدی", "phone": "0700123456"}), Some(&owner));
     // Pretend the index was built by the old version: no joined spelling, no version mark.
-    t.core.with_db(|o| {
-        o.conn.execute("DELETE FROM patient_fts", [])?;
-        o.conn.execute(
-            "INSERT INTO patient_fts(patient_id, search_text)
+    t.core
+        .with_db(|o| {
+            o.conn.execute("DELETE FROM patient_fts", [])?;
+            o.conn.execute(
+                "INSERT INTO patient_fts(patient_id, search_text)
              SELECT id, 'old ' || patient_number FROM patient",
-            [],
-        )?;
-        o.conn.execute("DELETE FROM setting WHERE key = 'patient_fts_version'", [])?;
-        Ok(())
-    })
-    .unwrap();
+                [],
+            )?;
+            o.conn.execute("DELETE FROM setting WHERE key = 'patient_fts_version'", [])?;
+            Ok(())
+        })
+        .unwrap();
     let t = t.reopen();
     let owner = t.login("owner", "owner-pass-1");
     let found = t.ok(m::PATIENTS_LIST, json!({"query": "علیرضا", "limit": 10, "offset": 0}), Some(&owner));
@@ -288,10 +306,18 @@ fn a_patient_with_records_cannot_be_deleted_and_a_merged_record_cannot_be_merged
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let mk = |name: &str, phone: &str| {
-        t.ok(m::PATIENTS_CREATE, json!({"full_name": name, "phone": phone, "allow_duplicate": true}), Some(&owner))
+        t.ok(
+            m::PATIENTS_CREATE,
+            json!({"full_name": name, "phone": phone, "allow_duplicate": true}),
+            Some(&owner),
+        )
     };
-    let (a, b, c, d) =
-        (mk("Ahmad One", "0700000001"), mk("Ahmad Two", "0700000002"), mk("Ahmad Three", "0700000003"), mk("Ahmad Four", "0700000004"));
+    let (a, b, c, d) = (
+        mk("Ahmad One", "0700000001"),
+        mk("Ahmad Two", "0700000002"),
+        mk("Ahmad Three", "0700000003"),
+        mk("Ahmad Four", "0700000004"),
+    );
     // PA-09: an uploaded image is part of the record.
     t.ok(
         m::ATTACHMENTS_UPLOAD,
@@ -336,7 +362,8 @@ fn a_future_appointment_cannot_be_a_no_show_and_a_recall_is_not_added_twice() {
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let doctor = t.ok(m::DOCTORS_CREATE, json!({"full_name": "دکتر احمد", "color": "#0E7490"}), Some(&owner));
-    let patient = t.ok(m::PATIENTS_CREATE, json!({"full_name": "بیمار یکم", "phone": "0700111111"}), Some(&owner));
+    let patient =
+        t.ok(m::PATIENTS_CREATE, json!({"full_name": "بیمار یکم", "phone": "0700111111"}), Some(&owner));
     let appt = t.ok(
         m::APPOINTMENTS_CREATE,
         json!({"patient_id": patient["id"], "doctor_id": doctor["id"], "date": day(5),
@@ -407,5 +434,10 @@ fn local_backup_carries_the_images_and_a_damaged_file_is_called_damaged() {
     // BR-2: a register row whose file is gone is marked removed.
     std::fs::remove_file(dir.join(&name)).unwrap();
     t.core.with_db(|o| crate::backup::reconcile(&o.conn, &dir)).unwrap();
-    assert!(t.ok(m::BACKUP_LIST, json!({}), Some(&owner)).as_array().unwrap().iter().all(|x| x["file_name"] != name.as_str()));
+    assert!(t
+        .ok(m::BACKUP_LIST, json!({}), Some(&owner))
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|x| x["file_name"] != name.as_str()));
 }

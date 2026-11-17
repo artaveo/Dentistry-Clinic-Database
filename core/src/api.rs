@@ -1571,9 +1571,9 @@ impl Core {
                             }
                         };
                         let data_url = match thumb {
-                            Some(t) => attachment::read(&dir, key, &t)
-                                .ok()
-                                .map(|b| format!("data:image/jpeg;base64,{}", data_encoding::BASE64.encode(&b))),
+                            Some(t) => attachment::read(&dir, key, &t).ok().map(|b| {
+                                format!("data:image/jpeg;base64,{}", data_encoding::BASE64.encode(&b))
+                            }),
                             None => None,
                         };
                         out.push(AttachmentThumbnail { id: a.id, data_url });

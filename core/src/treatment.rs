@@ -15,11 +15,11 @@
 //! * Ready-made plans (`core/seeds/plan_templates.json`) are seeded once and then the clinic's.
 
 use artaveo_shared::{
-    AddItemParams, AppointmentInfo, ChartSymbol, CreatePlanParams, ErrorCode, ItemStatus, ItemVisit, Language,
-    NextSessionSuggestion, PlanSnapshot, PlanSnapshotItem, PlanStatus, PlanTemplateInfo, PlanTemplateItem,
-    RecordSessionParams, RecordSessionResult, SavePlanTemplateParams, ServiceInfo, SetItemStatusParams,
-    SetPlanStatusParams, TemplateTeeth, ToothScope, Translations, TreatmentItemInfo, TreatmentPlanInfo,
-    TreatmentSessionInfo, UpdateItemParams, UpdatePlanParams, ValidationRule,
+    AddItemParams, AppointmentInfo, ChartSymbol, CreatePlanParams, ErrorCode, ItemStatus, ItemVisit,
+    Language, NextSessionSuggestion, PlanSnapshot, PlanSnapshotItem, PlanStatus, PlanTemplateInfo,
+    PlanTemplateItem, RecordSessionParams, RecordSessionResult, SavePlanTemplateParams, ServiceInfo,
+    SetItemStatusParams, SetPlanStatusParams, TemplateTeeth, ToothScope, Translations, TreatmentItemInfo,
+    TreatmentPlanInfo, TreatmentSessionInfo, UpdateItemParams, UpdatePlanParams, ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Deserialize;
@@ -204,7 +204,11 @@ fn check_extraction(conn: &Connection, service: &ServiceInfo, patient_id: &str, 
 fn check_est(start: &Option<String>, end: &Option<String>) -> Result<()> {
     if let (Some(s), Some(e)) = (start, end) {
         if e < s {
-            return Err(CoreError::invalid("est_end", ValidationRule::PeriodRange, "the end is before the start"));
+            return Err(CoreError::invalid(
+                "est_end",
+                ValidationRule::PeriodRange,
+                "the end is before the start",
+            ));
         }
     }
     Ok(())

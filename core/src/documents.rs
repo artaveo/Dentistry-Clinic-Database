@@ -365,7 +365,11 @@ fn check_content(conn: &Connection, p: &IssueDocumentParams) -> Result<DocumentC
             // CT-26: the same medicine (name, strength, form) is not written twice on one prescription.
             let mut seen = std::collections::HashSet::new();
             for (i, x) in items.iter().enumerate() {
-                let key = (x.name.to_lowercase(), x.strength.clone().unwrap_or_default().to_lowercase(), x.form.clone());
+                let key = (
+                    x.name.to_lowercase(),
+                    x.strength.clone().unwrap_or_default().to_lowercase(),
+                    x.form.clone(),
+                );
                 if !seen.insert(key) {
                     return Err(CoreError::invalid(
                         &format!("items.{i}.name"),

@@ -56,7 +56,8 @@ impl Fx {
             .to_string()
     }
     fn condition(&self, code: &str) -> String {
-        self.t.ok(m::TOOTH_CONDITIONS_LIST, json!({}), Some(&self.owner))
+        self.t
+            .ok(m::TOOTH_CONDITIONS_LIST, json!({}), Some(&self.owner))
             .as_array()
             .unwrap()
             .iter()
@@ -100,7 +101,11 @@ impl Fx {
         )
     }
     fn plans(&self) -> Vec<Value> {
-        self.t.ok(m::PLANS_LIST, json!({"patient_id": self.patient}), Some(&self.owner)).as_array().unwrap().clone()
+        self.t
+            .ok(m::PLANS_LIST, json!({"patient_id": self.patient}), Some(&self.owner))
+            .as_array()
+            .unwrap()
+            .clone()
     }
 }
 
@@ -120,7 +125,12 @@ fn ct05_a_multi_session_item_cannot_be_completed_without_a_session() {
         ),
         ("status".into(), "item_sessions".into())
     );
-    assert!(f.t.ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner)).as_array().unwrap().is_empty());
+    assert!(f
+        .t
+        .ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
+        .as_array()
+        .unwrap()
+        .is_empty());
     // After one session it may be finished early (the doctor's call).
     let done = f.session(&item);
     let item = done["item"].clone();
@@ -207,7 +217,10 @@ fn ct10_ct11_ct12_ct13_items_are_checked_against_dates_teeth_and_the_chart() {
     f.add(pid, "PRS-02Z", json!([15, 16, 17]), json!({}));
     // CT-13: the same service on the same tooth twice in one plan.
     f.add(pid, "SRG-01", json!([48]), json!({}));
-    assert_eq!(f.try_add(pid, "SRG-01", json!([48]), json!({})), ("service_id".into(), "item_duplicate".into()));
+    assert_eq!(
+        f.try_add(pid, "SRG-01", json!([48]), json!({})),
+        ("service_id".into(), "item_duplicate".into())
+    );
     f.add(pid, "SRG-01", json!([38]), json!({}));
     // CT-12: no extraction on a tooth the chart records as missing.
     let missing = f.condition("missing");
@@ -241,7 +254,13 @@ fn ct02_ct03_ct04_ct16_chart_findings_are_checked() {
     let chart = f.t.ok(m::CHART_GET, json!({"patient_id": f.patient}), Some(&f.owner));
     assert_eq!(chart["findings"].as_array().unwrap().len(), 1);
     add(&caries, json!([16]), "D");
-    assert_eq!(f.t.ok(m::CHART_GET, json!({"patient_id": f.patient}), Some(&f.owner))["findings"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        f.t.ok(m::CHART_GET, json!({"patient_id": f.patient}), Some(&f.owner))["findings"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
 
     // CT-03: nothing is found on a missing tooth; an implant on it is fine.
     let missing = f.condition("missing");
@@ -279,14 +298,15 @@ fn ct02_ct03_ct04_ct16_chart_findings_are_checked() {
 fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
     let f = fx();
     let plan = f.plan("braces");
-    let item = f.add(
-        plan["id"].as_str(),
-        "ORT-01C",
-        json!([]),
-        json!({"sessions": 24, "unit_price": 6_000_000}),
-    );
+    let item =
+        f.add(plan["id"].as_str(), "ORT-01C", json!([]), json!({"sessions": 24, "unit_price": 6_000_000}));
     // No session yet: not billable.
-    assert!(f.t.ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner)).as_array().unwrap().is_empty());
+    assert!(f
+        .t
+        .ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
+        .as_array()
+        .unwrap()
+        .is_empty());
     let (_, field, rule) = failure(
         &f.t,
         m::INVOICES_CREATE,
@@ -299,7 +319,10 @@ fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
     let billable = f.t.ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner));
     assert_eq!(billable.as_array().unwrap().len(), 1);
     assert_eq!(billable[0]["completed"], false);
-    assert_eq!((billable[0]["sessions_done"].as_i64(), billable[0]["sessions_planned"].as_i64()), (Some(1), Some(24)));
+    assert_eq!(
+        (billable[0]["sessions_done"].as_i64(), billable[0]["sessions_planned"].as_i64()),
+        (Some(1), Some(24))
+    );
     let inv = f.t.ok(
         m::INVOICES_CREATE,
         json!({"patient_id": f.patient, "items": [{"item_id": item["id"]}],
@@ -308,7 +331,12 @@ fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
     );
     assert_eq!(inv["net"], 6_000_000);
     // Not twice.
-    assert!(f.t.ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner)).as_array().unwrap().is_empty());
+    assert!(f
+        .t
+        .ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
+        .as_array()
+        .unwrap()
+        .is_empty());
     let (_, _, rule) = failure(
         &f.t,
         m::INVOICES_CREATE,
@@ -382,7 +410,8 @@ fn fr05_fr08_fr09_reports_use_net_amounts_and_exports_never_overwrite() {
         Some(&f.owner),
     );
     let (from, to) = (day(-1), day(1));
-    let report = |kind: &str| f.t.ok(m::REPORTS_RUN, json!({"kind": kind, "from": from, "to": to}), Some(&f.owner));
+    let report =
+        |kind: &str| f.t.ok(m::REPORTS_RUN, json!({"kind": kind, "from": from, "to": to}), Some(&f.owner));
     // FR-05: net = 100 000 - 20 000 discount - 10 000 credit note.
     let rows = report("doctor_revenue");
     assert_eq!(rows["rows"][0][3]["value"], 70_000);
@@ -425,8 +454,14 @@ fn ct23_ct26_prescriptions_have_no_duplicate_medicine_and_voided_ones_cannot_be_
         RpcResponse::Error { error } => assert_eq!(error.field.as_deref(), Some("items.1.name")),
         RpcResponse::Ok { .. } => panic!("duplicate medicine accepted"),
     }
-    let RpcResponse::Ok { result } = issue(vec![line("Amoxicillin"), line("Ibuprofen")]) else { panic!("issue failed") };
-    let void = f.t.ok(m::DOCUMENTS_VOID, json!({"id": result["id"], "version": result["version"], "reason": "mistake"}), Some(&f.owner));
+    let RpcResponse::Ok { result } = issue(vec![line("Amoxicillin"), line("Ibuprofen")]) else {
+        panic!("issue failed")
+    };
+    let void = f.t.ok(
+        m::DOCUMENTS_VOID,
+        json!({"id": result["id"], "version": result["version"], "reason": "mistake"}),
+        Some(&f.owner),
+    );
     assert_eq!(void["status"], "void");
     let (_, rule) = fr(&f.t, m::DOCUMENTS_MARK_PRINTED, json!({"id": result["id"], "pdf": false}), &f.owner);
     assert_eq!(rule, "document_void");
