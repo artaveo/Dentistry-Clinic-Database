@@ -193,7 +193,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
               {head(t("wizard.step.language"), t("wizard.language.hint"))}
               <div className="options lang-cards" role="radiogroup" aria-label={t("wizard.step.language")}>
                 {(["fa", "ps", "en"] as Language[]).map((l) => (
-                  <button key={l} type="button" className="option" role="radio" aria-checked={lang === l} aria-pressed={lang === l} onClick={() => setLang(l)} data-testid={`wizard-lang-${l}`} lang={l}>
+                  <button key={l} type="button" className="option" role="radio" aria-checked={lang === l} onClick={() => setLang(l)} data-testid={`wizard-lang-${l}`} lang={l}>
                     <span className="lang-native">{t(`lang.${l}`)}</span>
                     <span className="lang-sub">{t(`wizard.language.${l}`)}</span>
                   </button>

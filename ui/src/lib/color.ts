@@ -76,8 +76,9 @@ export function brandPalette(hex: string, theme: "light" | "dark"): BrandPalette
     accent = untilContrast(accent, onAccent === WHITE ? "#000000" : WHITE, onAccent, 4.5);
   }
   const darker = onAccent === WHITE;
+  // U-26: text also sits on the tinted "active" fill (accent at 10–16%), which is lighter/darker than the surface; the extra margin keeps 4.5:1 there too.
   const accentText =
-    theme === "light" ? untilContrast(base, "#000000", surface, 4.5) : untilContrast(base, WHITE, surface, 4.5);
+    theme === "light" ? untilContrast(base, "#000000", surface, 6) : untilContrast(base, WHITE, surface, 5.6);
   return {
     accent,
     accentHover: mix(accent, darker ? "#000000" : WHITE, 0.1),

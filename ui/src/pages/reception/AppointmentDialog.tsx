@@ -23,6 +23,7 @@ import { useLetterhead } from "../../print/letterhead";
 import { DocumentEditor } from "../patients/documents/DocumentEditor";
 import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { StatusActions } from "./StatusActions";
+import { AlertLine } from "./AlertLine";
 import { MOVABLE, SCHEDULE_RULES, STATUS_TONE } from "./labels";
 
 export type Defaults = {
@@ -277,6 +278,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
           ) : (
             <PatientPicker value={patient} onChange={setPatient} canCreate={perms.createPatients} error={patientError || null} />
           )}
+          {patient && <AlertLine patientId={patient.id} testId="appt-alert-line" />}
           {clash && (
             <Notice tone="warning" testId="appt-clash">
               {t("appt.clash.text").replace("{doctor}", clash.doctor_name).replace("{time}", formatTime(clash.start_time, lang))}{" "}

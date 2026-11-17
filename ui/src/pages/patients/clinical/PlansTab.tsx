@@ -34,7 +34,7 @@ export type BookPerms = { edit: boolean; treat: boolean; createPatients: boolean
  * side, the chosen one in progress — with phases, prices from the catalog (changeable per patient), each
  * item's sessions (✓✓○), recording a session, booking the next one, and the printed estimate.
  */
-export function PlansTab({ patient, clinic, canEdit, calendar, booking, clinicName, onChanged }: {
+export function PlansTab({ patient, clinic, canEdit, calendar, booking, clinicName, onChanged, onOpenChart }: {
   patient: PatientInfo;
   clinic: ClinicProfile | null;
   canEdit: boolean;
@@ -42,6 +42,8 @@ export function PlansTab({ patient, clinic, canEdit, calendar, booking, clinicNa
   booking: BookPerms;
   clinicName: string;
   onChanged?: () => void;
+  /** CT-37: an empty plan sends the doctor to the chart, where services are added. */
+  onOpenChart?: () => void;
 }) {
   const { t, err, lang } = useI18n();
   const settings = useClinicSettings();
@@ -88,7 +90,7 @@ export function PlansTab({ patient, clinic, canEdit, calendar, booking, clinicNa
         {!plans.length && <EmptyState icon={ClipboardList} title={t("plan.none")} action={action}>{t("plan.noneHint")}</EmptyState>}
       </Card>
       {open.map((p) => (
-        <PlanCard key={p.id} plan={p} others={proposed.length > 1} patient={patient} clinic={clinic} canEdit={canEdit} calendar={calendar} booking={booking} clinicName={clinicName} numbering={numbering} onChanged={changed} onPrint={() => setEstimate([p])} />
+        <PlanCard key={p.id} plan={p} others={proposed.length > 1} patient={patient} clinic={clinic} canEdit={canEdit} calendar={calendar} booking={booking} clinicName={clinicName} numbering={numbering} onChanged={changed} onPrint={() => setEstimate([p])} onOpenChart={onOpenChart} />
       ))}
       {closed.length > 0 && (
         <Button variant="subtle" onClick={() => setShowClosed((x) => !x)} data-testid="plan-show-closed">
@@ -96,7 +98,7 @@ export function PlansTab({ patient, clinic, canEdit, calendar, booking, clinicNa
         </Button>
       )}
       {showClosed && closed.map((p) => (
-        <PlanCard key={p.id} plan={p} others={false} patient={patient} clinic={clinic} canEdit={canEdit} calendar={calendar} booking={booking} clinicName={clinicName} numbering={numbering} onChanged={changed} onPrint={() => setEstimate([p])} />
+        <PlanCard key={p.id} plan={p} others={false} patient={patient} clinic={clinic} canEdit={canEdit} calendar={calendar} booking={booking} clinicName={clinicName} numbering={numbering} onChanged={changed} onPrint={() => setEstimate([p])} onOpenChart={onOpenChart} />
       ))}
       {creating && <NewPlanDialog patient={patient} count={plans.length} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); changed(); }} />}
       {estimate && <EstimateDialog patient={patient} plans={estimate} calendar={calendar} numbering={numbering} onClose={() => setEstimate(null)} onIssued={changed} />}
@@ -104,7 +106,7 @@ export function PlansTab({ patient, clinic, canEdit, calendar, booking, clinicNa
   );
 }
 
-function PlanCard({ plan, others, patient, clinic, canEdit, calendar, booking, clinicName, numbering, onChanged, onPrint }: {
+function PlanCard({ plan, others, patient, clinic, canEdit, calendar, booking, clinicName, numbering, onChanged, onPrint, onOpenChart }: {
   plan: TreatmentPlanInfo;
   others: boolean;
   patient: PatientInfo;
@@ -116,6 +118,7 @@ function PlanCard({ plan, others, patient, clinic, canEdit, calendar, booking, c
   numbering: ToothNumbering;
   onChanged: () => void;
   onPrint: () => void;
+  onOpenChart?: () => void;
 }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
@@ -187,7 +190,10 @@ function PlanCard({ plan, others, patient, clinic, canEdit, calendar, booking, c
           </table>
         </div>
       ) : (
-        <p className="subtle plan-empty">{t("plan.noItems")}</p>
+        <div className="plan-empty stack" data-testid="plan-empty">
+          <p className="subtle" style={{ margin: 0 }}>{t("plan.noItems")}</p>
+          {canEdit && onOpenChart && <Button size="sm" variant="primary" icon={Plus} onClick={onOpenChart} data-testid="plan-add-service">{t("plan.addService")}</Button>}
+        </div>
       )}
       {renaming && <RenameDialog plan={plan} onClose={() => setRenaming(false)} onSaved={() => { setRenaming(false); onChanged(); }} />}
       {accepting && (

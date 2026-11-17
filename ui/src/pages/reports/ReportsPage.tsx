@@ -134,7 +134,7 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
     <div className="page page-reports" data-testid="page-reports">
       <PageHeader
         title={t("reports.title")}
-        description={t("reports.subtitle")}
+        description={t(canSeeStock ? "reports.subtitle" : "reports.subtitle.nostock")}
         actions={
           <>
             <span className="report-tip" title={excelWhy}>

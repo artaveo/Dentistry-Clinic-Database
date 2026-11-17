@@ -130,6 +130,7 @@ test("merge folds the record you're viewing into the one you pick", async () => 
   await page.getByTestId("merge-search").fill("Someone Else");
   await page.locator('[data-testid^="merge-candidate-"]').first().click();
   await expect(page.getByTestId("merge-dialog")).toContainText("غیرفعال");
+  await page.getByTestId("merge-sure").check();
   await page.getByTestId("merge-confirm").click();
   await expect(toast()).toHaveText("پرونده‌ها ادغام شدند.");
 

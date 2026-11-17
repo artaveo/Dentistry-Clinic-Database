@@ -6,5 +6,21 @@
   "palette.group.actions": "کارونه",
   "palette.newPatient": "نوی ناروغ",
   "palette.newAppointment": "نوی وخت",
-  "palette.receivePayment": "پیسې اخیستل"
+  "palette.receivePayment": "پیسې اخیستل",
+  "dialog.discard.title": "بدلونونه خوندي شوي نه دي",
+  "dialog.discard.text": "هغه څه چې لیکلي مو دي خوندي شوي نه دي. که وتړل شي، له منځه ځي.",
+  "dialog.discard.yes": "پرته له خوندي کولو وتړئ",
+  "dialog.discard.keep": "ترمیم ته دوام ورکړئ",
+  "stock.consume.short": "مصرف",
+  "stock.receive.short": "ترلاسه کول",
+  "shell.skipToContent": "منځپانګې ته تلل",
+  "dash.attentionHint.nostock": "د پیسو او بیک‌اپ حالت",
+  "reports.subtitle.nostock": "مالي او کلینیکي راپورونه؛ چاپ او Excel",
+  "shell.about": "د پروګرام په اړه",
+  "clinic.part.identity": "د کلینیک مشخصات",
+  "clinic.part.hours": "د کار ساعتونه",
+  "rule.patient_has_history": "دې ناروغ ثبت شوي فاکتور، تادیه یا درملنه لري؛ نه ړنګیږي. پر ځای یې آرشیف کړئ.",
+  "rule.stock_code_taken": "بل توکي همدا کوډ لري.",
+  "rule.appointment_not_started": "د نوبت له وخت مخکې «نه دی راغلی» نشي ثبتېدای.",
+  "rule.recall_duplicate": "همدا یادونه دې ناروغ ته دمخه ثبت شوې ده."
 }

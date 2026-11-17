@@ -32,8 +32,8 @@ export function stateText(t: T, s: ChartState): string {
 export function sessionText(t: T, lang: Language, i: TreatmentItemInfo): string {
   if (i.sessions_planned <= 1) return "";
   if (i.status === "in_progress") {
-    const n = Math.min(i.sessions_planned, i.sessions_done + 1);
-    return t("chart.sessionOf").replace("{n}", digits(n, lang)).replace("{of}", digits(i.sessions_planned, lang));
+    // CT-36: «۱ از ۲۴ جلسه انجام شد», not «جلسه ۲ از ۲۴» (which reads as two done).
+    return t("item.sessionsDoneOf").replace("{n}", digits(i.sessions_done, lang)).replace("{of}", digits(i.sessions_planned, lang));
   }
   return t("chart.sessions").replace("{n}", digits(i.sessions_planned, lang));
 }

@@ -10,7 +10,7 @@ import { useFormDraft } from "../../lib/draft";
 import { useI18n } from "../../i18n";
 import { useReferenceList } from "./useReferenceList";
 import { GeoPicker } from "../../setup/GeoPicker";
-import { Button } from "../../ui/Button";
+import { BackButton, Button } from "../../ui/Button";
 import { Card, CardHeader, Page, PageHeader } from "../../ui/Card";
 import { Field, Select, Textarea, TextInput } from "../../ui/Field";
 import { Notice } from "../../ui/Feedback";
@@ -93,13 +93,13 @@ function ReferenceSelect({ typeCode, value, onChange, testId }: { typeCode: stri
 }
 
 /** Create (no `patient`) or edit (`patient` given) — same sectioned form either way (3.1). */
-export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientInfo | null; onDone: (p: PatientInfo) => void; onCancel: () => void }) {
+export function PatientForm({ patient, initialName, onDone, onCancel }: { patient?: PatientInfo | null; /** Typed in the list search that found nobody: starts a new record with this name. */ initialName?: string; onDone: (p: PatientInfo) => void; onCancel: () => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   // OF-019: the user picks one way to record the birth. The other input is read-only and derived.
   const [exactBirth, setExactBirth] = useState(!!patient?.date_of_birth);
   const formRef = useRef<HTMLFormElement>(null);
-  const form = useForm(toValues(patient), {
+  const form = useForm(initialName && !patient ? { ...toValues(null), full_name: initialName } : toValues(patient), {
     full_name: v.required,
     phone: v.phone,
     secondary_phone: v.phone,
@@ -122,6 +122,8 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
     rpc("clinic.get", {}).then((c) => setCalendar(c.calendar_system)).catch(() => {});
   }, []);
   const [busy, setBusy] = useState(false);
+  // PA-08: an old record is archived (inactive) instead of deleted; the form can switch it back.
+  const [active, setActive] = useState(patient ? patient.status === "active" : true);
   const [error, setError] = useState("");
   const [duplicates, setDuplicates] = useState<PatientInfo[] | null>(null);
   const e = (k: keyof FormValues) => form.error(k) && t(form.error(k)!);
@@ -132,7 +134,7 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
     try {
       const body = toParams(form.values, exactBirth);
       const saved = patient
-        ? await rpc("patients.update", { id: patient.id, version: patient.version, status: patient.status, ...body })
+        ? await rpc("patients.update", { id: patient.id, version: patient.version, status: active ? "active" : "inactive", ...body })
         : await rpc("patients.create", { ...body, registration_date: null, allow_duplicate: allowDuplicate });
       draft.clear();
       toast.success(t(patient ? "patients.saved" : "patients.created"));
@@ -161,6 +163,7 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
 
   return (
     <Page testId="page-patient-form">
+      <BackButton onBack={() => { draft.clear(); onCancel(); }} label={t(patient ? "patients.backProfile" : "patients.backShort")} testId="patient-form-back" />
       <PageHeader title={t(patient ? "patients.editTitle" : "patients.add")} description={t("patients.addHint")} />
       <form className="stack" onSubmit={submit} noValidate data-testid="patient-form" ref={formRef}>
         {error && <Notice tone="danger">{error}</Notice>}
@@ -249,10 +252,16 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
             <Field label={t("patient.field.notes")} optional className="span-2">
               <Textarea value={form.values.notes} onChange={(x) => form.set("notes", x.target.value)} data-testid="patient-notes" />
             </Field>
+            {patient && (
+              <div className="span-2">
+                <Switch checked={active} onChange={setActive} label={t("patients.form.active")} testId="patient-active" />
+                {!active && <p className="subtle t-caption" style={{ margin: "var(--space-1) 0 0" }}>{t("patients.form.inactiveHint")}</p>}
+              </div>
+            )}
           </div>
         </Card>
 
-        <div className="row" style={{ justifyContent: "flex-end" }}>
+        <div className="row form-actions-sticky">
           <Button onClick={() => { draft.clear(); onCancel(); }} data-testid="patient-cancel">{t("common.cancel")}</Button>
           <Button variant="primary" icon={patient ? Save : UserPlus} loading={busy} type="submit" data-testid="patient-save">
             {t(patient ? "common.save" : "patients.add")}
@@ -264,6 +273,7 @@ export function PatientForm({ patient, onDone, onCancel }: { patient?: PatientIn
           patients={duplicates}
           lang={lang}
           onCancel={() => setDuplicates(null)}
+          onOpen={(p) => { draft.clear(); onDone(p); }}
           onContinue={() => {
             setDuplicates(null);
             void doSave(true);

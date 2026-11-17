@@ -362,6 +362,18 @@ fn check_content(conn: &Connection, p: &IssueDocumentParams) -> Result<DocumentC
                 .enumerate()
                 .map(|(i, x)| formulary::check_line(&format!("items.{i}"), x))
                 .collect::<Result<Vec<_>>>()?;
+            // CT-26: the same medicine (name, strength, form) is not written twice on one prescription.
+            let mut seen = std::collections::HashSet::new();
+            for (i, x) in items.iter().enumerate() {
+                let key = (x.name.to_lowercase(), x.strength.clone().unwrap_or_default().to_lowercase(), x.form.clone());
+                if !seen.insert(key) {
+                    return Err(CoreError::invalid(
+                        &format!("items.{i}.name"),
+                        ValidationRule::DocumentItems,
+                        "this medicine is already on the prescription",
+                    ));
+                }
+            }
             let warnings = check_prescription(conn, &p.patient_id, &items)?;
             if let Some(w) = warnings.iter().find(|w| !c.acknowledged.contains(&w.key)) {
                 return Err(CoreError::invalid(

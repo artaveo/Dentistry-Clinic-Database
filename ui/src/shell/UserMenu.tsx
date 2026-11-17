@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Gauge, KeyRound, LockKeyhole, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { ChevronDown, Gauge, Info, KeyRound, LockKeyhole, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import type { ThemePreference } from "../../../shared/ts/contract";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
@@ -11,12 +11,15 @@ import { Popover } from "../ui/Overlay";
 export function UserMenu({
   displayName,
   roleLabel,
+  onAbout,
   onPassword,
   onLock,
   onLogout,
 }: {
   displayName: string;
   roleLabel: string;
+  /** Only for people whose Settings menu item is hidden: opens "About the app". */
+  onAbout?: () => void;
   onPassword: () => void;
   onLock: () => void;
   onLogout: () => void;
@@ -65,6 +68,11 @@ export function UserMenu({
         <span className="subtle t-caption">{t("shell.perf.hint")}</span>
       </div>
       <div className="menu-sep" />
+      {onAbout && (
+        <button type="button" className="menu-item" onClick={close(onAbout)} data-testid="menu-about">
+          <Info aria-hidden /> {t("shell.about")}
+        </button>
+      )}
       <button type="button" className="menu-item" onClick={close(onPassword)} data-testid="change-password">
         <KeyRound aria-hidden /> {t("password.title")}
       </button>

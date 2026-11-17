@@ -6,7 +6,7 @@ import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Overlay";
 
 /** Shown when `patients.create` reports `possible_duplicate` (3.1): the user decides. */
-export function DuplicateWarningDialog({ patients, lang, onCancel, onContinue }: { patients: PatientInfo[]; lang: Language; onCancel: () => void; onContinue: () => void }) {
+export function DuplicateWarningDialog({ patients, lang, onCancel, onContinue, onOpen }: { patients: PatientInfo[]; lang: Language; onCancel: () => void; onContinue: () => void; /** PA-40: open the existing record instead of creating a second one. */ onOpen?: (p: PatientInfo) => void }) {
   const { t } = useI18n();
   return (
     <Dialog
@@ -26,7 +26,10 @@ export function DuplicateWarningDialog({ patients, lang, onCancel, onContinue }:
           {patients.map((p) => (
             <li key={p.id} className="row" style={{ justifyContent: "space-between" }}>
               <span className="cell-strong">{p.full_name}</span>
-              <span className="subtle t-caption"><bdi className="ltr num">{p.patient_number}</bdi> · {formatDate(p.registration_date, lang)}</span>
+              <span className="row">
+                <span className="subtle t-caption"><bdi className="ltr num">{p.patient_number}</bdi> · {formatDate(p.registration_date, lang)}</span>
+                {onOpen && <Button size="sm" variant="link" onClick={() => onOpen(p)} data-testid={`duplicate-open-${p.patient_number}`}>{t("patients.duplicate.open")}</Button>}
+              </span>
             </li>
           ))}
         </ul>

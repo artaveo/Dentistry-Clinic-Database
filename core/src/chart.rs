@@ -425,7 +425,7 @@ fn get_finding(conn: &Connection, id: &str) -> Result<ToothFinding> {
     conn.query_row(&format!("{FINDING_SELECT} AND f.id = ?1"), [id], map_finding).optional()?.ok_or_else(
         || {
             CoreError::api(ErrorCode::NotFound, format!("finding {id}"))
-                .on_field("id", ValidationRule::ConditionNotFound)
+                .on_field("id", ValidationRule::FindingNotFound)
         },
     )
 }
@@ -496,6 +496,45 @@ pub fn set_dentition(conn: &Connection, actor: &Actor, p: &SetDentitionParams) -
     get(conn, &p.patient_id)
 }
 
+/// CT-04: a baby tooth is not on an adult's chart nor an adult tooth on a child's (a mixed chart
+/// takes both).
+pub fn check_dentition(conn: &Connection, patient_id: &str, teeth: &[u8]) -> Result<()> {
+    if teeth.is_empty() {
+        return Ok(());
+    }
+    let (dentition, _, _, _) = dentition_of(conn, patient_id)?;
+    for &t in teeth {
+        let wrong = match dentition {
+            Dentition::Permanent => is_primary(t),
+            Dentition::Primary => !is_primary(t),
+            Dentition::Mixed => false,
+        };
+        if wrong {
+            return Err(CoreError::invalid(
+                "teeth",
+                ValidationRule::ToothNumber,
+                format!("tooth {t} is not in this patient's {} dentition", dentition_code(dentition)),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// A finding says the tooth is missing or extracted, and nothing was put in its place since.
+pub fn tooth_is_absent(conn: &Connection, patient_id: &str, tooth: u8) -> Result<bool> {
+    let has = |symbols: &str| -> Result<bool> {
+        Ok(conn.query_row(
+            &format!(
+                "SELECT EXISTS(SELECT 1 FROM tooth_finding f JOIN tooth_condition c ON c.id = f.condition_id
+                 WHERE f.patient_id = ?1 AND f.tooth = ?2 AND f.deleted_at IS NULL AND c.symbol IN ({symbols}))"
+            ),
+            params![patient_id, tooth],
+            |r| r.get::<_, bool>(0),
+        )?)
+    };
+    Ok(has("'missing', 'extraction'")? && !has("'implant', 'abutment', 'implant_crown', 'bridge', 'denture'")?)
+}
+
 pub fn add_findings(conn: &Connection, actor: &Actor, p: &AddFindingsParams) -> Result<Vec<ToothFinding>> {
     crate::treatment::check_patient(conn, &p.patient_id)?;
     let condition = get_condition(conn, &p.condition_id)?;
@@ -522,10 +561,47 @@ pub fn add_findings(conn: &Connection, actor: &Actor, p: &AddFindingsParams) -> 
             "a note is at most 500 characters",
         ));
     }
+    check_dentition(conn, &p.patient_id, &teeth)?;
     let now = now_iso();
     let today = today_iso();
     let mut out = Vec::new();
+    // Symbols of a tooth that is there (not missing or extracted).
+    let needs_tooth = !matches!(
+        condition.symbol,
+        ChartSymbol::None
+            | ChartSymbol::Missing
+            | ChartSymbol::Extraction
+            | ChartSymbol::Implant
+            | ChartSymbol::Abutment
+            | ChartSymbol::ImplantCrown
+            | ChartSymbol::Bridge
+            | ChartSymbol::Denture
+            | ChartSymbol::Marker
+            | ChartSymbol::Impacted
+    );
     for t in teeth {
+        // CT-02: the same finding on the same tooth and surfaces is not recorded twice.
+        let same: Option<String> = conn
+            .query_row(
+                "SELECT id FROM tooth_finding WHERE patient_id = ?1 AND tooth = ?2 AND surfaces = ?3
+                 AND condition_id = ?4 AND deleted_at IS NULL",
+                params![p.patient_id, t, surfaces, condition.id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(id) = same {
+            out.push(get_finding(conn, &id)?);
+            continue;
+        }
+        // CT-03: nothing is found on a tooth that is missing or extracted, unless it was restored
+        // since (implant, bridge, denture).
+        if needs_tooth && tooth_is_absent(conn, &p.patient_id, t)? {
+            return Err(CoreError::invalid(
+                "teeth",
+                ValidationRule::ToothConflict,
+                format!("tooth {t} is recorded as missing or extracted"),
+            ));
+        }
         let id = new_id();
         conn.execute(
             "INSERT INTO tooth_finding(id, patient_id, tooth, surfaces, condition_id, note, recorded_on, created_at,

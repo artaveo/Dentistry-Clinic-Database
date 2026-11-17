@@ -6,5 +6,21 @@
   "palette.group.actions": "کارها",
   "palette.newPatient": "بیمار جدید",
   "palette.newAppointment": "نوبت جدید",
-  "palette.receivePayment": "دریافت پول"
+  "palette.receivePayment": "دریافت پول",
+  "dialog.discard.title": "تغییرات ذخیره نشده",
+  "dialog.discard.text": "آنچه نوشته‌اید ذخیره نشده است. با بستن، از بین می‌رود.",
+  "dialog.discard.yes": "بستن بدون ذخیره",
+  "dialog.discard.keep": "ادامه ویرایش",
+  "stock.consume.short": "مصرف",
+  "stock.receive.short": "دریافت",
+  "shell.skipToContent": "پرش به محتوا",
+  "dash.attentionHint.nostock": "وضعیت پول و پشتیبان",
+  "reports.subtitle.nostock": "گزارش مالی و بالینی؛ چاپ و خروجی Excel",
+  "shell.about": "درباره برنامه",
+  "clinic.part.identity": "مشخصات کلینیک",
+  "clinic.part.hours": "ساعت کاری",
+  "rule.patient_has_history": "این بیمار فاکتور، پرداخت یا درمان ثبت‌شده دارد؛ حذف نمی‌شود. به‌جای حذف، بایگانی کنید.",
+  "rule.stock_code_taken": "جنس دیگری همین کد را دارد.",
+  "rule.appointment_not_started": "پیش از رسیدن وقت نوبت نمی‌توان «نیامد» ثبت کرد.",
+  "rule.recall_duplicate": "همین یادآوری برای این بیمار از قبل ثبت شده است."
 }

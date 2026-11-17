@@ -149,7 +149,22 @@ fn insert(
 pub fn create_recall(conn: &Connection, actor: &Actor, p: &CreateRecallParams) -> Result<RecallInfo> {
     let due = validate(&p.due_date, p.repeat_months, p.note.as_deref())?;
     ensure_patient(conn, &p.patient_id)?;
-    insert(conn, actor, &p.patient_id, p.kind, &format_date(due), p.repeat_months, p.note.as_deref(), None)
+    // PA-29: the same open recall (kind and day) is not added twice for one patient.
+    let due_text = format_date(due);
+    let duplicate: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM recall WHERE patient_id = ?1 AND kind = ?2 AND due_date = ?3
+                       AND status IN ('pending', 'contacted') AND deleted_at IS NULL)",
+        params![p.patient_id, p.kind.code(), due_text],
+        |r| r.get(0),
+    )?;
+    if duplicate {
+        return Err(CoreError::invalid(
+            "due_date",
+            ValidationRule::RecallDuplicate,
+            "the patient already has an open recall of this kind on this date",
+        ));
+    }
+    insert(conn, actor, &p.patient_id, p.kind, &due_text, p.repeat_months, p.note.as_deref(), None)
 }
 
 /// A follow-up chosen while completing a visit (4.6).

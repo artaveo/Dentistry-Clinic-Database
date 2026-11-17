@@ -293,6 +293,22 @@ pub fn create(
         }
     };
 
+    // BR-1: a backup folder must restore everything. The images (X-rays, photos) are kept beside the
+    // database copies, once per file (content-addressed), so a copied backup folder is complete.
+    // A failure here never blocks the database backup, but it is recorded in the audit log.
+    if let Err(e) = sync_attachments(&config.attachments_dir(), &dir.join("attachments")) {
+        tracing::warn!(error = %e, "images could not be copied into the backup folder");
+        audit::record(
+            conn,
+            actor,
+            "backup.images_failed",
+            Some("backup"),
+            None,
+            None,
+            Some(&json!({"error": e.to_string()})),
+        )?;
+    }
+
     let info = BackupInfo {
         id: new_id(),
         file_name,
@@ -314,6 +330,20 @@ pub fn create(
 /// Files in the backup folder that the register does not know (after a restore the register came back
 /// from an older state): they are listed again so retention and the history still see them.
 pub fn reconcile(conn: &Connection, dir: &Path) -> Result<u32> {
+    // BR-2: the register may list backups whose files are not in this folder (data restored on a new
+    // computer, or a file deleted by hand). They are marked removed, so the screens and the daily
+    // schedule never trust a backup that does not exist here.
+    let listed: Vec<String> = {
+        let mut stmt = conn.prepare("SELECT file_name FROM backup_log WHERE deleted_at IS NULL")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<_>>()?;
+        rows
+    };
+    for name in listed.iter().filter(|n| !dir.join(n).is_file()) {
+        conn.execute(
+            "UPDATE backup_log SET deleted_at = ?1 WHERE file_name = ?2 AND deleted_at IS NULL",
+            params![iso(now()), name],
+        )?;
+    }
     let mut added = 0;
     for (name, at) in list_folder(dir) {
         let known: i64 =

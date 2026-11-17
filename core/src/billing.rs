@@ -539,15 +539,23 @@ pub fn list_invoices(conn: &Connection, p: &InvoiceListParams) -> Result<Vec<Inv
     Ok(out)
 }
 
-/// Completed treatments of the patient not on any invoice yet.
+/// SQL test (on `treatment_item i`) for a treatment that may be invoiced: completed, or (CT-08) a
+/// multi-session course such as orthodontics that has started, so it can be invoiced and paid in
+/// installments while the sessions go on.
+const BILLABLE_ITEM: &str = "(i.status = 'completed'
+    OR (i.status = 'in_progress' AND i.sessions_planned > 1
+        AND EXISTS(SELECT 1 FROM treatment_session s WHERE s.item_id = i.id)))";
+
+/// Completed treatments of the patient not on any invoice yet (and started multi-session courses).
 pub fn billable(conn: &Connection, patient_id: &str) -> Result<Vec<BillableItem>> {
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT i.id, i.service_id, s.name_fa, s.name_ps, s.name_en, i.teeth, i.surfaces, i.units, i.unit_price,
-            i.doctor_id, i.completed_at, i.details
+            i.doctor_id, i.completed_at, i.details, i.status = 'completed', i.sessions_planned,
+            (SELECT COUNT(*) FROM treatment_session x WHERE x.item_id = i.id)
          FROM treatment_item i JOIN service s ON s.id = i.service_id
-         WHERE i.patient_id = ?1 AND i.status = 'completed' AND i.billed_at IS NULL AND i.deleted_at IS NULL
-         ORDER BY COALESCE(i.completed_at, i.created_at), i.sort_order",
-    )?;
+         WHERE i.patient_id = ?1 AND {BILLABLE_ITEM} AND i.billed_at IS NULL AND i.deleted_at IS NULL
+         ORDER BY COALESCE(i.completed_at, i.created_at), i.sort_order"
+    ))?;
     let rows = stmt
         .query_map([patient_id], |r| {
             Ok(BillableItem {
@@ -561,6 +569,9 @@ pub fn billable(conn: &Connection, patient_id: &str) -> Result<Vec<BillableItem>
                 doctor_id: r.get(9)?,
                 completed_at: r.get(10)?,
                 details: r.get(11)?,
+                completed: r.get(12)?,
+                sessions_planned: r.get(13)?,
+                sessions_done: r.get(14)?,
             })
         })?
         .collect::<rusqlite::Result<_>>()?;
@@ -625,8 +636,10 @@ pub fn create_invoice(
         }
         let row = conn
             .query_row(
-                "SELECT patient_id, service_id, teeth, surfaces, doctor_id, unit_price, units, status, billed_at
-                 FROM treatment_item WHERE id = ?1 AND deleted_at IS NULL",
+                &format!(
+                    "SELECT patient_id, service_id, teeth, surfaces, doctor_id, unit_price, units, {BILLABLE_ITEM}, billed_at
+                     FROM treatment_item i WHERE id = ?1 AND deleted_at IS NULL"
+                ),
                 [&pick.item_id],
                 |r| {
                     Ok((
@@ -637,15 +650,15 @@ pub fn create_invoice(
                         r.get::<_, Option<String>>(4)?,
                         r.get::<_, i64>(5)?,
                         r.get::<_, i64>(6)?,
-                        r.get::<_, String>(7)?,
+                        r.get::<_, bool>(7)?,
                         r.get::<_, Option<String>>(8)?,
                     ))
                 },
             )
             .optional()?
             .ok_or_else(|| CoreError::invalid("items", ValidationRule::ItemNotBillable, "unknown treatment"))?;
-        let (patient, service, teeth, surfaces, doctor, price, units, status, billed) = row;
-        if patient != p.patient_id || status != "completed" {
+        let (patient, service, teeth, surfaces, doctor, price, units, billable_now, billed) = row;
+        if patient != p.patient_id || !billable_now {
             return Err(CoreError::invalid(
                 "items",
                 ValidationRule::ItemNotBillable,
@@ -846,6 +859,7 @@ pub fn credit_note(conn: &Connection, actor: &Actor, p: &CreditNoteParams) -> Re
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![new_id(), number, p.invoice_id, before.patient_id, amount, reason, now_iso(), today_iso(), actor.user_id],
     )?;
+    shrink_installments(conn, &before, amount)?;
     conn.execute(
         "UPDATE invoice SET updated_at = ?1, updated_by = ?2, version = version + 1 WHERE id = ?3",
         params![now_iso(), actor.user_id, p.invoice_id],
@@ -863,11 +877,47 @@ pub fn credit_note(conn: &Connection, actor: &Actor, p: &CreditNoteParams) -> Re
     Ok(after)
 }
 
+/// FR-04: a credit note lowers what is still owed, so the unpaid part of the installment plan
+/// shrinks by the same amount, from the last installment backwards (what was paid is kept).
+fn shrink_installments(conn: &Connection, inv: &InvoiceInfo, cut: i64) -> Result<()> {
+    let mut left = cut;
+    for x in inv.installments.iter().rev() {
+        if left == 0 {
+            break;
+        }
+        let take = (x.amount - x.paid).min(left);
+        if take == 0 {
+            continue;
+        }
+        left -= take;
+        if x.amount == take {
+            conn.execute("DELETE FROM installment WHERE invoice_id = ?1 AND no = ?2", params![inv.id, x.no])?;
+        } else {
+            conn.execute(
+                "UPDATE installment SET amount = amount - ?1 WHERE invoice_id = ?2 AND no = ?3",
+                params![take, inv.id, x.no],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn write_installments(conn: &Connection, invoice_id: &str, list: &[NewInstallment]) -> Result<()> {
     let a = amounts(conn, invoice_id)?;
     let mut rows = Vec::new();
+    // CT-09: a late installment is allowed (an old debt being scheduled), but a due date more than a
+    // year back is a typo ("2020").
+    let oldest = format_date(parse_date("today", &today_iso())? - time::Duration::days(365));
     for x in list {
-        rows.push((date_of("due_date", &x.due_date)?, money("amount", x.amount, false)?));
+        let due = date_of("due_date", &x.due_date)?;
+        if due < oldest {
+            return Err(CoreError::invalid(
+                "installments",
+                ValidationRule::InstallmentsInvalid,
+                "a due date is more than a year in the past",
+            ));
+        }
+        rows.push((due, money("amount", x.amount, false)?));
     }
     rows.sort();
     let sum: i64 = rows.iter().map(|r| r.1).sum();

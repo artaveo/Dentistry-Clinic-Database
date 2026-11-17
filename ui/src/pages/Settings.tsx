@@ -126,6 +126,8 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
       <PageHeader title={t("settings.title")} description={t("settings.subtitle")} />
       <form className="stack-lg" onSubmit={save} noValidate>
         {error && <Notice tone="danger" testId="settings-message">{error}</Notice>}
+        {/* U-31: the small cards sit two by two, so the page is half as long. */}
+        <div className="settings-pair">
         <Card>
           <CardHeader icon={ShieldCheck} title={t("settings.security")} description={t("settings.securityHint")} />
           <div className="grid-2">
@@ -146,6 +148,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
             />
           </Field>
         </Card>
+        </div>
         <Card>
           <CardHeader icon={Printer} title={t("settings.print")} description={t("settings.printHint")} />
           <div className="grid-2">
@@ -168,6 +171,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
             <Switch checked={brandFooter} onChange={setBrandFooter} label={t("settings.brandFooter")} testId="setting-brand-footer" />
           </div>
         </Card>
+        <div className="settings-pair">
         <Card>
           <CardHeader icon={Stethoscope} title={t("settings.clinicalRules")} description={t("settings.clinicalRulesHint")} />
           <Switch checked={restrict} onChange={setRestrict} label={t("settings.restrictSpecialty")} testId="setting-restrict-specialty" />
@@ -194,6 +198,7 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: (s: Se
             </div>
           </div>
         </Card>
+        </div>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="settings-save">{t("common.save")}</Button>
         </div>

@@ -177,6 +177,10 @@ pub struct BillableItem {
     pub doctor_id: Option<String>,
     pub completed_at: Option<String>,
     pub details: Option<String>,
+    /// CT-08: false for a multi-session course (orthodontics) invoiced while still in progress.
+    pub completed: bool,
+    pub sessions_done: i64,
+    pub sessions_planned: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

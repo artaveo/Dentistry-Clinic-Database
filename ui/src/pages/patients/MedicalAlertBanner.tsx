@@ -3,7 +3,7 @@ import { ClipboardClock, TriangleAlert } from "lucide-react";
 import type { MedicalHistoryInfo } from "../../../../shared/ts/contract";
 import { rpc } from "../../lib/api";
 import { digits } from "../../lib/dates";
-import { alertsOf, tr, useMedicalQuestions } from "../../lib/medical";
+import { alertsOf, alertText, tr, useMedicalQuestions } from "../../lib/medical";
 import { useI18n } from "../../i18n";
 
 /**
@@ -26,10 +26,7 @@ export function MedicalAlertBanner({ patientId, onOpenHistory, hideReview }: { p
 
   if (!history || !questions) return null;
   const alerts = alertsOf(questions, history.answers);
-  const text = (a: (typeof alerts)[number]) => {
-    const parts = [a.a.detail_text && (a.q.detail_kind === "months" ? `${digits(a.a.detail_text, lang)} ${t("medicalHistory.months")}` : a.a.detail_text), a.a.detail_choice && t(`mh.choice.${a.a.detail_choice}`)].filter(Boolean);
-    return parts.length ? `${tr(a.q.label, lang)} (${parts.join("، ")})` : tr(a.q.label, lang);
-  };
+  const text = (a: (typeof alerts)[number]) => alertText(a, lang, t, (s) => digits(s, lang));
 
   return (
     <>

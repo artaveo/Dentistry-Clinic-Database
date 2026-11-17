@@ -1,0 +1,23 @@
+{
+  "patients.backProfile": "بازگشت به پرونده",
+  "patients.form.active": "پرونده فعال است",
+  "patients.form.inactiveHint": "پرونده‌ی غیرفعال (بایگانی) در فهرست با نشان «غیرفعال» می‌آید و پاک نمی‌شود.",
+  "patients.filter.status": "وضعیت پرونده",
+  "patients.filter.all": "همه",
+  "patients.addWithName": "افزودن «{name}» به‌عنوان بیمار تازه",
+  "patients.age.about": "حدود",
+  "patients.header.ageAbout": "حدود {n} ساله",
+  "patients.tab.noAccess": "این بخش برای نقش شما فعال نیست",
+  "patients.duplicate.open": "باز کردن پرونده",
+  "patients.merge.keep": "پرونده‌ی اصلی (می‌ماند)",
+  "patients.merge.remove": "این پرونده (غیرفعال می‌شود)",
+  "patients.merge.warningNamed": "پرونده‌ی «{from}» غیرفعال می‌شود و نوبت‌ها، فاکتورها و سوابق آن به «{to}» می‌رود. این کار برگشت‌پذیر نیست.",
+  "patients.merge.sure": "مطمئنم؛ پرونده‌ی {n} ادغام شود",
+  "chart.surfaceRequired": "سطح دندان را انتخاب کنید (روی صلیب سطح‌ها بزنید).",
+  "plan.addService": "افزودن خدمت از چارت",
+  "item.sessionsDoneOf": "{n} از {of} جلسه انجام شد",
+  "cash.diff.enter": "مبلغ شمارش‌شده را بنویسید.",
+  "rule.tooth_conflict": "این دندان غایب یا کشیده‌شده است؛ ثبت روی آن معنا ندارد.",
+  "rule.finding_not_found": "این یافته پیدا نشد (شاید قبلاً حذف شده).",
+  "rule.item_duplicate": "این خدمت روی همین دندان در همین پلان قبلاً ثبت شده است."
+}

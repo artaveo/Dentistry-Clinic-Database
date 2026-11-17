@@ -18,6 +18,7 @@ import { SCHEDULE_RULES, STATUS_TONE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
 import { useCatalog, useClinicSettings } from "../../lib/clinical";
 import { useLive } from "../../lib/lan";
+import { AlertLine } from "./AlertLine";
 import { teethLabel } from "../../chart/numbering";
 import { SessionDots } from "../patients/clinical/SessionDots";
 import { NextSessionOffer } from "../patients/clinical/NextSessionOffer";
@@ -122,13 +123,14 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
                     <span className="row queue-card-top">
                       {a.queue_number != null && <span className="queue-ticket" title={t("queue.ticket")} data-testid={`queue-ticket-${a.id}`}>{digits(a.queue_number, lang)}</span>}
                       <span className="cell-strong queue-name">{a.patient_name}</span>
-                      <Badge tone={STATUS_TONE[a.status]} dot>{t(`appt.status.${a.status}`)}</Badge>
                     </span>
                     <span className="subtle t-caption">
                       {a.is_walk_in ? t("queue.walkInBadge") : `${formatTime(a.start_time, lang)} – ${formatTime(a.end_time, lang)}`}
                       {solo ? (a.chair_name ? ` · ${a.chair_name}` : "") : <>{" · "}<span className="dot-swatch" style={{ background: a.doctor_color }} aria-hidden /> {a.doctor_name}{a.chair_name ? ` · ${a.chair_name}` : ""}</>}
                     </span>
                     {a.reason && <span className="t-caption">{a.reason}</span>}
+                    {/* PA-25: the allergy is seen when the patient is called in, not only inside the record. */}
+                    {["scheduled", "confirmed", "checked_in", "in_treatment"].includes(a.status) && <AlertLine patientId={a.patient_id} testId={`queue-alert-${a.id}`} />}
                     {/* M4: which session of which treatment this visit is, with the course's progress. */}
                     {a.treatment && (
                       <span className="queue-course" data-testid={`queue-course-${a.id}`}>

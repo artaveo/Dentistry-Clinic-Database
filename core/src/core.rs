@@ -101,6 +101,7 @@ impl Core {
         let after = db::schema_version(&conn)?;
         crate::seeds::sync(&mut conn)?;
         crate::auth::sync_roles(&mut conn)?;
+        crate::patient::ensure_search_index(&conn)?;
         if before > 0 && after != before {
             audit::record(
                 &conn,

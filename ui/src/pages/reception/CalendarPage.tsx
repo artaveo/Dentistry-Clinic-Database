@@ -144,6 +144,22 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     return [lo, hi] as const;
   }, [clinic, items]);
 
+  // U-09: the grid is tall (a full working day); open it at the current time (or the first visit) instead of at the top.
+  const scrolledFor = useRef("");
+  useEffect(() => {
+    if (!items || view === "month") return;
+    const key = `${view}|${anchor}`;
+    if (scrolledFor.current === key) return;
+    scrolledFor.current = key;
+    const first = items.length ? Math.min(...items.map((a) => toMinutes(a.start_time))) : null;
+    const focus = anchor === today || (view === "week" && weekDays(anchor).includes(today)) ? nowMinutes() : first;
+    const scroller = gridRef.current?.closest(".app-main");
+    const body = gridRef.current?.querySelector<HTMLElement>(".tg-body");
+    if (focus === null || !scroller || !body) return;
+    const target = body.offsetTop + Math.max(0, focus - startMin - 60) * PX_PER_MIN;
+    scroller.scrollTo({ top: target, behavior: "auto" });
+  }, [items, view, anchor, startMin, today]);
+
   const columns: Column[] = useMemo(() => {
     if (view === "week") {
       return weekDays(anchor).slice(0, weekCount).map((d) => ({ key: d, date: d, label: t(`wizard.day.${weekdayIndex(d)}`), sub: dayNumber(d, calendar, lang) }));

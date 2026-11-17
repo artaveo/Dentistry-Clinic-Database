@@ -524,11 +524,18 @@ fn discounts(c: &Ctx) -> Result<Table> {
     let rows = collect(
         c,
         &format!(
-            "SELECT i.local_date, i.number, pt.full_name,
-                    (SELECT COALESCE(SUM(line_total), 0) FROM invoice_line WHERE invoice_id = i.id), i.discount
-             FROM invoice i JOIN patient pt ON pt.id = i.patient_id
-             WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.discount > 0 AND i.local_date BETWEEN ?1 AND ?2
-             ORDER BY i.local_date, i.number {CAP}"
+            "SELECT d, num, who, sub, amount FROM (
+                 SELECT i.local_date AS d, i.number AS num, pt.full_name AS who,
+                        (SELECT COALESCE(SUM(line_total), 0) FROM invoice_line WHERE invoice_id = i.id) AS sub,
+                        i.discount AS amount, 0 AS k
+                 FROM invoice i JOIN patient pt ON pt.id = i.patient_id
+                 WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.discount > 0 AND i.local_date BETWEEN ?1 AND ?2
+                 UNION ALL
+                 SELECT cn.local_date, cn.number, pt.full_name,
+                        (SELECT COALESCE(SUM(line_total), 0) FROM invoice_line WHERE invoice_id = i.id), cn.amount, 1
+                 FROM credit_note cn JOIN invoice i ON i.id = cn.invoice_id JOIN patient pt ON pt.id = cn.patient_id
+                 WHERE i.status = 'issued' AND i.deleted_at IS NULL AND cn.local_date BETWEEN ?1 AND ?2
+             ) ORDER BY d, k, num {CAP}"
         ),
         &[&c.from, &c.to],
         |r| {
@@ -563,14 +570,25 @@ fn refunds(c: &Ctx) -> Result<Table> {
     Ok(table(&["date", "number", "patient", "method", "amount", "reason"], rows, &[4]))
 }
 
+/// FR-05: a line's share of its invoice's net (discount and credit notes taken off), as the
+/// daily revenue and the commission report count it. Needs `invoice i` and `invoice_line l`.
+const NET_SHARE: &str = "(CASE WHEN (SELECT SUM(line_total) FROM invoice_line WHERE invoice_id = i.id) > 0
+        THEN l.line_total * MAX(0, (SELECT SUM(line_total) FROM invoice_line WHERE invoice_id = i.id) - i.discount
+            - (SELECT COALESCE(SUM(amount), 0) FROM credit_note WHERE invoice_id = i.id))
+            / (SELECT SUM(line_total) FROM invoice_line WHERE invoice_id = i.id)
+        ELSE 0 END)";
+
 fn doctor_revenue(c: &Ctx) -> Result<Table> {
     let rows = collect(
         c,
-        "SELECT COALESCE(d.full_name, ''), COUNT(DISTINCT i.patient_id), COALESCE(SUM(l.quantity), 0), COALESCE(SUM(l.line_total), 0)
-         FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id LEFT JOIN doctor d ON d.id = l.doctor_id
-         WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
-           AND (?3 IS NULL OR l.doctor_id = ?3)
-         GROUP BY l.doctor_id ORDER BY 4 DESC",
+        &format!(
+            "SELECT COALESCE(d.full_name, ''), COUNT(DISTINCT i.patient_id), COALESCE(SUM(l.quantity), 0),
+                    COALESCE(SUM({NET_SHARE}), 0)
+             FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id LEFT JOIN doctor d ON d.id = l.doctor_id
+             WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
+               AND (?3 IS NULL OR l.doctor_id = ?3)
+             GROUP BY l.doctor_id ORDER BY 4 DESC"
+        ),
         &[&c.from, &c.to, &c.doctor],
         |r| Ok(vec![opt_text(r.get(0)?), int(r.get(1)?), int(r.get(2)?), money(r.get(3)?)]),
     )?;
@@ -593,11 +611,13 @@ fn doctor_commission(c: &Ctx) -> Result<Table> {
 fn service_revenue(c: &Ctx) -> Result<Table> {
     let rows = collect(
         c,
-        "SELECT s.name_fa, s.name_ps, s.name_en, COALESCE(SUM(l.quantity), 0), COALESCE(SUM(l.line_total), 0)
-         FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id JOIN service s ON s.id = l.service_id
-         WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
-           AND (?3 IS NULL OR l.service_id = ?3) AND (?4 IS NULL OR l.doctor_id = ?4)
-         GROUP BY s.id ORDER BY 5 DESC",
+        &format!(
+            "SELECT s.name_fa, s.name_ps, s.name_en, COALESCE(SUM(l.quantity), 0), COALESCE(SUM({NET_SHARE}), 0)
+             FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id JOIN service s ON s.id = l.service_id
+             WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
+               AND (?3 IS NULL OR l.service_id = ?3) AND (?4 IS NULL OR l.doctor_id = ?4)
+             GROUP BY s.id ORDER BY 5 DESC"
+        ),
         &[&c.from, &c.to, &c.service, &c.doctor],
         |r| Ok(vec![name(r.get(0)?, r.get(1)?, r.get(2)?), int(r.get(3)?), money(r.get(4)?)]),
     )?;
@@ -1078,8 +1098,14 @@ pub fn export(
 
     let stamp: String = now_iso().chars().take(19).map(|c| if c == ':' { '-' } else { c }).collect();
     let kind = serde_json::to_value(p.report.kind)?.as_str().unwrap_or("report").to_string();
-    let file_name = format!("report-{kind}-{stamp}.xlsx");
     std::fs::create_dir_all(exports_dir)?;
+    // FR-09: two exports in the same second must not overwrite each other.
+    let mut file_name = format!("report-{kind}-{stamp}.xlsx");
+    let mut n = 1;
+    while exports_dir.join(&file_name).exists() {
+        n += 1;
+        file_name = format!("report-{kind}-{stamp}-{n}.xlsx");
+    }
     let path = exports_dir.join(&file_name);
     std::fs::write(&path, &bytes)?;
     audit::record(

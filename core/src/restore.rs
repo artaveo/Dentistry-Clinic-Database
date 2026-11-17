@@ -62,6 +62,13 @@ pub fn inspect(src: &Path, key: &DataKey, work_dir: &Path) -> RestorePreview {
     if fs::copy(src, &tmp).is_err() {
         return problem("unreadable", 0);
     }
+    // BR-4: an encrypted database is always a whole number of 4096-byte pages. A file that is empty or
+    // cut short (or a plain text file) is damaged; it must not be reported as "wrong key".
+    let size = fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0);
+    if size == 0 || size % 4096 != 0 {
+        remove_db_files(&tmp);
+        return problem("damaged", 0);
+    }
     let result = (|| {
         let conn = match db::connect(&tmp, key) {
             Ok(c) => c,
@@ -205,7 +212,9 @@ impl Core {
 
         // 3. The images that only the backup medium has come back too; the register is brought up to date.
         if let Some(att) = src.parent().map(|d| d.join("attachments")) {
-            let _ = backup::sync_attachments(&att, &self.config.attachments_dir());
+            if let Err(e) = backup::sync_attachments(&att, &self.config.attachments_dir()) {
+                tracing::warn!(error = %e, "images could not be copied back from the backup");
+            }
         }
         self.with_db(|o| {
             backup::reconcile(&o.conn, &self.config.backup_dir())?;
@@ -311,7 +320,9 @@ impl Core {
             return Err(CoreError::api(ErrorCode::BackupInvalid, e.to_string()));
         }
         if let Some(att) = src.parent().map(|d| d.join("attachments")) {
-            let _ = backup::sync_attachments(&att, &self.config.attachments_dir());
+            if let Err(e) = backup::sync_attachments(&att, &self.config.attachments_dir()) {
+                tracing::warn!(error = %e, "images could not be copied back from the backup");
+            }
         }
         self.with_db(|o| {
             backup::reconcile(&o.conn, &self.config.backup_dir())?;
@@ -348,7 +359,8 @@ mod tests {
         fs::write(&file, b"this is not a database at all, just some text").unwrap();
         let p = inspect(&file, &DataKey::generate(), dir.path());
         assert!(!p.valid);
-        assert_eq!(p.problem.as_deref(), Some("wrong_key"));
+        // BR-4: a text file is not a whole number of database pages: damaged, not "wrong key".
+        assert_eq!(p.problem.as_deref(), Some("damaged"));
         let p = inspect(&dir.path().join("missing.db"), &DataKey::generate(), dir.path());
         assert_eq!(p.problem.as_deref(), Some("unreadable"));
         assert!(!dir.path().join("restore-check.db").exists(), "the work copy is removed");

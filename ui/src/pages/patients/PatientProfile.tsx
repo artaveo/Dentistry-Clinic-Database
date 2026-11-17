@@ -6,7 +6,7 @@ import {
 import type { ClinicProfile, MedicalHistoryInfo, PatientInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
 import { ageOn, digits, formatDate } from "../../lib/dates";
-import { alertsOf, tr, useMedicalQuestions } from "../../lib/medical";
+import { alertsOf, alertText, alertLabel, tr, useMedicalQuestions } from "../../lib/medical";
 import { useI18n } from "../../i18n";
 import { BackButton, Button, IconButton } from "../../ui/Button";
 import { Card, CardHeader, Page } from "../../ui/Card";
@@ -70,10 +70,7 @@ function AlertChip({ patientId, refreshKey, onOpenHistory }: { patientId: string
   if (!history || !questions) return null;
   const alerts = alertsOf(questions, history.answers);
   if (!alerts.length) return null;
-  const text = (a: (typeof alerts)[number]) => {
-    const parts = [a.a.detail_text && (a.q.detail_kind === "months" ? `${digits(a.a.detail_text, lang)} ${t("medicalHistory.months")}` : a.a.detail_text), a.a.detail_choice && t(`mh.choice.${a.a.detail_choice}`)].filter(Boolean);
-    return parts.length ? `${tr(a.q.label, lang)} (${parts.join("، ")})` : tr(a.q.label, lang);
-  };
+  const text = (a: (typeof alerts)[number]) => alertText(a, lang, t, (s) => digits(s, lang));
   return (
     <Popover
       open={open}
@@ -84,7 +81,7 @@ function AlertChip({ patientId, refreshKey, onOpenHistory }: { patientId: string
       trigger={
         <button type="button" className="profile-alert" aria-expanded={open} onClick={() => setOpen((x) => !x)} data-testid="profile-alert-chip">
           <TriangleAlert aria-hidden />
-          <span className="profile-alert-text">{tr(alerts[0].q.label, lang)}</span>
+          <span className="profile-alert-text">{alertLabel(tr(alerts[0].q.label, lang))}</span>
           {alerts.length > 1 && <span className="profile-alert-more">+{digits(alerts.length - 1, lang)}</span>}
         </button>
       }
@@ -208,9 +205,9 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
           <Avatar name={patient.full_name} size="sm" />
           <h1 className="profile-name" data-testid="page-title">{patient.full_name}</h1>
           <bdi className="ltr num profile-id">{patient.patient_number}</bdi>
-          {age != null && <span className="profile-age">{patient.date_of_birth ? "" : "~"}{t("patients.header.age").replace("{n}", digits(age, lang))}</span>}
+          {age != null && <span className="profile-age">{t(patient.date_of_birth ? "patients.header.age" : "patients.header.ageAbout").replace("{n}", digits(age, lang))}</span>}
           {patient.status !== "active" && <Badge dot>{t("patients.status.inactive")}</Badge>}
-          {clinical.view && <AlertChip patientId={patient.id} refreshKey={medicalRefreshKey} onOpenHistory={() => go("medical")} />}
+          {clinical.view && inChart && <AlertChip patientId={patient.id} refreshKey={medicalRefreshKey} onOpenHistory={() => go("medical")} />}
           <span className="grow" />
           {canEdit && (
             <>
@@ -241,7 +238,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
               role="tab"
               aria-selected={tab === id}
               disabled={!available(id)}
-              title={available(id) ? undefined : t("patients.tab.comingSoon")}
+              title={available(id) ? undefined : t("patients.tab.noAccess")}
               className="profile-tab"
               onClick={() => available(id) && setTab(id)}
               data-testid={`patient-tab-${id}`}
@@ -284,7 +281,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
         </Notice>
       )}
       {/* On the chart the header chip carries the allergies, so the chart keeps the whole height. */}
-      {clinical.view && !inChart && <MedicalAlertBanner key={`alert-${medicalRefreshKey}`} patientId={patient.id} hideReview={tab === "medical"} onOpenHistory={() => go("medical")} />}
+      {clinical.view && !inChart && <MedicalAlertBanner key={`alert-${medicalRefreshKey}`} patientId={patient.id} hideReview={tab !== "overview" && tab !== "care" && tab !== "notes"} onOpenHistory={() => go("medical")} />}
 
       {tab === "overview" && (
         <Card>
@@ -299,7 +296,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
           </div>
           <dl className="kv">
             <div><dt>{t("patient.field.gender")}</dt><dd>{genderLabel ?? "—"}</dd></div>
-            <div><dt>{t("patient.field.dateOfBirth")}</dt><dd>{patient.date_of_birth ? formatDate(patient.date_of_birth, lang) : patient.approximate_age != null ? `~${patient.approximate_age}` : "—"}</dd></div>
+            <div><dt>{t(patient.date_of_birth ? "patient.field.dateOfBirth" : "patient.field.approximateAge")}</dt><dd>{patient.date_of_birth ? formatDate(patient.date_of_birth, lang) : patient.approximate_age != null ? t("patients.header.ageAbout").replace("{n}", digits(patient.approximate_age, lang)) : "—"}</dd></div>
             <div><dt>{t("patient.field.phone")}</dt><dd><bdi className="ltr">{patient.phone ?? "—"}</bdi></dd></div>
             <div><dt>{t("patient.field.secondaryPhone")}</dt><dd><bdi className="ltr">{patient.secondary_phone ?? "—"}</bdi></dd></div>
             <div><dt>{t("patient.field.address")}</dt><dd>{patient.address ?? "—"}</dd></div>
@@ -336,7 +333,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
             <TreatmentsTab patient={patient} clinic={clinic} calendar={clinic?.calendar_system ?? "shamsi"} onOpenChart={() => go("chart")} onNote={(i) => { setNoteFor(i); go("notes"); }} onInvoice={billing.edit ? () => go("invoices") : undefined} canTakeMaterials={clinical.edit} />
           )}
           {careSub === "plans" && (
-            <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} />
+            <PlansTab patient={patient} clinic={clinic} canEdit={clinical.edit} calendar={clinic?.calendar_system ?? "shamsi"} booking={{ edit: appointments.edit, treat: appointments.treat, createPatients: appointments.createPatients }} clinicName={clinicName} onChanged={() => setClinicalKey((k) => k + 1)} onOpenChart={() => go("chart")} />
           )}
         </>
       )}

@@ -23,7 +23,9 @@ use crate::normalize::normalize_for_search;
 
 pub(crate) fn validate_full_name(name: &str) -> Result<()> {
     let len = name.trim().chars().count();
-    if !(1..=150).contains(&len) {
+    // PA-15: a name has at least one letter and no markup characters ("12345", "<script>" are not names).
+    let looks_like_name = name.chars().any(char::is_alphabetic) && !name.contains(['<', '>']);
+    if !(1..=150).contains(&len) || !looks_like_name {
         return Err(CoreError::invalid(
             "full_name",
             ValidationRule::FullNameLength,
@@ -43,6 +45,19 @@ pub(crate) fn validate_phone(field: &'static str, phone: &str) -> Result<()> {
 
 const ISO_DATE: &[time::format_description::FormatItem<'static>] =
     format_description!("[year]-[month]-[day]");
+
+/// PA-03: a birth date is a real, past date (not before 1900).
+fn validate_birth_date(field: &'static str, s: &str) -> Result<()> {
+    validate_date(field, s)?;
+    if s < "1900-01-01" || s > crate::clock::today_iso().as_str() {
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::AgeRange,
+            "date of birth must be between 1900 and today",
+        ));
+    }
+    Ok(())
+}
 
 pub(crate) fn validate_date(field: &'static str, s: &str) -> Result<()> {
     time::Date::parse(s, &ISO_DATE).map(|_| ()).map_err(|_| {
@@ -86,6 +101,19 @@ impl<'a> From<&'a UpdatePatientParams> for FieldsToValidate<'a> {
     }
 }
 
+/// PA-16: an unknown gender/province/... id is a bad input, not a raw database error.
+fn list_value_error(e: rusqlite::Error) -> CoreError {
+    if e.to_string().contains("FOREIGN KEY constraint failed") {
+        CoreError::invalid(
+            "gender_id",
+            ValidationRule::InvalidParams,
+            "one of the chosen list values (gender, province, district, ...) does not exist",
+        )
+    } else {
+        e.into()
+    }
+}
+
 fn validate_fields<'a>(f: impl Into<FieldsToValidate<'a>>) -> Result<()> {
     let f = f.into();
     validate_full_name(f.full_name)?;
@@ -96,7 +124,7 @@ fn validate_fields<'a>(f: impl Into<FieldsToValidate<'a>>) -> Result<()> {
         validate_phone("secondary_phone", p)?;
     }
     if let Some(d) = f.date_of_birth.filter(|s| !s.is_empty()) {
-        validate_date("date_of_birth", d)?;
+        validate_birth_date("date_of_birth", d)?;
     }
     if let Some(a) = f.approximate_age {
         if !(0..=120).contains(&a) {
@@ -275,13 +303,34 @@ fn search_text(
     if let Some(f) = father_name {
         parts.push(normalize_for_search(f));
     }
+    // PA-02: "علی‌رضا" is indexed as two words (half-space = space), but people also type it joined:
+    // the joined spelling of the name is indexed as one more word.
+    for name in [Some(full_name), father_name].into_iter().flatten() {
+        let joined: String = normalize_for_search(name).split_whitespace().collect();
+        if joined.chars().count() > 3 && normalize_for_search(name).contains(' ') {
+            parts.push(joined);
+        }
+    }
     for p in [phone, secondary_phone].into_iter().flatten() {
         let key = phone_search_key(p);
         if !key.is_empty() {
+            parts.extend(phone_variants(&key));
             parts.push(key);
         }
     }
     parts.into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ")
+}
+
+/// PA-01: the same number is typed with or without the leading 0 and the country code.
+fn phone_variants(key: &str) -> Vec<String> {
+    let mut v = Vec::new();
+    if let Some(rest) = key.strip_prefix('0') {
+        v.push(rest.to_string());
+    } else if let Some(rest) = key.strip_prefix("93").filter(|r| r.len() >= 8) {
+        v.push(rest.to_string());
+        v.push(format!("0{rest}"));
+    }
+    v
 }
 
 /// A new patient has no index row yet, so there is nothing to delete. (`patient_id` is an
@@ -313,11 +362,59 @@ fn fts_delete(conn: &Connection, patient_id: &str) -> Result<()> {
 /// a trailing `*` (prefix match) and tokens are ANDed, so typing more of a
 /// name or number only narrows the result — the incremental-search UX 3.4 asks for.
 fn fts_match_query(q: &str) -> String {
-    normalize_for_search(q)
+    let words = normalize_for_search(q)
         .split_whitespace()
         .map(|t| format!("\"{}\"*", t.replace('"', "")))
         .collect::<Vec<_>>()
-        .join(" ")
+        .join(" ");
+    // PA-01: a phone typed with spaces or dashes ("0700 123 456") is one number, not three words.
+    let phone_like = q.chars().all(|c| c.is_alphanumeric() && !c.is_alphabetic() || " -+()".contains(c));
+    let key = phone_search_key(q);
+    if phone_like && key.len() >= 4 && q.contains(|c: char| " -+()".contains(c)) {
+        return format!("(\"{key}\"* OR ({words}))");
+    }
+    words
+}
+
+/// Rebuilds the search index once when its format changed (version stored in `setting`).
+pub fn ensure_search_index(conn: &Connection) -> Result<()> {
+    const VERSION: &str = "2";
+    let current: Option<String> = conn
+        .query_row("SELECT value FROM setting WHERE key = 'patient_fts_version'", [], |r| r.get(0))
+        .optional()?;
+    if current.as_deref() == Some(VERSION) {
+        return Ok(());
+    }
+    let mut stmt = conn.prepare(
+        "SELECT id, patient_number, full_name, father_name, phone, secondary_phone
+         FROM patient WHERE deleted_at IS NULL",
+    )?;
+    let rows: Vec<(String, String, String, Option<String>, Option<String>, Option<String>)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    drop(stmt);
+    conn.execute_batch("SAVEPOINT reindex_patients")?;
+    let result = (|| -> Result<()> {
+        conn.execute("DELETE FROM patient_fts", [])?;
+        for (id, number, name, father, phone, phone2) in &rows {
+            let text = search_text(number, name, father.as_deref(), phone.as_deref(), phone2.as_deref());
+            fts_insert(conn, id, &text)?;
+        }
+        conn.execute(
+            "INSERT INTO setting(key, value, updated_at) VALUES ('patient_fts_version', ?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            params![VERSION, now_iso()],
+        )?;
+        Ok(())
+    })();
+    match result {
+        Ok(()) => conn.execute_batch("RELEASE reindex_patients")?,
+        Err(e) => {
+            conn.execute_batch("ROLLBACK TO reindex_patients; RELEASE reindex_patients")?;
+            return Err(e);
+        }
+    }
+    Ok(())
 }
 
 // ───────────────────────────── writes ─────────────────────────────
@@ -345,6 +442,15 @@ pub fn create_patient(conn: &Connection, actor: &Actor, p: &CreatePatientParams)
     let number = next_patient_number(conn)?;
     let registration_date =
         p.registration_date.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| now[..10].to_string());
+    // PA-07: a patient cannot be registered in the future (the list is ordered by this date).
+    validate_date("registration_date", &registration_date)?;
+    if registration_date.as_str() > crate::clock::today_iso().as_str() {
+        return Err(CoreError::invalid(
+            "registration_date",
+            ValidationRule::DateFormat,
+            "registration date cannot be in the future",
+        ));
+    }
     let f = p;
     conn.execute(
         "INSERT INTO patient(
@@ -376,7 +482,8 @@ pub fn create_patient(conn: &Connection, actor: &Actor, p: &CreatePatientParams)
             now,
             actor.user_id,
         ],
-    )?;
+    )
+    .map_err(list_value_error)?;
     fts_insert(
         conn,
         &id,
@@ -426,7 +533,8 @@ pub fn update_patient(conn: &Connection, actor: &Actor, p: &UpdatePatientParams)
             p.id,
             p.version,
         ],
-    )?;
+    )
+    .map_err(list_value_error)?;
     expect_one_row(changed, "patient")?;
     fts_upsert(
         conn,
@@ -470,6 +578,25 @@ pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) 
             ValidationRule::PatientHasOpenAppointments,
             "the patient still has open appointments; cancel them first",
         ));
+    }
+    // PA-09: a patient with money or treatment on record is archived (inactive), never deleted:
+    // the invoices, payments and the clinical record must stay attached to a real patient.
+    for table in ["invoice", "payment", "credit_note", "treatment_plan", "clinical_note", "patient_attachment"] {
+        let has: bool = conn.query_row(
+            &format!(
+                "SELECT EXISTS(SELECT 1 FROM {table} WHERE patient_id = ?1{})",
+                if matches!(table, "payment" | "credit_note") { "" } else { " AND deleted_at IS NULL" }
+            ),
+            [id],
+            |r| r.get(0),
+        )?;
+        if has {
+            return Err(CoreError::invalid(
+                "id",
+                ValidationRule::PatientHasHistory,
+                "the patient has invoices, payments or a clinical record; archive the patient (inactive) instead of deleting",
+            ));
+        }
     }
     let changed = conn.execute(
         "UPDATE patient SET deleted_at = ?1, updated_at = ?1, updated_by = ?2, version = version + 1
@@ -570,6 +697,21 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
     }
     let keep = get_patient(conn, &p.keep_id)?;
     let merge_before = get_patient(conn, &p.merge_id)?;
+    // PA-23: a record that was already merged away cannot be merged again, nor receive another merge.
+    if keep.merged_into_id.is_some() {
+        return Err(CoreError::invalid(
+            "keep_id",
+            ValidationRule::PatientMerged,
+            "the chosen main record was already merged into another patient",
+        ));
+    }
+    if merge_before.merged_into_id.is_some() {
+        return Err(CoreError::invalid(
+            "merge_id",
+            ValidationRule::PatientMerged,
+            "this record was already merged into another patient",
+        ));
+    }
     let changed = conn.execute(
         "UPDATE patient SET status = 'inactive', merged_into_id = ?1, updated_at = ?2, updated_by = ?3, version = version + 1
          WHERE id = ?4 AND version = ?5 AND deleted_at IS NULL",
@@ -855,7 +997,7 @@ mod tests {
             m::ATTACHMENTS_UPLOAD,
             json!({
                 "patient_id": dupe["id"], "kind": "xray", "file_name": "molar.png",
-                "data_base64": data_encoding::BASE64.encode(b"fake x-ray bytes")
+                "data_base64": data_encoding::BASE64.encode(b"\x89PNG fake x-ray bytes")
             }),
             Some(&owner),
         );

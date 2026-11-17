@@ -104,6 +104,17 @@ fn validate_hhmm(s: &str) -> Result<()> {
 }
 
 fn validate(p: &ClinicProfile) -> Result<()> {
+    // R-13: a clinic phone is a phone (same rule as a patient's); an address is a line, not a document.
+    if let Some(phone) = p.phone.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        crate::patient::validate_phone("phone", phone)?;
+    }
+    if p.address.as_deref().is_some_and(|a| a.chars().count() > 300) {
+        return Err(CoreError::invalid(
+            "address",
+            ValidationRule::InvalidParams,
+            "the address is too long (at most 300 characters)",
+        ));
+    }
     validate_color("color_primary", &p.color_primary)?;
     validate_color("color_secondary", &p.color_secondary)?;
     validate_color("color_accent", &p.color_accent)?;

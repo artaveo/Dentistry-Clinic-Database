@@ -367,7 +367,11 @@ function ItemForm(p: {
 
   const add = async () => {
     setError("");
-    if (!service || teethProblem || surfaceProblem || errors.price || errors.sessions) return;
+    if (!service) return;
+    // CT-01: a blocked save says why, instead of doing nothing.
+    if (surfaceProblem) return setError(t("chart.surfaceRequired"));
+    if (teethProblem) return setError(teethProblem);
+    if (errors.price || errors.sessions) return setError(errors.price ?? errors.sessions ?? "");
     setBusy(true);
     try {
       let planFor: string | null = null;

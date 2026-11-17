@@ -314,7 +314,11 @@ const ITEM_SELECT: &str = "SELECT i.id, i.code, i.name_fa, i.name_ps, i.name_en,
     COALESCE((SELECT SUM(b.qty_left) FROM stock_batch b WHERE b.item_id = i.id AND b.expiry_date < ?1), 0),
     COALESCE((SELECT SUM(b.qty_left) FROM stock_batch b WHERE b.item_id = i.id AND b.expiry_date >= ?1 AND b.expiry_date <= ?2), 0),
     COALESCE((SELECT SUM(b.qty_left * b.unit_cost) / 100 FROM stock_batch b WHERE b.item_id = i.id), 0),
-    (SELECT MIN(b.expiry_date) FROM stock_batch b WHERE b.item_id = i.id AND b.qty_left > 0 AND b.expiry_date IS NOT NULL)
+    COALESCE(
+        (SELECT MIN(b.expiry_date) FROM stock_batch b
+          WHERE b.item_id = i.id AND b.qty_left > 0 AND b.expiry_date >= ?1),
+        (SELECT MIN(b.expiry_date) FROM stock_batch b
+          WHERE b.item_id = i.id AND b.qty_left > 0 AND b.expiry_date IS NOT NULL))
     FROM stock_item i JOIN stock_category c ON c.id = i.category_id JOIN stock_unit u ON u.id = i.unit_id
     WHERE i.deleted_at IS NULL";
 
@@ -395,6 +399,22 @@ pub fn save_item(conn: &Connection, actor: &Actor, p: &SaveStockItemParams) -> R
             ValidationRule::StockQuantity,
             "the minimum stock is not a valid quantity",
         ));
+    }
+    // R-02: two items must not share a code (the code is what staff type to find an item).
+    if let Some(code) = &code {
+        let taken: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM stock_item WHERE code = ?1 COLLATE NOCASE AND deleted_at IS NULL
+                           AND id <> ?2)",
+            params![code, p.id.as_deref().unwrap_or("")],
+            |r| r.get(0),
+        )?;
+        if taken {
+            return Err(CoreError::invalid(
+                "code",
+                ValidationRule::StockCodeTaken,
+                "another stock item already has this code",
+            ));
+        }
     }
     let now = now_iso();
     match p.id.as_deref().filter(|s| !s.is_empty()) {
@@ -1233,6 +1253,16 @@ fn map_supplier(r: &rusqlite::Row<'_>) -> rusqlite::Result<SupplierInfo> {
         paid_total,
         balance: purchases_total + lab_total - returns_total - paid_total,
     })
+}
+
+/// R-21: callers who only see stock (doctor, receptionist, assistant) get supplier and lab names and
+/// phones for the pickers, but not what the clinic bought or owes.
+pub fn hide_supplier_money(s: &mut SupplierInfo) {
+    s.purchases_total = 0;
+    s.lab_total = 0;
+    s.returns_total = 0;
+    s.paid_total = 0;
+    s.balance = 0;
 }
 
 pub fn get_supplier(conn: &Connection, id: &str) -> Result<SupplierInfo> {

@@ -130,6 +130,7 @@ test("debtors, installments due, cash desk closing with a reason, expenses", asy
 
   await page.getByTestId("billing-tab-expenses").click();
   await page.getByTestId("expense-add-open").click();
+  await page.getByTestId("expense-category").selectOption({ index: 1 });
   await page.getByTestId("expense-amount").fill("100");
   await page.getByTestId("expense-description").fill("ماسک و دستکش");
   await page.getByTestId("expense-save").click();

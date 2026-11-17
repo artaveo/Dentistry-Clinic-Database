@@ -6,5 +6,21 @@
   "palette.group.actions": "Actions",
   "palette.newPatient": "New patient",
   "palette.newAppointment": "New appointment",
-  "palette.receivePayment": "Receive payment"
+  "palette.receivePayment": "Receive payment",
+  "dialog.discard.title": "Unsaved changes",
+  "dialog.discard.text": "What you typed is not saved. Closing will discard it.",
+  "dialog.discard.yes": "Close without saving",
+  "dialog.discard.keep": "Keep editing",
+  "stock.consume.short": "Use",
+  "stock.receive.short": "Receive",
+  "shell.skipToContent": "Skip to content",
+  "dash.attentionHint.nostock": "Money and backup",
+  "reports.subtitle.nostock": "Financial and clinical reports; print and Excel",
+  "shell.about": "About the app",
+  "clinic.part.identity": "Clinic details",
+  "clinic.part.hours": "Working hours",
+  "rule.patient_has_history": "This patient has invoices, payments or treatments, so it cannot be deleted. Archive instead.",
+  "rule.stock_code_taken": "Another stock item already has this code.",
+  "rule.appointment_not_started": "You cannot mark a no-show before the appointment time.",
+  "rule.recall_duplicate": "The same recall already exists for this patient."
 }

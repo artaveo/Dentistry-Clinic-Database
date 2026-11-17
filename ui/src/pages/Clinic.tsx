@@ -38,6 +38,7 @@ function ClinicForm({ initial, logo, onLogoChange, onSaved }: { initial: ClinicP
   const { setTheme } = useTheme();
   const [c, setC] = useState(initial);
   const form = useForm({ address: initial.address ?? "", phone: initial.phone ?? "" }, { phone: v.phone });
+  const [part, setPart] = useState<"identity" | "hours">("identity");
   const [busy, setBusy] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
   const [error, setError] = useState("");
@@ -105,7 +106,10 @@ function ClinicForm({ initial, logo, onLogoChange, onSaved }: { initial: ClinicP
       <PageHeader title={t("clinic.title")} description={t("clinic.subtitle")} />
       <form className="stack-lg" onSubmit={save} noValidate>
         {error && <Notice tone="danger" testId="clinic-message">{error}</Notice>}
+        {/* U-30: two parts instead of one 2000px page: who the clinic is / when it works. */}
+        <Segmented<"identity" | "hours"> value={part} onChange={setPart} label={t("clinic.title")} options={[{ value: "identity", label: t("clinic.part.identity"), icon: Building2, testId: "clinic-part-identity" }, { value: "hours", label: t("clinic.part.hours"), icon: Clock, testId: "clinic-part-hours" }]} />
 
+        <div className="stack-lg" hidden={part !== "identity"}>
         <Card>
           <CardHeader icon={Building2} title={t("clinic.identity")} description={t("clinic.identityHint")} />
           <div className="logo-picker">
@@ -184,11 +188,14 @@ function ClinicForm({ initial, logo, onLogoChange, onSaved }: { initial: ClinicP
           </div>
         </Card>
 
+        </div>
+        <div className="stack-lg" hidden={part !== "hours"}>
         <Card>
           <CardHeader icon={Clock} title={t("clinic.workingHours")} description={t("clinic.workingHoursHint")} />
           {hoursError && <Notice tone="danger">{hoursError}</Notice>}
           <HoursEditor hours={c.working_hours} onChange={(working_hours) => { setC({ ...c, working_hours }); setHoursError(""); }} />
         </Card>
+        </div>
 
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button type="submit" variant="primary" icon={Save} loading={busy} data-testid="clinic-save">{t("common.save")}</Button>

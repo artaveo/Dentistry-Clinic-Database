@@ -1,0 +1,23 @@
+{
+  "patients.backProfile": "Back to record",
+  "patients.form.active": "Record is active",
+  "patients.form.inactiveHint": "An inactive (archived) record stays in the list with an «Inactive» mark; nothing is deleted.",
+  "patients.filter.status": "Record status",
+  "patients.filter.all": "All",
+  "patients.addWithName": "Add «{name}» as a new patient",
+  "patients.age.about": "About",
+  "patients.header.ageAbout": "About {n} yrs",
+  "patients.tab.noAccess": "This section is not available for your role",
+  "patients.duplicate.open": "Open record",
+  "patients.merge.keep": "Main record (stays)",
+  "patients.merge.remove": "This record (becomes inactive)",
+  "patients.merge.warningNamed": "The record «{from}» becomes inactive and its appointments, invoices and history move to «{to}». This cannot be undone.",
+  "patients.merge.sure": "I am sure; merge record {n}",
+  "chart.surfaceRequired": "Pick the tooth surface (tap the surface cross).",
+  "plan.addService": "Add a service from the chart",
+  "item.sessionsDoneOf": "{n} of {of} sessions done",
+  "cash.diff.enter": "Enter the counted amount.",
+  "rule.tooth_conflict": "This tooth is missing or extracted, so this entry makes no sense on it.",
+  "rule.finding_not_found": "This finding was not found (it may already be deleted).",
+  "rule.item_duplicate": "This service is already on the same tooth in this plan."
+}

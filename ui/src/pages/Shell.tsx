@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { BarChart3, BellRing, Building2, CalendarDays, CalendarPlus, ClipboardList, DatabaseBackup, KeyRound, Landmark, Package, Info, LayoutDashboard, ListOrdered, LockKeyhole, Network, ScrollText, Search, Settings as SettingsIcon, Stethoscope, Tags, Unlock, UserPlus, UserRound, Users, Wallet } from "lucide-react";
-import type { ClinicProfile, SearchHit, SessionInfo } from "../../../shared/ts/contract";
+import type { CalendarSystem, ClinicProfile, SearchHit, SessionInfo } from "../../../shared/ts/contract";
 import { SESSION_CHECK_EVENT, onSessionError, rpc } from "../lib/api";
 import { formatClock, formatDate } from "../lib/dates";
 import { useForm, v } from "../lib/validation";
@@ -93,8 +93,6 @@ export function Shell({
   const modules = useModules();
   const canStock = can("inventory.view") && modules.stock;
   // The same permission checks as before the sidebar was simplified, only grouped differently.
-  const tabAllowed: Record<Tab, boolean> = { dashboard: true, patients: can("patients.view"), appointments: can("appointments.view"), billing: can("billing.view"), inventory: canStock, reports: can("reports.view"), settings: true };
-  const tabs = TAB_ORDER.filter((x) => tabAllowed[x]);
   const sectionAllowed: Record<Section, boolean> = {
     general: can("settings.manage"),
     doctors: can("doctors.manage"),
@@ -109,6 +107,9 @@ export function Shell({
     system: true,
   };
   const sectionIds = SECTION_ORDER.filter((x) => sectionAllowed[x]);
+  const tabAllowed: Record<Tab, boolean> = { dashboard: true, patients: can("patients.view"), appointments: can("appointments.view"), billing: can("billing.view"), inventory: canStock, reports: can("reports.view"), // U-16: someone who can change nothing in Settings has only "About" there; it moves into the user menu instead of taking a menu item.
+    settings: sectionIds.some((x) => x !== "system") };
+  const tabs = TAB_ORDER.filter((x) => tabAllowed[x]);
   const billing: BillingPerms = { view: can("billing.view"), edit: can("billing.edit"), void: can("billing.void"), override: can("billing.override"), reports: can("reports.view"), settings: can("settings.manage") };
   const inventory: InventoryPerms = { view: can("inventory.view"), manage: can("inventory.manage"), billingEdit: can("billing.edit"), billingVoid: can("billing.void"), clinicalView: can("clinical.view"), clinicalEdit: can("clinical.edit"), treat: can("appointments.treat"), reports: can("reports.view"), settings: can("settings.manage"), patientsEdit: can("patients.edit") };
   const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
@@ -267,6 +268,7 @@ export function Shell({
 
   return (
     <div className="app-shell" data-locked={locked || undefined}>
+      <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById("main-content")?.focus(); }}>{t("shell.skipToContent")}</a>
       <header className="app-header" inert={locked || undefined} aria-hidden={locked || undefined}>
         <div className="clinic-identity" data-testid="clinic-identity">
           <ClinicMark name={clinicName} logo={logo} />
@@ -285,6 +287,7 @@ export function Shell({
           <UserMenu
             displayName={session.user.display_name}
             roleLabel={roleText(t, session.user.role, session.user.role_label)}
+            onAbout={tabAllowed.settings ? undefined : () => go("system")}
             onPassword={() => setPasswordOpen(true)}
             onLock={lock}
             onLogout={logout}
@@ -315,7 +318,9 @@ export function Shell({
         </div>
       </aside>
 
-      <main className="app-main" key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
+      <main className="app-main" id="main-content" tabIndex={-1} key={generation} inert={locked || undefined} aria-hidden={locked || undefined}>
+        {/* R-22: while locked nothing of the clinic stays in the page, not even under the blur. */}
+        {!locked && <>
         {clientOf && <ConnectionBanner onReconnected={() => setGeneration((g) => g + 1)} />}
         <LicenseBanner canManage={can("settings.manage")} onOpen={() => go("license")} />
         <UpdateBanner canManage={can("settings.manage")} />
@@ -342,16 +347,17 @@ export function Shell({
         {tab === "billing" && <BillingPage perms={billing} clinic={clinic} />}
         {tab === "inventory" && <InventoryPage perms={inventory} clinic={clinic} />}
         {tab === "settings" && <SettingsHub sections={hubSections} active={activeSection} onSelect={(id) => setSection(id as Section)} />}
+        </>}
       </main>
 
       {paletteOpen && <CommandPalette items={paletteItems} calendar={clinic?.calendar_system ?? "shamsi"} hideLabCases={!modules.stock} onOpenHit={openHit} onClose={() => setPaletteOpen(false)} />}
       {passwordOpen && <PasswordDialog onClose={() => setPasswordOpen(false)} />}
-      {locked && <LockScreen name={session.user.display_name} onUnlocked={unlocked} onLogout={logout} />}
+      {locked && <LockScreen name={session.user.display_name} calendar={clinic?.calendar_system ?? "shamsi"} onUnlocked={unlocked} onLogout={logout} />}
     </div>
   );
 }
 
-function LockScreen({ name, onUnlocked, onLogout }: { name: string; onUnlocked: () => void; onLogout: () => void }) {
+function LockScreen({ name, calendar, onUnlocked, onLogout }: { name: string; calendar: CalendarSystem; onUnlocked: () => void; onLogout: () => void }) {
   const { t, lang, err } = useI18n();
   const form = useForm({ password: "" }, { password: v.required });
   const [busy, setBusy] = useState(false);
@@ -382,7 +388,7 @@ function LockScreen({ name, onUnlocked, onLogout }: { name: string; onUnlocked: 
     <div className="lock-screen" data-testid="lock-screen">
       <div className="glass-overlay lock-card">
         <div className="lock-clock num" aria-hidden>{formatClock(kabul.getHours(), kabul.getMinutes(), lang)}</div>
-        <div className="lock-date">{formatDate(now.toISOString(), lang)}</div>
+        <div className="lock-date">{formatDate(now.toISOString(), lang, calendar)}</div>
         <Avatar name={name} size="lg" />
         <div>
           <div className="t-title">{name}</div>

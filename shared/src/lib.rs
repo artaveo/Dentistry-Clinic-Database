@@ -254,6 +254,21 @@ pub enum ValidationRule {
     ActivationCodeFormat,
     UsbMountUnknown,
     BackupFileUnknown,
+    // Fix round (money/clinical): rules for conflicting chart entries and duplicate plan items.
+    /// The tooth is missing or extracted, so this finding or treatment makes no sense on it.
+    ToothConflict,
+    /// The chart finding does not exist (any more).
+    FindingNotFound,
+    /// The same service on the same teeth is already in this plan.
+    ItemDuplicate,
+    /// The patient has invoices, payments or treatments: archive instead of delete.
+    PatientHasHistory,
+    /// Another stock item already has this code.
+    StockCodeTaken,
+    /// A no-show can only be set once the appointment time has come.
+    AppointmentNotStarted,
+    /// The same recall type and date already exists for this patient.
+    RecallDuplicate,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]

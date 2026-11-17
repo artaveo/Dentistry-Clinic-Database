@@ -71,7 +71,7 @@ export function SuppliersTab({ perms, calendar }: { perms: InventoryPerms; calen
               { value: "lab", label: t("supplier.kind.lab"), testId: "supplier-kind-lab" },
             ]}
           />
-          <Checkbox checked={owing} onChange={setOwing} testId="supplier-owing">{t("supplier.owingOnly")}</Checkbox>
+          {perms.manage && <Checkbox checked={owing} onChange={setOwing} testId="supplier-owing">{t("supplier.owingOnly")}</Checkbox>}
         </div>
         <div className="table-wrap">
           <table className="table" data-testid="suppliers-table">
@@ -79,9 +79,10 @@ export function SuppliersTab({ perms, calendar }: { perms: InventoryPerms; calen
               <tr>
                 <th>{t("supplier.name")}</th>
                 <th>{t("supplier.contact")}</th>
-                <th className="num">{t("supplier.bought")}</th>
-                <th className="num">{t("supplier.paid")}</th>
-                <th className="num">{t("supplier.balance")}</th>
+                {/* R-21: purchase totals and what the clinic owes are for people who manage the stock; others see a contact list. */}
+                {perms.manage && <th className="num">{t("supplier.bought")}</th>}
+                {perms.manage && <th className="num">{t("supplier.paid")}</th>}
+                {perms.manage && <th className="num">{t("supplier.balance")}</th>}
                 <th />
               </tr>
             </thead>
@@ -90,7 +91,7 @@ export function SuppliersTab({ perms, calendar }: { perms: InventoryPerms; calen
               {rows?.map((s) => (
                 <tr key={s.id} data-testid={`supplier-${s.id}`}>
                   <td>
-                    <button type="button" className="link-btn plain" onClick={() => setLedger(s)} data-testid={`supplier-open-${s.id}`}>{s.name}</button>
+                    {perms.manage ? <button type="button" className="link-btn plain" onClick={() => setLedger(s)} data-testid={`supplier-open-${s.id}`}>{s.name}</button> : <span className="cell-strong">{s.name}</span>}
                     <div className="row tight">
                       <Badge tone={s.kind === "lab" ? "info" : "neutral"} icon={s.kind === "lab" ? FlaskConical : Building2}>{t(`supplier.kind.${s.kind}`)}</Badge>
                       {!s.is_active && <Badge>{t("stock.inactive")}</Badge>}
@@ -100,11 +101,11 @@ export function SuppliersTab({ perms, calendar }: { perms: InventoryPerms; calen
                     {s.contact_person ?? "—"}
                     {s.phone && <div className="t-caption subtle"><bdi className="ltr num">{s.phone}</bdi></div>}
                   </td>
-                  <td className="num">{money(s.purchases_total + s.lab_total - s.returns_total)}</td>
-                  <td className="num">{money(s.paid_total)}</td>
-                  <td className={`num cell-strong ${s.balance > 0 ? "money-danger" : ""}`} data-testid={`supplier-balance-${s.id}`}>{money(s.balance)}</td>
+                  {perms.manage && <td className="num">{money(s.purchases_total + s.lab_total - s.returns_total)}</td>}
+                  {perms.manage && <td className="num">{money(s.paid_total)}</td>}
+                  {perms.manage && <td className={`num cell-strong ${s.balance > 0 ? "money-danger" : ""}`} data-testid={`supplier-balance-${s.id}`}>{money(s.balance)}</td>}
                   <td className="cell-actions">
-                    <IconButton icon={BookOpen} label={t("supplier.ledger")} onClick={() => setLedger(s)} />
+                    {perms.manage && <IconButton icon={BookOpen} label={t("supplier.ledger")} onClick={() => setLedger(s)} />}
                     {perms.manage && <IconButton icon={Pencil} label={t("common.edit")} onClick={() => setEditing(s)} data-testid={`supplier-edit-${s.id}`} />}
                   </td>
                 </tr>

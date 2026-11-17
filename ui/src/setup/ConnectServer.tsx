@@ -79,7 +79,7 @@ export function ConnectServer({ onBack, onDone }: { onBack: () => void; onDone: 
         {found.length > 0 && (
           <div className="server-list" role="radiogroup" aria-label={t("connect.found")}>
             {found.map((s) => (
-              <button key={s.addr} type="button" role="radio" aria-checked={!manual && picked === s.addr} aria-pressed={!manual && picked === s.addr} className="server-pick" onClick={() => { setPicked(s.addr); setManual(false); }} data-testid="connect-server-item">
+              <button key={s.addr} type="button" role="radio" aria-checked={!manual && picked === s.addr} className="server-pick" onClick={() => { setPicked(s.addr); setManual(false); }} data-testid="connect-server-item">
                 <Server aria-hidden />
                 <span className="stack" style={{ gap: 0 }}>
                   <span className="server-name">{s.clinic_name || t("connect.unnamed")}</span>

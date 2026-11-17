@@ -1,0 +1,23 @@
+{
+  "patients.backProfile": "پروندې ته بېرته",
+  "patients.form.active": "پرونده فعاله ده",
+  "patients.form.inactiveHint": "غیرفعاله (آرشیف شوې) پرونده په لیست کې د «غیرفعال» نښې سره ښکاري او نه ړنګېږي.",
+  "patients.filter.status": "د پرونده حالت",
+  "patients.filter.all": "ټول",
+  "patients.addWithName": "«{name}» د نوي ناروغ په توګه اضافه کړئ",
+  "patients.age.about": "شاوخوا",
+  "patients.header.ageAbout": "شاوخوا {n} کلن",
+  "patients.tab.noAccess": "دا برخه ستاسو د رول لپاره فعاله نه ده",
+  "patients.duplicate.open": "پرونده خلاصه کړئ",
+  "patients.merge.keep": "اصلي پرونده (پاتې کېږي)",
+  "patients.merge.remove": "دا پرونده (غیرفعالېږي)",
+  "patients.merge.warningNamed": "د «{from}» پرونده غیرفعالېږي او نوبتونه، بلونه او سوابق یې «{to}» ته ځي. دا کار بېرته نه ګرځي.",
+  "patients.merge.sure": "ډاډه یم؛ {n} پرونده ادغام شي",
+  "chart.surfaceRequired": "د غاښ سطحه وټاکئ (په سطحو کراس کلیک وکړئ).",
+  "plan.addService": "له چارټ څخه خدمت اضافه کړئ",
+  "item.sessionsDoneOf": "{n} له {of} ناستو ترسره شوې",
+  "cash.diff.enter": "شمېرل شوی مبلغ ولیکئ.",
+  "rule.tooth_conflict": "دا غاښ نشته یا ایستل شوی دی؛ پر ده ثبت معنا نه لري.",
+  "rule.finding_not_found": "دا موندنه ونه موندل شوه (شاید مخکې ړنګه شوې وي).",
+  "rule.item_duplicate": "دا خدمت پر همدې غاښ په همدې پلان کې مخکې ثبت شوی دی."
+}

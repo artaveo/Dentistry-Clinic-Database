@@ -639,6 +639,23 @@ pub fn create_user(conn: &Connection, actor: &Actor, u: NewUser<'_>, allow_owner
     Ok(info)
 }
 
+/// R-11: only the owner may change the owner's account (name, password). An administrator holds
+/// `users.manage` but must not be able to take the clinic over by resetting the owner's password.
+fn ensure_may_touch_user(conn: &Connection, actor: &Actor, target: &UserInfo) -> Result<()> {
+    if target.role != OWNER {
+        return Ok(());
+    }
+    let actor_is_owner = match actor.user_id.as_deref() {
+        Some(id) => get_user(conn, id).is_ok_and(|u| u.role == OWNER),
+        None => false,
+    };
+    if actor_is_owner {
+        Ok(())
+    } else {
+        Err(CoreError::api(ErrorCode::Forbidden, "only the owner can change the owner's account"))
+    }
+}
+
 pub fn update_user(
     conn: &Connection,
     actor: &Actor,
@@ -650,6 +667,7 @@ pub fn update_user(
 ) -> Result<UserInfo> {
     validate_display_name(display_name)?;
     let before = get_user(conn, id)?;
+    ensure_may_touch_user(conn, actor, &before)?;
     if !is_active && actor.user_id.as_deref() == Some(id) {
         return Err(CoreError::invalid(
             "is_active",
@@ -828,6 +846,7 @@ pub fn set_password(conn: &Connection, actor: &Actor, user_id: &str, new_passwor
 /// ends the user's sessions.
 pub fn reset_password(conn: &Connection, actor: &Actor, id: &str, new_password: &str) -> Result<UserInfo> {
     let user = get_user(conn, id)?;
+    ensure_may_touch_user(conn, actor, &user)?;
     set_password(conn, actor, id, new_password).map_err(|e| e.rename_field("new_password"))?;
     audit::record(conn, actor, "user.reset_password", Some("app_user"), Some(id), None, None)?;
     get_user(conn, &user.id)

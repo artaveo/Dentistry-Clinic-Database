@@ -15,7 +15,7 @@
 //! * Ready-made plans (`core/seeds/plan_templates.json`) are seeded once and then the clinic's.
 
 use artaveo_shared::{
-    AddItemParams, AppointmentInfo, CreatePlanParams, ErrorCode, ItemStatus, ItemVisit, Language,
+    AddItemParams, AppointmentInfo, ChartSymbol, CreatePlanParams, ErrorCode, ItemStatus, ItemVisit, Language,
     NextSessionSuggestion, PlanSnapshot, PlanSnapshotItem, PlanStatus, PlanTemplateInfo, PlanTemplateItem,
     RecordSessionParams, RecordSessionResult, SavePlanTemplateParams, ServiceInfo, SetItemStatusParams,
     SetPlanStatusParams, TemplateTeeth, ToothScope, Translations, TreatmentItemInfo, TreatmentPlanInfo,
@@ -162,6 +162,50 @@ fn check_scope_teeth(scope: ToothScope, teeth: &[u8], single: bool) -> Result<()
     }
     if single && scope == ToothScope::Tooth && teeth.len() != 1 {
         return Err(CoreError::invalid("teeth", ValidationRule::ItemTeeth, "this service is for one tooth"));
+    }
+    Ok(())
+}
+
+/// CT-11: a bridge needs at least two teeth, all in one jaw.
+fn check_bridge(service: &ServiceInfo, teeth: &[u8]) -> Result<()> {
+    if service.chart_symbol != ChartSymbol::Bridge {
+        return Ok(());
+    }
+    let upper = teeth.iter().any(|&t| chart::is_upper(t));
+    let lower = teeth.iter().any(|&t| !chart::is_upper(t));
+    if teeth.len() < 2 || (upper && lower) {
+        return Err(CoreError::invalid(
+            "teeth",
+            ValidationRule::ItemTeeth,
+            "a bridge needs two or more teeth in the same jaw",
+        ));
+    }
+    Ok(())
+}
+
+/// CT-12: an extraction is not planned on a tooth the chart says is already missing or extracted.
+fn check_extraction(conn: &Connection, service: &ServiceInfo, patient_id: &str, teeth: &[u8]) -> Result<()> {
+    if service.chart_symbol != ChartSymbol::Extraction {
+        return Ok(());
+    }
+    for &t in teeth {
+        if chart::tooth_is_absent(conn, patient_id, t)? {
+            return Err(CoreError::invalid(
+                "teeth",
+                ValidationRule::ToothConflict,
+                format!("tooth {t} is already missing or extracted"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// CT-10: the estimated end is not before the estimated start.
+fn check_est(start: &Option<String>, end: &Option<String>) -> Result<()> {
+    if let (Some(s), Some(e)) = (start, end) {
+        if e < s {
+            return Err(CoreError::invalid("est_end", ValidationRule::PeriodRange, "the end is before the start"));
+        }
     }
     Ok(())
 }
@@ -535,6 +579,14 @@ pub fn set_plan_status(
                     "finish or cancel the items in progress first",
                 ));
             }
+            // CT-06: a plan is not cancelled without saying why.
+            if reason.is_none() {
+                return Err(CoreError::invalid(
+                    "reason",
+                    ValidationRule::Required,
+                    "say why the plan is cancelled",
+                ));
+            }
             ("status='cancelled', cancelled_at=?1, cancel_reason=?2", vec![Some(now.clone()), reason.clone()])
         }
         (Accepted | InProgress, Completed) => {
@@ -576,6 +628,18 @@ pub fn set_plan_status(
     expect_one_row(changed, "treatment plan")?;
     if p.status == Cancelled {
         cancel_planned_items(conn, actor, &p.id, &now)?;
+    }
+    if before.status == Cancelled && p.status == Proposed {
+        // CT-28: the items cancelled together with the plan come back (not the ones cancelled by hand).
+        if let Some(at) = &before.cancelled_at {
+            conn.execute(
+                "UPDATE treatment_item SET status='planned', cancelled_at=NULL, updated_at=?1, updated_by=?2,
+                    version=version+1
+                 WHERE plan_id=?3 AND status='cancelled' AND cancelled_at=?4 AND cancel_reason IS NULL
+                   AND deleted_at IS NULL",
+                params![now, actor.user_id, p.id, at],
+            )?;
+        }
     }
     let mut set_aside = Vec::new();
     if p.status == Accepted && p.cancel_alternatives {
@@ -655,7 +719,8 @@ pub fn add_items(conn: &Connection, actor: &Actor, p: &AddItemParams) -> Result<
                     "that plan is another patient's",
                 ));
             }
-            if !plan_editable(plan.status) {
+            // CT-07: a plan that closed itself (all items done) takes new items and reopens.
+            if !plan_editable(plan.status) && plan.status != PlanStatus::Completed {
                 return Err(CoreError::invalid(
                     "plan_id",
                     ValidationRule::PlanNotEditable,
@@ -677,6 +742,9 @@ pub fn add_items(conn: &Connection, actor: &Actor, p: &AddItemParams) -> Result<
     }
     let teeth = check_teeth("teeth", &p.teeth)?;
     check_scope_teeth(service.tooth_scope, &teeth, false)?;
+    chart::check_dentition(conn, &p.patient_id, &teeth)?;
+    check_bridge(&service, &teeth)?;
+    check_extraction(conn, &service, &p.patient_id, &teeth)?;
     let surfaces = clean_surfaces("surfaces", &p.surfaces)?;
     if service.needs_surface && service.tooth_scope == ToothScope::Tooth && surfaces.is_empty() {
         return Err(CoreError::invalid("surfaces", ValidationRule::ToothSurface, "choose the surfaces"));
@@ -698,6 +766,7 @@ pub fn add_items(conn: &Connection, actor: &Actor, p: &AddItemParams) -> Result<
     let notes = opt_text("notes", &p.notes, 1000)?;
     let est_start = opt_date("est_start", &p.est_start)?;
     let est_end = opt_date("est_end", &p.est_end)?;
+    check_est(&est_start, &est_end)?;
     // A one-tooth service on several teeth is one item per tooth (each its own sessions and price).
     let groups: Vec<Vec<u8>> = if service.tooth_scope == ToothScope::Tooth {
         teeth.iter().map(|&t| vec![t]).collect()
@@ -711,6 +780,22 @@ pub fn add_items(conn: &Connection, actor: &Actor, p: &AddItemParams) -> Result<
         |r| r.get(0),
     )?;
     let mut ids = Vec::new();
+    for g in &groups {
+        // CT-13: the same service on the same teeth is not twice in one plan (open items only).
+        let dup: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM treatment_item WHERE patient_id = ?1 AND plan_id IS ?2 AND service_id = ?3
+                AND teeth = ?4 AND surfaces = ?5 AND status IN ('planned', 'in_progress') AND deleted_at IS NULL)",
+            params![p.patient_id, plan_id, service.id, teeth_text(g), surfaces],
+            |r| r.get(0),
+        )?;
+        if dup {
+            return Err(CoreError::invalid(
+                "service_id",
+                ValidationRule::ItemDuplicate,
+                "this service is already planned on these teeth",
+            ));
+        }
+    }
     for g in groups {
         sort += 10;
         let id = new_id();
@@ -754,6 +839,7 @@ pub fn add_items(conn: &Connection, actor: &Actor, p: &AddItemParams) -> Result<
             "unit_price": unit_price, "catalog_price": service.price}),
         ),
     )?;
+    refresh_plan(conn, plan_id.as_deref())?;
     if p.perform_now {
         let appt = p.appointment_id.as_deref().filter(|a| !a.is_empty());
         for id in &ids {
@@ -779,6 +865,14 @@ pub fn update_item(conn: &Connection, actor: &Actor, p: &UpdateItemParams) -> Re
     }
     let service = crate::catalog::get_service(conn, &before.service_id)?;
     let teeth = check_teeth("teeth", &p.teeth)?;
+    if before.billed && (p.unit_price != before.unit_price || teeth != before.teeth) {
+        return Err(CoreError::invalid(
+            "unit_price",
+            ValidationRule::ItemNotEditable,
+            "this treatment is on an invoice: its price and teeth cannot change",
+        ));
+    }
+    chart::check_dentition(conn, &before.patient_id, &teeth)?;
     check_scope_teeth(service.tooth_scope, &teeth, true)?;
     let surfaces = clean_surfaces("surfaces", &p.surfaces)?;
     if service.needs_surface && service.tooth_scope == ToothScope::Tooth && surfaces.is_empty() {
@@ -802,6 +896,7 @@ pub fn update_item(conn: &Connection, actor: &Actor, p: &UpdateItemParams) -> Re
     let notes = opt_text("notes", &p.notes, 1000)?;
     let est_start = opt_date("est_start", &p.est_start)?;
     let est_end = opt_date("est_end", &p.est_end)?;
+    check_est(&est_start, &est_end)?;
     let now = now_iso();
     // Lowering the sessions to those already done finishes the item.
     let finished = before.sessions_done > 0 && before.sessions_done >= p.sessions_planned;
@@ -856,8 +951,34 @@ pub fn set_item_status(
     let now = now_iso();
     // (status, completed_at, cancelled_at, cancel_reason) after the move.
     let (status, completed_at, cancelled_at, cancel_reason) = match (before.status, p.status) {
-        (Planned | InProgress, Completed) => (Completed, Some(now.clone()), None, None),
-        (Planned | InProgress, Cancelled) => (Cancelled, None, Some(now.clone()), reason.clone()),
+        (Planned | InProgress, Completed) => {
+            // CT-05: a multi-session item is not finished without a single session done.
+            if before.sessions_done == 0 && before.sessions_planned > 1 {
+                return Err(CoreError::invalid(
+                    "status",
+                    ValidationRule::ItemSessions,
+                    "record at least one session before finishing this treatment",
+                ));
+            }
+            (Completed, Some(now.clone()), None, None)
+        }
+        (Planned | InProgress, Cancelled) => {
+            if before.billed {
+                return Err(CoreError::invalid(
+                    "id",
+                    ValidationRule::ItemNotEditable,
+                    "this treatment is on an invoice: void the invoice first",
+                ));
+            }
+            if before.sessions_done > 0 && reason.is_none() {
+                return Err(CoreError::invalid(
+                    "reason",
+                    ValidationRule::Required,
+                    "say why a treatment already started is cancelled",
+                ));
+            }
+            (Cancelled, None, Some(now.clone()), reason.clone())
+        }
         (Cancelled, Planned) => {
             if let Some(pid) = &before.plan_id {
                 if !plan_editable(get_plan(conn, pid)?.status) {

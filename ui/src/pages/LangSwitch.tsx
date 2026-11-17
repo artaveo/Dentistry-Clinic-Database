@@ -7,7 +7,7 @@ export function LangSwitch() {
   return (
     <div className="segmented" role="radiogroup" aria-label={t("shell.language")}>
       {(["fa", "ps", "en"] as Language[]).map((l) => (
-        <button key={l} type="button" role="radio" aria-checked={lang === l} aria-pressed={lang === l} onClick={() => setLang(l)} data-testid={`lang-${l}`} lang={l}>
+        <button key={l} type="button" role="radio" aria-checked={lang === l} onClick={() => setLang(l)} data-testid={`lang-${l}`} lang={l}>
           {t(`lang.${l}`)}
         </button>
       ))}

@@ -86,7 +86,7 @@ export function DashboardPage({ calendar, go, stock = true }: { calendar: Calend
         </Card>
 
         <Card flush>
-          <CardHeader icon={ShieldCheck} title={t("dash.attention")} description={t("dash.attentionHint")} />
+          <CardHeader icon={ShieldCheck} title={t("dash.attention")} description={t(stock ? "dash.attentionHint" : "dash.attentionHint.nostock")} />
           <ul className="dash-status" data-testid="dash-attention">
             {data.outstanding !== null && (
               <Row icon={Landmark} label={t("dash.outstanding")} value={formatAmount(data.outstanding, lang)} bad={data.outstanding > 0} badText={t("dash.owed")} onClick={() => go("billing")} testId="dash-outstanding" />

@@ -100,10 +100,10 @@ export function AuditPage({ calendar }: { calendar?: CalendarSystem }) {
                       <div className="person-text">
                         <span className="row" style={{ flexWrap: "nowrap" }}>
                           <span className={`audit-dot ${tone(r.action)}`} aria-hidden />
-                          <span className="cell-strong">{label("audit.act", r.action)}</span>
+                          <span className="cell-strong">{label("audit.act", r.action) === r.action ? <bdi className="ltr">{r.action}</bdi> : label("audit.act", r.action)}</span>
                           {r.sensitive && <Badge tone="warning" icon={ShieldAlert} testId="audit-sensitive">{t("audit.sensitive")}</Badge>}
                         </span>
-                        <span className="person-sub"><bdi className="ltr">{r.action}</bdi></span>
+                        {/* R-19: the raw code is shown only for an action that has no translation yet. */}
                       </div>
                     </td>
                     <td>{r.entity ? label("audit.ent", r.entity) : <span className="subtle">—</span>}</td>

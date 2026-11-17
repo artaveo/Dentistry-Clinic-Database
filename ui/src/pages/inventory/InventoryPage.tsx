@@ -21,7 +21,10 @@ export function InventoryPage({ perms, clinic }: { perms: InventoryPerms; clinic
   const { t } = useI18n();
   const tabs = useMemo<TabId[]>(
     () => [
-      ...(perms.view ? (["stock", "purchases", "suppliers"] as TabId[]) : []),
+      ...(perms.view ? (["stock"] as TabId[]) : []),
+      // R-21: what the clinic bought and owes is for the people who manage the stock.
+      ...(perms.manage ? (["purchases"] as TabId[]) : []),
+      ...(perms.view ? (["suppliers"] as TabId[]) : []),
       ...(perms.view || perms.clinicalView || canLab(perms) ? (["lab"] as TabId[]) : []),
       ...(perms.manage ? (["settings"] as TabId[]) : []),
     ],

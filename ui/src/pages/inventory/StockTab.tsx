@@ -73,7 +73,9 @@ export function StockTab({ perms, calendar, onOpenLab }: { perms: InventoryPerms
   const asked = !!query || !!category || filter !== "all";
   return (
     <div className="stack" data-testid="stock-tab">
-      <div className="stat-grid four">
+      {/* R-08/U-18: four tiles of zeros pushed the list down; they appear only when something needs attention. */}
+      {alerts && alerts.low.length + alerts.expired.length + alerts.expiring.length + (alerts.lab_delayed?.length ?? 0) > 0 && (
+      <div className="stat-grid four" data-testid="stock-alerts">
         <Stat icon={PackageMinus} label={t("stock.alert.low")} value={alerts ? digits(alerts.low.length, lang) : "…"} tone={alerts?.low.length ? "warning" : "success"} testId="stock-alert-low" />
         <Stat icon={CalendarX2} label={t("stock.alert.expired")} value={alerts ? digits(alerts.expired.length, lang) : "…"} tone={alerts?.expired.length ? "danger" : "success"} sub={t("stock.alert.batches")} testId="stock-alert-expired" />
         <Stat icon={Hourglass} label={t("stock.alert.expiring")} value={alerts ? digits(alerts.expiring.length, lang) : "…"} tone={alerts?.expiring.length ? "warning" : "success"} sub={t("stock.alert.batches")} testId="stock-alert-expiring" />
@@ -81,6 +83,7 @@ export function StockTab({ perms, calendar, onOpenLab }: { perms: InventoryPerms
           <Stat icon={FlaskConical} label={t("stock.alert.lab")} value={alerts ? digits(alerts.lab_delayed.length, lang) : "…"} tone={alerts?.lab_delayed.length ? "danger" : "success"} sub={t("stock.alert.labCases")} />
         </button>
       </div>
+      )}
 
       <Card flush>
         <CardHeader
@@ -159,8 +162,9 @@ export function StockTab({ perms, calendar, onOpenLab }: { perms: InventoryPerms
                   <td>{i.nearest_expiry ? formatDate(i.nearest_expiry, lang, calendar) : "—"}</td>
                   <td className="num">{formatAmount(i.value, lang)}</td>
                   <td className="cell-actions">
-                    {canConsume(perms) && <IconButton icon={Minus} label={t("stock.consume.title")} disabled={i.usable_qty <= 0} onClick={() => setModal({ kind: "consume", item: i })} data-testid={`stock-consume-${i.id}`} />}
-                    {perms.manage && <IconButton icon={PackagePlus} label={t("stock.receive.title")} onClick={() => setModal({ kind: "receive", item: i })} data-testid={`stock-receive-${i.id}`} />}
+                    {/* R-23: text buttons, and no greyed-out "consume" on an item with nothing to consume. */}
+                    {canConsume(perms) && i.usable_qty > 0 && <Button size="sm" variant="subtle" icon={Minus} onClick={() => setModal({ kind: "consume", item: i })} data-testid={`stock-consume-${i.id}`}>{t("stock.consume.short")}</Button>}
+                    {perms.manage && <Button size="sm" variant="subtle" icon={PackagePlus} onClick={() => setModal({ kind: "receive", item: i })} data-testid={`stock-receive-${i.id}`}>{t("stock.receive.short")}</Button>}
                     <IconButton icon={ChevronRight} label={t("stock.details")} className="flip-rtl" onClick={() => setModal({ kind: "detail", item: i })} />
                   </td>
                 </tr>

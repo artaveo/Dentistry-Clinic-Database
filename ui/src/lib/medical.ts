@@ -61,3 +61,15 @@ export function alertsOf(questions: MedicalQuestionInfo[], answers: MedicalAnswe
   const byId = new Map(answers.map((a) => [a.question_id, a]));
   return questions.filter((q) => q.alert && byId.get(q.id)?.answer === "yes").map((q) => ({ q, a: byId.get(q.id)! }));
 }
+
+/** A checklist question as a short warning: «حامله هستید؟» reads «حامله», with its detail («۵ ماه») after it. */
+export function alertLabel(label: string): string {
+  return label.replace(/\s*(هستید|هستی|یاست|ئۍ|are you|do you have)?\s*[؟?]\s*$/i, "").trim() || label;
+}
+
+/** One alert as text: label plus detail (choice/months), the same everywhere (queue, calendar, profile). */
+export function alertText(a: { q: MedicalQuestionInfo; a: MedicalAnswer }, lang: Language, t: (k: string) => string, num: (s: string | number) => string): string {
+  const detail = [a.a.detail_text && (a.q.detail_kind === "months" ? `${num(a.a.detail_text)} ${t("medicalHistory.months")}` : a.a.detail_text), a.a.detail_choice && t(`mh.choice.${a.a.detail_choice}`)].filter(Boolean);
+  const label = alertLabel(tr(a.q.label, lang));
+  return detail.length ? `${label} — ${detail.join("، ")}` : label;
+}

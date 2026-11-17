@@ -264,7 +264,7 @@ fn restore_validates_asks_the_owners_password_and_keeps_a_safety_copy() {
     let junk = "artaveo-20200101-000000-manual.db";
     fs::write(t.core.config().backup_dir().join(junk), b"not a database").unwrap();
     let pv = t.ok(m::BACKUP_RESTORE_PREVIEW, json!({"source": "local", "file_name": junk}), Some(&owner));
-    assert_eq!((pv["valid"].as_bool(), pv["problem"].as_str()), (Some(false), Some("wrong_key")));
+    assert_eq!((pv["valid"].as_bool(), pv["problem"].as_str()), (Some(false), Some("damaged")));
     let junk_restore = json!({"source": "local", "file_name": junk, "password": "owner-pass-1"});
     assert_eq!(t.call(m::BACKUP_RESTORE, junk_restore, Some(&owner)), Err(ErrorCode::BackupInvalid));
     assert!(t.core.is_set_up(), "a refused restore leaves the clinic untouched");

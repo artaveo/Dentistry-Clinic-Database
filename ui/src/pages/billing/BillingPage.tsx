@@ -206,7 +206,7 @@ function CloseCashDialog({ day, onClose, onDone }: { day: CashDay; onClose: () =
         <Field label={t("cash.counted")} hint={t("cash.counted.hint")} error={form.error("counted") && t(form.error("counted")!)}>
           <AmountInput value={form.values.counted} onChange={(v) => form.set("counted", v)} testId="cash-counted" autoFocus />
         </Field>
-        <Notice tone={diff === 0 ? "success" : "warning"} testId="cash-diff">{diff === 0 ? t("cash.diff.none") : t(diff > 0 ? "cash.diff.over" : "cash.diff.short").replace("{n}", formatAmount(Math.abs(diff), lang))}</Notice>
+        <Notice tone={form.values.counted.trim() === "" ? "warning" : diff === 0 ? "success" : "warning"} testId="cash-diff">{form.values.counted.trim() === "" ? t("cash.diff.enter") : diff === 0 ? t("cash.diff.none") : t(diff > 0 ? "cash.diff.over" : "cash.diff.short").replace("{n}", formatAmount(Math.abs(diff), lang))}</Notice>
         <Field label={t("cash.reason")} hint={t("cash.reason.hint")} optional={diff === 0} error={form.error("reason") && t(form.error("reason")!)}>
           <Textarea rows={2} value={form.values.reason} onChange={(e) => form.set("reason", e.target.value)} maxLength={300} data-testid="cash-reason" />
         </Field>

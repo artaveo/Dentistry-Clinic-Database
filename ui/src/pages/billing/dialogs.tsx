@@ -5,7 +5,7 @@ import { CalendarClock, Check, Plus, ReceiptText, Trash2, Wallet } from "lucide-
 import type { BillableItem, CalendarSystem, InvoiceInfo, PaymentInfo, ServiceInfo, ToothNumbering } from "../../../../shared/ts/contract";
 import { rpc } from "../../lib/api";
 import { afnInput, amountRule, parseAfn, usePaymentMethods } from "../../lib/billing";
-import { addDays, todayIso } from "../../lib/calendar";
+import { addDays, shiftMonth, todayIso } from "../../lib/calendar";
 import { serviceName, useCatalog, useClinicSettings } from "../../lib/clinical";
 import { digits } from "../../lib/dates";
 import { tr } from "../../lib/medical";
@@ -225,8 +225,16 @@ export function InstallmentsDialog({ invoice, calendar, onClose, onDone }: { inv
   const [error, setError] = useState("");
   const total = rows.reduce((s, r) => s + minorOf(r.amount), 0);
   const split = (n: number) => {
+    // FR-14/15: the same day of each month (clinic calendar); the leftover afghanis spread over the first rows.
     const each = Math.floor(invoice.remaining / n / 100) * 100;
-    setRows(Array.from({ length: n }, (_, i) => ({ due: addDays(todayIso(), 30 * (i + 1)), amount: afnInput(i === n - 1 ? invoice.remaining - each * (n - 1) : each) })));
+    let extra = invoice.remaining - each * n;
+    setRows(Array.from({ length: n }, (_, i) => {
+      const add = Math.min(extra, 100);
+      const last = i === n - 1;
+      const amount = last ? each + extra : each + add;
+      extra -= last ? extra : add;
+      return { due: shiftMonth(todayIso(), calendar, i + 1), amount: afnInput(amount) };
+    }));
   };
   const valid = rows.length > 0 && total === invoice.remaining && rows.every((r) => parseAfn(r.amount) && r.due);
   const save = async (clear = false) => {
@@ -261,7 +269,7 @@ export function InstallmentsDialog({ invoice, calendar, onClose, onDone }: { inv
         <div className="row" style={{ alignItems: "flex-end" }}>
           <Field label={t("inst.count")}>
             <Select value={count} onChange={(e) => setCount(e.target.value)} data-testid="installments-count">
-              {[2, 3, 4, 5, 6, 9, 12].map((n) => <option key={n} value={n}>{digits(n, lang)}</option>)}
+              {[2, 3, 4, 5, 6, 8, 9, 10, 12, 18, 24, 36].map((n) => <option key={n} value={n}>{digits(n, lang)}</option>)}
             </Select>
           </Field>
           <Button icon={CalendarClock} onClick={() => split(Number(count))} data-testid="installments-split">{t("inst.split")}</Button>

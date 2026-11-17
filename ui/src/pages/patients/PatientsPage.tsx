@@ -10,12 +10,13 @@ import { Button, IconButton } from "../../ui/Button";
 import { Card, Page, PageHeader } from "../../ui/Card";
 import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../../ui/Feedback";
 import { Popover } from "../../ui/Overlay";
+import { Segmented } from "../../ui/Controls";
 import { PatientForm } from "./PatientForm";
 import { PatientProfile } from "./PatientProfile";
 import type { BillingPerms } from "../billing/common";
 import { ImportDialog } from "./ImportDialog";
 
-type View = { kind: "list" } | { kind: "create" } | { kind: "edit"; patient: PatientInfo } | { kind: "profile"; id: string };
+type View = { kind: "list" } | { kind: "create"; name?: string } | { kind: "edit"; patient: PatientInfo } | { kind: "profile"; id: string };
 
 export type AppointmentPerms = Perms & { view: boolean };
 /** Medical history, prescriptions and clinical documents (clinical.view / clinical.edit). */
@@ -27,10 +28,10 @@ export function PatientsPage({ canEdit, billing, clinical, appointments, clinic,
   useEffect(() => {
     if (openRequest) setView({ kind: "profile", id: openRequest.id });
   }, [openRequest?.n]);
-  if (view.kind === "create") return <PatientForm onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "list" })} />;
+  if (view.kind === "create") return <PatientForm initialName={view.name} onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "list" })} />;
   if (view.kind === "edit") return <PatientForm patient={view.patient} onDone={(p) => setView({ kind: "profile", id: p.id })} onCancel={() => setView({ kind: "profile", id: view.patient.id })} />;
   if (view.kind === "profile") return <PatientProfile patientId={view.id} canEdit={canEdit} billing={billing} clinical={clinical} appointments={appointments} clinic={clinic} clinicName={clinicName} onBack={() => setView({ kind: "list" })} onEdit={(p) => setView({ kind: "edit", patient: p })} />;
-  return <PatientList canEdit={canEdit} onCreate={() => setView({ kind: "create" })} onOpen={(id) => setView({ kind: "profile", id })} />;
+  return <PatientList canEdit={canEdit} onCreate={(name) => setView({ kind: "create", name })} onOpen={(id) => setView({ kind: "profile", id })} />;
 }
 
 const PAGE = 100;
@@ -45,13 +46,13 @@ const rowKeys = (open: () => void) => (e: KeyboardEvent<HTMLElement>) => {
 };
 
 /** Age from the exact birth date, else the approximate age typed at registration (marked with ~). */
-function ageText(p: PatientInfo, lang: Parameters<typeof digits>[1]): string {
+function ageText(p: PatientInfo, lang: Parameters<typeof digits>[1], t: (k: string) => string): string {
   const exact = p.date_of_birth ? ageOn(p.date_of_birth) : null;
   if (exact !== null) return digits(exact, lang);
-  return p.approximate_age !== null ? `~${digits(p.approximate_age, lang)}` : "—";
+  return p.approximate_age !== null ? `${t("patients.age.about")} ${digits(p.approximate_age, lang)}` : "—";
 }
 
-function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate: () => void; onOpen: (id: string) => void }) {
+function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate: (name?: string) => void; onOpen: (id: string) => void }) {
   const { t, err, lang } = useI18n();
   const [items, setItems] = useState<PatientInfo[] | null>(null);
   const [query, setQuery] = useState("");
@@ -61,13 +62,15 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
   const [total, setTotal] = useState(0);
   const [moreBusy, setMoreBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // PA-44: archived records can be hidden; the default shows everyone, as before.
+  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const debounce = useRef<number | undefined>(undefined);
   // A newer search must win over a slower older answer.
   const seq = useRef(0);
 
-  const load = (q: string) => {
+  const load = (q: string, st = status) => {
     const mine = ++seq.current;
-    return rpc("patients.list", { query: q || null, status: null, limit: PAGE, offset: 0 })
+    return rpc("patients.list", { query: q || null, status: st === "all" ? null : st, limit: PAGE, offset: 0 })
       .then((r) => {
         if (mine !== seq.current) return;
         setItems(r.items);
@@ -84,7 +87,7 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
     if (!items || moreBusy) return;
     const mine = seq.current;
     setMoreBusy(true);
-    rpc("patients.list", { query: query || null, status: null, limit: PAGE, offset: items.length })
+    rpc("patients.list", { query: query || null, status: status === "all" ? null : status, limit: PAGE, offset: items.length })
       .then((r) => {
         if (mine !== seq.current) return;
         setItems((prev) => (prev ? [...prev, ...r.items.filter((x) => !prev.some((y) => y.id === x.id))] : r.items));
@@ -137,7 +140,7 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
                   <button type="button" role="menuitem" className="menu-item" onClick={() => { setMenuOpen(false); exportPatients(); }} data-testid="patients-export"><FileDown aria-hidden />{t("patients.export")}</button>
                 </div>
               </Popover>
-              <Button variant="primary" icon={UserPlus} onClick={onCreate} data-testid="add-patient-open">{t("patients.add")}</Button>
+              <Button variant="primary" icon={UserPlus} onClick={() => onCreate()} data-testid="add-patient-open">{t("patients.add")}</Button>
             </>
           ) : undefined
         }
@@ -150,9 +153,21 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
           </Button>
         </Notice>
       )}
-      <div className="control" style={{ maxWidth: 420 }}>
-        <span className="control-icon"><Search aria-hidden /></span>
-        <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={t("patients.search.placeholder")} data-testid="patients-search" />
+      <div className="row">
+        <div className="control" style={{ width: 420, maxWidth: "100%" }}>
+          <span className="control-icon"><Search aria-hidden /></span>
+          <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={t("patients.search.placeholder")} aria-label={t("patients.search.placeholder")} data-testid="patients-search" />
+        </div>
+        <Segmented<"all" | "active" | "inactive">
+          value={status}
+          onChange={(st) => { setStatus(st); load(query, st); }}
+          label={t("patients.filter.status")}
+          options={[
+            { value: "all", label: t("patients.filter.all"), testId: "patients-filter-all" },
+            { value: "active", label: t("patients.status.active"), testId: "patients-filter-active" },
+            { value: "inactive", label: t("patients.status.inactive"), testId: "patients-filter-inactive" },
+          ]}
+        />
       </div>
       <Card flush>
         {error ? (
@@ -178,13 +193,13 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
                     <td className="cell-strong">{p.full_name}{p.status !== "active" && <> <Badge dot>{t("patients.status.inactive")}</Badge></>}</td>
                     <td>{p.father_name ?? "—"}</td>
                     <td><bdi className="ltr">{p.phone ?? "—"}</bdi></td>
-                    <td>{ageText(p, lang)}</td>
+                    <td>{ageText(p, lang, t)}</td>
                     <td>{formatDate(p.registration_date, lang)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {items?.length === 0 && <EmptyState icon={query ? Search : Users} title={t(query ? "patients.emptySearch" : "patients.empty")} action={!query && canEdit ? <Button variant="primary" icon={UserRound} onClick={onCreate}>{t("patients.add")}</Button> : undefined} />}
+            {items?.length === 0 && <EmptyState icon={query ? Search : Users} title={t(query ? "patients.emptySearch" : "patients.empty")} action={canEdit ? <Button variant="primary" icon={UserRound} onClick={() => onCreate(query.trim() || undefined)} data-testid="patients-empty-add">{query.trim() ? t("patients.addWithName").replace("{name}", query.trim()) : t("patients.add")}</Button> : undefined} />}
           </div>
         )}
       </Card>

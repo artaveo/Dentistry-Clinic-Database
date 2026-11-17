@@ -123,7 +123,6 @@ function ExpenseDialog({ calendar, onClose, onDone }: { calendar: CalendarSystem
   useEffect(() => {
     rpc("expense_categories.list", { include_inactive: false }).then((c) => {
       setCategories(c);
-      if (c.length) form.set("category", c[0].id);
     }).catch((e) => setError(err(e)));
   }, []);
   const submit = async (e: React.FormEvent) => {
@@ -145,7 +144,7 @@ function ExpenseDialog({ calendar, onClose, onDone }: { calendar: CalendarSystem
       <form className="stack" onSubmit={submit} noValidate>
         {error && <Notice tone="danger">{error}</Notice>}
         <Field label={t("expenses.category")} error={form.error("category") && t(form.error("category")!)}>
-          <Select value={form.values.category} onChange={(e) => form.set("category", e.target.value)} data-testid="expense-category">{categories.map((c) => <option key={c.id} value={c.id}>{tr(c.name, lang)}</option>)}</Select>
+          <Select value={form.values.category} onChange={(e) => form.set("category", e.target.value)} data-testid="expense-category"><option value="">{t("common.choose")}</option>{categories.map((c) => <option key={c.id} value={c.id}>{tr(c.name, lang)}</option>)}</Select>
         </Field>
         <Field label={t("pay.amount")} error={form.error("amount") && t(form.error("amount")!)}><AmountInput value={form.values.amount} onChange={(v) => form.set("amount", v)} testId="expense-amount" /></Field>
         <Field label={t("doc.date")}><DateField value={date} onChange={setDate} calendar={calendar} label={t("doc.date")} testId="expense-date" yearsBefore={1} yearsAfter={0} /></Field>

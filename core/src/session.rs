@@ -81,6 +81,11 @@ impl SessionStore {
         self.sessions.retain(|_, s| s.user.id != user_id);
     }
 
+    /// Ends every session of a user except the one with `keep_token` (the user just changed their password).
+    pub fn remove_user_except(&mut self, user_id: &str, keep_token: &str) {
+        self.sessions.retain(|t, s| s.user.id != user_id || t == keep_token);
+    }
+
     /// Refreshes the cached profile/permissions after an admin edit.
     pub fn refresh_user(&mut self, user: &UserInfo, permissions: &HashSet<String>) {
         for s in self.sessions.values_mut().filter(|s| s.user.id == user.id) {

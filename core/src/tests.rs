@@ -1018,7 +1018,7 @@ fn attachments_are_stored_encrypted_and_scoped_to_their_patient() {
     let owner = t.login("owner", "owner-pass-1");
     let patient = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
 
-    let data_base64 = data_encoding::BASE64.encode(b"fake x-ray bytes");
+    let data_base64 = data_encoding::BASE64.encode(b"\x89PNG fake x-ray bytes");
     let a = t.ok(
         m::ATTACHMENTS_UPLOAD,
         json!({"patient_id": patient["id"], "kind": "xray", "file_name": "molar.png", "data_base64": data_base64, "tooth": "26"}),
@@ -4580,7 +4580,8 @@ fn every_report_runs_and_the_money_ones_add_up() {
     // By doctor, and narrowed to the other doctor.
     let by_doctor =
         t.ok(m::REPORTS_RUN, json!({"kind": "doctor_revenue", "from": from, "to": to}), Some(owner));
-    assert_eq!(by_doctor["rows"][0][3]["value"], 350_000);
+    // FR-05: net of the 20 000 discount.
+    assert_eq!(by_doctor["rows"][0][3]["value"], 330_000);
     let other = t.ok(
         m::REPORTS_RUN,
         json!({"kind": "doctor_revenue", "from": from, "to": to, "doctor_id": c.doctor2}),

@@ -160,17 +160,6 @@ fn decode_attachment(base64: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn guess_mime(file_name: &str) -> &'static str {
-    match file_name.rsplit('.').next().map(|e| e.to_ascii_lowercase()).as_deref() {
-        Some("png") => "image/png",
-        Some("jpg") | Some("jpeg") => "image/jpeg",
-        Some("webp") => "image/webp",
-        Some("gif") => "image/gif",
-        Some("pdf") => "application/pdf",
-        _ => "application/octet-stream",
-    }
-}
-
 impl Core {
     pub(crate) fn call(&self, req: RpcRequest, origin: &str) -> Result<Value> {
         let RpcRequest { method, params: p, token } = req;
@@ -365,6 +354,14 @@ impl Core {
                         )
                         .on_field("current_password", ValidationRule::WrongPassword));
                     }
+                    // R-12: the "new" password must really be new.
+                    if current_password == new_password {
+                        return Err(CoreError::invalid(
+                            "new_password",
+                            ValidationRule::InvalidParams,
+                            "the new password must differ from the current one",
+                        ));
+                    }
                     auth::set_password(&o.conn, &actor(&s), &s.user.id, &new_password)
                         .map_err(|e| e.rename_field("new_password"))?;
                     audit::record(
@@ -377,6 +374,8 @@ impl Core {
                         None,
                     )
                 })?;
+                // R-12: anyone else signed in with the old password (another computer) must sign in again.
+                self.lock_sessions().remove_user_except(&s.user.id, token);
                 ok(Empty {})
             }
             m::SESSION_STATE => ok(state_of(&s, timeout)),
@@ -804,7 +803,8 @@ impl Core {
                 ok(self.with_db(|o| crate::import::import_patients(&o.conn, &actor(&s), &p))?)
             }
             m::PATIENTS_EXPORT => {
-                s.require(perm::PATIENTS_VIEW)?;
+                // R-01: the whole patient list leaves the app as a file; same level as taking a backup.
+                s.require(perm::BACKUP_CREATE)?;
                 ok(self.with_db(|o| {
                     crate::import::export_patients(&o.conn, &actor(&s), &self.config.exports_dir())
                 })?)
@@ -1364,13 +1364,24 @@ impl Core {
             }
             m::SUPPLIERS_LIST => {
                 s.require(perm::INVENTORY_VIEW)?;
-                let p: SupplierListParams = params(p)?;
-                ok(self.with_db(|o| inventory::list_suppliers(&o.conn, &p))?)
+                let mut p: SupplierListParams = params(p)?;
+                if !s.permissions.contains(perm::INVENTORY_MANAGE) {
+                    p.owing_only = false;
+                }
+                let mut list = self.with_db(|o| inventory::list_suppliers(&o.conn, &p))?;
+                if !s.permissions.contains(perm::INVENTORY_MANAGE) {
+                    list.iter_mut().for_each(inventory::hide_supplier_money);
+                }
+                ok(list)
             }
             m::SUPPLIERS_GET => {
                 s.require(perm::INVENTORY_VIEW)?;
                 let IdParams { id } = params(p)?;
-                ok(self.with_db(|o| inventory::get_supplier(&o.conn, &id))?)
+                let mut sup = self.with_db(|o| inventory::get_supplier(&o.conn, &id))?;
+                if !s.permissions.contains(perm::INVENTORY_MANAGE) {
+                    inventory::hide_supplier_money(&mut sup);
+                }
+                ok(sup)
             }
             m::SUPPLIERS_SAVE => {
                 s.require(perm::INVENTORY_MANAGE)?;
@@ -1378,17 +1389,18 @@ impl Core {
                 ok(self.with_tx(|c| inventory::save_supplier(c, &actor(&s), &p))?)
             }
             m::SUPPLIER_LEDGER_LIST => {
-                s.require(perm::INVENTORY_VIEW)?;
+                // R-21: what the clinic buys and owes is for those who manage stock, not every viewer.
+                s.require(perm::INVENTORY_MANAGE)?;
                 let SupplierIdParams { supplier_id } = params(p)?;
                 ok(self.with_db(|o| inventory::supplier_ledger(&o.conn, &supplier_id))?)
             }
             m::PURCHASES_LIST => {
-                s.require(perm::INVENTORY_VIEW)?;
+                s.require(perm::INVENTORY_MANAGE)?;
                 let p: PurchaseListParams = params(p)?;
                 ok(self.with_db(|o| inventory::list_purchases(&o.conn, &p))?)
             }
             m::PURCHASES_GET => {
-                s.require(perm::INVENTORY_VIEW)?;
+                s.require(perm::INVENTORY_MANAGE)?;
                 let IdParams { id } = params(p)?;
                 ok(self.with_db(|o| inventory::get_purchase(&o.conn, &id))?)
             }
@@ -1407,7 +1419,7 @@ impl Core {
                 ok(self.with_tx(|c| inventory::void_purchase(c, &actor(&s), &p))?)
             }
             m::SUPPLIER_PAYMENTS_LIST => {
-                s.require(perm::INVENTORY_VIEW)?;
+                s.require(perm::INVENTORY_MANAGE)?;
                 let p: SupplierPaymentListParams = params(p)?;
                 ok(self.with_db(|o| inventory::list_payments(&o.conn, &p))?)
             }
@@ -1449,7 +1461,7 @@ impl Core {
                 ok(self.with_tx(|c| inventory::set_lab_status(c, &actor(&s), &p))?)
             }
             m::LAB_CASES_REPORT => {
-                s.require_any(&[perm::INVENTORY_VIEW, perm::REPORTS_VIEW])?;
+                s.require_any(&[perm::INVENTORY_MANAGE, perm::REPORTS_VIEW])?;
                 let p: PeriodParams = params(p)?;
                 ok(self.with_db(|o| inventory::lab_report(&o.conn, &p))?)
             }
@@ -1478,7 +1490,9 @@ impl Core {
                 s.require(perm::PATIENTS_EDIT)?;
                 let p: UploadAttachmentParams = params(p)?;
                 let bytes = decode_attachment(&p.data_base64)?;
-                let mime = guess_mime(&p.file_name).to_string();
+                let (clean_name, mime) = attachment::check_upload(&p.file_name, &bytes)?;
+                let mime = mime.to_string();
+                let p = UploadAttachmentParams { file_name: clean_name, ..p };
                 let dir = self.config.attachments_dir();
                 let captured_at = p.captured_at.clone().unwrap_or_else(|| now_iso()[..10].to_string());
                 ok(self.with_tx_keyed(|c, key| {
@@ -1543,7 +1557,10 @@ impl Core {
                             Some(t) => Some(t),
                             // A file saved before thumbnails existed: make its thumbnail once, now.
                             None => {
-                                match attachment::make_thumbnail(&attachment::read(&dir, key, &sha256)?) {
+                                // A missing file (data restored without images) has no thumbnail; it must
+                                // not hide the patient's other images.
+                                let original = attachment::read(&dir, key, &sha256).ok();
+                                match original.and_then(|o| attachment::make_thumbnail(&o)) {
                                     Some(bytes) => {
                                         let t = attachment::store(&dir, key, &bytes)?.0;
                                         patient::set_attachment_thumbnail(c, &a.id, &t)?;
@@ -1554,10 +1571,9 @@ impl Core {
                             }
                         };
                         let data_url = match thumb {
-                            Some(t) => Some(format!(
-                                "data:image/jpeg;base64,{}",
-                                data_encoding::BASE64.encode(&attachment::read(&dir, key, &t)?)
-                            )),
+                            Some(t) => attachment::read(&dir, key, &t)
+                                .ok()
+                                .map(|b| format!("data:image/jpeg;base64,{}", data_encoding::BASE64.encode(&b))),
                             None => None,
                         };
                         out.push(AttachmentThumbnail { id: a.id, data_url });

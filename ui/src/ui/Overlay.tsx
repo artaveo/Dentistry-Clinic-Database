@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useI18n } from "../i18n";
-import { IconButton } from "./Button";
+import { Button, IconButton } from "./Button";
 
 /** Closes on Escape and on a pointer press outside `ref`. */
 export function useDismiss(open: boolean, onClose: () => void, ref: React.RefObject<HTMLElement | null>) {
@@ -155,8 +155,21 @@ export function Dialog({ title, description, onClose, children, footer, wide, te
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // U-27: a form (dismissOnScrim=false) that has been typed in asks before Escape / the X throw the input away.
+  const guard = !dismissOnScrim;
+  const dirty = useRef(false);
+  const [asking, setAsking] = useState(false);
+  const askingRef = useRef(false);
+  askingRef.current = asking;
+  const requestClose = useCallback(() => {
+    if (guard && dirty.current) setAsking(true);
+    else closeRef.current();
+  }, [guard]);
+  const requestRef = useRef(requestClose);
+  requestRef.current = requestClose;
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
+    const openerId = opener?.getAttribute?.("data-testid") ?? null;
     const first = ref.current?.querySelector<HTMLElement>("input, select, textarea, button:not([data-close])");
     first?.focus();
     // Dialogs can stack (a receipt over an invoice): Escape and Tab act only on the one on top.
@@ -165,10 +178,20 @@ export function Dialog({ title, description, onClose, children, footer, wide, te
     const onKey = (e: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== me) return;
       if (e.key === "Escape") {
-        closeRef.current();
+        if (askingRef.current) setAsking(false);
+        else requestRef.current();
         return;
       }
       const root = ref.current;
+      // Ctrl+Enter presses the main button of the footer (save / confirm) from anywhere in the dialog.
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && root && !askingRef.current) {
+        const main = root.querySelector<HTMLButtonElement>(".dialog-footer .btn-primary, .dialog-footer .btn-danger");
+        if (main && !main.disabled) {
+          e.preventDefault();
+          main.click();
+        }
+        return;
+      }
       if (e.key !== "Tab" || !root) return;
       const active = document.activeElement as HTMLElement | null;
       // A calendar or list popup drawn on <body> manages its own Tab.
@@ -196,21 +219,35 @@ export function Dialog({ title, description, onClose, children, footer, wide, te
     return () => {
       window.removeEventListener("keydown", onKey);
       openDialogs.splice(openDialogs.indexOf(me), 1);
-      opener?.focus?.();
+      // U-28: when the page under the dialog redrew its opener, find the same button again instead of dropping focus on the document.
+      const target = opener?.isConnected ? opener : openerId ? document.querySelector<HTMLElement>(`[data-testid="${CSS.escape(openerId)}"]`) : null;
+      (target ?? document.querySelector<HTMLElement>("main"))?.focus?.({ preventScroll: true });
     };
   }, []);
   return (
     <div className="scrim" onPointerDown={(e) => dismissOnScrim && e.target === e.currentTarget && onClose()}>
-      <div ref={ref} tabIndex={-1} className={`glass-overlay dialog ${wide ? "wide" : ""}`} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined} data-testid={testId}>
+      <div ref={ref} tabIndex={-1} className={`glass-overlay dialog ${wide ? "wide" : ""}`} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined} data-testid={testId} onInputCapture={() => { dirty.current = true; }}>
         <div className="dialog-header">
           <div className="dialog-titles">
             <h2 className="t-title">{title}</h2>
             {description && <p className="muted">{description}</p>}
           </div>
-          <IconButton icon={X} label={t("common.close")} size="sm" onClick={onClose} data-close />
+          <IconButton icon={X} label={t("common.close")} size="sm" onClick={requestClose} data-close />
         </div>
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-footer">{footer}</div>}
+        {asking && (
+          <div className="dialog-discard" role="alertdialog" aria-modal="true" aria-labelledby="dialog-discard-title" data-testid="dialog-discard">
+            <div className="dialog-discard-card">
+              <strong id="dialog-discard-title">{t("dialog.discard.title")}</strong>
+              <p className="muted">{t("dialog.discard.text")}</p>
+              <div className="row" style={{ justifyContent: "flex-end" }}>
+                <Button variant="danger" onClick={() => closeRef.current()} data-testid="dialog-discard-yes">{t("dialog.discard.yes")}</Button>
+                <Button variant="primary" autoFocus onClick={() => setAsking(false)} data-testid="dialog-discard-keep">{t("dialog.discard.keep")}</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

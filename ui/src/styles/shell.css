@@ -24,3 +24,34 @@
 /* Appointments: calendar / queue / call list as tabs over the existing pages. */
 .appts-tabs { width: 100%; max-width: var(--content-max); margin: 0 auto; padding: var(--space-5) var(--space-7) 0; }
 .appts-wrap > .page { padding-top: var(--space-4); }
+
+/* ───────── layout fixes from the test mission (U-02, U-29, R-18) ───────── */
+/* A choice bar with many options wraps instead of being cut off at the window edge. */
+.segmented { max-width: 100%; flex-wrap: wrap; }
+.segmented button { min-height: 28px; }
+
+/* Services: one quiet summary line instead of three tiles; narrow table drops its optional columns so the price is always visible. */
+.catalog-summary { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin: 0; color: var(--text-2); font-size: 13px; }
+.catalog-summary strong { color: var(--text); }
+.catalog-unpriced.warn, .catalog-unpriced.warn strong { color: var(--warning); }
+.catalog-layout { grid-template-columns: 232px minmax(0, 1fr); }
+.catalog-main { container-type: inline-size; min-width: 0; }
+@container (max-width: 700px) { .catalog-main .col-opt { display: none; } }
+@media (max-width: 1100px) { .catalog-layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* ───────── dialogs: discard prompt, relative frame (U-27) ───────── */
+.dialog { position: relative; }
+.dialog-discard { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: var(--space-5); border-radius: inherit; background: color-mix(in srgb, var(--bg, #000) 70%, transparent); backdrop-filter: blur(3px); }
+.dialog-discard-card { width: min(380px, 100%); display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--glass-overlay); border: 1px solid var(--line); box-shadow: var(--shadow-3, var(--shadow-2)); }
+.dialog-discard-card p { margin: 0; }
+
+/* radio-role pickers use aria-checked (a role="radio" must not carry aria-pressed) */
+.server-pick[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* skip link (U-20): visible only while focused */
+.skip-link { position: fixed; top: 8px; inset-inline-start: 8px; z-index: 200; padding: 8px 14px; border-radius: var(--radius-md); background: var(--accent); color: var(--on-accent); font-weight: 600; transform: translateY(-200%); }
+.skip-link:focus { transform: none; }
+.app-main:focus { outline: none; }
+
+.settings-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: var(--space-5); align-items: start; }
+.stack-lg[hidden], .stack[hidden] { display: none; }

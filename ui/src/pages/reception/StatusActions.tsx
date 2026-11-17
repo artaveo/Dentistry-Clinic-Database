@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Ban, CalendarCheck, CheckCheck, DoorOpen, Play, UserRoundX } from "lucide-react";
 import type { AppointmentInfo, AppointmentStatus, FollowUpInput, RecallKind } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
-import { addDays, todayIso } from "../../lib/calendar";
+import { addDays, nowMinutes, toMinutes, todayIso } from "../../lib/calendar";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { DateField } from "../../ui/DateField";
@@ -35,6 +35,8 @@ export function StatusActions({ appt, perms, calendar, onChanged, size = "sm", o
   const [busy, setBusy] = useState<AppointmentStatus | null>(null);
   const [dialog, setDialog] = useState<"complete" | "cancel" | "no_show" | null>(null);
   const isToday = appt.date === todayIso();
+  // PA-04/PA-28: "did not come" only makes sense once the appointment time has begun.
+  const started = appt.date < todayIso() || (isToday && nowMinutes() >= toMinutes(appt.start_time));
 
   const move = async (status: AppointmentStatus, extra: { reason?: string | null; follow_up?: FollowUpInput | null } = {}) => {
     setBusy(status);
@@ -57,7 +59,7 @@ export function StatusActions({ appt, perms, calendar, onChanged, size = "sm", o
     { to: "checked_in", icon: DoorOpen, variant: "primary", show: perms.edit && (s === "scheduled" || s === "confirmed") && isToday },
     { to: "in_treatment", icon: Play, variant: "primary", show: perms.treat && s === "checked_in" },
     { to: "completed", icon: CheckCheck, variant: "primary", show: perms.treat && s === "in_treatment", open: "complete" },
-    { to: "no_show", icon: UserRoundX, variant: "secondary", show: perms.edit && (s === "scheduled" || s === "confirmed"), open: "no_show" },
+    { to: "no_show", icon: UserRoundX, variant: "secondary", show: perms.edit && (s === "scheduled" || s === "confirmed") && started, open: "no_show" },
     { to: "cancelled", icon: Ban, variant: "danger", show: perms.edit && (s === "scheduled" || s === "confirmed" || s === "checked_in"), open: "cancel" },
   ];
 

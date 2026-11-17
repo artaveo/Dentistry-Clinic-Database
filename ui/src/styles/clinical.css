@@ -1,0 +1,18 @@
+/* Clinical screens (patients, appointments, chart, billing) — refinements only; the base file stays untouched. */
+
+/* A form's save bar stays in view while the long form scrolls (PA-12 / U-05). */
+.form-actions-sticky { position: sticky; bottom: 0; z-index: 4; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-4); margin-top: var(--space-2); border-top: 1px solid var(--line); background: var(--glass-overlay, var(--bg)); backdrop-filter: blur(12px); border-radius: var(--radius-md); }
+
+/* Medical alert shown next to a patient's name in the queue and the booking dialog. */
+.alert-line { display: inline-flex; align-items: flex-start; gap: 4px; max-width: 100%; margin-top: 2px; padding: 1px 8px; border-radius: var(--radius-sm); background: var(--danger-soft, rgba(220, 38, 38, 0.12)); color: var(--danger, #b91c1c); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.alert-line svg { width: 13px; height: 13px; flex: none; margin-top: 4px; }
+.alert-line span { overflow-wrap: anywhere; }
+
+/* A long patient name wraps inside the queue card instead of stretching it (PA-17). */
+.queue-name { overflow-wrap: anywhere; }
+
+/* Merge: the two records side by side. */
+.merge-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.merge-side { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--glass-card); min-width: 0; overflow-wrap: anywhere; }
+.merge-side-remove { border-style: dashed; }
+.merge-side-keep { border-color: var(--accent, var(--line)); }

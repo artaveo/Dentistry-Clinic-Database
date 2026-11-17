@@ -833,6 +833,14 @@ pub fn set_status(
             "only today's appointments can be checked in",
         ));
     }
+    // PA-04: a future day's appointment cannot be "no-show" yet.
+    if to == AppointmentStatus::NoShow && before.date > today {
+        return Err(CoreError::invalid(
+            "status",
+            ValidationRule::AppointmentNotStarted,
+            "an appointment that has not happened yet cannot be marked as a no-show",
+        ));
+    }
 
     use AppointmentStatus::*;
     let now = now_iso();
