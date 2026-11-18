@@ -238,16 +238,8 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
         }
     }
 
-    let geo = |entity: &str, id: &str, labels: &[String; 3]| -> Result<()> {
-        for (lang, label) in LANGS.iter().zip(labels) {
-            tx.execute(
-                "INSERT INTO geo_translation(entity_type, entity_id, language_code, label) VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT(entity_type, entity_id, language_code) DO UPDATE SET label = excluded.label",
-                params![entity, id, lang, label],
-            )?;
-        }
-        Ok(())
-    };
+    // Province and district rows exist for the foreign keys only; their labels are served from
+    // the seed files (api::geo_from_seeds), not stored.
     for p in province_rows()? {
         let id = seed_id("province", &p.code);
         tx.execute(
@@ -255,7 +247,6 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
              ON CONFLICT(id) DO UPDATE SET sort_order = excluded.sort_order",
             params![id, p.code, p.sort],
         )?;
-        geo("province", &id, &p.labels)?;
     }
     // M1: system checklist questions. The clinic may switch one off (is_active) — that choice is kept.
     for q in medical_question_rows()? {
@@ -303,7 +294,6 @@ pub fn sync(conn: &mut Connection) -> Result<()> {
              ON CONFLICT(id) DO UPDATE SET sort_order = excluded.sort_order",
             params![id, province_id, d.code, d.sort],
         )?;
-        geo("district", &id, &d.labels)?;
     }
     tx.commit()?;
     Ok(())

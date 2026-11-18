@@ -17,7 +17,6 @@ use std::io::Write;
 use std::path::Path;
 
 use artaveo_shared::ErrorCode;
-use rusqlite::{Connection, OpenFlags};
 
 use crate::backup::list_folder;
 use crate::db::KeyFiles;
@@ -62,15 +61,6 @@ pub fn regenerate_live(db_path: &Path, key: &DataKey) -> Result<RecoveryKey> {
     Ok(new)
 }
 
-/// True when the encrypted database file opens with `key` (read-only: the file is never changed).
-fn opens_with(path: &Path, key: &DataKey) -> bool {
-    let Ok(conn) = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
-        return false;
-    };
-    conn.execute_batch(&format!("PRAGMA key = {};", key.sqlcipher_pragma_value())).is_ok()
-        && conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| r.get::<_, i64>(0)).is_ok()
-}
-
 /// Re-wraps the `.rkey` beside every backup in `dir` that already has one. A folder that cannot be
 /// read gives an empty report.
 pub fn rewrap_folder(dir: &Path, key: &DataKey, new: &RecoveryKey) -> FolderReport {
@@ -81,7 +71,7 @@ pub fn rewrap_folder(dir: &Path, key: &DataKey, new: &RecoveryKey) -> FolderRepo
         if !rkey.exists() {
             continue;
         }
-        let done = opens_with(&db, key) && replace_checked(&rkey, new, key).is_ok();
+        let done = crate::db::opens_with(&db, key) && replace_checked(&rkey, new, key).is_ok();
         if done {
             report.updated += 1;
         } else {

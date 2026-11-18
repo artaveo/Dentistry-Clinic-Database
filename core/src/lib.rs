@@ -60,6 +60,8 @@ mod tests_core_admin;
 #[cfg(test)]
 mod tests_core_money;
 #[cfg(test)]
+mod tests_dbsize;
+#[cfg(test)]
 mod tests_phase10;
 #[cfg(test)]
 mod tests_phase11;

@@ -52,12 +52,28 @@ pub fn record(
             action,
             entity,
             entity_id,
-            old_value.map(Value::to_string),
-            new_value.map(Value::to_string),
+            old_value.map(compact_json),
+            new_value.map(compact_json),
             computer_name(),
         ],
     )?;
     Ok(())
+}
+
+/// The stored form of an audit value: object fields that are `null` are left out (a missing field
+/// reads as `null`, so nothing is lost). Audit rows are kept forever and most of a record's fields
+/// are empty, so the nulls were a large share of every row (docs/design/db-size-rules.md).
+pub fn compact_json(v: &Value) -> String {
+    fn strip(v: &Value) -> Value {
+        match v {
+            Value::Object(map) => Value::Object(
+                map.iter().filter(|(_, x)| !x.is_null()).map(|(k, x)| (k.clone(), strip(x))).collect(),
+            ),
+            Value::Array(items) => Value::Array(items.iter().map(strip).collect()),
+            other => other.clone(),
+        }
+    }
+    strip(v).to_string()
 }
 
 /// Actions that deserve a second look (roadmap 9.8): deleting, voiding, refunding, changing who may do

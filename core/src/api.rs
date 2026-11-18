@@ -72,7 +72,7 @@ fn lang_index(language: Language) -> usize {
 }
 
 /// Serves `geo.provinces`/`geo.districts` straight from the embedded seed
-/// CSVs (no database): used only before Setup (see `call()`). Ids match
+/// CSVs (no database), before Setup (see `call()`) and after it. Ids match
 /// `ids::seed_id`, the same ones the database uses once it exists, so a
 /// province/district picked during Setup still resolves after the clinic
 /// database is created and seeded.
@@ -557,34 +557,9 @@ impl Core {
                     Ok(v)
                 })?)
             }
-            m::GEO_PROVINCES => {
-                let LanguageParams { language } = params(p)?;
-                ok(self.with_db(|o| {
-                    let mut stmt = o.conn.prepare_cached(
-                        "SELECT p.id, p.code, t.label FROM province p
-                         JOIN geo_translation t ON t.entity_type = 'province' AND t.entity_id = p.id AND t.language_code = ?1
-                         ORDER BY p.sort_order",
-                    )?;
-                    let v: Vec<LabeledItem> = stmt
-                        .query_map([language.code()], |r| Ok(LabeledItem { id: r.get(0)?, code: r.get(1)?, label: r.get(2)? }))?
-                        .collect::<rusqlite::Result<_>>()?;
-                    Ok(v)
-                })?)
-            }
-            m::GEO_DISTRICTS => {
-                let DistrictListParams { province_id, language } = params(p)?;
-                ok(self.with_db(|o| {
-                    let mut stmt = o.conn.prepare_cached(
-                        "SELECT d.id, d.code, t.label FROM district d
-                         JOIN geo_translation t ON t.entity_type = 'district' AND t.entity_id = d.id AND t.language_code = ?2
-                         WHERE d.province_id = ?1 ORDER BY d.sort_order",
-                    )?;
-                    let v: Vec<LabeledItem> = stmt
-                        .query_map(params![province_id, language.code()], |r| Ok(LabeledItem { id: r.get(0)?, code: r.get(1)?, label: r.get(2)? }))?
-                        .collect::<rusqlite::Result<_>>()?;
-                    Ok(v)
-                })?)
-            }
+            // Labels come from the embedded seed files: the 1314 translation rows were a tenth of a
+            // new clinic database (docs/design/db-size-rules.md). Same ids as the database rows.
+            m::GEO_PROVINCES | m::GEO_DISTRICTS => geo_from_seeds(method, p),
             m::CLINIC_GET => ok(self.with_db(|o| clinic::get(&o.conn))?),
             m::CLINIC_UPDATE => {
                 s.require(perm::SETTINGS_MANAGE)?;

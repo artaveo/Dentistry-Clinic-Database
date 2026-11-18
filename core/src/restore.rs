@@ -62,10 +62,11 @@ pub fn inspect(src: &Path, key: &DataKey, work_dir: &Path) -> RestorePreview {
     if fs::copy(src, &tmp).is_err() {
         return problem("unreadable", 0);
     }
-    // BR-4: an encrypted database is always a whole number of 4096-byte pages. A file that is empty or
+    // BR-4: an encrypted database is always a whole number of pages (1024 bytes, or 4096 before v0.12.5,
+    // both multiples of `db::PAGE_SIZE`). A file that is empty or
     // cut short (or a plain text file) is damaged; it must not be reported as "wrong key".
     let size = fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0);
-    if size == 0 || !size.is_multiple_of(4096) {
+    if size == 0 || !size.is_multiple_of(db::PAGE_SIZE as u64) {
         remove_db_files(&tmp);
         return problem("damaged", 0);
     }
@@ -167,6 +168,10 @@ impl Core {
             // A copy of what is there now, so a wrong restore can be undone (10.2).
             let safety = backup::create(&o.conn, &o.key, &self.config, backup::Kind::PreRestore, &actor)?;
             fs::copy(&src, &staged)?;
+            // The restored copy gets the page size its size calls for (best effort; it opens either way).
+            if let Err(e) = db::fit_page_size(&staged, &o.key) {
+                tracing::warn!(error = %e, "the restored copy keeps its old page size");
+            }
             let check = db::connect(&staged, &o.key).and_then(|c| db::full_integrity_check(&c));
             remove_wal(&staged);
             if let Err(e) = check {

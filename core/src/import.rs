@@ -430,11 +430,11 @@ impl Lookups {
             gender.entry(abbr.to_string()).or_insert(id);
         }
         let mut province = HashMap::new();
-        let mut stmt =
-            conn.prepare("SELECT entity_id, label FROM geo_translation WHERE entity_type = 'province'")?;
-        for row in stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
-            let (id, label) = row?;
-            province.insert(header_key(&label), id);
+        for row in crate::seeds::province_rows()? {
+            let id = crate::ids::seed_id("province", &row.code);
+            for label in &row.labels {
+                province.insert(header_key(label), id.clone());
+            }
         }
         Ok(Lookups { gender, province })
     }

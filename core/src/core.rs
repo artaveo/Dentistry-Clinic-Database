@@ -86,6 +86,11 @@ impl Core {
         let path = core.config.db_path();
         if load_database && path.exists() {
             let key = db::load_key(&path, core.protector.as_ref())?;
+            // Small pages for a small clinic, big ones once it has grown (db::target_page_size). A failure
+            // only leaves it as it was (it still opens), so it never blocks the start.
+            if let Err(e) = db::fit_page_size(&path, &key) {
+                tracing::warn!(error = %e, "could not rewrite the database with another page size");
+            }
             let conn = db::connect(&path, &key)?;
             db::quick_validate(&conn)?;
             core.install(conn, key)?;
@@ -102,6 +107,14 @@ impl Core {
         crate::seeds::sync(&mut conn)?;
         crate::auth::sync_roles(&mut conn)?;
         crate::patient::ensure_search_index(&conn)?;
+        if before != after {
+            // A migration may drop tables (their pages become free, the file does not shrink) and a new
+            // schema with its seed rows is written in one go: give the free pages back, then move
+            // everything out of the WAL, so neither file sits at its largest size (the WAL was 2 MB
+            // beside a 4 KB database right after setup).
+            db::vacuum_if_sparse(&conn, before == 0)?;
+            db::checkpoint(&conn)?;
+        }
         if before > 0 && after != before {
             audit::record(
                 &conn,
