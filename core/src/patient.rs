@@ -595,17 +595,14 @@ pub fn delete_patient(conn: &Connection, actor: &Actor, id: &str, version: i64) 
     }
     // PA-09: a patient with money or treatment on record is archived (inactive), never deleted:
     // the invoices, payments and the clinical record must stay attached to a real patient.
-    for table in
-        ["invoice", "payment", "credit_note", "treatment_plan", "clinical_note", "patient_attachment"]
-    {
-        let has: bool = conn.query_row(
-            &format!(
-                "SELECT EXISTS(SELECT 1 FROM {table} WHERE patient_id = ?1{})",
-                if matches!(table, "payment" | "credit_note") { "" } else { " AND deleted_at IS NULL" }
-            ),
-            [id],
-            |r| r.get(0),
-        )?;
+    let has_money = crate::fin::patient_has_money(conn, id)?;
+    for table in ["treatment_plan", "clinical_note", "patient_attachment"] {
+        let has: bool = has_money
+            || conn.query_row(
+                &format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE patient_id = ?1 AND deleted_at IS NULL)"),
+                [id],
+                |r| r.get(0),
+            )?;
         if has {
             return Err(CoreError::invalid(
                 "id",
@@ -754,10 +751,6 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         "treatment_session",
         "clinical_note",
         "perio_exam",
-        // Phase 6: the patient's money follows the patient.
-        "invoice",
-        "payment",
-        "credit_note",
         // B1: scans/X-rays, lab work and stock taken for the patient follow the patient too.
         // (The medical checklist and its notes are folded in `merge_medical_history` below.)
         "patient_attachment",
@@ -769,6 +762,8 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
             params![p.keep_id, p.merge_id],
         )?;
     }
+    // The patient's money (finance documents and their sub-ledger rows) follows the patient.
+    crate::fin::merge_patient(conn, &p.keep_id, &p.merge_id)?;
     merge_medical_history(conn, &p.keep_id, &p.merge_id)?;
     // OF-049: a kept record without a photo takes the merged record's photo.
     conn.execute(

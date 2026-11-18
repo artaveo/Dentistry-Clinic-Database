@@ -16,7 +16,7 @@ use crate::attachment;
 use crate::audit::{self, Actor};
 use crate::auth::{self, perm, NewUser, OWNER};
 use crate::backup;
-use crate::billing;
+use crate::fin;
 use crate::clinic;
 use crate::clock::now_iso;
 use crate::core::Core;
@@ -1128,176 +1128,191 @@ impl Core {
                 let TimelineParams { patient_id, kinds, limit } = params(p)?;
                 ok(self.with_db(|o| crate::timeline::events(&o.conn, &patient_id, &kinds, limit, None))?)
             }
-            m::PAYMENT_METHODS_LIST => {
-                s.require_any(&[perm::BILLING_VIEW, perm::SETTINGS_MANAGE])?;
-                let IncludeInactiveParams { include_inactive } = params(p)?;
-                ok(self.with_db(|o| billing::list_methods(&o.conn, include_inactive))?)
+            m::FIN_ACCOUNTS_LIST => {
+                s.require_any(&[perm::BILLING_VIEW, perm::SETTINGS_MANAGE, perm::INVENTORY_MANAGE])?;
+                let p: AccountListParams = params(p)?;
+                ok(self.with_db(|o| fin::accounts::list(&o.conn, &p))?)
             }
-            m::PAYMENT_METHODS_SAVE => {
+            m::FIN_ACCOUNTS_SAVE => {
                 s.require(perm::SETTINGS_MANAGE)?;
-                let p: SavePaymentMethodParams = params(p)?;
-                ok(self.with_tx(|c| billing::save_method(c, &actor(&s), &p))?)
+                let p: SaveAccountParams = params(p)?;
+                ok(self.with_tx(|c| fin::accounts::save(c, &actor(&s), &p))?)
             }
-            m::INVOICES_BILLABLE => {
+            m::FIN_ACCOUNTS_LEDGER => {
+                s.require(perm::REPORTS_VIEW)?;
+                let p: AccountLedgerParams = params(p)?;
+                ok(self.with_db(|o| fin::accounts::ledger(&o.conn, &p))?)
+            }
+            m::FIN_INVOICES_BILLABLE => {
                 s.require(perm::BILLING_VIEW)?;
                 let PatientIdParams { patient_id } = params(p)?;
-                ok(self.with_db(|o| billing::billable(&o.conn, &patient_id))?)
+                ok(self.with_db(|o| fin::invoices::billable(&o.conn, &patient_id))?)
             }
-            m::INVOICES_LIST => {
+            m::FIN_INVOICES_LIST => {
                 s.require(perm::BILLING_VIEW)?;
                 let p: InvoiceListParams = params(p)?;
-                ok(self.with_db(|o| billing::list_invoices(&o.conn, &p))?)
+                ok(self.with_db(|o| fin::invoices::list(&o.conn, &p))?)
             }
-            m::INVOICES_GET => {
+            m::FIN_INVOICES_GET => {
                 s.require(perm::BILLING_VIEW)?;
-                let IdParams { id } = params(p)?;
-                ok(self.with_db(|o| billing::get_invoice(&o.conn, &id))?)
+                let DocIdParams { id } = params(p)?;
+                ok(self.with_db(|o| fin::invoices::get(&o.conn, id))?)
             }
-            m::INVOICES_CREATE => {
+            m::FIN_INVOICES_CREATE => {
                 s.require(perm::BILLING_EDIT)?;
                 let p: CreateInvoiceParams = params(p)?;
                 let can_override = s.permissions.contains(perm::BILLING_OVERRIDE);
-                ok(self.with_tx(|c| billing::create_invoice(c, &actor(&s), can_override, &p))?)
+                ok(self.with_tx(|c| fin::invoices::create(c, &actor(&s), can_override, &p))?)
             }
-            m::INVOICES_VOID => {
+            m::FIN_INVOICES_ADJUST => {
                 s.require(perm::BILLING_VOID)?;
-                let p: VoidInvoiceParams = params(p)?;
-                ok(self.with_tx(|c| billing::void_invoice(c, &actor(&s), &p))?)
+                let p: AdjustInvoiceParams = params(p)?;
+                ok(self.with_tx(|c| fin::invoices::adjust(c, &actor(&s), &p))?)
             }
-            m::INVOICES_CREDIT_NOTE => {
-                s.require(perm::BILLING_VOID)?;
-                let p: CreditNoteParams = params(p)?;
-                ok(self.with_tx(|c| billing::credit_note(c, &actor(&s), &p))?)
-            }
-            m::INVOICES_SET_INSTALLMENTS => {
+            m::FIN_INVOICES_SET_PLAN => {
                 s.require(perm::BILLING_EDIT)?;
-                let p: SetInstallmentsParams = params(p)?;
-                ok(self.with_tx(|c| billing::set_installments(c, &actor(&s), &p))?)
+                let p: SetPlanParams = params(p)?;
+                ok(self.with_tx(|c| fin::invoices::set_plan(c, &actor(&s), &p))?)
             }
-            m::INVOICES_MARK_PRINTED => {
+            m::FIN_RECEIPTS_LIST => {
                 s.require(perm::BILLING_VIEW)?;
-                let MarkPrintedParams { id, pdf } = params(p)?;
-                ok(self.with_tx(|c| billing::invoice_printed(c, &actor(&s), &id, pdf))?)
+                let p: ReceiptListParams = params(p)?;
+                ok(self.with_db(|o| fin::receipts::list(&o.conn, &p))?)
             }
-            m::PAYMENTS_LIST => {
+            m::FIN_RECEIPTS_GET => {
                 s.require(perm::BILLING_VIEW)?;
-                let p: PaymentListParams = params(p)?;
-                ok(self.with_db(|o| billing::list_payments(&o.conn, &p))?)
+                let DocIdParams { id } = params(p)?;
+                ok(self.with_db(|o| fin::receipts::get(&o.conn, id))?)
             }
-            m::PAYMENTS_GET => {
-                s.require(perm::BILLING_VIEW)?;
-                let IdParams { id } = params(p)?;
-                ok(self.with_db(|o| billing::get_payment(&o.conn, &id))?)
-            }
-            m::PAYMENTS_ADD => {
+            m::FIN_RECEIPTS_CREATE => {
                 s.require(perm::BILLING_EDIT)?;
-                let p: AddPaymentParams = params(p)?;
-                ok(self.with_tx(|c| billing::add_payment(c, &actor(&s), &p))?)
+                let p: CreateReceiptParams = params(p)?;
+                ok(self.with_tx(|c| fin::receipts::create(c, &actor(&s), &p))?)
             }
-            m::PAYMENTS_REFUND => {
+            m::FIN_RECEIPTS_ALLOCATE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: AllocateParams = params(p)?;
+                if p.allocations.iter().any(|a| a.amount < 0) {
+                    s.require(perm::BILLING_VOID)?;
+                }
+                ok(self.with_tx(|c| fin::receipts::allocate(c, &actor(&s), &p))?)
+            }
+            m::FIN_RECEIPTS_REFUND => {
                 s.require(perm::BILLING_VOID)?;
                 let p: RefundParams = params(p)?;
-                ok(self.with_tx(|c| billing::refund(c, &actor(&s), &p))?)
+                ok(self.with_tx(|c| fin::receipts::refund(c, &actor(&s), &p))?)
             }
-            m::PAYMENTS_MARK_PRINTED => {
-                s.require(perm::BILLING_VIEW)?;
-                let MarkPrintedParams { id, pdf } = params(p)?;
-                ok(self.with_tx(|c| billing::payment_printed(c, &actor(&s), &id, pdf))?)
-            }
-            m::BILLING_ACCOUNT => {
+            m::FIN_PATIENTS_ACCOUNT => {
                 s.require(perm::BILLING_VIEW)?;
                 let PatientIdParams { patient_id } = params(p)?;
-                ok(self.with_db(|o| billing::account(&o.conn, &patient_id))?)
+                ok(self.with_db(|o| fin::patients::account(&o.conn, &patient_id))?)
             }
-            m::BILLING_DEBTORS => {
-                s.require(perm::BILLING_VIEW)?;
-                let p: DebtorListParams = params(p)?;
-                ok(self.with_db(|o| billing::debtors(&o.conn, &p))?)
-            }
-            m::BILLING_STATEMENT => {
+            m::FIN_PATIENTS_STATEMENT => {
                 s.require(perm::BILLING_VIEW)?;
                 let p: StatementParams = params(p)?;
-                ok(self.with_db(|o| billing::statement(&o.conn, &p))?)
+                ok(self.with_db(|o| fin::patients::statement(&o.conn, &p))?)
             }
-            m::BILLING_INSTALLMENTS_DUE => {
+            m::FIN_RECEIVABLES_AGING => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: AgingParams = params(p)?;
+                ok(self.with_db(|o| fin::patients::aging(&o.conn, &p))?)
+            }
+            m::FIN_RECEIVABLES_DUE => {
                 s.require(perm::BILLING_VIEW)?;
                 let p: InstallmentsDueParams = params(p)?;
-                ok(self.with_db(|o| billing::installments_due(&o.conn, &p))?)
+                ok(self.with_db(|o| fin::patients::due(&o.conn, &p))?)
             }
-            m::BILLING_SUMMARY => {
+            m::FIN_VOUCHERS_LIST => {
+                s.require_any(&[perm::REPORTS_VIEW, perm::INVENTORY_MANAGE])?;
+                let p: VoucherListParams = params(p)?;
+                ok(self.with_db(|o| fin::spend::list(&o.conn, &p))?)
+            }
+            m::FIN_VOUCHERS_GET => {
+                s.require_any(&[perm::REPORTS_VIEW, perm::INVENTORY_MANAGE])?;
+                let DocIdParams { id } = params(p)?;
+                ok(self.with_db(|o| fin::spend::get(&o.conn, id))?)
+            }
+            m::FIN_VOUCHERS_CREATE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CreateVoucherParams = params(p)?;
+                if p.purpose == VoucherPurpose::Supplier {
+                    s.require_any(&[perm::REPORTS_VIEW, perm::INVENTORY_MANAGE])?;
+                }
+                ok(self.with_tx(|c| fin::spend::create_voucher(c, &actor(&s), &p))?)
+            }
+            m::FIN_BILLS_CREATE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CreateBillParams = params(p)?;
+                ok(self.with_tx(|c| fin::spend::create_bill(c, &actor(&s), &p))?)
+            }
+            m::FIN_OTHER_RECEIPTS_CREATE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CreateOtherReceiptParams = params(p)?;
+                ok(self.with_tx(|c| fin::spend::create_other_receipt(c, &actor(&s), &p))?)
+            }
+            m::FIN_TRANSFERS_CREATE => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CreateTransferParams = params(p)?;
+                ok(self.with_tx(|c| fin::spend::create_transfer(c, &actor(&s), &p))?)
+            }
+            m::FIN_CASH_DAY => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: CashDayParams = params(p)?;
+                ok(self.with_db(|o| fin::cash::day(&o.conn, &p))?)
+            }
+            m::FIN_CASH_COUNT => {
+                s.require(perm::BILLING_EDIT)?;
+                let p: CreateCashCountParams = params(p)?;
+                ok(self.with_tx(|c| fin::cash::count(c, &actor(&s), &p))?)
+            }
+            m::FIN_CASH_COUNTS => {
+                s.require(perm::BILLING_VIEW)?;
+                let p: CashCountListParams = params(p)?;
+                ok(self.with_db(|o| fin::cash::counts(&o.conn, &p))?)
+            }
+            m::FIN_DOCS_VOID => {
+                s.require(perm::BILLING_VOID)?;
+                let p: VoidDocParams = params(p)?;
+                ok(self.with_tx(|c| fin::docs::void(c, &actor(&s), &p))?)
+            }
+            m::FIN_DOCS_PRINTED => {
+                s.require_any(&[perm::BILLING_VIEW, perm::INVENTORY_MANAGE])?;
+                let p: DocPrintedParams = params(p)?;
+                ok(self.with_tx(|c| fin::docs::printed(c, &actor(&s), &p))?)
+            }
+            m::FIN_OVERVIEW => {
                 s.require(perm::REPORTS_VIEW)?;
                 let p: PeriodParams = params(p)?;
-                ok(self.with_db(|o| billing::summary(&o.conn, &p))?)
+                ok(self.with_db(|o| fin::overview::overview(&o.conn, &p))?)
             }
-            m::BILLING_SETTINGS_GET => {
+            m::FIN_SETTINGS_GET => {
                 s.require_any(&[perm::BILLING_VIEW, perm::SETTINGS_MANAGE])?;
-                ok(self.with_db(|o| billing::get_settings(&o.conn))?)
+                ok(self.with_db(|o| fin::shares::get_settings(&o.conn))?)
             }
-            m::BILLING_SETTINGS_SAVE => {
+            m::FIN_SETTINGS_SAVE => {
                 s.require(perm::SETTINGS_MANAGE)?;
-                let p: BillingSettings = params(p)?;
-                ok(self.with_tx(|c| billing::save_settings(c, &actor(&s), &p))?)
+                let p: FinanceSettings = params(p)?;
+                ok(self.with_tx(|c| fin::shares::save_settings(c, &actor(&s), &p))?)
             }
-            m::COMMISSION_RULES_LIST => {
+            m::FIN_SHARES_RULES_LIST => {
                 s.require_any(&[perm::REPORTS_VIEW, perm::SETTINGS_MANAGE])?;
-                ok(self.with_db(|o| billing::list_rules(&o.conn))?)
+                ok(self.with_db(|o| fin::shares::list_rules(&o.conn))?)
             }
-            m::COMMISSION_RULES_SAVE => {
+            m::FIN_SHARES_RULES_SAVE => {
                 s.require(perm::SETTINGS_MANAGE)?;
                 let p: SaveCommissionRuleParams = params(p)?;
-                ok(self.with_tx(|c| billing::save_rule(c, &actor(&s), &p))?)
+                ok(self.with_tx(|c| fin::shares::save_rule(c, &actor(&s), &p))?)
             }
-            m::COMMISSION_RULES_DELETE => {
+            m::FIN_SHARES_RULES_DELETE => {
                 s.require(perm::SETTINGS_MANAGE)?;
                 let IdVersionParams { id, version } = params(p)?;
-                self.with_tx(|c| billing::delete_rule(c, &actor(&s), &id, version))?;
+                self.with_tx(|c| fin::shares::delete_rule(c, &actor(&s), &id, version))?;
                 ok(Empty {})
             }
-            m::COMMISSION_REPORT => {
+            m::FIN_SHARES_PREVIEW => {
                 s.require(perm::REPORTS_VIEW)?;
                 let p: CommissionReportParams = params(p)?;
-                ok(self.with_db(|o| billing::commission_report(&o.conn, &p))?)
-            }
-            m::EXPENSE_CATEGORIES_LIST => {
-                s.require_any(&[perm::BILLING_VIEW, perm::REPORTS_VIEW, perm::SETTINGS_MANAGE])?;
-                let IncludeInactiveParams { include_inactive } = params(p)?;
-                ok(self.with_db(|o| billing::list_categories(&o.conn, include_inactive))?)
-            }
-            m::EXPENSE_CATEGORIES_SAVE => {
-                s.require(perm::SETTINGS_MANAGE)?;
-                let p: SaveExpenseCategoryParams = params(p)?;
-                ok(self.with_tx(|c| billing::save_category(c, &actor(&s), &p))?)
-            }
-            m::EXPENSES_LIST => {
-                s.require(perm::REPORTS_VIEW)?;
-                let p: ExpenseListParams = params(p)?;
-                ok(self.with_db(|o| billing::list_expenses(&o.conn, &p))?)
-            }
-            m::EXPENSES_ADD => {
-                s.require(perm::BILLING_EDIT)?;
-                let p: AddExpenseParams = params(p)?;
-                ok(self.with_tx(|c| billing::add_expense(c, &actor(&s), &p))?)
-            }
-            m::EXPENSES_DELETE => {
-                s.require(perm::BILLING_VOID)?;
-                let p: DeleteExpenseParams = params(p)?;
-                self.with_tx(|c| billing::delete_expense(c, &actor(&s), &p))?;
-                ok(Empty {})
-            }
-            m::CASH_DAY => {
-                s.require(perm::BILLING_VIEW)?;
-                let DateParams { date } = params(p)?;
-                ok(self.with_db(|o| billing::cash_day(&o.conn, &date))?)
-            }
-            m::CASH_CLOSE => {
-                s.require(perm::BILLING_EDIT)?;
-                let p: CloseCashParams = params(p)?;
-                ok(self.with_tx(|c| billing::close_cash(c, &actor(&s), &p))?)
-            }
-            m::CASH_CLOSINGS => {
-                s.require(perm::BILLING_VIEW)?;
-                let p: ExpenseListParams = params(p)?;
-                ok(self.with_db(|o| billing::list_closings(&o.conn, &p))?)
+                ok(self.with_db(|o| fin::shares::preview(&o.conn, &p))?)
             }
             m::STOCK_CATEGORIES_LIST => {
                 s.require(perm::INVENTORY_VIEW)?;
@@ -1459,23 +1474,6 @@ impl Core {
                 s.require(perm::INVENTORY_MANAGE)?;
                 let p: VoidWithReasonParams = params(p)?;
                 ok(self.with_tx(|c| inventory::void_purchase(c, &actor(&s), &p))?)
-            }
-            m::SUPPLIER_PAYMENTS_LIST => {
-                s.require(perm::INVENTORY_MANAGE)?;
-                let p: SupplierPaymentListParams = params(p)?;
-                ok(self.with_db(|o| inventory::list_payments(&o.conn, &p))?)
-            }
-            m::SUPPLIER_PAYMENTS_ADD => {
-                s.require(perm::INVENTORY_MANAGE)?;
-                s.require(perm::BILLING_EDIT)?;
-                let p: AddSupplierPaymentParams = params(p)?;
-                ok(self.with_tx(|c| inventory::add_supplier_payment(c, &actor(&s), &p))?)
-            }
-            m::SUPPLIER_PAYMENTS_VOID => {
-                s.require(perm::INVENTORY_MANAGE)?;
-                s.require(perm::BILLING_VOID)?;
-                let p: VoidWithReasonParams = params(p)?;
-                ok(self.with_tx(|c| inventory::void_supplier_payment(c, &actor(&s), &p))?)
             }
             m::LAB_CASES_LIST => {
                 s.require_any(&[perm::INVENTORY_VIEW, perm::CLINICAL_VIEW])?;

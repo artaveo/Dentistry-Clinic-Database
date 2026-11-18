@@ -8,7 +8,7 @@ pub mod attachment;
 pub mod audit;
 pub mod auth;
 pub mod backup;
-pub mod billing;
+pub mod fin;
 pub mod calendar;
 pub mod catalog;
 pub mod chart;
@@ -61,6 +61,8 @@ mod tests_core_admin;
 mod tests_core_money;
 #[cfg(test)]
 mod tests_dbsize;
+#[cfg(test)]
+mod tests_finance;
 #[cfg(test)]
 mod tests_phase10;
 #[cfg(test)]

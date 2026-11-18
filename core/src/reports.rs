@@ -14,7 +14,9 @@ use time::{PrimitiveDateTime, Time};
 
 use crate::audit::{self, Actor};
 use crate::auth::perm;
-use crate::billing::{self, date_of, scalar, trio};
+use crate::fin::ledger::NUMBER_SQL;
+use crate::fin::util::{iso_of, ymd};
+use crate::fin::{self, date_of, scalar, trio};
 use crate::calendar::GregorianDate;
 use crate::clock::{iso, now, now_iso, parse, today_iso, CLINIC_OFFSET};
 use crate::error::{CoreError, Result};
@@ -230,23 +232,20 @@ pub fn dashboard(conn: &Connection, s: &Session, license: Option<String>) -> Res
     } else if let Some(id) = &doctor_id {
         let own = scalar(
             conn,
-            "SELECT COALESCE(SUM(l.line_total), 0) FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id
-             WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date = ?1 AND l.doctor_id = ?2",
-            &[&today, id],
+            "SELECT SUM(l.amount - COALESCE(l.discount, 0)) FROM fin_line l JOIN fin_doc d ON d.id = l.doc_id
+             WHERE d.kind = 'inv' AND d.status = 'posted' AND d.doc_date = ?1 AND l.provider_id = ?2",
+            &[&ymd(&today), id],
         )?;
         (RevenueBasis::Invoiced, Some(own), None)
     } else {
+        // Money from patients today (refunds taken off), and everything patients owe on invoices.
         let received = scalar(
             conn,
-            "SELECT COALESCE(SUM(CASE WHEN kind = 'payment' THEN amount
-                                      WHEN kind = 'refund' AND returns_to_credit = 0 THEN -amount ELSE 0 END), 0)
-             FROM payment WHERE local_date = ?1",
-            &[&today],
+            "SELECT SUM(g.amount) FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id JOIN fin_account a ON a.id = g.account_id
+             WHERE g.date = ?1 AND d.kind IN ('rc', 'rf') AND a.money IS NOT NULL",
+            &[&ymd(&today)],
         )?;
-        let owed: i64 = billing::debtors(conn, &DebtorListParams { search: None, limit: Some(1000) })?
-            .iter()
-            .map(|d| d.remaining)
-            .sum();
+        let owed = scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = 1310", &[])?;
         (RevenueBasis::Received, Some(received), Some(owed))
     };
 
@@ -324,6 +323,8 @@ struct Ctx<'a> {
     hi: String,
     doctor: Option<String>,
     service: Option<String>,
+    /// The money account of a money book or the cash counts.
+    account: Option<i64>,
     calendar: CalendarSystem,
 }
 
@@ -340,22 +341,26 @@ pub fn run(conn: &Connection, p: &ReportParams) -> Result<ReportResult> {
         hi,
         doctor: clean(&p.doctor_id),
         service: clean(&p.service_id),
+        account: p.account_id,
         calendar: p.calendar.unwrap_or_default(),
     };
     use ReportKind::*;
     let mut t = match p.kind {
-        DailyRevenue => daily_revenue(&c)?,
-        MonthlyRevenue => monthly_revenue(&c)?,
-        Payments => payments(&c)?,
-        Outstanding => outstanding(&c)?,
-        Discounts => discounts(&c)?,
-        Refunds => refunds(&c)?,
-        DoctorRevenue => doctor_revenue(&c)?,
-        DoctorCommission => doctor_commission(&c)?,
-        ServiceRevenue => service_revenue(&c)?,
+        DailySummary => daily_summary(&c)?,
+        MonthlySummary => monthly_summary(&c)?,
+        Receipts => receipts_register(&c)?,
+        Invoices => invoices_register(&c)?,
+        Adjustments => adjustments(&c)?,
+        Aging => aging(&c)?,
+        Installments => installments(&c)?,
+        Deposits => deposits(&c)?,
         Expenses => expenses(&c)?,
-        ProfitLoss => profit_loss(&c)?,
-        CashClosings => cash_closings(&c)?,
+        MoneyBook => money_book(&c)?,
+        ProviderProduction => provider_production(&c)?,
+        ServiceRevenue => service_revenue(&c)?,
+        DoctorShares => doctor_shares(&c)?,
+        CashCounts => cash_counts(&c)?,
+        IncomeStatement => income_statement(&c)?,
         Patients => patients(&c)?,
         Treatments => treatments(&c)?,
         Procedures => procedures(&c)?,
@@ -403,200 +408,449 @@ fn collect(
 
 const CAP: &str = "LIMIT 5001";
 
-/// What came in, went out and was invoiced on each day of the period.
+// ───────────────────────────── finance reports (docs/design/finance-standard.md §ب۹) ─────────────────────────────
+
+/// The period as `yyyymmdd` integers.
+fn days(c: &Ctx) -> (i64, i64) {
+    (ymd(&c.from), ymd(&c.to))
+}
+
+/// An account in a report: built-in accounts by code (the screen names them), the clinic's own by name.
+fn account_cell(conn: &Connection, id: Option<i64>) -> Result<ReportCell> {
+    let Some(id) = id else { return Ok(ReportCell::Empty) };
+    let name: Option<String> =
+        conn.query_row("SELECT name FROM fin_account WHERE id = ?1", [id], |r| r.get(0)).optional()?.flatten();
+    Ok(match name {
+        Some(n) => text(n),
+        None => tag(format!("acct_{id}")),
+    })
+}
+
+fn status_tag(status: &str) -> ReportCell {
+    tag(match status {
+        "void" => "void",
+        "superseded" => "superseded",
+        _ => "posted",
+    })
+}
+
+/// Invoiced (accrual) and received (cash) on each day of the period.
 #[derive(Default, Clone, Copy)]
 struct DayMoney {
+    invoices: i64,
+    gross: i64,
+    discounts: i64,
+    reductions: i64,
+    receipts: i64,
     received: i64,
     refunded: i64,
-    payments: i64,
-    invoiced: i64,
 }
 
-fn day_money(c: &Ctx) -> Result<BTreeMap<String, DayMoney>> {
-    let mut days: BTreeMap<String, DayMoney> = BTreeMap::new();
+fn day_money(c: &Ctx) -> Result<BTreeMap<i64, DayMoney>> {
+    let (from, to) = days(c);
+    let mut out: BTreeMap<i64, DayMoney> = BTreeMap::new();
     let mut stmt = c.conn.prepare(
-        "SELECT local_date,
-                COALESCE(SUM(CASE WHEN kind = 'payment' THEN amount ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN kind = 'refund' AND returns_to_credit = 0 THEN amount ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN kind = 'payment' THEN 1 ELSE 0 END), 0)
-         FROM payment WHERE local_date BETWEEN ?1 AND ?2 AND kind IN ('payment', 'refund') GROUP BY local_date",
+        "SELECT g.date, d.kind, g.account_id, a.money IS NOT NULL, SUM(g.amount)
+         FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id JOIN fin_account a ON a.id = g.account_id
+         WHERE g.date BETWEEN ?1 AND ?2 AND (d.kind IN ('rc', 'rf') OR g.account_id IN (4110, 4910, 4920))
+         GROUP BY g.date, d.kind, g.account_id",
     )?;
-    for row in stmt.query_map([&c.from, &c.to], |r| {
-        Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?))
-    })? {
-        let (d, received, refunded, payments) = row?;
-        let e = days.entry(d).or_default();
-        e.received = received;
-        e.refunded = refunded;
-        e.payments = payments;
+    let rows: Vec<(i64, String, i64, bool, i64)> = stmt
+        .query_map(params![from, to], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    for (day, kind, account, is_money, amount) in rows {
+        let e = out.entry(day).or_default();
+        match (kind.as_str(), account, is_money) {
+            (_, 4110, _) => e.gross -= amount,
+            (_, 4910, _) => e.discounts += amount,
+            (_, 4920, _) => e.reductions += amount,
+            ("rc", _, true) => e.received += amount,
+            ("rf", _, true) => e.refunded -= amount,
+            _ => {}
+        }
     }
     let mut stmt = c.conn.prepare(
-        "SELECT i.local_date,
-                COALESCE(SUM((SELECT COALESCE(SUM(line_total), 0) FROM invoice_line WHERE invoice_id = i.id) - i.discount
-                    - (SELECT COALESCE(SUM(amount), 0) FROM credit_note WHERE invoice_id = i.id)), 0)
-         FROM invoice i WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
-         GROUP BY i.local_date",
+        "SELECT doc_date, SUM(kind = 'inv'), SUM(kind = 'rc') FROM fin_doc
+         WHERE doc_date BETWEEN ?1 AND ?2 AND kind IN ('inv', 'rc') AND status = 'posted' GROUP BY doc_date",
     )?;
-    for row in stmt.query_map([&c.from, &c.to], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
-        let (d, invoiced) = row?;
-        days.entry(d).or_default().invoiced = invoiced;
+    for row in stmt.query_map(params![from, to], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)))? {
+        let (day, invoices, receipts) = row?;
+        let e = out.entry(day).or_default();
+        e.invoices = invoices;
+        e.receipts = receipts;
     }
-    Ok(days)
+    Ok(out)
 }
 
-fn daily_revenue(c: &Ctx) -> Result<Table> {
-    let rows = day_money(c)?
-        .into_iter()
-        .map(|(d, m)| {
-            vec![
-                date(d),
-                int(m.payments),
-                money(m.invoiced),
-                money(m.received),
-                money(m.refunded),
-                money(m.received - m.refunded),
-            ]
-        })
-        .collect();
-    Ok(table(&["date", "payments", "invoiced", "received", "refunded", "net"], rows, &[1, 2, 3, 4, 5]))
+fn summary_row(first: ReportCell, m: &DayMoney) -> Vec<ReportCell> {
+    vec![
+        first,
+        int(m.invoices),
+        money(m.gross),
+        money(m.discounts + m.reductions),
+        money(m.gross - m.discounts - m.reductions),
+        int(m.receipts),
+        money(m.received),
+        money(m.refunded),
+        money(m.received - m.refunded),
+    ]
 }
 
-fn monthly_revenue(c: &Ctx) -> Result<Table> {
-    let mut months: BTreeMap<String, (i64, i64, i64, i64)> = BTreeMap::new();
+const SUMMARY_COLS: [&str; 8] =
+    ["invoices", "gross", "discounts", "invoiced", "receipts", "received", "refunded", "net_received"];
+
+fn daily_summary(c: &Ctx) -> Result<Table> {
+    let rows = day_money(c)?.iter().map(|(d, m)| summary_row(date(iso_of(*d)), m)).collect();
+    let mut cols = vec!["date"];
+    cols.extend(SUMMARY_COLS);
+    Ok(table(&cols, rows, &[1, 2, 3, 4, 5, 6, 7, 8]))
+}
+
+fn monthly_summary(c: &Ctx) -> Result<Table> {
+    let mut months: BTreeMap<String, DayMoney> = BTreeMap::new();
     for (d, m) in day_money(c)? {
-        let e = months.entry(month_key(&d, c.calendar)).or_default();
-        e.0 += m.invoiced;
-        e.1 += m.received;
-        e.2 += m.refunded;
-        e.3 += m.payments;
+        let e = months.entry(month_key(&iso_of(d), c.calendar)).or_default();
+        e.invoices += m.invoices;
+        e.gross += m.gross;
+        e.discounts += m.discounts;
+        e.reductions += m.reductions;
+        e.receipts += m.receipts;
+        e.received += m.received;
+        e.refunded += m.refunded;
     }
-    let rows = months
-        .into_iter()
-        .map(|(k, (invoiced, received, refunded, n))| {
-            vec![
-                ReportCell::Month { value: k },
-                int(n),
-                money(invoiced),
-                money(received),
-                money(refunded),
-                money(received - refunded),
-            ]
-        })
-        .collect();
-    Ok(table(&["month", "payments", "invoiced", "received", "refunded", "net"], rows, &[1, 2, 3, 4, 5]))
+    let rows = months.into_iter().map(|(k, m)| summary_row(ReportCell::Month { value: k }, &m)).collect();
+    let mut cols = vec!["month"];
+    cols.extend(SUMMARY_COLS);
+    Ok(table(&cols, rows, &[1, 2, 3, 4, 5, 6, 7, 8]))
 }
 
-fn payments(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT p.local_date, p.number, pt.full_name, COALESCE(m.name_fa, ''), COALESCE(m.name_ps, ''), COALESCE(m.name_en, ''), p.amount
-             FROM payment p JOIN patient pt ON pt.id = p.patient_id LEFT JOIN payment_method m ON m.id = p.method_id
-             WHERE p.kind = 'payment' AND p.local_date BETWEEN ?1 AND ?2 ORDER BY p.local_date, p.number {CAP}"
-        ),
-        &[&c.from, &c.to],
-        |r| {
-            Ok(vec![date(r.get::<_, String>(0)?), code(r.get::<_, String>(1)?), text(r.get::<_, String>(2)?), name(r.get(3)?, r.get(4)?, r.get(5)?), money(r.get(6)?)])
-        },
-    )?;
-    Ok(table(&["date", "number", "patient", "method", "amount"], rows, &[4]))
+fn receipts_register(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT d.doc_date, {NUMBER_SQL}, p.patient_number, p.full_name, d.kind, d.account_id, d.amount, d.status,
+            COALESCE(d.reason, d.name, '')
+         FROM fin_doc d JOIN patient p ON p.id = d.party_id
+         WHERE d.kind IN ('rc', 'rf') AND d.doc_date BETWEEN ?1 AND ?2 ORDER BY d.doc_date, d.kind, d.serial {CAP}"
+    ))?;
+    type R = (i64, String, String, String, String, Option<i64>, i64, String, String);
+    let raw: Vec<R> = stmt
+        .query_map(params![from, to], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    let mut rows = Vec::with_capacity(raw.len());
+    for (d, number, pno, patient, kind, account, amount, status, note) in raw {
+        let posted = status == "posted";
+        let (received, refunded) = match (kind.as_str(), posted) {
+            ("rc", true) => (amount, 0),
+            ("rf", true) => (0, amount),
+            _ => (0, 0),
+        };
+        rows.push(vec![
+            date(iso_of(d)),
+            code(number),
+            code(pno),
+            text(patient),
+            account_cell(c.conn, account)?,
+            money(received),
+            money(refunded),
+            status_tag(&status),
+            opt_text(Some(note)),
+        ]);
+    }
+    Ok(table(
+        &["date", "number", "patient_number", "patient", "account", "received", "refunded", "status", "note"],
+        rows,
+        &[5, 6],
+    ))
 }
 
-fn outstanding(c: &Ctx) -> Result<Table> {
-    let rows = billing::debtors(c.conn, &DebtorListParams { search: None, limit: Some(1000) })?
-        .into_iter()
-        .map(|d| {
-            vec![
-                code(d.patient_number),
-                text(d.patient_name),
-                opt_code(d.phone),
-                int(d.invoice_count),
-                opt_date(d.oldest_invoice_at.map(|t| day_of(&t))),
-                opt_date(d.next_due),
-                money(d.remaining),
-            ]
-        })
-        .collect();
-    Ok(table(&["number", "patient", "phone", "invoices", "oldest", "next_due", "remaining"], rows, &[3, 6]))
+fn invoices_register(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT d.id, d.doc_date, {NUMBER_SQL}, p.patient_number, p.full_name, d.status, d.amount,
+            (SELECT COALESCE(SUM(l.amount), 0) FROM fin_line l WHERE l.doc_id = d.id)
+         FROM fin_doc d JOIN patient p ON p.id = d.party_id
+         WHERE d.kind = 'inv' AND d.doc_date BETWEEN ?1 AND ?2 ORDER BY d.serial {CAP}"
+    ))?;
+    type R = (i64, i64, String, String, String, String, i64, i64);
+    let raw: Vec<R> = stmt
+        .query_map(params![from, to], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    let mut rows = Vec::with_capacity(raw.len());
+    for (id, d, number, pno, patient, status, net, gross) in raw {
+        let posted = status == "posted";
+        let s = fin::invoices::settled(c.conn, id)?;
+        let z = |v: i64| money(if posted { v } else { 0 });
+        rows.push(vec![
+            date(iso_of(d)),
+            code(number),
+            code(pno),
+            text(patient),
+            z(gross),
+            z(gross - net),
+            z(net),
+            z(s.reductions + s.written_off),
+            z(s.allocated),
+            z(s.remaining()),
+            status_tag(&status),
+        ]);
+    }
+    Ok(table(
+        &[
+            "date",
+            "number",
+            "patient_number",
+            "patient",
+            "gross",
+            "discount",
+            "net",
+            "reductions",
+            "allocated",
+            "remaining",
+            "status",
+        ],
+        rows,
+        &[4, 5, 6, 7, 8, 9],
+    ))
 }
 
-fn discounts(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT d, num, who, sub, amount FROM (
-                 SELECT i.local_date AS d, i.number AS num, pt.full_name AS who,
-                        (SELECT COALESCE(SUM(line_total), 0) FROM invoice_line WHERE invoice_id = i.id) AS sub,
-                        i.discount AS amount, 0 AS k
-                 FROM invoice i JOIN patient pt ON pt.id = i.patient_id
-                 WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.discount > 0 AND i.local_date BETWEEN ?1 AND ?2
-                 UNION ALL
-                 SELECT cn.local_date, cn.number, pt.full_name,
-                        (SELECT COALESCE(SUM(line_total), 0) FROM invoice_line WHERE invoice_id = i.id), cn.amount, 1
-                 FROM credit_note cn JOIN invoice i ON i.id = cn.invoice_id JOIN patient pt ON pt.id = cn.patient_id
-                 WHERE i.status = 'issued' AND i.deleted_at IS NULL AND cn.local_date BETWEEN ?1 AND ?2
-             ) ORDER BY d, k, num {CAP}"
-        ),
-        &[&c.from, &c.to],
-        |r| {
-            let (subtotal, discount): (i64, i64) = (r.get(3)?, r.get(4)?);
-            let share = if subtotal > 0 { discount * 10_000 / subtotal } else { 0 };
-            Ok(vec![date(r.get::<_, String>(0)?), code(r.get::<_, String>(1)?), text(r.get::<_, String>(2)?), money(subtotal), money(discount), ReportCell::Percent { value: share }])
-        },
-    )?;
-    Ok(table(&["date", "number", "patient", "subtotal", "discount", "share"], rows, &[3, 4]))
-}
-
-fn refunds(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT p.local_date, p.number, pt.full_name, COALESCE(m.name_fa, ''), COALESCE(m.name_ps, ''), COALESCE(m.name_en, ''), p.amount, p.reason
-             FROM payment p JOIN patient pt ON pt.id = p.patient_id LEFT JOIN payment_method m ON m.id = p.method_id
-             WHERE p.kind = 'refund' AND p.local_date BETWEEN ?1 AND ?2 ORDER BY p.local_date, p.number {CAP}"
-        ),
-        &[&c.from, &c.to],
-        |r| {
+fn adjustments(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT d.doc_date, {NUMBER_SQL}, d.adj, p.full_name, d.adj_amount, d.adj_reason, u.display_name FROM (
+             SELECT d.id, d.doc_date, d.kind, d.year, d.serial, d.party_id, d.created_by,
+                    CASE WHEN d.kind = 'inv' THEN (SELECT COALESCE(SUM(l.discount), 0) FROM fin_line l WHERE l.doc_id = d.id)
+                         WHEN d.kind = 'al' THEN -(SELECT COALESCE(SUM(l.amount), 0) FROM fin_line l WHERE l.doc_id = d.id
+                            AND l.amount < 0)
+                         ELSE d.amount END AS adj_amount,
+                    CASE WHEN d.kind = 'inv' THEN 'discount' WHEN d.kind = 'al' THEN 'back' ELSE d.kind END AS adj,
+                    COALESCE(d.reason, d.note) AS adj_reason
+             FROM fin_doc d WHERE d.status = 'posted' AND d.doc_date BETWEEN ?1 AND ?2 AND d.party = 'patient'
+                AND d.kind IN ('inv', 'cn', 'wo', 'rf', 'al')
+         ) d JOIN patient p ON p.id = d.party_id LEFT JOIN app_user u ON u.id = d.created_by
+         WHERE d.adj_amount <> 0 ORDER BY d.doc_date, d.id {CAP}"
+    ))?;
+    let rows = stmt
+        .query_map(params![from, to], |r| {
             Ok(vec![
-                date(r.get::<_, String>(0)?),
+                date(iso_of(r.get(0)?)),
                 code(r.get::<_, String>(1)?),
-                text(r.get::<_, String>(2)?),
-                name(r.get(3)?, r.get(4)?, r.get(5)?),
-                money(r.get(6)?),
-                opt_text(r.get(7)?),
+                tag(r.get::<_, String>(2)?),
+                text(r.get::<_, String>(3)?),
+                money(r.get(4)?),
+                opt_text(r.get(5)?),
+                opt_text(r.get(6)?),
             ])
-        },
-    )?;
-    Ok(table(&["date", "number", "patient", "method", "amount", "reason"], rows, &[4]))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(table(&["date", "number", "kind", "patient", "amount", "reason", "user"], rows, &[4]))
 }
 
-/// FR-05: a line's share of its invoice's net (discount and credit notes taken off), as the
-/// daily revenue and the commission report count it. Needs `invoice i` and `invoice_line l`.
-const NET_SHARE: &str = "(CASE WHEN (SELECT SUM(line_total) FROM invoice_line WHERE invoice_id = i.id) > 0
-        THEN l.line_total * MAX(0, (SELECT SUM(line_total) FROM invoice_line WHERE invoice_id = i.id) - i.discount
-            - (SELECT COALESCE(SUM(amount), 0) FROM credit_note WHERE invoice_id = i.id))
-            / (SELECT SUM(line_total) FROM invoice_line WHERE invoice_id = i.id)
-        ELSE 0 END)";
-
-fn doctor_revenue(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT COALESCE(d.full_name, ''), COUNT(DISTINCT i.patient_id), COALESCE(SUM(l.quantity), 0),
-                    COALESCE(SUM({NET_SHARE}), 0)
-             FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id LEFT JOIN doctor d ON d.id = l.doctor_id
-             WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
-               AND (?3 IS NULL OR l.doctor_id = ?3)
-             GROUP BY l.doctor_id ORDER BY 4 DESC"
-        ),
-        &[&c.from, &c.to, &c.doctor],
-        |r| Ok(vec![opt_text(r.get(0)?), int(r.get(1)?), int(r.get(2)?), money(r.get(3)?)]),
-    )?;
-    Ok(table(&["doctor", "patients", "units", "invoiced"], rows, &[2, 3]))
+fn aging(c: &Ctx) -> Result<Table> {
+    let rows = fin::patients::aging(c.conn, &AgingParams { as_of: Some(c.to.clone()), search: None, limit: Some(5000) })?
+        .into_iter()
+        .map(|a| {
+            vec![
+                code(a.patient_number),
+                text(a.patient_name),
+                opt_code(a.phone),
+                int(a.invoice_count),
+                money(a.d0_30),
+                money(a.d31_60),
+                money(a.d61_90),
+                money(a.d90_plus),
+                money(a.total),
+                money(a.deposit),
+                opt_date(a.oldest_date),
+            ]
+        })
+        .collect();
+    Ok(table(
+        &["patient_number", "patient", "phone", "invoices", "d0_30", "d31_60", "d61_90", "d90_plus", "total", "deposit", "oldest"],
+        rows,
+        &[3, 4, 5, 6, 7, 8, 9],
+    ))
 }
 
-fn doctor_commission(c: &Ctx) -> Result<Table> {
-    let report = billing::commission_report(
+fn installments(c: &Ctx) -> Result<Table> {
+    let rows = fin::patients::due(c.conn, &InstallmentsDueParams { until: Some(c.to.clone()), ..Default::default() })?
+        .into_iter()
+        .map(|i| {
+            vec![
+                code(i.patient_number),
+                text(i.patient_name),
+                opt_code(i.phone),
+                code(i.invoice_number),
+                code(format!("{}/{}", i.no, i.count)),
+                date(i.due_date),
+                money(i.amount),
+                money(i.paid),
+                money(i.amount - i.paid),
+                int(i.days_late),
+                tag(match i.state {
+                    InstallmentState::Overdue => "overdue",
+                    InstallmentState::Partial => "partial",
+                    InstallmentState::Paid => "paid",
+                    InstallmentState::Pending => "pending",
+                }),
+            ]
+        })
+        .collect();
+    Ok(table(
+        &["patient_number", "patient", "phone", "invoice", "installment", "due", "amount", "paid", "unpaid", "days_late", "state"],
+        rows,
+        &[6, 7, 8],
+    ))
+}
+
+fn deposits(c: &Ctx) -> Result<Table> {
+    let (_, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT p.patient_number, p.full_name, -SUM(g.amount) FROM fin_gl g JOIN patient p ON p.id = g.party_id
+         WHERE g.account_id = 2210 AND g.date <= ?1 GROUP BY g.party_id HAVING SUM(g.amount) <> 0
+         ORDER BY 3 DESC {CAP}"
+    ))?;
+    let rows = stmt
+        .query_map([to], |r| Ok(vec![code(r.get::<_, String>(0)?), text(r.get::<_, String>(1)?), money(r.get(2)?)]))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(table(&["patient_number", "patient", "deposit"], rows, &[2]))
+}
+
+fn expenses(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT d.doc_date, {NUMBER_SQL}, d.kind, l.account_id, COALESCE(l.name, d.note, ''), COALESCE(s.name, d.name),
+            s.tin, l.amount, COALESCE(l.withheld, 0), d.account_id, d.status
+         FROM fin_line l JOIN fin_doc d ON d.id = l.doc_id JOIN fin_account a ON a.id = l.account_id
+            LEFT JOIN supplier s ON s.id = d.party_id
+         WHERE d.doc_date BETWEEN ?1 AND ?2 AND a.type IN ('expense', 'asset') AND a.money IS NULL
+            AND (d.kind = 'bl' OR (d.kind = 'pv' AND d.purpose IN ('expense', 'other')))
+         ORDER BY d.doc_date, d.id, l.no {CAP}"
+    ))?;
+    type R = (i64, String, String, i64, String, Option<String>, Option<String>, i64, i64, Option<i64>, String);
+    let raw: Vec<R> = stmt
+        .query_map(params![from, to], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+                r.get(8)?,
+                r.get(9)?,
+                r.get(10)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    let mut rows = Vec::with_capacity(raw.len());
+    for (d, number, kind, account, desc, payee, tin, amount, withheld, paid_from, status) in raw {
+        let posted = status == "posted";
+        let z = |v: i64| money(if posted { v } else { 0 });
+        rows.push(vec![
+            date(iso_of(d)),
+            code(number),
+            tag(if kind == "bl" { "bill" } else { "paid" }),
+            account_cell(c.conn, Some(account))?,
+            opt_text(Some(desc)),
+            opt_text(payee),
+            opt_code(tin),
+            z(amount),
+            z(withheld),
+            z(amount - withheld),
+            account_cell(c.conn, paid_from)?,
+            status_tag(&status),
+        ]);
+    }
+    Ok(table(
+        &["date", "number", "kind", "account", "description", "payee", "tin", "gross", "withheld", "net", "paid_from", "status"],
+        rows,
+        &[7, 8, 9],
+    ))
+}
+
+fn money_book(c: &Ctx) -> Result<Table> {
+    let account = c.account.unwrap_or(1110);
+    let l = fin::accounts::ledger(
+        c.conn,
+        &AccountLedgerParams { account_id: account, party_id: None, from: c.from.clone(), to: c.to.clone() },
+    )?;
+    let mut rows = vec![vec![
+        date(l.from.clone()),
+        ReportCell::Empty,
+        tag("opening"),
+        ReportCell::Empty,
+        money(0),
+        money(0),
+        money(l.opening),
+    ]];
+    for x in l.lines {
+        rows.push(vec![
+            date(x.date),
+            code(x.number),
+            tag(if x.reversal { "void".to_string() } else { format!("doc_{}", fin_kind_code(x.kind)) }),
+            opt_text(Some(x.description)),
+            money(x.amount.max(0)),
+            money((-x.amount).max(0)),
+            money(x.balance),
+        ]);
+    }
+    Ok(table(&["date", "number", "kind", "description", "money_in", "money_out", "balance"], rows, &[4, 5]))
+}
+
+fn fin_kind_code(k: DocKind) -> &'static str {
+    fin::ledger::kind_code(k)
+}
+
+/// FR-05: a line's share of the price reductions (CN) made on its invoice later, in proportion to the
+/// line's net. Needs `fin_doc d` (the invoice) and `fin_line l`.
+const REDUCTION_SHARE: &str = "(CASE WHEN d.amount > 0 THEN (l.amount - COALESCE(l.discount, 0))
+        * (SELECT COALESCE(SUM(x.amount), 0) FROM fin_doc x WHERE x.ref_id = d.id AND x.kind = 'cn' AND x.status = 'posted')
+        / d.amount ELSE 0 END)";
+
+fn provider_production(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT COALESCE(dr.full_name, ''), COUNT(DISTINCT d.party_id), COALESCE(SUM(l.qty), 0), COALESCE(SUM(l.amount), 0),
+            COALESCE(SUM(COALESCE(l.discount, 0) + {REDUCTION_SHARE}), 0)
+         FROM fin_line l JOIN fin_doc d ON d.id = l.doc_id LEFT JOIN doctor dr ON dr.id = l.provider_id
+         WHERE d.kind = 'inv' AND d.status = 'posted' AND d.doc_date BETWEEN ?1 AND ?2 AND (?3 IS NULL OR l.provider_id = ?3)
+         GROUP BY l.provider_id ORDER BY 4 DESC"
+    ))?;
+    let rows = stmt
+        .query_map(params![from, to, c.doctor], |r| {
+            let (gross, discount): (i64, i64) = (r.get(3)?, r.get(4)?);
+            Ok(vec![opt_text(r.get(0)?), int(r.get(1)?), int(r.get(2)?), money(gross), money(discount), money(gross - discount)])
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(table(&["doctor", "patients", "units", "gross", "discount", "net"], rows, &[2, 3, 4, 5]))
+}
+
+fn service_revenue(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(&format!(
+        "SELECT s.name_fa, s.name_ps, s.name_en, COALESCE(SUM(l.qty), 0),
+            COALESCE(SUM(l.amount - COALESCE(l.discount, 0) - {REDUCTION_SHARE}), 0)
+         FROM fin_line l JOIN fin_doc d ON d.id = l.doc_id JOIN service s ON s.id = l.service_id
+         WHERE d.kind = 'inv' AND d.status = 'posted' AND d.doc_date BETWEEN ?1 AND ?2
+           AND (?3 IS NULL OR l.service_id = ?3) AND (?4 IS NULL OR l.provider_id = ?4)
+         GROUP BY s.id ORDER BY 5 DESC"
+    ))?;
+    let rows = stmt
+        .query_map(params![from, to, c.service, c.doctor], |r| {
+            Ok(vec![name(r.get(0)?, r.get(1)?, r.get(2)?), int(r.get(3)?), money(r.get(4)?)])
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(table(&["service", "units", "net"], rows, &[1, 2]))
+}
+
+fn doctor_shares(c: &Ctx) -> Result<Table> {
+    let report = fin::shares::preview(
         c.conn,
         &CommissionReportParams { doctor_id: c.doctor.clone(), from: c.from.clone(), to: c.to.clone() },
     )?;
@@ -605,90 +859,79 @@ fn doctor_commission(c: &Ctx) -> Result<Table> {
         .into_iter()
         .map(|d| vec![text(d.doctor_name), int(d.lines.len() as i64), money(d.base), money(d.commission)])
         .collect();
-    Ok(table(&["doctor", "lines", "base", "commission"], rows, &[1, 2, 3]))
+    Ok(table(&["doctor", "lines", "base", "share"], rows, &[1, 2, 3]))
 }
 
-fn service_revenue(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT s.name_fa, s.name_ps, s.name_en, COALESCE(SUM(l.quantity), 0), COALESCE(SUM({NET_SHARE}), 0)
-             FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id JOIN service s ON s.id = l.service_id
-             WHERE i.status = 'issued' AND i.deleted_at IS NULL AND i.local_date BETWEEN ?1 AND ?2
-               AND (?3 IS NULL OR l.service_id = ?3) AND (?4 IS NULL OR l.doctor_id = ?4)
-             GROUP BY s.id ORDER BY 5 DESC"
-        ),
-        &[&c.from, &c.to, &c.service, &c.doctor],
-        |r| Ok(vec![name(r.get(0)?, r.get(1)?, r.get(2)?), int(r.get(3)?), money(r.get(4)?)]),
+fn cash_counts(c: &Ctx) -> Result<Table> {
+    let list = fin::cash::counts(
+        c.conn,
+        &CashCountListParams { account_id: c.account, from: Some(c.from.clone()), to: Some(c.to.clone()) },
     )?;
-    Ok(table(&["service", "units", "invoiced"], rows, &[1, 2]))
-}
-
-fn expenses(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT e.local_date, k.name_fa, k.name_ps, k.name_en, e.description, e.payee, e.amount
-             FROM expense e JOIN expense_category k ON k.id = e.category_id
-             WHERE e.deleted_at IS NULL AND e.local_date BETWEEN ?1 AND ?2 ORDER BY e.local_date, e.created_at {CAP}"
-        ),
-        &[&c.from, &c.to],
-        |r| Ok(vec![date(r.get::<_, String>(0)?), name(r.get(1)?, r.get(2)?, r.get(3)?), text(r.get::<_, String>(4)?), opt_text(r.get(5)?), money(r.get(6)?)]),
-    )?;
-    Ok(table(&["date", "category", "description", "payee", "amount"], rows, &[4]))
-}
-
-/// Profit and loss by month: money received, minus refunds, minus everything the clinic spent.
-fn profit_loss(c: &Ctx) -> Result<Table> {
-    let mut months: BTreeMap<String, (i64, i64, i64)> = BTreeMap::new();
-    for (d, m) in day_money(c)? {
-        let e = months.entry(month_key(&d, c.calendar)).or_default();
-        e.0 += m.received;
-        e.1 += m.refunded;
+    let mut rows = Vec::with_capacity(list.len());
+    for k in list.into_iter().rev() {
+        rows.push(vec![
+            date(k.date),
+            code(k.number),
+            account_cell(c.conn, Some(k.account_id))?,
+            money(k.book),
+            money(k.counted),
+            money(k.difference),
+            opt_text(k.reason),
+            opt_text(k.created_by_name),
+        ]);
     }
+    Ok(table(&["date", "number", "account", "book", "counted", "difference", "reason", "user"], rows, &[3, 4, 5]))
+}
+
+/// Month by month: money in and out (cash method) next to work invoiced and costs incurred (accrual).
+fn income_statement(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
     let mut stmt = c.conn.prepare(
-        "SELECT local_date, SUM(amount) FROM expense WHERE deleted_at IS NULL AND local_date BETWEEN ?1 AND ?2 GROUP BY local_date",
+        "SELECT g.date, CASE WHEN d.kind = 'pv' THEN 'pv:' || d.purpose ELSE d.kind END, g.account_id, a.type,
+            a.money IS NOT NULL, g.amount
+         FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id JOIN fin_account a ON a.id = g.account_id
+         WHERE g.date BETWEEN ?1 AND ?2",
     )?;
-    for row in stmt.query_map([&c.from, &c.to], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
-        let (d, amount) = row?;
-        months.entry(month_key(&d, c.calendar)).or_default().2 += amount;
+    type R = (i64, String, i64, String, bool, i64);
+    let raw: Vec<R> = stmt
+        .query_map(params![from, to], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    // (received, cash expenses, revenue, accrual costs)
+    let mut months: BTreeMap<String, (i64, i64, i64, i64)> = BTreeMap::new();
+    for (day, kind, account, kind_of_account, is_money, amount) in raw {
+        let e = months.entry(month_key(&iso_of(day), c.calendar)).or_default();
+        if is_money && (kind == "rc" || kind == "rf") {
+            e.0 += amount;
+        }
+        if kind.starts_with("pv") && (kind_of_account == "expense" || account == 2110) {
+            e.1 += amount;
+        }
+        if matches!(account, 4110 | 4190 | 4910 | 4920) {
+            e.2 -= amount;
+        }
+        if kind_of_account == "expense" {
+            e.3 += amount;
+        }
     }
     let rows = months
         .into_iter()
-        .map(|(k, (received, refunded, spent))| {
+        .map(|(k, (received, paid, revenue, costs))| {
             vec![
                 ReportCell::Month { value: k },
                 money(received),
-                money(refunded),
-                money(spent),
-                money(received - refunded - spent),
+                money(paid),
+                money(received - paid),
+                money(revenue),
+                money(costs),
+                money(revenue - costs),
             ]
         })
         .collect();
-    Ok(table(&["month", "received", "refunded", "expenses", "profit"], rows, &[1, 2, 3, 4]))
-}
-
-fn cash_closings(c: &Ctx) -> Result<Table> {
-    let rows = collect(
-        c,
-        &format!(
-            "SELECT k.local_date, k.expected, k.counted, k.difference, k.reason, u.display_name
-             FROM cash_closing k LEFT JOIN app_user u ON u.id = k.closed_by
-             WHERE k.local_date BETWEEN ?1 AND ?2 ORDER BY k.local_date {CAP}"
-        ),
-        &[&c.from, &c.to],
-        |r| {
-            Ok(vec![
-                date(r.get::<_, String>(0)?),
-                money(r.get(1)?),
-                money(r.get(2)?),
-                money(r.get(3)?),
-                opt_text(r.get(4)?),
-                opt_text(r.get(5)?),
-            ])
-        },
-    )?;
-    Ok(table(&["date", "expected", "counted", "difference", "reason", "closed_by"], rows, &[1, 2, 3]))
+    Ok(table(
+        &["month", "net_received", "paid_out", "cash_result", "revenue", "costs", "accrual_result"],
+        rows,
+        &[1, 2, 3, 4, 5, 6],
+    ))
 }
 
 fn patients(c: &Ctx) -> Result<Table> {
@@ -1226,14 +1469,14 @@ pub fn notifications(conn: &Connection, s: &Session, extras: &NotifyExtras) -> R
     }
 
     if can(perm::BILLING_VIEW) && doctor_id.is_none() {
-        for d in billing::installments_due(conn, &InstallmentsDueParams::default())?.into_iter().take(50) {
-            let level = if d.overdue { L::Danger } else { L::Warning };
+        for d in fin::patients::due(conn, &InstallmentsDueParams::default())?.into_iter().take(50) {
+            let level = if d.state == InstallmentState::Overdue { L::Danger } else { L::Warning };
             items.push(item(
                 format!("installment_due:{}:{}", d.invoice_id, d.no),
                 K::InstallmentDue,
                 level,
                 same(&d.patient_name),
-                Some(d.unpaid.to_string()),
+                Some((d.amount - d.paid).to_string()),
                 Some(d.due_date),
                 "billing",
                 Some(d.patient_id),
@@ -1533,36 +1776,32 @@ pub fn search(conn: &Connection, p: &SearchParams, access: SearchAccess) -> Resu
         }
     }
     if access.billing {
-        for (kind, table_name, date_col, order_col) in [
-            (SearchKind::Invoice, "invoice", "local_date", "issued_at"),
-            (SearchKind::Receipt, "payment", "local_date", "paid_at"),
-        ] {
-            let extra = if kind == SearchKind::Invoice {
-                "AND t.deleted_at IS NULL"
-            } else {
-                "AND t.kind = 'payment'"
-            };
-            let mut stmt = conn.prepare(&format!(
-                "SELECT t.id, t.patient_id, t.number, p.full_name, t.{date_col}
-                 FROM {table_name} t JOIN patient p ON p.id = t.patient_id
-                 WHERE ((t.number >= ? AND t.number < ?) OR t.patient_id IN ({marks})) {extra}
-                 ORDER BY t.{order_col} DESC LIMIT ?"
-            ))?;
-            let args = with_ids(vec![Value::Text(number_lo.clone()), Value::Text(number_hi.clone())]);
-            let rows = stmt.query_map(params_from_iter(args.iter()), |r| {
-                Ok(SearchHit {
-                    kind,
-                    id: r.get(0)?,
-                    patient_id: Some(r.get(1)?),
-                    title: r.get(2)?,
-                    subtitle: Some(r.get(3)?),
-                    date: Some(r.get(4)?),
-                    page: "billing".into(),
-                })
-            })?;
-            for h in rows {
-                hits.push(h?);
-            }
+        // A finance number (`INV-1405-000012`, `RC-1405-…`) or the invoices and receipts of the patients found.
+        let mut stmt = conn.prepare(&format!(
+            "SELECT d.id, d.kind, d.party_id, {NUMBER_SQL} AS no, p.full_name, d.doc_date
+             FROM fin_doc d JOIN patient p ON p.id = d.party_id
+             WHERE d.kind IN ('inv', 'rc') AND d.status = 'posted'
+               AND ((no >= ? AND no < ?) OR d.party_id IN ({marks}))
+             ORDER BY d.id DESC LIMIT ?"
+        ))?;
+        let mut args = with_ids(vec![Value::Text(number_lo.clone()), Value::Text(number_hi.clone())]);
+        if let Some(Value::Integer(n)) = args.last_mut() {
+            *n *= 2;
+        }
+        let rows = stmt.query_map(params_from_iter(args.iter()), |r| {
+            let kind: String = r.get(1)?;
+            Ok(SearchHit {
+                kind: if kind == "inv" { SearchKind::Invoice } else { SearchKind::Receipt },
+                id: r.get::<_, i64>(0)?.to_string(),
+                patient_id: r.get(2)?,
+                title: r.get(3)?,
+                subtitle: Some(r.get(4)?),
+                date: Some(iso_of(r.get(5)?)),
+                page: "billing".into(),
+            })
+        })?;
+        for h in rows {
+            hits.push(h?);
         }
     }
     if access.labs {

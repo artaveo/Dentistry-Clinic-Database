@@ -78,19 +78,32 @@ pub struct Dashboard {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReportKind {
-    // Financial (9.2)
-    DailyRevenue,
-    MonthlyRevenue,
-    Payments,
-    Outstanding,
-    Discounts,
-    Refunds,
-    DoctorRevenue,
-    DoctorCommission,
-    ServiceRevenue,
+    // Financial (docs/design/finance-standard.md §ب۹)
+    /// Per day: invoiced (accrual) and received (cash).
+    DailySummary,
+    MonthlySummary,
+    /// R1: every receipt and refund, numbered, by receipt date.
+    Receipts,
+    /// R10: every invoice with what settles it.
+    Invoices,
+    /// Discounts, price reductions, write-offs, refunds and money taken back, with reasons.
+    Adjustments,
+    /// R11: what patients owe by age (as of the last day).
+    Aging,
+    /// R12: installments due up to the last day.
+    Installments,
+    /// R13: money held for patients (as of the last day).
+    Deposits,
+    /// R7: expenses paid and supplier bills, by account.
     Expenses,
-    ProfitLoss,
-    CashClosings,
+    /// R15: one money account's book (cash or bank) with the running balance.
+    MoneyBook,
+    ProviderProduction,
+    ServiceRevenue,
+    DoctorShares,
+    CashCounts,
+    /// Month by month: the cash result and the accrual result side by side.
+    IncomeStatement,
     // Clinical (9.3)
     Patients,
     Treatments,
@@ -114,8 +127,9 @@ impl ReportKind {
     pub fn group(self) -> &'static str {
         use ReportKind::*;
         match self {
-            DailyRevenue | MonthlyRevenue | Payments | Outstanding | Discounts | Refunds | DoctorRevenue
-            | DoctorCommission | ServiceRevenue | Expenses | ProfitLoss | CashClosings => "financial",
+            DailySummary | MonthlySummary | Receipts | Invoices | Adjustments | Aging | Installments | Deposits
+            | Expenses | MoneyBook | ProviderProduction | ServiceRevenue | DoctorShares | CashCounts
+            | IncomeStatement => "financial",
             Patients | Treatments | Procedures | ToothConditions | DoctorActivity | FollowUps
             | RecallList | ReferralSources => "clinical",
             Stock | LowStock | Purchases | Consumption | Expiry | SupplierBalance => "inventory",
@@ -133,6 +147,9 @@ pub struct ReportParams {
     pub doctor_id: Option<String>,
     #[serde(default)]
     pub service_id: Option<String>,
+    /// The money account of a money book (default the cash drawer, 1110).
+    #[serde(default)]
+    pub account_id: Option<i64>,
     /// How "monthly" rows are grouped (default Shamsi).
     #[serde(default)]
     pub calendar: Option<CalendarSystem>,

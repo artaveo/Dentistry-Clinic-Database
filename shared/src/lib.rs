@@ -11,12 +11,12 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 mod backup;
-mod billing;
+mod fin;
 mod inventory;
 mod license;
 mod reports;
 pub use backup::*;
-pub use billing::*;
+pub use fin::*;
 pub use inventory::*;
 pub use license::*;
 pub use reports::*;
@@ -203,30 +203,45 @@ pub enum ValidationRule {
     PlanTemplateItems,
     PerioValue,
     PerioExamNotFound,
-    // Phase 6: invoices, payments, installments, commission, expenses, cash closing.
+    // Finance (docs/design/finance-standard.md).
     BillingAmount,
-    PaymentMethodNotFound,
-    PaymentMethodName,
     InvoiceNotFound,
     InvoiceEmpty,
     InvoiceVoid,
+    /// Money was put towards the invoice: take it back to the deposit first.
     InvoiceHasPayments,
     ItemAlreadyBilled,
     ItemNotBillable,
     DiscountRange,
+    /// More than the invoice still owes.
     PaymentExceeds,
-    PaymentNotFound,
     RefundExceeds,
+    /// The patient's deposit is smaller than that.
     InsufficientCredit,
     InstallmentsInvalid,
+    /// A reduction or write-off larger than what the invoice still owes.
     CreditNoteExceeds,
-    ExpenseCategoryNotFound,
-    ExpenseNotFound,
-    CashDayClosed,
     CashReasonRequired,
     CommissionValue,
     CommissionRuleNotFound,
     PeriodRange,
+    AccountNotFound,
+    AccountInactive,
+    /// That account cannot be used here (an expense account where money is needed, ...).
+    AccountKind,
+    AccountName,
+    /// The finance document does not exist.
+    DocNotFound,
+    /// The document is already void.
+    DocVoid,
+    /// Later documents depend on this one (allocations, ...): void them first.
+    DocNotVoidable,
+    /// Allocations must name open invoices of this patient, each at most what it still owes.
+    AllocationInvalid,
+    /// A transfer needs two different money accounts.
+    SameAccount,
+    /// Withheld tax is more than the line.
+    WithheldRange,
     // Phase 8: inventory, suppliers, dental lab.
     StockItemNotFound,
     StockLookupNotFound,
@@ -239,8 +254,6 @@ pub enum ValidationRule {
     PurchaseEmpty,
     PurchaseVoid,
     PurchaseUsed,
-    SupplierPaymentNotFound,
-    SupplierPaymentVoid,
     LabCaseNotFound,
     LabStatusInvalid,
     LabCaseClosed,
@@ -3530,40 +3543,42 @@ api! {
     "perio.save"                 => PERIO_SAVE(SavePerioParams) -> PerioExamInfo;
     "perio.delete"               => PERIO_DELETE(IdVersionParams) -> Empty;
     "timeline.list"              => TIMELINE_LIST(TimelineParams) -> Vec<TimelineEvent>;
-    "payment_methods.list"       => PAYMENT_METHODS_LIST(IncludeInactiveParams) -> Vec<PaymentMethodInfo>;
-    "payment_methods.save"       => PAYMENT_METHODS_SAVE(SavePaymentMethodParams) -> PaymentMethodInfo;
-    "invoices.billable"          => INVOICES_BILLABLE(PatientIdParams) -> Vec<BillableItem>;
-    "invoices.list"              => INVOICES_LIST(InvoiceListParams) -> Vec<InvoiceInfo>;
-    "invoices.get"               => INVOICES_GET(IdParams) -> InvoiceInfo;
-    "invoices.create"            => INVOICES_CREATE(CreateInvoiceParams) -> InvoiceInfo;
-    "invoices.void"              => INVOICES_VOID(VoidInvoiceParams) -> InvoiceInfo;
-    "invoices.credit_note"       => INVOICES_CREDIT_NOTE(CreditNoteParams) -> InvoiceInfo;
-    "invoices.set_installments"  => INVOICES_SET_INSTALLMENTS(SetInstallmentsParams) -> InvoiceInfo;
-    "invoices.mark_printed"      => INVOICES_MARK_PRINTED(MarkPrintedParams) -> InvoiceInfo;
-    "payments.list"              => PAYMENTS_LIST(PaymentListParams) -> Vec<PaymentInfo>;
-    "payments.get"               => PAYMENTS_GET(IdParams) -> PaymentInfo;
-    "payments.add"               => PAYMENTS_ADD(AddPaymentParams) -> PaymentInfo;
-    "payments.refund"            => PAYMENTS_REFUND(RefundParams) -> PaymentInfo;
-    "payments.mark_printed"      => PAYMENTS_MARK_PRINTED(MarkPrintedParams) -> PaymentInfo;
-    "billing.account"            => BILLING_ACCOUNT(PatientIdParams) -> PatientAccount;
-    "billing.debtors"            => BILLING_DEBTORS(DebtorListParams) -> Vec<DebtorInfo>;
-    "billing.statement"          => BILLING_STATEMENT(StatementParams) -> StatementInfo;
-    "billing.installments_due"   => BILLING_INSTALLMENTS_DUE(InstallmentsDueParams) -> Vec<InstallmentDue>;
-    "billing.summary"            => BILLING_SUMMARY(PeriodParams) -> FinanceSummary;
-    "billing.settings_get"       => BILLING_SETTINGS_GET(Empty) -> BillingSettings;
-    "billing.settings_save"      => BILLING_SETTINGS_SAVE(BillingSettings) -> BillingSettings;
-    "commission.rules_list"      => COMMISSION_RULES_LIST(Empty) -> Vec<CommissionRuleInfo>;
-    "commission.rules_save"      => COMMISSION_RULES_SAVE(SaveCommissionRuleParams) -> CommissionRuleInfo;
-    "commission.rules_delete"    => COMMISSION_RULES_DELETE(IdVersionParams) -> Empty;
-    "commission.report"          => COMMISSION_REPORT(CommissionReportParams) -> CommissionReport;
-    "expense_categories.list"    => EXPENSE_CATEGORIES_LIST(IncludeInactiveParams) -> Vec<ExpenseCategoryInfo>;
-    "expense_categories.save"    => EXPENSE_CATEGORIES_SAVE(SaveExpenseCategoryParams) -> ExpenseCategoryInfo;
-    "expenses.list"              => EXPENSES_LIST(ExpenseListParams) -> Vec<ExpenseInfo>;
-    "expenses.add"               => EXPENSES_ADD(AddExpenseParams) -> ExpenseInfo;
-    "expenses.delete"            => EXPENSES_DELETE(DeleteExpenseParams) -> Empty;
-    "cash.day"                   => CASH_DAY(DateParams) -> CashDay;
-    "cash.close"                 => CASH_CLOSE(CloseCashParams) -> CashClosingInfo;
-    "cash.closings"              => CASH_CLOSINGS(ExpenseListParams) -> Vec<CashClosingInfo>;
+    "fin.accounts.list"           => FIN_ACCOUNTS_LIST(AccountListParams) -> Vec<AccountInfo>;
+    "fin.accounts.save"           => FIN_ACCOUNTS_SAVE(SaveAccountParams) -> AccountInfo;
+    "fin.accounts.ledger"         => FIN_ACCOUNTS_LEDGER(AccountLedgerParams) -> AccountLedger;
+    "fin.invoices.billable"       => FIN_INVOICES_BILLABLE(PatientIdParams) -> Vec<BillableItem>;
+    "fin.invoices.list"           => FIN_INVOICES_LIST(InvoiceListParams) -> Vec<InvoiceInfo>;
+    "fin.invoices.get"            => FIN_INVOICES_GET(DocIdParams) -> InvoiceInfo;
+    "fin.invoices.create"         => FIN_INVOICES_CREATE(CreateInvoiceParams) -> InvoiceInfo;
+    "fin.invoices.adjust"         => FIN_INVOICES_ADJUST(AdjustInvoiceParams) -> InvoiceInfo;
+    "fin.invoices.set_plan"       => FIN_INVOICES_SET_PLAN(SetPlanParams) -> InvoiceInfo;
+    "fin.receipts.list"           => FIN_RECEIPTS_LIST(ReceiptListParams) -> Vec<ReceiptInfo>;
+    "fin.receipts.get"            => FIN_RECEIPTS_GET(DocIdParams) -> ReceiptInfo;
+    "fin.receipts.create"         => FIN_RECEIPTS_CREATE(CreateReceiptParams) -> ReceiptInfo;
+    "fin.receipts.allocate"       => FIN_RECEIPTS_ALLOCATE(AllocateParams) -> ReceiptInfo;
+    "fin.receipts.refund"         => FIN_RECEIPTS_REFUND(RefundParams) -> ReceiptInfo;
+    "fin.patients.account"        => FIN_PATIENTS_ACCOUNT(PatientIdParams) -> PatientAccount;
+    "fin.patients.statement"      => FIN_PATIENTS_STATEMENT(StatementParams) -> StatementInfo;
+    "fin.receivables.aging"       => FIN_RECEIVABLES_AGING(AgingParams) -> Vec<AgingRow>;
+    "fin.receivables.due"         => FIN_RECEIVABLES_DUE(InstallmentsDueParams) -> Vec<InstallmentDue>;
+    "fin.vouchers.list"           => FIN_VOUCHERS_LIST(VoucherListParams) -> Vec<VoucherInfo>;
+    "fin.vouchers.get"            => FIN_VOUCHERS_GET(DocIdParams) -> VoucherInfo;
+    "fin.vouchers.create"         => FIN_VOUCHERS_CREATE(CreateVoucherParams) -> VoucherInfo;
+    "fin.bills.create"            => FIN_BILLS_CREATE(CreateBillParams) -> VoucherInfo;
+    "fin.other_receipts.create"   => FIN_OTHER_RECEIPTS_CREATE(CreateOtherReceiptParams) -> VoucherInfo;
+    "fin.transfers.create"        => FIN_TRANSFERS_CREATE(CreateTransferParams) -> DocSummary;
+    "fin.cash.day"                => FIN_CASH_DAY(CashDayParams) -> CashDayInfo;
+    "fin.cash.count"              => FIN_CASH_COUNT(CreateCashCountParams) -> CashCountInfo;
+    "fin.cash.counts"             => FIN_CASH_COUNTS(CashCountListParams) -> Vec<CashCountInfo>;
+    "fin.docs.void"               => FIN_DOCS_VOID(VoidDocParams) -> DocSummary;
+    "fin.docs.printed"            => FIN_DOCS_PRINTED(DocPrintedParams) -> DocSummary;
+    "fin.overview"                => FIN_OVERVIEW(PeriodParams) -> FinanceOverview;
+    "fin.settings.get"            => FIN_SETTINGS_GET(Empty) -> FinanceSettings;
+    "fin.settings.save"           => FIN_SETTINGS_SAVE(FinanceSettings) -> FinanceSettings;
+    "fin.shares.rules_list"       => FIN_SHARES_RULES_LIST(Empty) -> Vec<CommissionRuleInfo>;
+    "fin.shares.rules_save"       => FIN_SHARES_RULES_SAVE(SaveCommissionRuleParams) -> CommissionRuleInfo;
+    "fin.shares.rules_delete"     => FIN_SHARES_RULES_DELETE(IdVersionParams) -> Empty;
+    "fin.shares.preview"          => FIN_SHARES_PREVIEW(CommissionReportParams) -> CommissionReport;
     "stock_categories.list"      => STOCK_CATEGORIES_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
     "stock_categories.save"      => STOCK_CATEGORIES_SAVE(SaveStockLookupParams) -> StockLookupInfo;
     "stock_units.list"           => STOCK_UNITS_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
@@ -3593,9 +3608,6 @@ api! {
     "purchases.get"              => PURCHASES_GET(IdParams) -> PurchaseInfo;
     "purchases.create"           => PURCHASES_CREATE(CreatePurchaseParams) -> PurchaseInfo;
     "purchases.void"             => PURCHASES_VOID(VoidWithReasonParams) -> PurchaseInfo;
-    "supplier_payments.list"     => SUPPLIER_PAYMENTS_LIST(SupplierPaymentListParams) -> Vec<SupplierPaymentInfo>;
-    "supplier_payments.add"      => SUPPLIER_PAYMENTS_ADD(AddSupplierPaymentParams) -> SupplierPaymentInfo;
-    "supplier_payments.void"     => SUPPLIER_PAYMENTS_VOID(VoidWithReasonParams) -> SupplierPaymentInfo;
     "lab_cases.list"             => LAB_CASES_LIST(LabCaseListParams) -> Vec<LabCaseInfo>;
     "lab_cases.get"              => LAB_CASES_GET(IdParams) -> LabCaseInfo;
     "lab_cases.create"           => LAB_CASES_CREATE(CreateLabCaseParams) -> LabCaseInfo;
@@ -3878,62 +3890,87 @@ pub fn typescript_bindings() -> String {
         TimelineKind,
         TimelineEvent,
         TimelineParams,
-        InvoiceStatus,
+        AccountType,
+        MoneyKind,
+        DocKind,
+        DocStatus,
         PayState,
-        PaymentKind,
         InstallmentState,
+        AdjustKind,
+        VoucherPurpose,
+        WithholdingKind,
+        OtherReceiptSource,
         CommissionBasis,
         CommissionKind,
-        PaymentMethodInfo,
-        SavePaymentMethodParams,
+        LegalForm,
+        TaxRegime,
+        DocIdParams,
+        VoidDocParams,
+        DocPrintedParams,
+        DocSummary,
+        PeriodParams,
+        AccountInfo,
+        AccountListParams,
+        SaveAccountParams,
         InvoiceLineInfo,
         InstallmentInfo,
-        CreditNoteInfo,
+        PlanInfo,
+        AdjustmentInfo,
+        AllocationInfo,
         InvoiceInfo,
         BillableItem,
         InvoiceItemPick,
         NewInvoiceLine,
         NewInstallment,
         CreateInvoiceParams,
-        VoidInvoiceParams,
-        CreditNoteParams,
-        SetInstallmentsParams,
+        AdjustInvoiceParams,
+        SetPlanParams,
         InvoiceListParams,
-        ReceiptLine,
-        ReceiptSnapshot,
-        PaymentInfo,
-        AddPaymentParams,
+        AllocationLine,
+        ReceiptInfo,
+        NewAllocation,
+        CreateReceiptParams,
+        AllocateParams,
         RefundParams,
-        PaymentListParams,
+        ReceiptListParams,
+        InstallmentDue,
+        InstallmentsDueParams,
         PatientAccount,
-        DebtorInfo,
-        DebtorListParams,
         StatementLine,
         StatementInfo,
         StatementParams,
-        InstallmentDue,
-        InstallmentsDueParams,
-        BillingSettings,
+        AgingRow,
+        AgingParams,
+        VoucherLineInfo,
+        VoucherInfo,
+        NewVoucherLine,
+        CreateVoucherParams,
+        CreateBillParams,
+        CreateOtherReceiptParams,
+        VoucherListParams,
+        CreateTransferParams,
+        CashCountInfo,
+        CashDayInfo,
+        CashDayParams,
+        CreateCashCountParams,
+        CashCountListParams,
+        LedgerLine,
+        AccountLedger,
+        AccountLedgerParams,
+        AccountTotal,
+        MoneyAccountTotal,
+        CashBasis,
+        AccrualBasis,
+        CheckResult,
+        FinanceOverview,
+        LegalProfile,
+        FinanceSettings,
         CommissionRuleInfo,
         SaveCommissionRuleParams,
         CommissionReportParams,
         CommissionLine,
         DoctorCommission,
         CommissionReport,
-        ExpenseCategoryInfo,
-        SaveExpenseCategoryParams,
-        ExpenseInfo,
-        AddExpenseParams,
-        DeleteExpenseParams,
-        PeriodParams,
-        DateParams,
-        MethodTotal,
-        CashClosingInfo,
-        CashDay,
-        CloseCashParams,
-        CategoryTotal,
-        FinanceSummary,
-        ExpenseListParams,
         StockLookupInfo,
         SaveStockLookupParams,
         StockItemInfo,
@@ -3967,9 +4004,6 @@ pub fn typescript_bindings() -> String {
         CreatePurchaseParams,
         PurchaseListParams,
         VoidWithReasonParams,
-        SupplierPaymentInfo,
-        AddSupplierPaymentParams,
-        SupplierPaymentListParams,
         LabCaseInfo,
         CreateLabCaseParams,
         UpdateLabCaseParams,

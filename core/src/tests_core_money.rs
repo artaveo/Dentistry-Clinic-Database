@@ -127,7 +127,7 @@ fn ct05_a_multi_session_item_cannot_be_completed_without_a_session() {
     );
     assert!(f
         .t
-        .ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
+        .ok(m::FIN_INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
         .as_array()
         .unwrap()
         .is_empty());
@@ -303,20 +303,20 @@ fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
     // No session yet: not billable.
     assert!(f
         .t
-        .ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
+        .ok(m::FIN_INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
         .as_array()
         .unwrap()
         .is_empty());
     let (_, field, rule) = failure(
         &f.t,
-        m::INVOICES_CREATE,
+        m::FIN_INVOICES_CREATE,
         json!({"patient_id": f.patient, "items": [{"item_id": item["id"]}]}),
         &f.owner,
     );
     assert_eq!((field.as_deref(), rule.as_deref()), (Some("items"), Some("item_not_billable")));
     // After the first session it is, as a whole, with its installments.
     f.session(&item);
-    let billable = f.t.ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner));
+    let billable = f.t.ok(m::FIN_INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner));
     assert_eq!(billable.as_array().unwrap().len(), 1);
     assert_eq!(billable[0]["completed"], false);
     assert_eq!(
@@ -324,7 +324,7 @@ fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
         (Some(1), Some(24))
     );
     let inv = f.t.ok(
-        m::INVOICES_CREATE,
+        m::FIN_INVOICES_CREATE,
         json!({"patient_id": f.patient, "items": [{"item_id": item["id"]}],
                "installments": [{"due_date": day(30), "amount": 3_000_000}, {"due_date": day(60), "amount": 3_000_000}]}),
         Some(&f.owner),
@@ -333,13 +333,13 @@ fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
     // Not twice.
     assert!(f
         .t
-        .ok(m::INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
+        .ok(m::FIN_INVOICES_BILLABLE, json!({"patient_id": f.patient}), Some(&f.owner))
         .as_array()
         .unwrap()
         .is_empty());
     let (_, _, rule) = failure(
         &f.t,
-        m::INVOICES_CREATE,
+        m::FIN_INVOICES_CREATE,
         json!({"patient_id": f.patient, "items": [{"item_id": item["id"]}]}),
         &f.owner,
     );
@@ -361,7 +361,7 @@ fn ct08_a_started_orthodontic_course_can_be_invoiced_with_installments() {
 fn ct09_fr04_installments_follow_credit_notes_and_reject_typo_dates() {
     let f = fx();
     let inv = f.t.ok(
-        m::INVOICES_CREATE,
+        m::FIN_INVOICES_CREATE,
         json!({"patient_id": f.patient,
                "extra_lines": [{"description": "work", "quantity": 1, "unit_price": 1_000_000}],
                "installments": [{"due_date": day(10), "amount": 333_333}, {"due_date": day(40), "amount": 333_333},
@@ -371,19 +371,20 @@ fn ct09_fr04_installments_follow_credit_notes_and_reject_typo_dates() {
     // CT-09: a due date years back is a typo; yesterday is a late installment and still allowed.
     let (_, field, rule) = failure(
         &f.t,
-        m::INVOICES_SET_INSTALLMENTS,
-        json!({"invoice_id": inv["id"], "installments": [{"due_date": "2020-01-01", "amount": 1_000_000}]}),
+        m::FIN_INVOICES_SET_PLAN,
+        json!({"invoice_id": inv["id"], "reason": "new dates",
+               "installments": [{"due_date": "2020-01-01", "amount": 1_000_000}]}),
         &f.owner,
     );
     assert_eq!((field.as_deref(), rule.as_deref()), (Some("installments"), Some("installments_invalid")));
-    // FR-04: a credit note of 500 000 takes the last two installments' worth off the plan.
+    // FR-04: a price reduction of 500 000 takes the last two installments' worth off the plan.
     let after = f.t.ok(
-        m::INVOICES_CREDIT_NOTE,
-        json!({"invoice_id": inv["id"], "amount": 500_000, "reason": "goodwill"}),
+        m::FIN_INVOICES_ADJUST,
+        json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 500_000, "reason": "goodwill"}),
         Some(&f.owner),
     );
     assert_eq!(after["remaining"], 500_000);
-    let plan = after["installments"].as_array().unwrap();
+    let plan = after["plan"]["installments"].as_array().unwrap();
     let sum: i64 = plan.iter().map(|x| x["amount"].as_i64().unwrap()).sum();
     assert_eq!(sum, 500_000, "the plan adds up to what is still owed");
     assert_eq!(plan.len(), 2, "the last installment went away entirely");
@@ -398,25 +399,25 @@ fn fr05_fr08_fr09_reports_use_net_amounts_and_exports_never_overwrite() {
     let f = fx();
     let doc = f.t.ok(m::DOCTORS_CREATE, json!({"full_name": "Dr A", "color": "#0E7490"}), Some(&f.owner));
     let inv = f.t.ok(
-        m::INVOICES_CREATE,
+        m::FIN_INVOICES_CREATE,
         json!({"patient_id": f.patient, "discount": 20_000,
                "extra_lines": [{"description": "a", "quantity": 1, "unit_price": 60_000, "doctor_id": doc["id"]},
                                {"description": "b", "quantity": 1, "unit_price": 40_000, "doctor_id": doc["id"]}]}),
         Some(&f.owner),
     );
     f.t.ok(
-        m::INVOICES_CREDIT_NOTE,
-        json!({"invoice_id": inv["id"], "amount": 10_000, "reason": "r"}),
+        m::FIN_INVOICES_ADJUST,
+        json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 10_000, "reason": "r"}),
         Some(&f.owner),
     );
     let (from, to) = (day(-1), day(1));
     let report =
         |kind: &str| f.t.ok(m::REPORTS_RUN, json!({"kind": kind, "from": from, "to": to}), Some(&f.owner));
-    // FR-05: net = 100 000 - 20 000 discount - 10 000 credit note.
-    let rows = report("doctor_revenue");
-    assert_eq!(rows["rows"][0][3]["value"], 70_000);
-    // FR-08: the discount report lists the credit note too.
-    let d = report("discounts");
+    // FR-05: net = 100 000 - 20 000 discount - 10 000 price reduction.
+    let rows = report("provider_production");
+    assert_eq!(rows["rows"][0][5]["value"], 70_000);
+    // FR-08: the adjustments report lists the price reduction too.
+    let d = report("adjustments");
     let amounts: Vec<i64> =
         d["rows"].as_array().unwrap().iter().map(|r| r[4]["value"].as_i64().unwrap()).collect();
     assert_eq!(amounts.iter().sum::<i64>(), 30_000);
@@ -424,8 +425,8 @@ fn fr05_fr08_fr09_reports_use_net_amounts_and_exports_never_overwrite() {
     let export = || {
         f.t.ok(
             m::REPORTS_EXPORT,
-            json!({"report": {"kind": "discounts", "from": from, "to": to}, "language": "en", "title": "t",
-                   "headers": ["a", "b", "c", "d", "e", "f"]}),
+            json!({"report": {"kind": "adjustments", "from": from, "to": to}, "language": "en", "title": "t",
+                   "headers": ["a", "b", "c", "d", "e", "f", "g"]}),
             Some(&f.owner),
         )
     };

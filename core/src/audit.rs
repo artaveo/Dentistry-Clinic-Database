@@ -81,7 +81,9 @@ pub fn compact_json(v: &Value) -> String {
 const SENSITIVE_EXACT: &[&str] = &[
     "patient.update",
     "patient.merge",
-    "invoice.credit_note",
+    "invoice.reduction",
+    "invoice.write_off",
+    "allocation.back",
     "user.update",
     "user.reset_password",
     "user.unlock",

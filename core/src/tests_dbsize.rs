@@ -424,14 +424,6 @@ fn dbsize_report() {
         .find(|s| s["code"] == "SRG-01")
         .map(|s| s["id"].clone())
         .unwrap();
-    let cash = t
-        .ok(m::PAYMENT_METHODS_LIST, json!({}), Some(&owner))
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|x| x["code"] == "cash")
-        .map(|x| x["id"].clone())
-        .unwrap();
     for p in &patients {
         let item = t.ok(
             m::TREATMENT_ITEMS_ADD,
@@ -441,13 +433,14 @@ fn dbsize_report() {
         )[0]
         .clone();
         let inv = t.ok(
-            m::INVOICES_CREATE,
+            m::FIN_INVOICES_CREATE,
             json!({"patient_id": p, "items": [{"item_id": item["id"]}]}),
             Some(&owner),
         );
         t.ok(
-            m::PAYMENTS_ADD,
-            json!({"patient_id": p, "invoice_id": inv["id"], "amount": 350_000, "method_id": cash}),
+            m::FIN_RECEIPTS_CREATE,
+            json!({"patient_id": p, "account_id": 1110, "amount": 350_000,
+                   "allocations": [{"invoice_id": inv["id"], "amount": 350_000}]}),
             Some(&owner),
         );
     }

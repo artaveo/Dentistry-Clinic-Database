@@ -281,7 +281,9 @@ impl LanHub {
 /// Whether a successful call changed something other screens may show. Reads, sessions,
 /// drafts and the LAN pages themselves never fan out.
 pub fn is_change(method: &str) -> bool {
-    let Some((topic, action)) = method.split_once('.') else { return false };
+    let Some((topic, rest)) = method.split_once('.') else { return false };
+    // `fin.invoices.list`: the topic is the first segment, the action the last.
+    let action = rest.rsplit('.').next().unwrap_or(rest);
     const QUIET_TOPICS: &[&str] = &[
         "app",
         "auth",
@@ -324,6 +326,11 @@ pub fn is_change(method: &str) -> bool {
         "touch",
         "rules_list",
         "avatars",
+        "overview",
+        "preview",
+        "ledger",
+        "aging",
+        "due",
     ];
     !QUIET_TOPICS.contains(&topic) && !READS.contains(&action)
 }
@@ -654,7 +661,8 @@ mod tests {
     fn reads_and_session_calls_do_not_fan_out() {
         assert!(is_change("patients.update"));
         assert!(is_change("appointments.set_status"));
-        assert!(is_change("payments.add"));
+        assert!(is_change("fin.receipts.create"));
+        assert!(!is_change("fin.invoices.list"));
         assert!(!is_change("patients.list"));
         assert!(!is_change("patients.avatars"));
         assert!(!is_change("photos.get"));
@@ -663,7 +671,7 @@ mod tests {
         assert!(!is_change("auth.login"));
         assert!(!is_change("presence.enter"));
         assert!(!is_change("lan.revoke"));
-        assert!(!is_change("billing.summary"));
+        assert!(!is_change("fin.overview"));
         assert!(!is_change("drafts.save"));
     }
 

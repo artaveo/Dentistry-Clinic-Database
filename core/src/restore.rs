@@ -98,7 +98,9 @@ pub fn inspect(src: &Path, key: &DataKey, work_dir: &Path) -> RestorePreview {
             schema_version: schema,
             patients: count(&conn, "SELECT COUNT(*) FROM patient WHERE deleted_at IS NULL"),
             appointments: count(&conn, "SELECT COUNT(*) FROM appointment WHERE deleted_at IS NULL"),
-            invoices: count(&conn, "SELECT COUNT(*) FROM invoice"),
+            // A backup from before the finance rebuild (schema < 21) still has the old table.
+            invoices: count(&conn, "SELECT COUNT(*) FROM fin_doc WHERE kind = 'inv'")
+                .max(count(&conn, "SELECT COUNT(*) FROM invoice")),
             users: count(&conn, "SELECT COUNT(*) FROM app_user"),
             last_activity: text(&conn, "SELECT MAX(at) FROM audit_log"),
             current_patients: 0,

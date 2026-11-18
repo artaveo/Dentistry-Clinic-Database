@@ -11,7 +11,9 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::audit::{self, Actor};
-use crate::billing::{
+use crate::fin::spend::{sync_bill, ExtBill};
+use crate::fin::util::{iso_of, ymd};
+use crate::fin::{
     check_patient, date_of, money, next_number, opt_date, optional, parse_teeth, required, scalar, trio,
 };
 use crate::clock::{now_iso, today_iso};
@@ -1068,6 +1070,17 @@ pub fn return_to_supplier(conn: &Connection, actor: &Actor, p: &ReturnStockParam
     mv.supplier_id = Some(&supplier.id);
     mv.reason = reason.as_deref();
     record_move(conn, actor, &mv)?;
+    if credit > 0 {
+        let ext = new_id();
+        sync_bill(conn, actor, &ExtBill {
+            ext_id: &ext,
+            source: "return",
+            supplier_id: &supplier.id,
+            amount: -credit,
+            date: ymd(&date),
+            memo: reason.as_deref().unwrap_or("return"),
+        })?;
+    }
     audit::record(
         conn,
         actor,
@@ -1224,11 +1237,19 @@ fn kind_name(k: SupplierKind) -> &'static str {
     }
 }
 
+/// What the clinic bought, received from labs, returned and paid comes from the supplier's bills and
+/// payment vouchers in Finance; the balance is the supplier's payable in the ledger (2110).
 const SUPPLIER_SELECT: &str = "SELECT s.id, s.kind, s.name, s.contact_person, s.phone, s.address, s.note, s.is_active, s.version,
-    COALESCE((SELECT SUM(p.total) FROM purchase p WHERE p.supplier_id = s.id AND p.status = 'received'), 0),
-    COALESCE((SELECT SUM(c.cost) FROM lab_case c WHERE c.lab_id = s.id AND c.status IN ('received', 'delivered')), 0),
-    COALESCE((SELECT SUM(m.credit) FROM stock_movement m WHERE m.supplier_id = s.id AND m.kind = 'return'), 0),
-    COALESCE((SELECT SUM(sp.amount) FROM supplier_payment sp WHERE sp.supplier_id = s.id AND sp.status = 'paid'), 0)
+    COALESCE((SELECT SUM(d.amount) FROM fin_doc d WHERE d.party_id = s.id AND d.kind = 'bl' AND d.status = 'posted'
+        AND d.purpose IN ('purchase', 'manual')), 0),
+    COALESCE((SELECT SUM(d.amount) FROM fin_doc d WHERE d.party_id = s.id AND d.kind = 'bl' AND d.status = 'posted'
+        AND d.purpose = 'lab'), 0),
+    COALESCE((SELECT -SUM(d.amount) FROM fin_doc d WHERE d.party_id = s.id AND d.kind = 'bl' AND d.status = 'posted'
+        AND d.purpose = 'return'), 0),
+    COALESCE((SELECT SUM(d.amount) FROM fin_doc d WHERE d.party_id = s.id AND d.kind = 'pv' AND d.status = 'posted'
+        AND d.purpose = 'supplier'), 0),
+    COALESCE((SELECT -SUM(g.amount) FROM fin_gl g WHERE g.party_id = s.id AND g.account_id = 2110), 0),
+    s.tin, s.license_no
     FROM supplier s WHERE s.deleted_at IS NULL";
 
 fn map_supplier(r: &rusqlite::Row<'_>) -> rusqlite::Result<SupplierInfo> {
@@ -1237,6 +1258,7 @@ fn map_supplier(r: &rusqlite::Row<'_>) -> rusqlite::Result<SupplierInfo> {
     let lab_total: i64 = r.get(10)?;
     let returns_total: i64 = r.get(11)?;
     let paid_total: i64 = r.get(12)?;
+    let balance: i64 = r.get(13)?;
     Ok(SupplierInfo {
         id: r.get(0)?,
         kind: if kind == "lab" { SupplierKind::Lab } else { SupplierKind::Supplier },
@@ -1245,13 +1267,15 @@ fn map_supplier(r: &rusqlite::Row<'_>) -> rusqlite::Result<SupplierInfo> {
         phone: r.get(4)?,
         address: r.get(5)?,
         note: r.get(6)?,
+        tin: r.get(14)?,
+        license_no: r.get(15)?,
         is_active: r.get::<_, i64>(7)? == 1,
         version: r.get(8)?,
         purchases_total,
         lab_total,
         returns_total,
         paid_total,
-        balance: purchases_total + lab_total - returns_total - paid_total,
+        balance,
     })
 }
 
@@ -1292,15 +1316,17 @@ pub fn save_supplier(conn: &Connection, actor: &Actor, p: &SaveSupplierParams) -
     let phone = optional("phone", &p.phone, 30)?;
     let address = optional("address", &p.address, 200)?;
     let note = optional("note", &p.note, 300)?;
+    let tin = optional("tin", &p.tin, 20)?;
+    let license = optional("license_no", &p.license_no, 40)?;
     let now = now_iso();
     match p.id.as_deref().filter(|s| !s.is_empty()) {
         None => {
             let id = new_id();
             conn.execute(
                 "INSERT INTO supplier(id, kind, name, contact_person, phone, address, note, is_active, created_at, created_by,
-                    updated_at, updated_by)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?9, ?10)",
-                params![id, kind_name(p.kind), name, contact, phone, address, note, p.is_active, now, actor.user_id],
+                    updated_at, updated_by, tin, license_no)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?9, ?10, ?11, ?12)",
+                params![id, kind_name(p.kind), name, contact, phone, address, note, p.is_active, now, actor.user_id, tin, license],
             )?;
             audit::record(
                 conn,
@@ -1318,7 +1344,7 @@ pub fn save_supplier(conn: &Connection, actor: &Actor, p: &SaveSupplierParams) -
             let before = get_supplier(conn, id)?;
             let changed = conn.execute(
                 "UPDATE supplier SET name = ?1, contact_person = ?2, phone = ?3, address = ?4, note = ?5, is_active = ?6,
-                    updated_at = ?7, updated_by = ?8, version = version + 1
+                    updated_at = ?7, updated_by = ?8, version = version + 1, tin = ?11, license_no = ?12
                  WHERE id = ?9 AND version = ?10 AND deleted_at IS NULL",
                 params![
                     name,
@@ -1330,7 +1356,9 @@ pub fn save_supplier(conn: &Connection, actor: &Actor, p: &SaveSupplierParams) -
                     now,
                     actor.user_id,
                     id,
-                    p.version.unwrap_or(before.version)
+                    p.version.unwrap_or(before.version),
+                    tin,
+                    license
                 ],
             )?;
             expect_one_row(changed, "supplier")?;
@@ -1349,66 +1377,45 @@ pub fn save_supplier(conn: &Connection, actor: &Actor, p: &SaveSupplierParams) -
     }
 }
 
-/// Everything that moved what the clinic owes one supplier, oldest first, with the running balance.
+/// `(id, kind, purpose, year, serial, date, description, amount)` of a supplier's finance document.
+type SupplierDoc = (i64, String, Option<String>, i64, i64, i64, String, i64);
+
+/// Everything that moved what the clinic owes one supplier (its bills and payments in Finance), oldest
+/// first, with the running balance.
 pub fn supplier_ledger(conn: &Connection, supplier_id: &str) -> Result<Vec<LedgerEntry>> {
     get_supplier(conn, supplier_id)?;
-    // (date, order key, kind, number, description, amount)
-    let mut rows: Vec<(String, String, LedgerKind, Option<String>, String, i64)> = Vec::new();
-    {
-        let mut stmt = conn.prepare(
-            "SELECT local_date, created_at, number, COALESCE(note, ''), total FROM purchase
-             WHERE supplier_id = ?1 AND status = 'received'",
-        )?;
-        let it = stmt.query_map([supplier_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, LedgerKind::Purchase, Some(r.get(2)?), r.get(3)?, r.get::<_, i64>(4)?))
-        })?;
-        for row in it {
-            rows.push(row?);
-        }
-    }
-    {
-        let mut stmt = conn.prepare(
-            "SELECT COALESCE(received_date, sent_date, substr(created_at, 1, 10)), created_at, number, work_type, cost
-             FROM lab_case WHERE lab_id = ?1 AND status IN ('received', 'delivered')",
-        )?;
-        let it = stmt.query_map([supplier_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, LedgerKind::Lab, Some(r.get(2)?), r.get(3)?, r.get::<_, i64>(4)?))
-        })?;
-        for row in it {
-            rows.push(row?);
-        }
-    }
-    {
-        let mut stmt = conn.prepare(
-            "SELECT local_date, created_at, COALESCE(reason, ''), credit FROM stock_movement
-             WHERE supplier_id = ?1 AND kind = 'return' AND credit > 0",
-        )?;
-        let it = stmt.query_map([supplier_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, LedgerKind::Return, None, r.get(2)?, -r.get::<_, i64>(3)?))
-        })?;
-        for row in it {
-            rows.push(row?);
-        }
-    }
-    {
-        let mut stmt = conn.prepare(
-            "SELECT local_date, created_at, number, COALESCE(note, ''), amount FROM supplier_payment
-             WHERE supplier_id = ?1 AND status = 'paid'",
-        )?;
-        let it = stmt.query_map([supplier_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, LedgerKind::Payment, Some(r.get(2)?), r.get(3)?, -r.get::<_, i64>(4)?))
-        })?;
-        for row in it {
-            rows.push(row?);
-        }
-    }
-    rows.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    let mut stmt = conn.prepare(
+        "SELECT d.id, d.kind, d.purpose, d.year, d.serial, d.doc_date, COALESCE(d.note, d.name, d.reference, ''), d.amount
+         FROM fin_doc d WHERE d.party_id = ?1 AND d.kind IN ('bl', 'pv') AND d.status = 'posted'
+         ORDER BY d.doc_date, d.id",
+    )?;
+    let rows: Vec<SupplierDoc> = stmt
+        .query_map([supplier_id], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
     let mut balance = 0;
     Ok(rows
         .into_iter()
-        .map(|(local_date, _, kind, number, description, amount)| {
+        .map(|(doc_id, kind, purpose, year, serial, date, description, amount)| {
+            let (kind, amount) = match (kind.as_str(), purpose.as_deref()) {
+                ("pv", _) => (LedgerKind::Payment, -amount),
+                (_, Some("purchase")) => (LedgerKind::Purchase, amount),
+                (_, Some("lab")) => (LedgerKind::Lab, amount),
+                (_, Some("return")) => (LedgerKind::Return, amount),
+                _ => (LedgerKind::Bill, amount),
+            };
             balance += amount;
-            LedgerEntry { kind, local_date, number, description, amount, balance }
+            let prefix = if matches!(kind, LedgerKind::Payment) { "PV" } else { "BL" };
+            LedgerEntry {
+                doc_id,
+                kind,
+                local_date: iso_of(date),
+                number: Some(format!("{prefix}-{year}-{serial:06}")),
+                description,
+                amount,
+                balance,
+            }
         })
         .collect())
 }
@@ -1605,19 +1612,27 @@ pub fn create_purchase(conn: &Connection, actor: &Actor, p: &CreatePurchaseParam
         None,
         Some(&json!({"number": number, "supplier": supplier.name, "total": total, "lines": lines.len()})),
     )?;
+    sync_bill(conn, actor, &ExtBill {
+        ext_id: &id,
+        source: "purchase",
+        supplier_id: &supplier.id,
+        amount: total,
+        date: ymd(&date),
+        memo: &number,
+    })?;
     if paid > 0 {
-        let method_id = p.method_id.clone().unwrap_or_default();
-        add_supplier_payment(
-            conn,
-            actor,
-            &AddSupplierPaymentParams {
-                supplier_id: supplier.id.clone(),
-                amount: paid,
-                method_id,
-                date: Some(date.clone()),
-                note: Some(number.clone()),
-            },
-        )?;
+        crate::fin::spend::create_voucher(conn, actor, &CreateVoucherParams {
+            date: date.clone(),
+            account_id: p.account_id.unwrap_or(1110),
+            purpose: VoucherPurpose::Supplier,
+            supplier_id: Some(supplier.id.clone()),
+            name: None,
+            reference: Some(number.clone()),
+            note: None,
+            lines: Vec::new(),
+            amount: paid,
+            withholding: None,
+        })?;
     }
     get_purchase(conn, &id)
 }
@@ -1669,6 +1684,14 @@ pub fn void_purchase(conn: &Connection, actor: &Actor, p: &VoidWithReasonParams)
         params![reason, now_iso(), p.id, p.version],
     )?;
     expect_one_row(changed, "purchase")?;
+    sync_bill(conn, actor, &ExtBill {
+        ext_id: &p.id,
+        source: "purchase",
+        supplier_id: &before.supplier_id,
+        amount: 0,
+        date: ymd(&date),
+        memo: &reason,
+    })?;
     audit::record(
         conn,
         actor,
@@ -1680,170 +1703,6 @@ pub fn void_purchase(conn: &Connection, actor: &Actor, p: &VoidWithReasonParams)
     )?;
     get_purchase(conn, &p.id)
 }
-
-// ───────────────────────────── payments to suppliers ─────────────────────────────
-
-const PAYMENT_SELECT: &str = "SELECT sp.id, sp.number, sp.supplier_id, s.name, sp.amount, sp.method_id, m.name_fa, m.name_ps, m.name_en,
-    sp.local_date, sp.note, sp.status, sp.void_reason, au.display_name, sp.version
-    FROM supplier_payment sp JOIN supplier s ON s.id = sp.supplier_id LEFT JOIN payment_method m ON m.id = sp.method_id
-    LEFT JOIN app_user au ON au.id = sp.created_by WHERE 1 = 1";
-
-fn map_payment(r: &rusqlite::Row<'_>) -> rusqlite::Result<SupplierPaymentInfo> {
-    let status: String = r.get(11)?;
-    let method_fa: Option<String> = r.get(6)?;
-    let method_ps: Option<String> = r.get(7)?;
-    let method_en: Option<String> = r.get(8)?;
-    let method = method_fa.map(|fa| trio(fa, method_ps.unwrap_or_default(), method_en.unwrap_or_default()));
-    Ok(SupplierPaymentInfo {
-        id: r.get(0)?,
-        number: r.get(1)?,
-        supplier_id: r.get(2)?,
-        supplier_name: r.get(3)?,
-        amount: r.get(4)?,
-        method_id: r.get(5)?,
-        method,
-        local_date: r.get(9)?,
-        note: r.get(10)?,
-        void: status == "void",
-        void_reason: r.get(12)?,
-        created_by_name: r.get(13)?,
-        version: r.get(14)?,
-    })
-}
-
-fn get_payment(conn: &Connection, id: &str) -> Result<SupplierPaymentInfo> {
-    conn.query_row(&format!("{PAYMENT_SELECT} AND sp.id = ?1"), [id], map_payment)
-        .optional()?
-        .ok_or_else(|| not_found("supplier payment", id, "id", ValidationRule::SupplierPaymentNotFound))
-}
-
-pub fn list_payments(conn: &Connection, p: &SupplierPaymentListParams) -> Result<Vec<SupplierPaymentInfo>> {
-    let to = opt_date("to", &p.to)?.unwrap_or_else(today_iso);
-    let from = match opt_date("from", &p.from)? {
-        Some(f) => f,
-        None => plus_days(&to, -90)?,
-    };
-    let mut sql = format!("{PAYMENT_SELECT} AND sp.local_date BETWEEN ? AND ?");
-    let mut args = vec![Value::Text(from), Value::Text(to)];
-    if let Some(s) = p.supplier_id.as_deref().filter(|s| !s.is_empty()) {
-        sql.push_str(" AND sp.supplier_id = ?");
-        args.push(Value::Text(s.to_string()));
-    }
-    sql.push_str(" ORDER BY sp.local_date DESC, sp.created_at DESC LIMIT 300");
-    let mut stmt = conn.prepare(&sql)?;
-    let rows =
-        stmt.query_map(params_from_iter(args.iter()), map_payment)?.collect::<rusqlite::Result<Vec<_>>>()?;
-    Ok(rows)
-}
-
-pub fn add_supplier_payment(
-    conn: &Connection,
-    actor: &Actor,
-    p: &AddSupplierPaymentParams,
-) -> Result<SupplierPaymentInfo> {
-    let supplier = check_supplier(conn, &p.supplier_id, "supplier_id")?;
-    let amount = money("amount", p.amount, false)?;
-    let date = day_of(&p.date)?;
-    let note = optional("note", &p.note, 300)?;
-    let method: Option<(String, i64)> = conn
-        .query_row(
-            "SELECT id, is_cash FROM payment_method WHERE id = ?1 AND deleted_at IS NULL AND is_active = 1",
-            [&p.method_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()?;
-    let Some((method_id, is_cash)) = method else {
-        return Err(not_found(
-            "payment method",
-            &p.method_id,
-            "method_id",
-            ValidationRule::PaymentMethodNotFound,
-        ));
-    };
-    let id = new_id();
-    let number = next_number(conn, "SP")?;
-    // The money leaves the clinic: it is an expense too, so the cash closing and the profit stay right.
-    let expense = crate::billing::add_expense(
-        conn,
-        actor,
-        &AddExpenseParams {
-            category_id: if supplier.kind == SupplierKind::Lab {
-                "ec-lab".into()
-            } else {
-                "ec-materials".into()
-            },
-            amount,
-            date: date.clone(),
-            description: format!("{number} - {}", supplier.name),
-            payee: Some(supplier.name.clone()),
-            from_cash: is_cash == 1,
-        },
-    )?;
-    conn.execute(
-        "INSERT INTO supplier_payment(id, number, supplier_id, amount, method_id, local_date, note, expense_id, created_at, created_by)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        params![id, number, supplier.id, amount, method_id, date, note, expense.id, now_iso(), actor.user_id],
-    )?;
-    audit::record(
-        conn,
-        actor,
-        "supplier_payment.add",
-        Some("supplier_payment"),
-        Some(&id),
-        None,
-        Some(&json!({"number": number, "supplier": supplier.name, "amount": amount, "date": date})),
-    )?;
-    get_payment(conn, &id)
-}
-
-pub fn void_supplier_payment(
-    conn: &Connection,
-    actor: &Actor,
-    p: &VoidWithReasonParams,
-) -> Result<SupplierPaymentInfo> {
-    let before = get_payment(conn, &p.id)?;
-    if before.void {
-        return Err(CoreError::invalid(
-            "id",
-            ValidationRule::SupplierPaymentVoid,
-            "this payment is already void",
-        ));
-    }
-    let reason = required("reason", &p.reason, 300)?;
-    let expense: Option<(String, i64)> = conn
-        .query_row(
-            "SELECT e.id, e.version FROM supplier_payment sp JOIN expense e ON e.id = sp.expense_id
-             WHERE sp.id = ?1 AND e.deleted_at IS NULL",
-            [&p.id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()?;
-    if let Some((expense_id, version)) = expense {
-        crate::billing::delete_expense(
-            conn,
-            actor,
-            &DeleteExpenseParams { id: expense_id, version, reason: reason.clone() },
-        )?;
-    }
-    let changed = conn.execute(
-        "UPDATE supplier_payment SET status = 'void', void_reason = ?1, version = version + 1
-         WHERE id = ?2 AND version = ?3 AND status = 'paid'",
-        params![reason, p.id, p.version],
-    )?;
-    expect_one_row(changed, "supplier payment")?;
-    audit::record(
-        conn,
-        actor,
-        "supplier_payment.void",
-        Some("supplier_payment"),
-        Some(&p.id),
-        Some(&json!({"number": before.number, "amount": before.amount})),
-        Some(&json!({"reason": reason})),
-    )?;
-    get_payment(conn, &p.id)
-}
-
-// ───────────────────────────── dental lab ─────────────────────────────
 
 const LAB_SELECT: &str = "SELECT c.id, c.number, c.patient_id, p.full_name, p.patient_number, c.doctor_id, d.full_name,
     c.treatment_item_id, c.lab_id, s.name, c.teeth, c.work_type, c.shade, c.status, c.sent_date, c.expected_date,
@@ -2012,7 +1871,24 @@ pub fn create_lab_case(conn: &Connection, actor: &Actor, p: &CreateLabCaseParams
         None,
         Some(&json!({"number": number, "lab": lab.name, "work_type": work, "teeth": teeth, "cost": cost})),
     )?;
+    sync_lab_bill(conn, actor, &id)?;
     get_lab_case(conn, &id)
+}
+
+/// A lab case that came back (received or delivered) is a bill of its lab for its cost; any other
+/// status, or no cost, is no bill.
+fn sync_lab_bill(conn: &Connection, actor: &Actor, case_id: &str) -> Result<()> {
+    let c = get_lab_case(conn, case_id)?;
+    let billed = matches!(c.status, LabStatus::Received | LabStatus::Delivered);
+    let date = c.received_date.clone().unwrap_or_else(today_iso);
+    sync_bill(conn, actor, &ExtBill {
+        ext_id: &c.id,
+        source: "lab",
+        supplier_id: &c.lab_id,
+        amount: if billed { c.cost } else { 0 },
+        date: ymd(&date),
+        memo: &c.number,
+    })
 }
 
 pub fn update_lab_case(conn: &Connection, actor: &Actor, p: &UpdateLabCaseParams) -> Result<LabCaseInfo> {
@@ -2044,6 +1920,7 @@ pub fn update_lab_case(conn: &Connection, actor: &Actor, p: &UpdateLabCaseParams
         Some(&json!({"lab": before.lab_name, "work_type": before.work_type, "cost": before.cost})),
         Some(&json!({"lab": lab.name, "work_type": work, "cost": cost})),
     )?;
+    sync_lab_bill(conn, actor, &p.id)?;
     get_lab_case(conn, &p.id)
 }
 
@@ -2119,6 +1996,7 @@ pub fn set_lab_status(conn: &Connection, actor: &Actor, p: &SetLabStatusParams) 
         Some(&json!({"status": lab_status_str(before.status), "cost": before.cost})),
         Some(&json!({"status": lab_status_str(p.status), "cost": cost, "date": date, "reason": reason})),
     )?;
+    sync_lab_bill(conn, actor, &p.id)?;
     get_lab_case(conn, &p.id)
 }
 
@@ -2131,8 +2009,8 @@ pub fn lab_report(conn: &Connection, p: &PeriodParams) -> Result<LabReport> {
     }
     let mut stmt = conn.prepare(
         "SELECT c.id, c.number, pt.full_name, s.name, c.work_type, c.teeth, c.received_date, c.cost,
-            (SELECT SUM(l.line_total) FROM invoice_line l JOIN invoice i ON i.id = l.invoice_id
-             WHERE l.treatment_item_id = c.treatment_item_id AND i.status = 'issued')
+            (SELECT SUM(l.amount - COALESCE(l.discount, 0)) FROM fin_line l JOIN fin_doc i ON i.id = l.doc_id
+             WHERE l.item_id = c.treatment_item_id AND i.kind = 'inv' AND i.status = 'posted')
          FROM lab_case c JOIN patient pt ON pt.id = c.patient_id JOIN supplier s ON s.id = c.lab_id
          WHERE c.status IN ('received', 'delivered') AND c.received_date BETWEEN ?1 AND ?2
          ORDER BY c.received_date, c.number",

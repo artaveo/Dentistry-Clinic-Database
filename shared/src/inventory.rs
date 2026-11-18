@@ -62,6 +62,8 @@ pub enum LedgerKind {
     Lab,
     Return,
     Payment,
+    /// A bill entered by hand in Finance (rent, a service, …).
+    Bill,
 }
 
 fn yes() -> bool {
@@ -350,8 +352,11 @@ pub struct SupplierInfo {
     pub phone: Option<String>,
     pub address: Option<String>,
     pub note: Option<String>,
+    /// Taxpayer number (on the clinic's withholding register).
+    pub tin: Option<String>,
+    pub license_no: Option<String>,
     pub is_active: bool,
-    /// Bought from this supplier.
+    /// Bought from this supplier (bills from purchases and bills entered by hand).
     pub purchases_total: i64,
     /// Lab work received from this lab.
     pub lab_total: i64,
@@ -377,6 +382,10 @@ pub struct SaveSupplierParams {
     pub address: Option<String>,
     #[serde(default)]
     pub note: Option<String>,
+    #[serde(default)]
+    pub tin: Option<String>,
+    #[serde(default)]
+    pub license_no: Option<String>,
     #[serde(default = "yes")]
     pub is_active: bool,
     #[serde(default)]
@@ -402,6 +411,8 @@ pub struct SupplierIdParams {
 /// One line of a supplier's history; `amount` is its effect on what the clinic owes.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct LedgerEntry {
+    /// The finance document (bill or payment voucher).
+    pub doc_id: i64,
     pub kind: LedgerKind,
     pub local_date: String,
     pub number: Option<String>,
@@ -462,11 +473,12 @@ pub struct CreatePurchaseParams {
     #[serde(default)]
     pub note: Option<String>,
     pub lines: Vec<PurchaseLineParams>,
-    /// Paid on the spot (recorded as a payment to the supplier).
+    /// Paid on the spot (a payment voucher to the supplier from `account_id`).
     #[serde(default)]
     pub paid: i64,
+    /// The money account it was paid from (finance account code).
     #[serde(default)]
-    pub method_id: Option<String>,
+    pub account_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -484,44 +496,6 @@ pub struct VoidWithReasonParams {
     pub id: String,
     pub version: i64,
     pub reason: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct SupplierPaymentInfo {
-    pub id: String,
-    pub number: String,
-    pub supplier_id: String,
-    pub supplier_name: String,
-    pub amount: i64,
-    pub method_id: Option<String>,
-    pub method: Option<Translations>,
-    pub local_date: String,
-    pub note: Option<String>,
-    pub void: bool,
-    pub void_reason: Option<String>,
-    pub created_by_name: Option<String>,
-    pub version: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct AddSupplierPaymentParams {
-    pub supplier_id: String,
-    pub amount: i64,
-    pub method_id: String,
-    #[serde(default)]
-    pub date: Option<String>,
-    #[serde(default)]
-    pub note: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
-pub struct SupplierPaymentListParams {
-    #[serde(default)]
-    pub supplier_id: Option<String>,
-    #[serde(default)]
-    pub from: Option<String>,
-    #[serde(default)]
-    pub to: Option<String>,
 }
 
 // ───────────────────────────── dental lab ─────────────────────────────
