@@ -283,8 +283,6 @@ jobs:
           pattern: installers-*
           merge-multiple: true
           path: dist
-      - name: Checksums
-        run: cd dist && sha256sum *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Update manifest (latest.json) from the signed installers
         run: node scripts/make-update-manifest.mjs dist ${{ github.ref_name }} ${{ github.repository }}
       - uses: softprops/action-gh-release@v2
@@ -292,10 +290,11 @@ jobs:
           name: Artaveo Dental ${{ github.ref_name }}
           body_path: docs/releases/${{ github.ref_name }}.md
           prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          # Owner decision: the release holds only the two installers (x64, ARM64). The .sig files are
+          # read by make-update-manifest.mjs from dist/, artaveo-dump stays a build artifact only.
           files: |
-            dist/*.exe
-            dist/*.sig
-            dist/SHA256SUMS.txt
+            dist/ArtaveoDental-Setup-x64.exe
+            dist/ArtaveoDental-Setup-arm64.exe
       # The app looks for updates at a fixed address: the release called "updater" always holds the
       # newest latest.json (published releases of v0.x are pre-releases, so "latest" is not usable).
       - name: Publish latest.json for the updater
