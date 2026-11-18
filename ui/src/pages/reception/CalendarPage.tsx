@@ -156,7 +156,12 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     const scroller = gridRef.current?.closest(".app-main");
     const body = gridRef.current?.querySelector<HTMLElement>(".tg-body");
     if (focus === null || !scroller || !body) return;
-    const target = body.offsetTop + Math.max(0, focus - startMin - 60) * PX_PER_MIN;
+    const desired = body.offsetTop + Math.max(0, focus - startMin - 60) * PX_PER_MIN;
+    // Never scroll past the day header: the calendar must open with its header row (and the first hours) in view,
+    // not at the bottom of the page. Late in the day the grid just starts at its top.
+    const head = gridRef.current?.querySelector<HTMLElement>(".tg-head");
+    const headTop = head ? head.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop : 0;
+    const target = Math.max(0, Math.min(desired, headTop));
     scroller.scrollTo({ top: target, behavior: "auto" });
   }, [items, view, anchor, startMin, today]);
 
