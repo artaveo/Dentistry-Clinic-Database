@@ -1884,15 +1884,8 @@ export type OfflineRequestInfo = { request_code: string, };
 
 export type OfflineApplyParams = { response_code: string, };
 
-/**
- * OF-049/OF-050: a person's sex, used only to choose the default picture.
- */
 export type PersonSex = "male" | "female";
 
-/**
- * What the UI needs to draw a patient's picture in lists that only know the patient's id
- * (calendar, queue, recalls, search).
- */
 export type PatientAvatar = { patient_id: string, sex: PersonSex | null, 
 /**
  * Age in whole years (from the birth date, or the approximate age).
@@ -1901,10 +1894,6 @@ age: number | null, photo_id: string | null, };
 
 export type PatientIdsParams = { patient_ids: Array<string>, };
 
-/**
- * Sets (`data_base64` = a png/jpeg/webp image) or removes (`None`) the photo of the patient or
- * doctor `id`. The Core shrinks it to a small JPEG and stores it encrypted like an attachment.
- */
 export type SetPhotoParams = { id: string, data_base64: string | null, };
 
 export interface Api {
