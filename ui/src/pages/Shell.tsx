@@ -258,7 +258,7 @@ export function Shell({
     clinical: () => <ClinicalListsPage />,
     clinic: () => <ClinicPage logo={logo} onLogoChange={onLogoChange} onSaved={loadClinic} />,
     users: () => <UsersPage currentUserId={session.user.id} />,
-    backup: () => <BackupPage canCreate={can("backup.create")} canRestore={can("backup.restore")} calendar={clinic?.calendar_system} onRestored={onSignOut} />,
+    backup: () => <BackupPage canCreate={can("backup.create")} canRestore={can("backup.restore")} calendar={clinic?.calendar_system} clinicName={clinicName} onRestored={onSignOut} />,
     license: () => <LicensePage calendar={clinic?.calendar_system} canManage={can("settings.manage")} />,
     audit: () => <AuditPage calendar={clinic?.calendar_system} />,
     network: () => <NetworkPage calendar={clinic?.calendar_system} onChanged={loadClinic} />,

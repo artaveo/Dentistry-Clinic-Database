@@ -110,10 +110,10 @@ mod tests {
         (dir, path, key, recovery.to_display())
     }
 
-    fn make_backup(dir: &Path, key: &DataKey, name: &str, rkey_from: &Path) {
-        let source = db::connect(&dir.join("clinic.db"), key).unwrap();
+    fn make_backup(dir: &Path, key: &DataKey, name: &str, live: &Path) {
+        let source = db::connect(live, key).unwrap();
         db::vacuum_into(&source, &dir.join(name)).unwrap();
-        fs::copy(rkey_from, dir.join(name).with_extension("rkey")).unwrap();
+        fs::copy(live.with_extension("rkey"), dir.join(name).with_extension("rkey")).unwrap();
     }
 
     #[test]
@@ -151,11 +151,10 @@ mod tests {
         let (dir, path, key, old) = clinic();
         let backups = dir.path().join("backups");
         fs::create_dir(&backups).unwrap();
-        let live_rkey = path.with_extension("rkey");
         let a = "artaveo-20260101-100000-daily.db";
         let b = "artaveo-20260102-100000-daily.db";
-        make_backup(&backups, &key, a, &live_rkey);
-        make_backup(&backups, &key, b, &live_rkey);
+        make_backup(&backups, &key, a, &path);
+        make_backup(&backups, &key, b, &path);
         // A backup of another clinic: same name pattern, different data key.
         let other_path = dir.path().join("other").join("clinic.db");
         let other_recovery = RecoveryKey::generate();
@@ -192,7 +191,7 @@ mod tests {
         let (dir, path, key, _old) = clinic();
         let backups = dir.path().join("backups");
         fs::create_dir(&backups).unwrap();
-        make_backup(&backups, &key, "artaveo-20260101-100000-daily.db", &path.with_extension("rkey"));
+        make_backup(&backups, &key, "artaveo-20260101-100000-daily.db", &path);
         fs::remove_file(backups.join("artaveo-20260101-100000-daily.rkey")).unwrap();
         let new = regenerate_live(&path, &key).unwrap();
         assert_eq!(rewrap_folder(&backups, &key, &new), FolderReport::default());

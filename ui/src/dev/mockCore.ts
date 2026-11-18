@@ -597,6 +597,14 @@ function call(method: string, p: any, token: string | null): unknown {
       record(s.user, "backup.create", "backup");
       return b;
     }
+    case "backup.regenerate_key": {
+      need(s, "backup.restore");
+      const me = state.users.find((x) => x.id === s.user.id);
+      if (!me || me.password !== p.password) fail("invalid_credentials", "wrong password", "password", "wrong_password");
+      state.recoveryKey = Array.from({ length: 6 }, () => Array.from({ length: 6 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"[Math.floor(Math.random() * 32)]).join("")).join("-");
+      record(s.user, "backup.regenerate_key", "app_user");
+      return { recovery_key: state.recoveryKey, local_updated: state.backups.length, usb_updated: 0, cloud_updated: 0, failed: 0 };
+    }
     case "backup.list":
       need(s, "backup.view");
       return state.backups;

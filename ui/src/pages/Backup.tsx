@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Cloud, CircleCheck, CircleX, DatabaseBackup, FileArchive, HardDrive, HardDriveDownload, History, Usb } from "lucide-react";
+import { CalendarClock, Cloud, CircleCheck, CircleX, DatabaseBackup, FileArchive, HardDrive, HardDriveDownload, History, KeyRound, Usb } from "lucide-react";
 import type { BackupEntry, BackupOverview, CalendarSystem, TargetState } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "../lib/api";
 import { digits, formatBytes, formatDateTime } from "../lib/dates";
@@ -11,18 +11,19 @@ import { Badge, EmptyState, ErrorState, Loading, Notice, SkeletonRows } from "..
 import { useToast } from "../ui/Toast";
 import { CloudSection } from "./backup/CloudSection";
 import { CopyBadge, fileKindLabel, useBackupSettings } from "./backup/common";
+import { RecoveryKeySection } from "./backup/RecoveryKeySection";
 import { RestoreSection } from "./backup/RestoreSection";
 import { ScheduleSection } from "./backup/ScheduleSection";
 import { UsbSection } from "./backup/UsbSection";
 
-type Section = "history" | "usb" | "cloud" | "schedule" | "restore";
+type Section = "history" | "usb" | "cloud" | "schedule" | "restore" | "key";
 const POLL_MS = 5_000;
 
 /**
  * Backup Manager (roadmap 10.2-10.7). The top answers the one question that matters ("is my data
  * safe, and where?") in three lines; everything else sits one tap away in the section switch.
  */
-export function BackupPage({ canCreate, canRestore, calendar, onRestored }: { canCreate: boolean; canRestore: boolean; calendar?: CalendarSystem; onRestored: () => void }) {
+export function BackupPage({ canCreate, canRestore, calendar, clinicName = "", onRestored }: { canCreate: boolean; canRestore: boolean; calendar?: CalendarSystem; clinicName?: string; onRestored: () => void }) {
   const { t, err, lang } = useI18n();
   const toast = useToast();
   const [overview, setOverview] = useState<BackupOverview | null>(null);
@@ -77,7 +78,7 @@ export function BackupPage({ canCreate, canRestore, calendar, onRestored }: { ca
     { value: "usb" as const, label: t("bk.section.usb"), icon: Usb, testId: "bk-tab-usb" },
     { value: "cloud" as const, label: t("bk.section.cloud"), icon: Cloud, testId: "bk-tab-cloud" },
     { value: "schedule" as const, label: t("bk.section.schedule"), icon: CalendarClock, testId: "bk-tab-schedule" },
-    ...(canRestore ? [{ value: "restore" as const, label: t("bk.section.restore"), icon: HardDriveDownload, testId: "bk-tab-restore" }] : []),
+    ...(canRestore ? [{ value: "restore" as const, label: t("bk.section.restore"), icon: HardDriveDownload, testId: "bk-tab-restore" }, { value: "key" as const, label: t("rk.tab"), icon: KeyRound, testId: "bk-tab-key" }] : []),
   ];
 
   return (
@@ -168,6 +169,7 @@ export function BackupPage({ canCreate, canRestore, calendar, onRestored }: { ca
       {section === "cloud" && (settings ? <CloudSection settings={settings} canEdit={canCreate} onSaved={(s) => { setSettings(s); load(); }} /> : <Loading />)}
       {section === "schedule" && (settings ? <ScheduleSection settings={settings} canEdit={canCreate} onSaved={(s) => { setSettings(s); load(); }} /> : <Loading />)}
       {section === "restore" && canRestore && <RestoreSection calendar={calendar} onRestored={onRestored} />}
+      {section === "key" && canRestore && <RecoveryKeySection clinicName={clinicName} calendar={calendar} />}
       {section === "history" && !canRestore && <Notice tone="info">{t("bk.restoreOwnerOnly")}</Notice>}
     </Page>
   );
