@@ -1854,6 +1854,10 @@ export type ScanBackupsParams = { folder: string | null, };
 
 export type RestoreNewParams = { folder: string, file_name: string, recovery_key: string, };
 
+export type RegenerateRecoveryKeyParams = { password: string, };
+
+export type RegenerateRecoveryKeyResult = { recovery_key: string, local_updated: number, usb_updated: number, cloud_updated: number, failed: number, };
+
 export type LicenseState = "unactivated" | "trial" | "active" | "expired_warning" | "grace" | "expired" | "revoked" | "pending" | "blocked" | "clock_tampered" | "invalid" | "needs_verification";
 
 export type LicenseStatus = { state: LicenseState, read_only: boolean, kind: string | null, plan: string | null, computers: number, installation_id: string, fingerprint_hint: string, expires_at: string | null, days_left: number | null, verified_at: string | null, verify_due: boolean, grace_days_left: number | null, server_configured: boolean, };
@@ -2097,6 +2101,7 @@ export interface Api {
   "backup.restore_preview": { params: RestoreTarget; result: RestorePreview };
   "backup.restore": { params: RestoreParams; result: RestoreResult };
   "backup.scan": { params: ScanBackupsParams; result: Array<RestoreCandidate> };
+  "backup.regenerate_key": { params: RegenerateRecoveryKeyParams; result: RegenerateRecoveryKeyResult };
   "backup.restore_new": { params: RestoreNewParams; result: Empty };
   "license.status": { params: Empty; result: LicenseStatus };
   "license.activate": { params: ActivateParams; result: LicenseStatus };

@@ -28,7 +28,10 @@ fn the_owner_gets_a_new_key_and_the_old_paper_stops_working() {
     let new = r["recovery_key"].as_str().unwrap().to_string();
     assert_eq!(new.len(), 41, "same printable form as setup: {new}");
     assert_ne!(new, old);
-    assert_eq!((r["local_updated"].as_u64(), r["usb_updated"].as_u64(), r["failed"].as_u64()), (Some(1), Some(0), Some(0)));
+    assert_eq!(
+        (r["local_updated"].as_u64(), r["usb_updated"].as_u64(), r["failed"].as_u64()),
+        (Some(1), Some(0), Some(0))
+    );
 
     // The live key file and the local backup's key file: new key opens, old key does not.
     assert!(rkey_opens(&t, &new) && !rkey_opens(&t, &old));
@@ -113,7 +116,10 @@ fn a_trusted_usb_copy_follows_and_the_result_counts_it() {
     usb.0.lock().unwrap().clear();
     let again = t.ok(m::BACKUP_REGENERATE_KEY, json!({"password": "owner-pass-1"}), Some(&tok));
     assert_eq!(again["usb_updated"].as_u64(), Some(0));
-    assert!(crate::dump::key_from_recovery(&on_stick, new).is_ok(), "the unreachable copy keeps the earlier key");
+    assert!(
+        crate::dump::key_from_recovery(&on_stick, new).is_ok(),
+        "the unreachable copy keeps the earlier key"
+    );
     assert!(crate::dump::key_from_recovery(&on_stick, again["recovery_key"].as_str().unwrap()).is_err());
 }
 

@@ -121,7 +121,11 @@ mod tests {
         let (_dir, path, key, old) = clinic();
         let new = regenerate_live(&path, &key).unwrap();
         let blob = fs::read(path.with_extension("rkey")).unwrap();
-        assert_eq!(new.unwrap(&blob).unwrap(), key, "the new key opens the file and yields the same data key");
+        assert_eq!(
+            new.unwrap(&blob).unwrap(),
+            key,
+            "the new key opens the file and yields the same data key"
+        );
         assert!(RecoveryKey::parse(&old).unwrap().unwrap(&blob).is_err(), "the old key no longer works");
         assert_ne!(old, new.to_display());
         assert!(!path.with_extension("rkey.tmp").exists());
@@ -170,7 +174,8 @@ mod tests {
 
         for name in [a, b] {
             let blob = fs::read(backups.join(name).with_extension("rkey")).unwrap();
-            let opened = crate::dump::key_from_recovery(&backups.join(name).with_extension("rkey"), &new.to_display());
+            let opened =
+                crate::dump::key_from_recovery(&backups.join(name).with_extension("rkey"), &new.to_display());
             assert_eq!(opened.unwrap(), key, "{name} opens with the new key");
             assert!(RecoveryKey::parse(&old).unwrap().unwrap(&blob).is_err());
         }
