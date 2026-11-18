@@ -615,6 +615,18 @@ fn only_the_newest_pre_migration_copies_are_kept() {
     );
 }
 
+/// Waits for the background integrity check that setup starts (its own connection keeps the file
+/// open, and Windows cannot rename an open file), so a test can move the database around.
+fn settled(t: T) -> T {
+    for _ in 0..500 {
+        if t.core.integrity().status != "running" {
+            return t;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    panic!("the integrity check did not finish");
+}
+
 /// Rewrites `path` with another page size, the way a database made before v0.12.5 looks.
 fn rewrite_with_page_size(path: &Path, key: &DataKey, ps: i64) {
     let conn = db::connect(path, key).unwrap();
@@ -650,7 +662,7 @@ fn a_database_with_the_old_4096_byte_pages_is_rewritten_smaller_and_keeps_everyt
     }
     let path = t.core.config().db_path();
     let key = t.core.with_db(|o| Ok(o.key.clone())).unwrap();
-    let T { _dir: dir, core } = t;
+    let T { _dir: dir, core } = settled(t);
     drop(core);
     rewrite_with_page_size(&path, &key, db::LARGE_PAGE_SIZE);
     let legacy = db::connect(&path, &key).unwrap();
@@ -677,7 +689,7 @@ fn a_crash_between_the_two_renames_is_repaired_on_the_next_start() {
     t.setup();
     let path = t.core.config().db_path();
     let key = t.core.with_db(|o| Ok(o.key.clone())).unwrap();
-    let T { _dir: dir, core } = t;
+    let T { _dir: dir, core } = settled(t);
     drop(core);
     // The old file was moved aside and the new one never arrived.
     std::fs::rename(&path, path.with_extension("repage-old")).unwrap();
@@ -712,7 +724,7 @@ fn a_grown_clinic_is_rewritten_with_big_pages_and_backups_and_restore_still_work
     }
     let path = t.core.config().db_path();
     let key = t.core.with_db(|o| Ok(o.key.clone())).unwrap();
-    let T { _dir: dir, core } = t;
+    let T { _dir: dir, core } = settled(t);
     drop(core);
     db::repage(&path, &key, db::LARGE_PAGE_SIZE).unwrap();
     // Opened as is (a small file with big pages would be shrunk at start, so open it directly).
