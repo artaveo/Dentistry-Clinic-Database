@@ -1,12 +1,12 @@
 # طراحی: سیستم حسابداری و گزارش‌دهی استاندارد کلینیک (Artaveo Dental)
 
-تاریخ: ۱۴۰۵/۰۸/۲۷ (۲۰۲۶-۱۱-۱۸) · نسخه‌ی ۲ (بازنویسی کامل طبق اصلاح مالک)
+تاریخ: ۱۴۰۵/۰۸/۲۷ (۲۰۲۶-۱۱-۱۸) · نسخه‌ی ۳. نسخه‌ی ۲ بازنویسی از صفر بود. نسخه‌ی ۳: مهاجرت داده حذف شد، چون همه‌ی داده‌ی فعلی آزمایشی است؛ schema کم‌حجم شد؛ دامنه‌ی کامل در ۵ فاز.
 وضعیت: **فاز ۱ = فقط پژوهش و طراحی. هیچ کدی عوض نشده.**
 
 **دستور مالک:** بخش مالی **از صفر** و به‌شکل یک سیستم استاندارد طراحی شود، نه ارتقای سیستم فعلی. پس سند سه بخش جدا دارد:
 * **بخش الف: پژوهش.** قانون افغانستان، استاندارد دفترداری، و نرم‌افزارهای دندان.
 * **بخش ب: سیستم ایده‌آل از صفر.** در این بخش هیچ نامی از جدول‌ها یا صفحه‌های فعلی برده نمی‌شود.
-* **بخش ج: گذار.** داده‌ی موجود چطور بدون گم‌شدن حتی یک عدد به سیستم تازه منتقل می‌شود، و چه چیزی جایگزین یا حذف می‌شود.
+* **بخش ج: گذار.** جدول‌ها، کد، RPCها و صفحه‌های مالی فعلی حذف یا جایگزین می‌شوند. داده‌ی آزمایشی دور ریخته می‌شود. از این به بعد مهاجرت‌های نسخه‌دار از داده‌ی مشتری واقعی محافظت می‌کنند.
 * **بخش د: فازهای اجرا.** هر فاز به یک نسخه‌ی قابل انتشار و کامل‌آزموده ختم می‌شود.
 
 نشانه‌ها: ✅ = از منبع خوانده شد · ⚠ = تأییدنشده یا شاید کهنه · 💡 = تصمیم طراحی.
@@ -20,7 +20,7 @@
 * ۰. خلاصه برای مالک
 * **الف. پژوهش:** الف۱ افغانستان · الف۲ استاندارد دفترداری · الف۳ نرم‌افزارهای دندان · الف۴ بررسی پژوهش قبلی
 * **ب. سیستم ایده‌آل:** ب۱ اصول · ب۲ مفاهیم · ب۳ چارت حساب · ب۴ اسناد و چرخه‌ی کار · ب۵ قواعد ثبت · ب۶ مدل داده · ب۷ دوره و قفل و شماره · ب۸ صفحه‌های مالی · ب۹ گزارش‌ها · ب۱۰ تطبیق · ب۱۱ قواعد درستی · ب۱۲ دسترسی
-* **ج. گذار:** ج۱ آنچه امروز هست · ج۲ نگاشت قدیم به تازه · ج۳ الگوریتم مهاجرت و دروازه‌ی برابری · ج۴ حذف و جایگزینی (جدول، RPC، صفحه)
+* **ج. گذار:** ج۱ آنچه امروز هست و حذف می‌شود · ج۲ مهاجرت جایگزینی · ج۳ حفاظت از مشتری‌های واقعی · ج۴ RPCها و صفحه‌ها
 * **د. اجرا:** فازها، فایل‌ها، آزمون، ریسک CI، اندازه
 * **هـ. سؤال‌های مالک** (با پیش‌فرض)
 * **و. منابع و آنچه تأیید نشد**
@@ -47,11 +47,18 @@
   * شماره‌ها پیاپی و بدون فاصله‌اند.
   * گزارش رسمیِ صادرشده شماره و اثر انگشت (hash) دارد و چاپ دوباره‌اش عیناً همان است.
 * **۱۸ گزارش رسمی و مدیریتی** با سربرگ قانونی: نام حقوقی، TIN، جواز، دوره‌ی شمسی، صفحه x از y، امضا و مهر. یک «بسته‌ی سالانه برای وزارت» هم با یک دکمه ساخته می‌شود.
-* **گذار:** داده‌ی همه‌ی کلینیک‌ها به سیستم تازه منتقل می‌شود.
-  * پیش از تعویض، **اجرای آزمایشی روی کپی** دیتابیس واقعی گزارش برابری می‌دهد.
-  * هنگام تعویض، اگر حتی یک جمع فرق کند، همه‌چیز برمی‌گردد.
-  * جدول‌ها، RPCها و صفحه‌های مالی قدیم حذف می‌شوند. داده‌ی خام قدیم ۵ سال به‌صورت آرشیو فقط‌خواندنی می‌ماند (مقرره ۳۶.۵).
-* **پنج فاز** (حدود ۴۵ تا ۵۵ روز کاری). هر فاز یک انتشار کامل است.
+* **کم‌حجم:**
+  * شناسه، نوع و وضعیت عددی‌اند.
+  * تاریخ عدد `yyyymmdd` است.
+  * snapshot JSON ذخیره نمی‌شود.
+  * بودجه‌ی index ۸ تا است.
+  * قواعد `docs/design/db-size-rules.md` (سشن f-db-size) بر این بخش برنده است.
+* **گذار:**
+  * داده‌ی فعلی آزمایشی است. یک مهاجرت جدول‌ها و داده‌ی مالی قدیم را حذف و schema تازه را می‌سازد.
+  * داده‌ی بیمار، درمان و انبار حفظ می‌شود.
+  * کد، RPCها و صفحه‌های مالی قدیم حذف می‌شوند.
+  * از این به بعد هر مهاجرت مالی افزایشی است و آزمون برابری دارد.
+* **پنج فاز** (حدود ۳۲ تا ۳۸ روز کاری). هر فاز یک انتشار کامل است. شروع پس از گزارش f-db-size و سبز شدن CI آواتارها.
 
 ---
 
@@ -128,7 +135,7 @@
 | P6 | **فقط افغانی** (عدد صحیح، واحد = پول، یعنی ۱/۱۰۰ افغانی). ارز خارجی فقط یادداشت است. | ماده ۴(۲)؛ منع ارز |
 | P7 | **مالیات محاسبه نمی‌شود.** کسرهای تکلیفی دستی‌اند. | دستور مالک |
 | P8 | **شماره‌ی پیاپی و بدون فاصله** برای هر نوع سند و هر سال شمسی، داخل همان تراکنش. باطل‌شده‌ها شماره‌شان را نگه می‌دارند. | ردیابی کامل |
-| P9 | **گزارش رسمی «صادر» می‌شود:** شماره، snapshot و hash دارد. | چاپ دوباره = همان سند |
+| P9 | **گزارش رسمی «صادر» می‌شود:** شماره، پارامترها و hash محتوا ذخیره می‌شود. چاپ دوباره از دفتر تغییرناپذیر ساخته و با hash مقایسه می‌شود. | چاپ دوباره = همان سند، بدون ذخیره‌ی محتوا |
 | P10 | **زنجیره‌ی hash** روی دفتر روزنامه. | دستکاری مستقیم دیتابیس آشکار شود |
 
 ## ب۲. مفاهیم (واژه‌نامه‌ی یکسان برای کد، UI و گزارش)
@@ -271,130 +278,265 @@
 * **پل بین دو مبنا** (در صفحه‌ی تطبیق):
   > عاید تعهدی − Δطلب بیماران + Δپیش‌پرداخت بیماران − بخشش = خالص دریافت نقدی
 
-## ب۶. مدل داده
-قواعد عمومی:
-* همه‌ی جدول‌ها `STRICT` و شناسه‌ها UUIDv7.
-* مبلغ‌ها `INTEGER` به پول (۱/۱۰۰ افغانی).
-* `doc_date` تاریخ محلی میلادی ISO است؛ نمایش شمسی است.
-* ستون‌های مشترک `created_at, created_by` هست و برای داده‌ی پایه `updated_*, version` هم هست.
-* پیشوند `fin_` همه‌ی جدول‌های مالی را از بقیه‌ی برنامه جدا می‌کند.
+## ب۶. مدل داده (کم‌حجم)
 
-### ب۶.۱ هسته‌ی حسابداری
+### ب۶.۰ قواعد حجم
+مالک از حجم دیتابیس ناراضی است: برای چند ده بیمار حدود ۲ MB. سشن `f-db-size` قواعد نهایی را در `docs/design/db-size-rules.md` می‌نویسد. **اگر آن سند با این بخش فرق داشت، آن سند برنده است.** تا آن وقت، این قواعد برای همه‌ی جدول‌های `fin_*` اجرا می‌شود:
+
+| # | قاعده | چرا |
+|---|---|---|
+| S1 | **کلید سندها و سطرهای پرحجم مالی `INTEGER PRIMARY KEY`** (همان rowid). FK های داخل بخش مالی هم INTEGER. **استثنا:** شناسه‌ی بیمار، داکتر، خدمت، درمان و کاربر در بقیه‌ی برنامه UUID متنی است، پس این ستون‌ها `TEXT` می‌مانند. تأمین‌کننده و کارمند هم TEXT هستند، چون در `party_id` کنار بیمار می‌نشینند و نوع ستون باید یکی باشد. اگر `db-size-rules.md` شناسه‌ها را در کل برنامه عددی کند، این ستون‌ها هم INTEGER می‌شوند. | UUID متنی ۳۶ بایت است و در هر index و FK تکرار می‌شود. عدد ۱ تا ۴ بایت است. |
+| S2 | **همه‌ی نوع‌ها، وضعیت‌ها و کدها `INTEGER`** با `CHECK (x BETWEEN …)`. معنی هر عدد در یک `enum` با `#[repr(u8)]` در `shared/src/fin.rs` تعریف می‌شود. جدول جستجو در دیتابیس ساخته نمی‌شود. | `'posted'`، `'salary_advance'` در هر سطر چند بایت است؛ عدد ۱ بایت. |
+| S3 | **تاریخ = `INTEGER` به شکل `yyyymmdd`** (مثل `20261118`). **زمان = `INTEGER` ثانیه‌ی یونیکس UTC.** | ۴ بایت به‌جای ۱۰ و ۲۴ بایت. هنوز با چشم خواندنی است و مرتب‌سازی درست است. |
+| S4 | **شماره‌ی سند متنی ذخیره نمی‌شود.** فقط `series_year` و `serial` (INTEGER) ذخیره می‌شود. متن `INV-1405-000123` از پیشوندِ نوع سند ساخته می‌شود. یکتایی با `UNIQUE(series_year, serial)` روی همان جدول است. | ۱۵ بایت در هر سطر و یک index متنی کمتر. |
+| S5 | **متن تکراری نگه داشته نمی‌شود.** نام بیمار، داکتر و حساب از جدول اصلی‌شان خوانده می‌شود. فقط آنچه **حقوقاً باید منجمد بماند** ذخیره می‌شود: نام خدمت روی خط فاکتور (یک زبان: زبان داده‌ی کلینیک) و نام پرداخت‌کننده‌ی دستی. | حذف `names_json` سه‌زبانه و snapshot های JSON. |
+| S6 | **snapshot چاپی ذخیره نمی‌شود.** رسید و فاکتور از سطرهای تغییرناپذیر دوباره ساخته می‌شوند و نتیجه همیشه یکسان است. | snapshot JSON هر رسید ۱ تا ۲ KB است. |
+| S7 | **گزارش رسمی: فقط پارامترها و hash** ذخیره می‌شود، نه محتوا. چاپ دوباره گزارش را از دفتر تغییرناپذیر می‌سازد و hash را مقایسه می‌کند. اگر hash فرق کند، چاپ «ناهمخوان» علامت می‌خورد. | محتوای یک گزارش سالانه ممکن است صدها KB باشد. |
+| S8 | **بودجه‌ی index:** فقط index هایی که در ب۶.۷ آمده‌اند. هر index تازه باید در PR دلیل داشته باشد (کدام کوئری، چند سطر). | هر index یک کپی از ستون‌هاست. |
+| S9 | **hash = `BLOB` ۳۲ بایتی** (نه hex ۶۴ نویسه) و فقط روی سر ثبت، نه روی هر سطر. | |
+| S10 | **ستون‌های audit سبک:** فقط `created_at` و `created_by` (INTEGER). تاریخچه‌ی تغییر در `audit_log` موجود است. ستون‌های `updated_*` و `version` فقط روی داده‌ی پایه‌ی ویرایش‌پذیر (حساب، تأمین‌کننده، کارمند، قاعده‌ی جبران). | |
+| S11 | **جدول‌ها `STRICT`.** `WITHOUT ROWID` برای جدول‌های سطری با کلید ترکیبی (`fin_line`، خطوط فاکتور، بل، سند پرداخت، معاش، سهم، اقساط) و `fin_series`. این کار یک B-tree و یک ستون rowid را در هر سطر حذف می‌کند. | |
+
+**تخمین حجم** (یک سال کلینیک پرکار: ۶٬۰۰۰ فاکتور، ۸٬۰۰۰ رسید):
+* ثبت روزنامه: حدود ۲۰٬۰۰۰ سر ثبت × ~۶۰ بایت، و حدود ۶۰٬۰۰۰ سطر × ~۲۵ بایت = حدود ۲٫۷ MB با index ها.
+* اسناد: کمتر از ۲ MB.
+* برای چند ده بیمار: چند ده KB.
+* آزمون حجم در CI (د۲) این را می‌پاید.
+
+### ب۶.۱ کدهای عددی (در `shared/src/fin.rs`)
+| ستون | کدها |
+|---|---|
+| `account.type` | 1 asset · 2 liability · 3 equity · 4 income · 5 contra_income · 6 expense |
+| `account.party_kind`، `line.party_kind` | 0 none · 1 patient · 2 supplier · 3 employee · 4 provider · 5 owner |
+| `account.money_kind` | 0 none · 1 cash · 2 bank · 3 mobile |
+| `doc_kind` (نوع سند؛ همان پیشوند شماره) | 1 INV · 2 RC · 3 AL · 4 RF · 5 CN · 6 WO · 7 PP · 8 BL · 9 PV · 10 OR · 11 PR · 12 DS · 13 TR · 14 CC · 15 JV · 16 OB · 17 YC · 18 RPT |
+| `status` (همه‌ی اسناد) | 0 draft · 1 posted · 2 void (· 3 superseded فقط برنامه‌ی اقساط) |
+| `period.status` | 0 open · 1 closed · 2 locked |
+| `credit_note.kind` | 1 reduction · 2 write_off |
+| `voucher.purpose` | 1 expense · 2 bill · 3 salary · 4 advance · 5 provider_share · 6 tax_remittance · 7 owner_drawing · 8 loan_repayment · 9 other |
+| `withholding_kind` / `tax_kind` | 0 none · 1 wage · 2 rent · 3 contractor |
+| `other_receipt.source` | 1 capital · 2 loan · 3 sale · 4 other |
+| `supplier.kind` | 1 supplier · 2 lab · 3 landlord · 4 service · 5 other |
+| `comp.model` | 0 none · 1 salary · 2 percent · 3 salary_percent · 4 partner |
+| `comp_rule.kind` / `basis` | 1 percent · 2 fixed / 1 production · 2 collection |
+| `legal_form` / `tax_regime` | 1 natural_person · 2 partnership · 3 llc · 4 corporation / 0 unknown · 1 fixed · 2 income_brt |
+| `plan.frequency` | 1 monthly · 2 custom |
+
+### ب۶.۲ هسته‌ی حسابداری
 ```sql
-fin_account(id, code UNIQUE, name_fa, name_ps, name_en, official_label_fa,
-  type CHECK IN ('asset','liability','equity','income','contra_income','expense'),
-  parent_id, is_control INT, party_kind CHECK IN ('none','patient','supplier','employee','provider','owner'),
-  money_kind CHECK IN ('none','cash','bank','mobile'), bank_name, bank_account_no,
-  is_system, is_active, sort_order, …)
+CREATE TABLE fin_account (
+  id INTEGER PRIMARY KEY, code INTEGER NOT NULL UNIQUE,        -- 1110
+  name_fa TEXT NOT NULL, name_ps TEXT NOT NULL, name_en TEXT NOT NULL,
+  official_label TEXT,                                          -- برچسب در گزارش رسمی (اختیاری)
+  type INTEGER NOT NULL CHECK (type BETWEEN 1 AND 6),
+  parent_id INTEGER REFERENCES fin_account(id),
+  is_control INTEGER NOT NULL DEFAULT 0, party_kind INTEGER NOT NULL DEFAULT 0,
+  money_kind INTEGER NOT NULL DEFAULT 0, bank_name TEXT, bank_account_no TEXT,
+  flags INTEGER NOT NULL DEFAULT 1,                             -- bit0 active · bit1 system
+  sort INTEGER NOT NULL DEFAULT 0, updated_at INTEGER, updated_by TEXT, version INTEGER NOT NULL DEFAULT 1
+) STRICT;
 
-fin_period(id, shamsi_year, shamsi_month, quarter, from_date, to_date,
-  status CHECK IN ('open','closed','locked'), closed_at/by, locked_at/by, note, version,
-  UNIQUE(shamsi_year, shamsi_month))
+CREATE TABLE fin_period (
+  id INTEGER PRIMARY KEY,                                       -- = shamsi_year*100 + month (140508)
+  from_date INTEGER NOT NULL, to_date INTEGER NOT NULL,
+  status INTEGER NOT NULL DEFAULT 0 CHECK (status BETWEEN 0 AND 2),
+  closed_at INTEGER, closed_by TEXT, locked_at INTEGER, locked_by TEXT, note TEXT
+) STRICT;                                                       -- ربع و سال از id حساب می‌شود
 
-fin_series(prefix, shamsi_year, last_no, PRIMARY KEY(prefix, shamsi_year))   -- شماره‌ی بی‌فاصله
+CREATE TABLE fin_series (
+  doc_kind INTEGER NOT NULL, shamsi_year INTEGER NOT NULL, last_serial INTEGER NOT NULL,
+  PRIMARY KEY (doc_kind, shamsi_year)) STRICT, WITHOUT ROWID;
 
-fin_entry(id, number UNIQUE /*JV-1405-000001*/, entry_date, period_id,
-  doc_kind, doc_id, memo, reverses_id, prev_hash, hash, created_at, created_by)
--- هر سند یک ثبت اصلی و حداکثر یک ثبت معکوس:
-CREATE UNIQUE INDEX ux_entry_doc ON fin_entry(doc_kind, doc_id) WHERE reverses_id IS NULL;
-CREATE UNIQUE INDEX ux_entry_rev ON fin_entry(reverses_id) WHERE reverses_id IS NOT NULL;
-fin_entry_line(id, entry_id, line_no, account_id, debit CHECK>=0, credit CHECK>=0,
-  party_kind, party_id, provider_id, service_id, memo,
-  CHECK ((debit=0) <> (credit=0)), UNIQUE(entry_id, line_no))
--- trigger: هیچ UPDATE/DELETE روی fin_entry و fin_entry_line.
--- index: (account_id, entry_date), (party_kind, party_id), (provider_id).
+CREATE TABLE fin_entry (                                        -- سر ثبت روزنامه
+  id INTEGER PRIMARY KEY,                                       -- ترتیب ثبت = ترتیب زنجیره‌ی hash
+  series_year INTEGER NOT NULL, serial INTEGER NOT NULL,        -- JV-1405-000001
+  entry_date INTEGER NOT NULL,
+  doc_kind INTEGER NOT NULL, doc_id INTEGER,                    -- سند منبع
+  reverses_id INTEGER REFERENCES fin_entry(id),
+  memo TEXT, hash BLOB NOT NULL,                                -- sha256(hash قبلی ‖ محتوای ثبت)
+  created_at INTEGER NOT NULL, created_by TEXT,
+  UNIQUE (series_year, serial)) STRICT;
+
+CREATE TABLE fin_line (                                         -- سطر ثبت
+  entry_id INTEGER NOT NULL REFERENCES fin_entry(id),
+  line_no INTEGER NOT NULL,
+  account_id INTEGER NOT NULL REFERENCES fin_account(id),
+  amount INTEGER NOT NULL CHECK (amount <> 0),                  -- مثبت = بدهکار، منفی = بستانکار
+  party_kind INTEGER NOT NULL DEFAULT 0, party_id TEXT,
+  provider_id TEXT, service_id TEXT,
+  PRIMARY KEY (entry_id, line_no)) STRICT, WITHOUT ROWID;
+-- trigger: هیچ UPDATE/DELETE روی fin_entry و fin_line.
 ```
-فقط ماژول `ledger::post` در این دو جدول می‌نویسد. پیش از INSERT بررسی می‌کند که Σبدهکار = Σبستانکار > ۰، دوره باز است، و hash زنجیره درست است.
+* **یک ستون علامت‌دار به‌جای دو ستون بدهکار و بستانکار** (S1/S5): توازن یعنی `SUM(amount) = 0` برای هر ثبت.
+* بدهکار و بستانکار فقط در نمایش و چاپ جدا می‌شوند.
+* شرح سطر ذخیره نمی‌شود؛ از سند منبع ساخته می‌شود.
 
-### ب۶.۲ طرف‌های حساب
+### ب۶.۳ طرف‌های حساب و جبران
 ```sql
--- طرف‌های حساب (party_kind + party_id در سطرهای دفتر):
---   بیمار  = ماژول بیماران (party_kind='patient')
---   داکتر  = ماژول داکتران (party_kind='provider')
---   تأمین‌کننده/لابراتوار = fin_supplier (تازه؛ ماژول انبار هم از همین استفاده می‌کند)
---   کارمند = fin_employee (تازه)
-fin_supplier(id, kind CHECK IN ('supplier','lab','landlord','service','other'), name, tin, license_no,
-  has_business_license INT, contact_person, phone, address, default_account_id, is_active, …)
-fin_employee(id, code UNIQUE, full_name, father_name, national_id, tin, phone, position,
-  provider_id NULL, user_id NULL, hire_date, end_date, status CHECK IN ('active','left'), …)
-fin_comp_plan(id, party_kind CHECK IN ('employee','provider'), party_id,
-  model CHECK IN ('salary','percent','salary_percent','partner','none'),
-  base_salary INT, valid_from, valid_to, …)                          -- نسخه‌دار با تاریخ
-fin_comp_rule(id, plan_id, service_id NULL, kind CHECK IN ('percent','fixed'),
-  value INT /* درصد×100 یا پول برای هر واحد */, basis CHECK IN ('production','collection'))
+-- بیمار و داکتر و کاربر: از جدول‌های اصلی برنامه (party_id = شناسه‌ی آنجا).
+CREATE TABLE fin_supplier (
+  id TEXT PRIMARY KEY, kind INTEGER NOT NULL CHECK (kind BETWEEN 1 AND 5), name TEXT NOT NULL,
+  tin TEXT, license_no TEXT, contact TEXT, phone TEXT, address TEXT,
+  default_account_id INTEGER REFERENCES fin_account(id), flags INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL, updated_at INTEGER, version INTEGER NOT NULL DEFAULT 1) STRICT;
+CREATE TABLE fin_employee (
+  id TEXT PRIMARY KEY, full_name TEXT NOT NULL, father_name TEXT, national_id TEXT, tin TEXT,
+  phone TEXT, position TEXT NOT NULL, provider_id TEXT, user_id TEXT,
+  hire_date INTEGER NOT NULL, end_date INTEGER, flags INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL, updated_at INTEGER, version INTEGER NOT NULL DEFAULT 1) STRICT;
+CREATE TABLE fin_comp_plan (                                    -- نسخه‌دار با تاریخ
+  id INTEGER PRIMARY KEY, party_kind INTEGER NOT NULL CHECK (party_kind IN (3,4)), party_id TEXT NOT NULL,
+  model INTEGER NOT NULL CHECK (model BETWEEN 0 AND 4), base_salary INTEGER NOT NULL DEFAULT 0,
+  valid_from INTEGER NOT NULL, valid_to INTEGER, created_at INTEGER NOT NULL, created_by TEXT) STRICT;
+CREATE TABLE fin_comp_rule (
+  id INTEGER PRIMARY KEY, plan_id INTEGER NOT NULL REFERENCES fin_comp_plan(id), service_id TEXT,
+  kind INTEGER NOT NULL, value INTEGER NOT NULL CHECK (value >= 0), basis INTEGER NOT NULL) STRICT;
 ```
 
-### ب۶.۳ بیماران: فروش، دریافت، طلب
+### ب۶.۴ بیماران: فروش، دریافت، طلب
 ```sql
-fin_invoice(id, number UNIQUE, patient_id, doc_date, status CHECK IN ('posted','void'),
-  subtotal, discount_total, net, note, void_reason, voided_at/by, print_count, last_printed_at,
-  created_at/by)                                                     -- مبالغ ذخیره و منجمد
-fin_invoice_line(id, invoice_id, line_no, treatment_item_id NULL, service_id NULL, names_json,
-  teeth, surfaces, provider_id, quantity, unit_price, listed_price, line_discount,
-  invoice_discount_share,                                            -- سهم خط از تخفیف کل (بزرگ‌ترین باقی‌مانده)
-  net_amount, revenue_account_id)
-fin_receipt(id, number UNIQUE, patient_id, doc_date, money_account_id, amount CHECK>0,
-  payer_name, foreign_note, note, status, void_reason, receipt_snapshot_json, print_count, …)
-fin_allocation(id, number UNIQUE /*AL-*/, patient_id, doc_date,
-  source_kind CHECK IN ('receipt','deposit'), receipt_id NULL, invoice_id, amount CHECK>0,
-  status CHECK IN ('posted','void'), reason, created_at/by)
-fin_refund(id, number UNIQUE, patient_id, doc_date, money_account_id, amount, reason NOT NULL,
-  status, …)
-fin_credit_note(id, number UNIQUE, kind CHECK IN ('reduction','write_off'), invoice_id, patient_id,
-  doc_date, amount, reason NOT NULL, approved_by, status, …)
-fin_payment_plan(id, number UNIQUE, patient_id, version, status CHECK IN ('active','superseded','completed'),
-  total, start_date, frequency CHECK IN ('monthly','custom'), day_of_month, reason, …)
-fin_payment_plan_invoice(plan_id, invoice_id, PRIMARY KEY(plan_id, invoice_id))
-fin_payment_plan_item(id, plan_id, no, due_date, amount, UNIQUE(plan_id, no))
-```
-**قاعده‌ها:**
-* `invoice.net` = Σ`net_amount` خطوط.
-* مانده‌ی فاکتور = net − Σ تخصیص‌ها − Σ یادداشت‌ها (هر دو نوع).
-* پیش‌پرداخت بیمار = Σ رسیدها − Σ تخصیص از رسید − Σ برگشت‌ها − Σ تخصیص از اعتبار + Σ مازاد یادداشت‌ها.
-* این‌ها **محاسبه** می‌شوند و با مانده‌ی 1310 و 2210 در دفتر برابری‌شان آزموده می‌شود.
-* وضعیت قسط (پرداخت‌شده، بخشی، عقب‌افتاده، و چند روز عقب) از تخصیص‌ها به ترتیب FIFO **محاسبه** می‌شود و هرگز ذخیره یا ویرایش نمی‌شود.
+CREATE TABLE fin_invoice (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  patient_id TEXT NOT NULL, doc_date INTEGER NOT NULL, status INTEGER NOT NULL DEFAULT 1,
+  net INTEGER NOT NULL CHECK (net >= 0),                        -- منجمد؛ = Σ خطوط
+  note TEXT, void_reason TEXT, voided_at INTEGER, voided_by TEXT, print_count INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_invoice_line (
+  invoice_id INTEGER NOT NULL REFERENCES fin_invoice(id), line_no INTEGER NOT NULL,
+  treatment_item_id TEXT, service_id TEXT, name TEXT NOT NULL,   -- نام منجمد، یک زبان
+  teeth TEXT, provider_id TEXT, quantity INTEGER NOT NULL CHECK (quantity BETWEEN 1 AND 1000),
+  unit_price INTEGER NOT NULL, list_price INTEGER NOT NULL,     -- list ≠ unit = تغییر قیمت (audit)
+  discount INTEGER NOT NULL DEFAULT 0,                          -- تخفیف خط + سهم خط از تخفیف کل
+  revenue_account_id INTEGER NOT NULL,
+  PRIMARY KEY (invoice_id, line_no)) STRICT, WITHOUT ROWID;
+-- ناخالص خط = unit_price × quantity · خالص خط = ناخالص − discount (محاسبه، نه ذخیره)
 
-### ب۶.۴ خرید، مصرف و پرداخت
+CREATE TABLE fin_receipt (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  patient_id TEXT NOT NULL, doc_date INTEGER NOT NULL, money_account_id INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0), payer_name TEXT, note TEXT,  -- note شامل یادداشت ارزی
+  status INTEGER NOT NULL DEFAULT 1, void_reason TEXT, print_count INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_allocation (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  patient_id TEXT NOT NULL, doc_date INTEGER NOT NULL,
+  receipt_id INTEGER,                                           -- NULL = از پیش‌پرداخت
+  invoice_id INTEGER NOT NULL, amount INTEGER NOT NULL CHECK (amount > 0),
+  status INTEGER NOT NULL DEFAULT 1, reason TEXT, created_at INTEGER NOT NULL, created_by TEXT,
+  UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_refund (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  patient_id TEXT NOT NULL, doc_date INTEGER NOT NULL, money_account_id INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0), reason TEXT NOT NULL, status INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_credit_note (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  kind INTEGER NOT NULL CHECK (kind IN (1,2)), invoice_id INTEGER NOT NULL, doc_date INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0), reason TEXT NOT NULL, status INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_plan (                                         -- برنامه‌ی اقساط
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  patient_id TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, replaces_id INTEGER,
+  status INTEGER NOT NULL DEFAULT 1, total INTEGER NOT NULL, frequency INTEGER NOT NULL,
+  reason TEXT, created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial, version)) STRICT;
+CREATE TABLE fin_plan_invoice (plan_id INTEGER NOT NULL, invoice_id INTEGER NOT NULL,
+  PRIMARY KEY (plan_id, invoice_id)) STRICT, WITHOUT ROWID;
+CREATE TABLE fin_plan_item (plan_id INTEGER NOT NULL, no INTEGER NOT NULL, due_date INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0), PRIMARY KEY (plan_id, no)) STRICT, WITHOUT ROWID;
+```
+**قواعد محاسبه** (هیچ‌کدام ذخیره نمی‌شود):
+* مانده‌ی فاکتور = `net` − Σتخصیص‌ها − Σیادداشت‌ها.
+* پیش‌پرداخت بیمار = مانده‌ی بیمار در حساب 2210.
+* وضعیت هر قسط = تخصیص‌ها به ترتیب FIFO.
+
+آزمون‌ها برابری این‌ها با حساب‌های کنترل را ثابت می‌کنند.
+
+### ب۶.۵ خرید، مصرف، پرداخت، دریافت دیگر
 ```sql
-fin_bill(id, number UNIQUE, supplier_id, doc_date, vendor_ref, due_date, total, status, …)
-fin_bill_line(id, bill_id, line_no, account_id /* مصرف یا کالا */, description, amount,
-  stock_receipt_id NULL /* پیوند به رسید انبار */)
-fin_voucher(id, number UNIQUE, doc_date, money_account_id,
-  purpose CHECK IN ('expense','bill','salary','advance','provider_share','tax_remittance',
-                    'owner_drawing','loan_repayment','other'),
-  payee_kind, payee_id, payee_name, reference /* آویز بانک */, gross, withheld, net,
-  status, void_reason, …)
-fin_voucher_line(id, voucher_id, line_no, account_id, bill_id NULL, payroll_id NULL,
-  share_statement_id NULL, description, amount,
-  withholding_kind CHECK IN ('none','rent','contractor'), withholding_amount /* دستی */,
-  tax_kind CHECK IN (NULL,'wage','rent','contractor'), tax_month /* برای واریز */)
-fin_other_receipt(id, number UNIQUE, doc_date, money_account_id, source CHECK IN ('capital','loan','sale','other'),
-  account_id, amount, payer_name, note, status, …)
+CREATE TABLE fin_bill (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  supplier_id TEXT NOT NULL, doc_date INTEGER NOT NULL, due_date INTEGER, vendor_ref TEXT,
+  status INTEGER NOT NULL DEFAULT 1, void_reason TEXT, created_at INTEGER NOT NULL, created_by TEXT,
+  UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_bill_line (bill_id INTEGER NOT NULL, line_no INTEGER NOT NULL, account_id INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0), description TEXT, stock_receipt_id INTEGER,
+  PRIMARY KEY (bill_id, line_no)) STRICT, WITHOUT ROWID;
+CREATE TABLE fin_voucher (                                      -- سند پرداخت (هر خروج پول)
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  doc_date INTEGER NOT NULL, money_account_id INTEGER NOT NULL, purpose INTEGER NOT NULL,
+  party_kind INTEGER NOT NULL DEFAULT 0, party_id TEXT, payee_name TEXT, reference TEXT,
+  status INTEGER NOT NULL DEFAULT 1, void_reason TEXT, created_at INTEGER NOT NULL, created_by TEXT,
+  UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_voucher_line (voucher_id INTEGER NOT NULL, line_no INTEGER NOT NULL,
+  account_id INTEGER NOT NULL, ref_kind INTEGER, ref_id INTEGER,  -- بل / معاش / صورت سهم
+  amount INTEGER NOT NULL CHECK (amount > 0),                   -- ناخالص
+  withholding_kind INTEGER NOT NULL DEFAULT 0, withholding INTEGER NOT NULL DEFAULT 0,  -- دستی
+  tax_period INTEGER,                                           -- برای واریز مالیات: 140508
+  description TEXT, PRIMARY KEY (voucher_id, line_no)) STRICT, WITHOUT ROWID;
+-- خالص پرداخت = Σ(amount − withholding)
+CREATE TABLE fin_other_receipt (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL, doc_date INTEGER NOT NULL,
+  money_account_id INTEGER NOT NULL, source INTEGER NOT NULL, account_id INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0), payer_name TEXT, note TEXT, status INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
 ```
 
-### ب۶.۵ معاش و سهم داکتر
+### ب۶.۶ معاش، سهم داکتر، صندوق، گزارش، پروفایل
 ```sql
-fin_payroll(id, number UNIQUE, shamsi_year, shamsi_month, doc_date, status CHECK IN ('draft','posted','void'), …)
--- index: UNIQUE(shamsi_year, shamsi_month) WHERE status <> 'void'
-fin_payroll_line(id, payroll_id, employee_id, days_worked, base, allowances, overtime, commission,
-  gross, advance_deduction, other_deduction, wage_tax_withheld /* دستی */, net CHECK>=0,
-  UNIQUE(payroll_id, employee_id))
-fin_share_statement(id, number UNIQUE, provider_id, from_date, to_date, basis CHECK IN ('production','collection'),
-  base_total, share_total, status CHECK IN ('draft','posted','void'), lines_json /* منجمد */, …)
--- قاعده: بازه‌های posted یک داکتر هم‌پوشانی ندارند.
+CREATE TABLE fin_payroll (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  period_id INTEGER NOT NULL,                                   -- 140508
+  doc_date INTEGER NOT NULL, status INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+-- قاعده در Rust: یک posted برای هر ماه.
+CREATE TABLE fin_payroll_line (payroll_id INTEGER NOT NULL, employee_id TEXT NOT NULL,
+  days_worked INTEGER, base INTEGER NOT NULL, allowances INTEGER NOT NULL DEFAULT 0,
+  overtime INTEGER NOT NULL DEFAULT 0, commission INTEGER NOT NULL DEFAULT 0,
+  advance_deduction INTEGER NOT NULL DEFAULT 0, other_deduction INTEGER NOT NULL DEFAULT 0,
+  wage_tax_withheld INTEGER NOT NULL DEFAULT 0,                 -- دستی
+  note TEXT, PRIMARY KEY (payroll_id, employee_id)) STRICT, WITHOUT ROWID;
+-- ناخالص و خالص محاسبه می‌شوند؛ CHECK در Rust: خالص ≥ 0.
+CREATE TABLE fin_share (                                        -- صورت سهم داکتر
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  provider_id TEXT NOT NULL, from_date INTEGER NOT NULL, to_date INTEGER NOT NULL, basis INTEGER NOT NULL,
+  base_total INTEGER NOT NULL, share_total INTEGER NOT NULL, status INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_share_line (share_id INTEGER NOT NULL, line_no INTEGER NOT NULL,
+  invoice_id INTEGER NOT NULL, invoice_line_no INTEGER NOT NULL, base INTEGER NOT NULL, share INTEGER NOT NULL,
+  PRIMARY KEY (share_id, line_no)) STRICT, WITHOUT ROWID;      -- منجمد؛ JSON نیست
+CREATE TABLE fin_transfer (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL, doc_date INTEGER NOT NULL,
+  from_account_id INTEGER NOT NULL, to_account_id INTEGER NOT NULL, amount INTEGER NOT NULL CHECK (amount > 0),
+  reference TEXT, status INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, created_by TEXT,
+  UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_cash_count (
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL,
+  money_account_id INTEGER NOT NULL, doc_date INTEGER NOT NULL, book_balance INTEGER NOT NULL,
+  counted INTEGER NOT NULL CHECK (counted >= 0), reason TEXT,   -- اجباری اگر اختلاف ≠ 0
+  created_at INTEGER NOT NULL, created_by TEXT, UNIQUE (series_year, serial)) STRICT;
+CREATE TABLE fin_report_issue (                                 -- گزارش رسمی صادرشده (S7)
+  id INTEGER PRIMARY KEY, series_year INTEGER NOT NULL, serial INTEGER NOT NULL, kind INTEGER NOT NULL,
+  params TEXT NOT NULL, basis INTEGER NOT NULL, period_status INTEGER NOT NULL, content_hash BLOB NOT NULL,
+  print_count INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, created_by TEXT,
+  UNIQUE (series_year, serial)) STRICT;
+-- پروفایل حقوقی: کلیدهای setting (یک‌سطری): fin.legal_name، fin.legal_form، fin.tax_regime، fin.tin،
+-- fin.business_license_no، fin.health_license_no، fin.tax_office، fin.owner_name، fin.owner_father_name،
+-- fin.official_address، fin.basis_override، fin.go_live_date.
 ```
 
-### ب۶.۶ صندوق، دوره، گزارش
-```sql
-fin_transfer(id, number UNIQUE, doc_date, from_account_id, to_account_id, amount, reference, status, …)
-fin_cash_count(id, number UNIQUE, money_account_id, doc_date, shift, book_balance, counted,
-  difference, reason /* اجباری اگر difference≠0 */, denominations_json NULL, …)
-fin_official_report(id, number UNIQUE /*RPT-*/, kind, params_json, basis, period_status,
-  content_json, content_hash, issued_at/by, print_count)
-fin_legal_profile(singleton: legal_name, trade_name, legal_form CHECK IN ('natural_person','partnership','llc','corporation'),
-  tax_regime CHECK IN ('fixed','income_brt','unknown'), tin, business_license_no, health_license_no,
-  tax_office, owner_name, owner_father_name, address_official, official_basis_override, go_live_date)
-```
+### ب۶.۷ بودجه‌ی index (همه‌ی index های بخش مالی)
+همه‌ی index ها به‌جز کلیدهای اصلی و `UNIQUE(series_year, serial)` هر سند:
+
+| index | برای کدام کوئری |
+|---|---|
+| `fin_line(account_id, entry_id)` | دفتر کل، مانده‌ی حساب، ترازنامه |
+| `fin_line(party_kind, party_id) WHERE party_id IS NOT NULL` | زیر-دفتر بیمار، تأمین‌کننده، کارمند، داکتر |
+| `fin_entry(entry_date)` | گزارش‌های بازه‌ای و نگهبان دوره |
+| `fin_entry(doc_kind, doc_id)` | پیدا کردن ثبتِ یک سند (و یکتایی ثبت اصلی، در Rust) |
+| `fin_invoice(patient_id)` · `fin_receipt(patient_id)` · `fin_allocation(invoice_id)` | حساب بیمار، مانده‌ی فاکتور |
+| `fin_plan_item(due_date)` | سررسیدها و یادآوری |
+
+**جمع: ۸ index اضافه.** گزارش‌های تاریخی همه از `fin_entry(entry_date)` و جدول‌های کوچک می‌خوانند. `fin_line` بدون index تاریخ است، چون از راه `entry_id` به سر ثبت وصل می‌شود.
 
 ## ب۷. دوره، قفل و شماره
 * **ماه شمسی = یک دوره.** دوره‌ها خودکار ساخته می‌شوند.
@@ -471,7 +613,7 @@ fin_legal_profile(singleton: legal_name, trade_name, legal_form CHECK IN ('natur
 * **Excel:** برگ داده (عدد واقعی، بدون ادغام سلول) + برگ سربرگ + برگ جمع‌ها. نام فایل = شماره‌ی گزارش.
 * **PDF:** همان قالب چاپ؛ متادیتا = شماره و hash.
 * **زبان:** پیش‌فرض دری؛ پشتو و انگلیسی قابل انتخاب.
-* **صدور رسمی:** محتوا و hash در `fin_official_report` ذخیره می‌شود. چاپ دوباره از همان snapshot است. اگر دوره هنوز باز است، واترمارک «پیش‌نویس – دوره باز» دارد.
+* **صدور رسمی:** پارامترها و hash محتوا در `fin_report_issue` ذخیره می‌شود. چاپ دوباره گزارش را از دفتر می‌سازد و hash را مقایسه می‌کند (S7). اگر دوره هنوز باز است، واترمارک «پیش‌نویس – دوره باز» دارد.
 
 ### ب۹.۲ مجموعه‌ی گزارش‌ها (R = رسمی برای مالیه · M = مدیریتی)
 | کد | نام | مبنا | ستون‌ها | جمع و کنترل |
@@ -526,9 +668,9 @@ I  اختلاف شمارش صندوق                                   −۵۰ 
 
 ## ب۱۱. قواعد درستی
 1. **تغییرناپذیری:**
-   * trigger ضد UPDATE و DELETE روی `fin_entry*` و `fin_official_report`.
+   * trigger ضد UPDATE و DELETE روی `fin_entry` و `fin_line`. روی `fin_report_issue` فقط `print_count` قابل تغییر است.
    * روی اسناد فقط این تغییرها مجاز است: از `posted` به `void` (با `void_reason` و `voided_*`)، و ستون‌های `print_*`.
-   * snapshot چاپی هر سند (مثل رسید) **پیش از INSERT** ساخته و همراه سطر نوشته می‌شود؛ هیچ UPDATE بعدی لازم نیست.
+   * چاپ هر سند (مثل رسید) از سطرهای تغییرناپذیر ساخته می‌شود (S6). هیچ snapshot یا UPDATE بعدی لازم نیست.
 2. **ابطال = ثبت معکوس** با `reverses_id`.
    * ابطال رسیدِ تخصیص‌یافته اول تخصیص‌های آن را باطل می‌کند.
    * ابطال فاکتورِ دارای تخصیص ممنوع است. اول تخصیص‌ها لغو می‌شوند و پول به پیش‌پرداخت برمی‌گردد.
@@ -567,197 +709,151 @@ I  اختلاف شمارش صندوق                                   −۵۰ 
 
 ---
 
-# ج. گذار از سیستم فعلی
+# ج. گذار از سیستم فعلی (جایگزینی، نه مهاجرت داده)
 
-## ج۱. آنچه امروز هست (v0.12.4، از روی کد)
-| بخش | جدول، فایل، RPC | رفتار مهم |
+**تصمیم مالک (۱۴۰۵/۰۸/۲۷):**
+* همه‌ی دیتابیس‌های موجود داده‌ی آزمایشی و دورریختنی‌اند.
+* پس **مهاجرت داده، دروازه‌ی برابری و آرشیو قدیم ساخته نمی‌شود.**
+* یک مهاجرت عادی جدول‌های مالی قدیم را حذف و جدول‌های تازه را می‌سازد. داده‌ی مالی قدیم دور ریخته می‌شود.
+* از این به بعد فقط مهاجرت‌های نسخه‌دار معمولی است، برای حفاظت از مشتری‌های واقعی آینده (ج۳).
+
+## ج۱. آنچه امروز هست و حذف می‌شود (v0.12.4)
+| بخش | جدول، فایل، RPC امروز | چرا کنار می‌رود |
 |---|---|---|
-| فاکتور | `invoice`، `invoice_line` · `billing.rs` · `invoices.*` | تخفیف فقط روی کل فاکتور؛ `issued/void`؛ ابطال فقط وقتی دریافت خالص صفر است. |
-| پرداخت | `payment(kind=payment\|credit\|refund)`، `returns_to_credit` · `payments.*` | پیش‌پرداخت = پرداخت بدون فاکتور. «credit» = مصرف اعتبار. برگشت از هر پرداخت. snapshot با UPDATE بعد از INSERT. |
-| یادداشت | `credit_note` · `invoices.credit_note` | فرقی بین کاهش قیمت و بخشش بدهی نیست. |
-| اقساط | `installment` · `invoices.set_installments` | DELETE و بازنویسی؛ «ماهانه» = هر ۳۰ روز (FR-14). |
-| مصارف | `expense`، `expense_category` · `expenses.*` | بدون شماره؛ حذف نرم؛ نقد بله یا خیر؛ بدون تأمین‌کننده یا کسر. |
-| صندوق | `cash_closing` · `cash.*` | مدل «خالص همان روز»، بدون مانده‌ی اول؛ یک صندوق. |
-| کمیسیون | `commission_rule` + تنظیمات `billing.commission_*` · `commission.*` | فقط محاسبه‌ی لحظه‌ای؛ تسویه ندارد (FR-03). |
-| تأمین‌کننده | `supplier`، `purchase`، `supplier_payment` (که یک `expense` می‌سازد) · `suppliers.*`، `purchases.*`، `supplier_payments.*`، `supplier_ledger.list` | خرید مصرف نیست تا پرداخت شود. |
-| روش پرداخت | `payment_method` · `payment_methods.*` | به حساب پول مشخص وصل نیست. |
-| خلاصه و گزارش | `billing.summary`، `billing.account/debtors/statement/installments_due` · `reports.rs` (۱۲ گزارش مالی) | «سود» = دریافت − برگشت − مصارف (در عمل نقدی، ولی بی‌برچسب). |
-| شماره | `document_counter` | INV، RC، CU، RV، CN، PU، SP، LC. |
-| UI | `ui/src/pages/billing/*` (BillingPage، BillingExtras، dialogs، InvoiceDetail، PatientBilling، common)، `ui/src/lib/billing.ts`، `ui/src/print/{receipt,finance}.tsx`، تب‌های SuppliersTab، PurchasesTab، LabTab در انبار، Dashboard | |
-| نبود | دفتر کل، دوره و قفل، کارمند و معاش، پروفایل حقوقی و TIN، سن بدهی، کسر تکلیفی، حساب‌های پول، گزارش رسمی | |
+| فاکتور | `invoice`، `invoice_line` · `invoices.*` | تخفیف فقط روی کل فاکتور؛ «دریافت» و «تخصیص» یکی‌اند. |
+| پرداخت | `payment(kind=payment\|credit\|refund)` · `payments.*` | سه مفهوم در یک جدول؛ snapshot با UPDATE. |
+| یادداشت | `credit_note` | کاهش قیمت و بخشش بدهی جدا نیستند. |
+| اقساط | `installment` | DELETE و بازنویسی؛ «ماهانه» = ۳۰ روز. |
+| مصارف | `expense`، `expense_category` · `expenses.*` | بدون شماره؛ حذف نرم؛ بدون حساب پول، تأمین‌کننده یا کسر. |
+| صندوق | `cash_closing` · `cash.*` | بدون مانده؛ یک صندوق. |
+| کمیسیون | `commission_rule` + `billing.commission_*` · `commission.*` | تسویه ندارد. |
+| تأمین‌کننده | `supplier_payment` (که یک `expense` می‌سازد) · `supplier_payments.*`، `supplier_ledger.list` | بدهی تأمین‌کننده خارج از دفتر است. |
+| روش پرداخت | `payment_method` · `payment_methods.*` | به حساب پول وصل نیست. |
+| خلاصه | `billing.summary/account/debtors/statement/installments_due/settings_*` | |
+| گزارش | ۱۲ گزارش مالی در `core/src/reports.rs` | «سود» بی‌برچسب. |
+| کد | `core/src/billing.rs` (کل فایل) | |
+| UI | `ui/src/pages/billing/*`، `ui/src/lib/billing.ts` (+ تست)، `ui/src/print/{receipt,finance}.tsx` | |
 
-## ج۲. نگاشت قدیم → تازه
-| قدیم | تازه | توضیح |
-|---|---|---|
-| `invoice` + `invoice_line` | `fin_invoice` + `fin_invoice_line` | `discount` قدیم ← `invoice_discount_share` خطوط (بزرگ‌ترین باقی‌مانده). `net` ذخیره می‌شود. شماره‌ی INV **همان** می‌ماند. |
-| `invoice.status=void` | `fin_invoice.status=void` + دو ثبت (صدور، و معکوس در `voided_at`) | |
-| `payment(kind=payment, invoice_id)` | `fin_receipt` + `fin_allocation(source=receipt)` | شماره‌ی RC همان؛ AL تازه. |
-| `payment(kind=payment, invoice_id NULL)` | `fin_receipt` بدون تخصیص (= پیش‌پرداخت) | |
-| `payment(kind=credit)` | `fin_allocation(source=deposit)` | شماره‌ی CU به‌عنوان «شماره‌ی قدیم» در یادداشت؛ شماره‌ی AL تازه. |
-| `payment(kind=refund, returns_to_credit=0)` از پرداختِ دارای فاکتور | یک «لغو تخصیص» به مبلغ برگشت (AL معکوس؛ پول به پیش‌پرداخت) + `fin_refund` | در مدل تازه برگشت همیشه از پیش‌پرداخت است. دو سند، جمع نقدی یکسان. شماره‌ی RV ← RF با همان عدد. |
-| `payment(kind=refund, returns_to_credit=1)` | فقط «لغو تخصیص» (پول به پیش‌پرداخت) | پول از کلینیک خارج نشده بود. |
-| `payment(kind=refund)` از پیش‌پرداخت | `fin_refund` | |
-| `credit_note` | `fin_credit_note(kind=reduction)` | شماره‌ی CN همان. |
-| `installment` | `fin_payment_plan` نسخه‌ی ۱ + `fin_payment_plan_item` | `installment_base` در وضعیت قسط‌ها لحاظ می‌شود: تخصیص‌های پیش از ساخت برنامه به قسط‌ها نمی‌رسد. |
-| `expense` (فعال) | `fin_voucher(purpose=expense)` + خط با حساب مصرفِ دسته | `from_cash=1` ← 1110، `0` ← 1210. شماره‌ی تازه `PV-<سال doc_date>-…` به ترتیب `(local_date, created_at)`. |
-| `expense` (حذف‌شده) | `fin_voucher` با `status=void` و `void_reason=delete_reason` + ثبت و معکوس | |
-| `expense_category` | زیرحساب‌های 5 | دسته‌های کاربر ← حساب‌های تازه‌ی 5300+. |
-| `supplier` | `fin_supplier` | جدول انبار به `fin_supplier` اشاره می‌کند، یا `supplier` به همین نام تازه منتقل می‌شود. |
-| `purchase` (مالی) | `fin_bill` + خط حساب 5230 (lab: 5240) با پیوند به رسید انبار | **فقط خریدهای پس از go-live مصرف می‌شوند** (ج۳). |
-| `purchase` قدیم | رسید انبار (بخش انباری‌اش در ماژول انبار می‌ماند) + **یک ثبت افتتاحیه‌ی بدهی تأمین‌کننده** در go-live | تا سود سال‌های قبل عوض نشود. |
-| `supplier_payment` (+ `expense` پیوندی) | `fin_voucher(purpose=expense)`، چون قبلاً مصرف بود | جمع مصارف دقیقاً همان می‌ماند. |
-| `cash_closing` | `fin_cash_count` با `book_balance = expected` قدیم، به‌علاوه‌ی پرچم `legacy_day_net=1` | اختلاف‌های قدیم ثبت دفتری نمی‌شوند (در گزارش با برچسب «پیش از دفتر» دیده می‌شوند). |
-| `commission_rule` + تنظیمات | `fin_comp_plan(model=percent)` برای هر داکتر + `fin_comp_rule` | basis قدیم ← `basis` قاعده. |
-| — (کمیسیون‌های گذشته) | `fin_share_statement` **ساخته نمی‌شود** | چون هرگز تأیید یا پرداخت نشده‌اند؛ پیش‌نمایش از همان قواعد. ⚠ اگر مالک پرداخت‌های گذشته به داکتر را به‌صورت مصرف «معاش» ثبت کرده، همان‌جا می‌ماند. |
-| `payment_method` | حساب‌های پول (`fin_account money_kind`) | `cash` ← 1110، `bank_transfer` ← 1210، روش‌های کاربر ← حساب پول تازه با همان نام. |
-| `document_counter` (پیشوندهای مالی) | `fin_series` | مقدار فعلی هر پیشوند و سال کپی می‌شود تا شماره‌ی بعدی پیاپی بماند. |
-| تنظیمات `clinic.*` | `fin_legal_profile` (تازه) | نام فعلی ← trade_name. بقیه‌ی فیلدها را مالک پر می‌کند. |
+## ج۲. مهاجرت جایگزینی (یک فایل SQL، بدون انتقال داده)
+`core/migrations/00NN_finance_v2.sql`. شماره = اولین شماره‌ی آزاد هنگام merge (الان آخرین `0019_avatars` است).
+مرحله‌ها، به همین ترتیب:
+1. `DROP TABLE` به ترتیب وابستگی: `installment`، `credit_note`، `payment`، `invoice_line`، `invoice`، `cash_closing`، `commission_rule`، `supplier_payment`، `expense`، `expense_category`، `payment_method`.
+2. `DELETE FROM setting WHERE key LIKE 'billing.%'`. ردیف‌های مالی `document_counter` (پیشوندهای `INV`، `RC`، `CU`، `RV`، `CN`، `SP`) حذف می‌شوند.
+3. `UPDATE treatment_item SET billed_at = NULL`، چون فاکتورها رفته‌اند و درمان‌ها دوباره «قابل فاکتور» می‌شوند.
+4. **تأمین‌کننده:**
+   * جدول `supplier` به `fin_supplier` تبدیل می‌شود (ستون‌های `tin`، `license_no` و `kind` عددی).
+   * ستون‌های `supplier_id` در `purchase`، `stock_batch`، `stock_movement` و `lab_case` به جدول تازه اشاره می‌کنند.
+   * این کار با بازسازی جدول در SQLite انجام می‌شود: `PRAGMA foreign_keys=OFF` → جدول تازه → کپی → حذف → تغییر نام → `PRAGMA foreign_key_check`.
+   * داده‌ی انبار (کالا و موجودی) **حفظ می‌شود**، چون انبار بخش مالی نیست.
+5. **خرید انبار:**
+   * `purchase` در ماژول انبار به‌عنوان «رسید انبار» می‌ماند (کالا، lot، انقضا).
+   * ستون `total` آن دیگر مالی نیست. منبع مالی `fin_bill` است.
+   * رسیدهای قدیم بل ندارند. این برای داده‌ی آزمایشی قبول است.
+6. ساخت همه‌ی جدول‌های `fin_*` (ب۶)، trigger های ضد ویرایش، و seed چارت حساب (ب۳) با حساب‌های پول پیش‌فرض: صندوق 1110 و بانک 1210.
+7. **پرمیشن‌ها:** `billing.*` و `reports.view` (بخش مالی) به `finance.*` تبدیل می‌شوند (ب۱۲)، با نگاشت نقش‌های موجود (مالک و حسابدار همه، منشی `finance.view/receive`).
+8. پشتیبان پیش از مهاجرت را چارچوب `db.rs` خودکار می‌گیرد ✅. اگر مالک داده‌ی آزمایشی قدیم را بخواهد، همان‌جاست.
 
-## ج۳. الگوریتم مهاجرت و دروازه‌ی برابری
-**پیش‌شرط‌ها:**
-* چارچوب فعلی مهاجرت در `db.rs` پیش از هر مهاجرت پشتیبان می‌گیرد ✅.
-* شماره‌ی مهاجرت = اولین شماره‌ی آزاد هنگام merge (الان آخرین `0019_avatars` است).
+## ج۳. حفاظت از مشتری‌های واقعی از این به بعد
+* هر تغییر schema مالی بعد از این یک **مهاجرت نسخه‌دار افزایشی** است: `ADD COLUMN`، جدول تازه، یا بازسازی جدول با کپی کامل داده. **هیچ DROP جدول دارای داده‌ی مالی.**
+* هر مهاجرتی که به داده‌ی مالی دست می‌زند، در همان PR یک **آزمون مهاجرت** دارد:
+  * دیتابیس fixture نسخه‌ی قبل با سناریوی استاندارد (د۲) ساخته می‌شود؛
+  * مهاجرت اجرا می‌شود؛
+  * ترازنامه‌ی آزمایشی، مانده‌ی همه‌ی حساب‌ها و R1 تا R3 پیش و پس از مهاجرت **عیناً برابر** است.
+* `fin.health.check` (ب۱۱) بعد از هر مهاجرت خودکار اجرا می‌شود. اگر خطا بدهد، اعلان پشتیبانی می‌آید.
+* پشتیبان پیش از مهاجرت (موجود) حفظ می‌شود.
 
-**مرحله‌ها، همه در یک تراکنش:**
-1. **ساختار تازه:** همه‌ی جدول‌های `fin_*`، seed چارت حساب، trigger ها.
-2. **عکس «قبل»:** این اعداد با **کد قدیم** حساب و در حافظه نگه داشته می‌شوند. کد قدیم در ماژول `legacy_snapshot.rs` فقط برای همین کار نگه داشته می‌شود.
-   * برای کل بازه و برای هر ماه شمسی: `summary` (فاکتورشده، دریافت، برگشت، مصارف، سود، به روش، به دسته).
-   * مانده‌ی هر فاکتور، اعتبار هر بیمار، و مانده‌ی هر تأمین‌کننده.
-   * کمیسیون هر داکتر در هر ماه.
-   * `expected` هر روز صندوق.
-3. **انتقال سندها به ترتیب زمان** طبق ج۲. هر سند با `ledger::post` ثبت می‌شود و پرچم `migrated=1` می‌گیرد. شماره‌ی قدیم در ستون `legacy_number` می‌ماند.
-4. **ثبت افتتاحیه‌ی بدهی تأمین‌کنندگان** در `go_live_date`: Dr 3900 / Cr 2110، برای هر تأمین‌کننده.
-5. **عکس «بعد» از سیستم تازه و مقایسه‌ی عدد به عدد:**
-   * فاکتورشده = عاید تعهدی.
-   * دریافت = R1.
-   * برگشت نقدی = R1 برگشت.
-   * مصارف = R7.
-   * سود قدیم = «خالص نقدی عملیاتی» تازه.
-   * مانده‌ها = زیر-دفترها = حساب‌های کنترل.
-   * Σبدهکار = Σبستانکار.
-   * کمیسیون = پیش‌نمایش سهم.
-   * `expected` روزانه = جریان نقد روزانه‌ی حساب 1110.
-6. **اگر همه برابر بود:**
-   * جدول‌های قدیم به `legacy_fin_*` تغییر نام می‌دهند (آرشیو فقط‌خواندنی با trigger ضد ویرایش، برای ۵ سال).
-   * `db_meta('finance_model') = '2'`.
-   * COMMIT.
-7. **اگر یک عدد فرق کرد:**
-   * ROLLBACK (دیتابیس دست‌نخورده می‌ماند و پشتیبان هم هست).
-   * برنامه پیام روشن «مهاجرت مالی انجام نشد؛ پشتیبانی تماس بگیرید» نشان می‌دهد.
-   * بخش مالی تا حل، فقط‌خواندنی و با داده‌ی قدیم باز است.
-   * فایل تشخیص در پوشه‌ی لاگ: کدام عدد، چند، کدام سند.
-
-**اجرای آزمایشی پیش از تعویض (فاز ۱الف):**
-* دستور «بررسی آمادگی مالی» در صفحه‌ی «درباره» یا پشتیبانی.
-* مهاجرت را روی **کپی** دیتابیس اجرا می‌کند و گزارش برابری می‌دهد، بدون هیچ تغییری در دیتابیس اصلی.
-* روی کلینیک‌های آزمایشی مالک اجرا می‌شود تا قبل از تعویض واقعی، داده‌ی واقعی آزموده شده باشد.
-
-**نکته‌های داده‌ای که باید دقیق رعایت شوند:**
-* فاکتور قدیم `local_date` و `issued_at` دارد؛ `doc_date` = `local_date`.
-* پرداخت قدیم `local_date` دارد ← `doc_date`.
-* برگشت قدیم از پرداختِ دارای فاکتور در **همان تاریخ** دو سند می‌سازد (لغو تخصیص + برگشت). جمع روز همان می‌ماند.
-* `net` قدیم با `max(0, …)` بریده می‌شد. اگر جایی منفی بوده (نباید)، دروازه آن را می‌گیرد.
-* مصارف عقب‌تاریخ: `doc_date` = `local_date`؛ شماره به سال همان تاریخ.
-
-## ج۴. حذف و جایگزینی
-### جدول‌ها
-| قدیم | سرنوشت |
-|---|---|
-| `invoice`, `invoice_line`, `payment`, `credit_note`, `installment`, `expense`, `expense_category`, `cash_closing`, `commission_rule`, `payment_method`, `supplier_payment` | تغییر نام به `legacy_fin_*` (آرشیو فقط‌خواندنی). کد تازه از آن‌ها نمی‌خواند، جز صفحه‌ی «سند قدیم» برای نمایش رسید قدیم. |
-| `purchase`, `purchase_line` | بخش انباری (اقلام، lot، انقضا) **در ماژول انبار** به نام «رسید انبار» می‌ماند. ستون `total` مالی دیگر منبع نیست؛ منبع `fin_bill` است. |
-| `supplier` | به `fin_supplier` منتقل می‌شود (TIN، جواز، نوع صاحب‌خانه). FK های انبار و لابراتوار در همان مهاجرت به جدول تازه اشاره می‌کنند (SQLite: بازسازی جدول‌های وابسته). |
-| `document_counter` | برای اسناد بالینی (RX و …) می‌ماند. پیشوندهای مالی به `fin_series` می‌روند. |
-| `treatment_item.billed_at` | می‌ماند (پیوند بالینی)؛ مقدارش را `fin_invoice` تنظیم می‌کند. |
-
+## ج۴. RPCها و صفحه‌ها: حذف و جایگزین
 ### RPCها (قرارداد `shared`)
 | حذف | جایگزین |
 |---|---|
 | `payment_methods.*` | `fin.accounts.list/save` (حساب‌های پول بخشی از چارت‌اند) |
-| `invoices.*` (billable، list، get، create، void، credit_note، set_installments، mark_printed) | `fin.invoices.billable/list/get/create/void/print` · `fin.credit_notes.create/void` · `fin.plans.create/replace/get` |
+| `invoices.*` | `fin.invoices.billable/list/get/create/void/print` · `fin.credit_notes.create/void` · `fin.plans.create/replace/get` |
 | `payments.*` | `fin.receipts.create/void/list/get/print` · `fin.allocations.create/void` · `fin.refunds.create/void` |
 | `billing.account/statement/debtors/installments_due` | `fin.patients.account/statement` · `fin.receivables.aging` · `fin.plans.due` |
-| `billing.summary` | `fin.overview.get` (تطبیق) |
-| `billing.settings_*`, `commission.*` | `fin.comp.plans.*` · `fin.shares.preview/create/post/void` · `fin.settings.*` |
-| `expense_categories.*`, `expenses.*` | `fin.accounts.*` (حساب‌های مصرف) · `fin.vouchers.create/void/list/get` |
+| `billing.summary` | `fin.overview.get` |
+| `billing.settings_*`، `commission.*` | `fin.comp.*` · `fin.shares.preview/create/post/void` · `fin.settings.*` |
+| `expense_categories.*`، `expenses.*` | `fin.accounts.*` (حساب‌های مصرف) · `fin.vouchers.create/void/list/get` |
 | `cash.*` | `fin.cash.counts.*` · `fin.transfers.*` · `fin.money.ledger` |
-| `supplier_payments.*`, `supplier_ledger.list` | `fin.vouchers.*` (purpose=bill) · `fin.suppliers.ledger` · `fin.bills.*` |
+| `supplier_payments.*`، `supplier_ledger.list` | `fin.vouchers.*` (purpose=bill) · `fin.bills.*` · `fin.suppliers.ledger` |
 | `suppliers.*` | `fin.suppliers.*` (انبار هم از همین استفاده می‌کند) |
-| `purchases.create/void` | `inventory.receipts.create/void` که در همان تراکنش `fin.bills.create` را صدا می‌زند |
-| تازه | `fin.payroll.*` · `fin.employees.*` · `fin.periods.*` · `fin.ledger.journal/general/trial_balance/adjust` · `fin.reports.run/issue/reprint/export` · `fin.legal.get/save` · `fin.health.check` |
-| `reports.run` برای ۱۲ گزارش مالی | `fin.reports.*`. گزارش‌های بالینی و انبار در `reports.*` می‌مانند. |
+| `purchases.create/void` | `inventory.receipts.create/void`؛ اختیاری در همان تراکنش `fin.bills.create` |
+| ۱۲ گزارش مالی `reports.run` | `fin.reports.run/issue/reprint/export`. گزارش‌های بالینی و انبار در `reports.*` می‌مانند. |
+| تازه | `fin.employees.*` · `fin.payroll.*` · `fin.periods.*` · `fin.ledger.journal/general/trial_balance/adjust` · `fin.legal.get/save` · `fin.health.check` · `fin.other_receipts.*` |
 
-### صفحه‌ها (UI)
-| قدیم | سرنوشت |
+### صفحه‌ها
+| امروز | سرنوشت |
 |---|---|
 | `ui/src/pages/billing/*` (BillingPage با ۷ زبانه، BillingExtras، dialogs، InvoiceDetail، common) | **حذف**. جایگزین `ui/src/pages/finance/*` با ساختار ب۸. |
-| `PatientBilling.tsx` (تب مالی پرونده) | بازسازی به `ui/src/pages/finance/PatientAccount.tsx`، با همان دیالوگ‌های بخش مالی. |
+| `PatientBilling.tsx` (تب مالی پرونده) | جایگزین `ui/src/pages/finance/PatientAccount.tsx`. |
 | `ui/src/lib/billing.ts` (+ تست) | جایگزین `ui/src/lib/finance.ts`. |
-| `ui/src/print/receipt.tsx`, `print/finance.tsx` | بازنویسی روی snapshot اسناد تازه + قالب رسمی. رسیدهای قدیم با «سند قدیم» دوباره چاپ می‌شوند. |
-| انبار: SuppliersTab، PurchasesTab (بخش پرداخت)، LabTab (هزینه) | پرداخت و مانده به «مالی ← بل‌ها» می‌رود. انبار فقط کالا و رسید انبار و پیوند به بل را دارد. |
+| `ui/src/print/receipt.tsx`، `print/finance.tsx` | بازنویسی روی اسناد تازه + قالب رسمی (ب۹.۱). |
+| انبار: SuppliersTab، PurchasesTab (پرداخت و مانده)، LabTab (هزینه) | پول و مانده در «مالی ← بل‌ها و تأمین‌کنندگان». انبار فقط کالا، رسید انبار و دکمه‌ی «ساخت بل». |
 | ReportsPage (بخش مالی) | به «مالی ← گزارش‌ها» می‌رود. ReportsPage فقط بالینی و انبار می‌ماند. |
-| Dashboard (درآمد امروز، مانده) | از `fin.overview` می‌خواند (B-03 جدا می‌ماند). |
-| Users/نقش‌ها | پرمیشن‌های `billing.*` ← `finance.*` (ب۱۲)، با نگاشت خودکار نقش‌های موجود. |
-| mock های dev (`mockCore.ts`, `mockInventory.ts`) | بازنویسی برای RPCهای تازه. |
+| Dashboard (درآمد امروز، مانده) | از `fin.overview` می‌خواند. |
+| Users و نقش‌ها | پرمیشن‌های `finance.*`. |
+| `PlansTab.tsx`، `PatientsPage.tsx`، `PatientProfile.tsx`، `Shell.tsx` (لینک‌ها و نشان‌های مالی) | فراخوانی‌ها به `fin.*`. |
+| mock های dev (`mockCore.ts`، `mockInventory.ts`) | بازنویسی برای RPCهای تازه. |
 
 ---
 
 # د. فازهای اجرا (هر فاز = انتشار کامل و آزموده)
 > قاعده ۱۵: build و test فقط روی GitHub Actions. rustfmt از شاخه‌ی `fmt/*`. هر فاز یک PR است و `shared/ts/contract.ts` در آن بازسازی می‌شود.
+> شروع فاز ۱ فقط بعد از دو چیز: گزارش `f-db-size` (و `docs/design/db-size-rules.md`)، و سبز شدن CI آواتارها.
 
-| فاز | محتوا | وضعیت انتشار در پایان فاز | اندازه |
+| فاز | محتوا | در پایان فاز | اندازه |
 |---|---|---|---|
-| **۱الف. هسته و مهاجرت در حالت آزمایشی** | `core/src/fin/` شامل `ledger`، `accounts`، `periods` (همه open)، `series`، اسناد بیمار، مصارف و بل و سند پرداخت، صندوق و انتقال، قواعد ثبت، `migrate` و `parity`. `legacy_snapshot.rs`. دستور «بررسی آمادگی مالی» روی کپی. | کاربر چیز تازه‌ای نمی‌بیند جز دکمه‌ی بررسی آمادگی. **مهاجرت روی دیتابیس اصلی اجرا نمی‌شود.** قابل انتشار. | ۱۲–۱۴ روز |
-| **۱ب. تعویض: بخش مالی تازه با همه‌ی قابلیت‌های فعلی** | مهاجرت واقعی + دروازه. RPCهای `fin.*` برای فاکتور، دریافت، تخصیص، برگشت، یادداشت، بخشش، اقساط، طلب، پیش‌پرداخت، مصارف، بل، تأمین‌کننده، صندوق و بانک، انتقال، قواعد سهم و پیش‌نمایش، پروفایل حقوقی. UI: `pages/finance/*` (نمای کلی و تطبیق، عواید و ۶ زیربخش، مصارف و تأمین‌کنندگان، صندوق و بانک، تنظیمات)، حساب بیمار، چاپ رسید، انبار وصل به بل. حذف RPC و صفحه‌های قدیم. | سیستم کامل تازه با همه‌ی کارهای امروز و سن بدهی، حساب‌های پول، بل و کسر تکلیفی. گزارش‌ها هنوز M1 تا M4 + R1، R7، R10 تا R15. | ۱۴–۱۶ روز |
-| **۲. کارمندان، معاش، سهم داکتر** | `fin_employee`، `fin_comp_plan`، لیست معاش، مساعده، صورت سهم منجمد و پرداخت، R8، R9، M3. | معاش و سهم داکتر کامل. | ۷–۸ روز |
-| **۳. دوره، قفل، دفاتر، گزارش رسمی** | بستن و قفل ماه، ربع و سال؛ نگهبان دوره در همه‌ی نویسنده‌ها؛ R4، R5، R6، R16، R17، R18؛ ثبت تعدیلی؛ صدور رسمی با hash؛ قالب سربرگ؛ سلامت دفتر شبانه. | دفتر کامل و قابل ارائه به مأمور. | ۷–۸ روز |
-| **۴. گزارش‌های مالیاتی و بسته‌ی سالانه** | R2، R3 (دو مبنا و پل)، بسته‌ی سالانه‌ی وزارت، Excel چندبرگه، بستن سال، سند افتتاحیه‌ی صندوق و بانک، سه زبان. | هدف مالک کامل. | ۵–۶ روز |
+| **۱. هسته + همه‌ی کارهای امروز روی مدل تازه** | مهاجرت جایگزینی (ج۲). `core/src/fin/`: دفتر و قواعد ثبت، حساب‌ها، سری شماره، دوره (همه open)، فاکتور، رسید، تخصیص، برگشت، یادداشت و بخشش، اقساط، طلب و سن بدهی، پیش‌پرداخت، تأمین‌کننده و بل، سند پرداخت، دریافت دیگر، صندوق و بانک، انتقال، شمارش صندوق، قاعده‌های سهم و پیش‌نمایش، پروفایل حقوقی، سلامت دفتر. UI: «مالی» با نمای کلی و تطبیق، عواید و ۶ زیربخش، مصارف و تأمین‌کنندگان، صندوق و بانک، تنظیمات؛ حساب بیمار؛ چاپ رسید و فاکتور؛ انبار وصل به بل. گزارش‌های R1، R7، R10 تا R15 و M1، M2، M4. حذف کامل `billing.rs` و UI قدیم. | سیستم مالی تازه با همه‌ی کارهای امروز، به‌علاوه‌ی دفتر، سن بدهی، حساب‌های پول، بل و کسر تکلیفی. | **۱۲–۱۴ روز** |
+| **۲. کارمندان، معاش، سهم داکتر** | کارمند، قرارداد جبران، لیست معاش ماهانه، مساعده، صورت سهم منجمد و پرداخت، دفتر کسرها؛ R8، R9، M3. | معاش و سهم داکتر کامل. | ۶–۷ روز |
+| **۳. دوره، قفل، دفاتر** | بستن و قفل ماه، ربع و سال؛ نگهبان دوره در همه‌ی نویسنده‌ها؛ R4، R5، R6، R16، R17، R18؛ ثبت تعدیلی؛ صفحه‌ی «دفاتر». | دفتر کامل، قفل‌پذیر، قابل ارائه. | ۵–۶ روز |
+| **۴. گزارش رسمی و مالیاتی** | صدور رسمی با hash (S7)، قالب سربرگ و امضا، Excel چندبرگه، PDF؛ R2، R3 (دو مبنا و پل)؛ بسته‌ی سالانه برای وزارت؛ بستن سال؛ سند افتتاحیه؛ سه زبان. | هدف اصلی مالک کامل. | ۵–۶ روز |
+| **۵. یکپارچه‌سازی و پرداخت نهایی** | داشبورد مالی (B-03: بازه، تولید در برابر وصول، نرخ وصول، اقساط عقب‌افتاده) از `fin.overview`؛ اعلان‌های مالی (سررسید قسط، سلامت دفتر، ماه بسته‌نشده)؛ راهنمای کاربر مالی؛ بازبینی بصری با impeccable؛ آزمون حجم و کارایی با داده‌ی یک سال؛ e2e کامل نقش‌ها. | آماده‌ی نمایش به مشتری اول. | ۴–۵ روز |
 
-**جمع:** حدود ۴۵ تا ۵۲ روز کاری. فاز ۲ و ۳ پس از ۱ب می‌توانند موازی باشند (فایل‌های جدا)؛ فاز ۴ بعد از ۳.
+**جمع: حدود ۳۲ تا ۳۸ روز کاری** (قبلاً ۴۵ تا ۵۲). حدود ۸ تا ۱۰ روز کار مهاجرت و برابری حذف شد. فاز ۲ و ۳ بعد از فاز ۱ می‌توانند موازی باشند (فایل‌های جدا). فاز ۴ بعد از ۳ است. فاز ۵ آخر است.
 
 ### د۱. فایل‌ها (تقریبی)
 * **Rust:**
-  * `core/src/fin/{mod,ledger,accounts,series,periods,invoices,receipts,refunds,credit_notes,plans,vouchers,bills,suppliers,cash,transfers,comp,shares,payroll,employees,reports,official,overview,health,legal,migrate,parity,legacy_snapshot}.rs`
+  * `core/src/fin/{mod,codes,ledger,accounts,series,periods,invoices,receipts,allocations,refunds,credit_notes,plans,receivables,suppliers,bills,vouchers,other_receipts,money,cash,transfers,comp,shares,employees,payroll,overview,reports,official,legal,health}.rs`
   * `core/migrations/00NN_finance_v2.sql`
-  * `core/src/api.rs` (مسیرها)، `core/src/auth.rs` (پرمیشن‌ها)
-  * `core/src/inventory*.rs` (رسید انبار ← بل)
-  * `core/src/reports.rs` (حذف گزارش‌های مالی)
-  * حذف `core/src/billing.rs`
-* **Shared:** `shared/src/fin.rs` (انواع تازه)، حذف انواع billing؛ `shared/ts/contract.ts`.
+  * `core/src/api.rs`، `core/src/auth.rs`
+  * فایل‌های انبار (`inventory*.rs`: تأمین‌کننده، رسید انبار ← بل)
+  * `core/src/reports.rs` (حذف گزارش‌های مالی)، `core/src/dashboard`/notifications در `reports.rs`
+  * حذف `core/src/billing.rs` و آزمون‌های مالی قدیم (`tests_core_money.rs` بخش مالی، `tests.rs` بخش‌های مالی) با آزمون‌های تازه
+* **Shared:** `shared/src/fin.rs` (انواع و enum های عددی `#[repr(u8)]`)؛ حذف انواع billing؛ `shared/ts/contract.ts`.
 * **UI:**
   * `ui/src/pages/finance/*`، `ui/src/lib/finance.ts`، `ui/src/print/*`
-  * تب‌های انبار، Dashboard، Users
+  * انبار، Dashboard، Users، تب‌های بیمار، Shell
   * `ui/src/i18n/{fa,ps,en}.json`
   * mock های dev
-* **مستند:** `docs/guides/*` (راهنمای کاربر مالی)، یادداشت انتشار.
+* **مستند:** `docs/guides/*` (راهنمای مالی)، یادداشت انتشار («داده‌ی مالی آزمایشی پاک شد»).
 
 ### د۲. آزمون‌ها
-* **Rust (اعداد دستی):**
+* **Rust با اعداد دستی:**
   * برای هر قاعده‌ی ب۵ یک آزمون.
-  * سناریوهای «کلینیک A» و «کلینیک B» از `docs/test-mission/finance-reports.md`. اعداد دستی‌شان ثبت است: A = فاکتور ۸۰٬۵۰۰، دریافت ۳۵٬۲۵۰، برگشت ۷۵۰، مصارف ۴۴٬۳۰۰، بدهی ۴۶٬۰۰۰. B = فاکتور ۵۳٬۰۰۰، دریافت ۱۷٬۷۰۰، برگشت ۲٬۰۰۰، مصارف ۵٬۳۰۰، بدهی ۳۷٬۳۰۰.
+  * **سناریوی استاندارد «کلینیک A/B»** با اعداد دستی test-mission، روی مدل تازه: A = فاکتور ۸۰٬۵۰۰، دریافت ۳۵٬۲۵۰، برگشت ۷۵۰، مصارف ۴۴٬۳۰۰، طلب ۴۶٬۰۰۰. B = ۵۳٬۰۰۰ / ۱۷٬۷۰۰ / ۲٬۰۰۰ / ۵٬۳۰۰ / ۳۷٬۳۰۰.
   * معاش ۳ کارمند با مساعده.
   * سهم داکتر منجمد (یادداشت کاهش بعدی عددش را عوض نمی‌کند).
-  * اقساط ۲۴ماهه با جمع دقیق.
+  * اقساط ۲۴ماهه روی همان روز ماه شمسی، با جمع دقیق.
   * سن بدهی در مرز ۳۰ و ۳۱ روز.
-* **Property tests** (seed ثابت): رشته‌ای تصادفی از اسناد، و پس از آن همیشه: توازن، برابری زیر-دفترها، پل نقدی و تعهدی.
-* **Migration:**
-  * fixture دیتابیس v0.12.4 با سناریوهای A و B و ۲۰۰ بیمار (از اسکریپت‌های `E:\Projects\Artaveo-TestData\finance-reports\scripts`) ← مهاجرت + دروازه سبز.
-  * fixture خراب‌شده‌ی عمدی ← ROLLBACK و دیتابیس بایت‌به‌بایت دست‌نخورده.
-* **قفل:** ثبت، ابطال و تعدیل در دوره‌ی قفل رد می‌شود. چاپ دوباره‌ی RPT با همان hash.
+  * تقسیم تخفیف با بزرگ‌ترین باقی‌مانده.
+* **Property** (seed ثابت): رشته‌ای تصادفی از اسناد و ابطال‌ها، و پس از آن همیشه: Σamount هر ثبت = ۰، زیر-دفتر = حساب کنترل، پل نقدی و تعهدی، زنجیره‌ی hash.
+* **مهاجرت جایگزینی:** fixture دیتابیس v0.12.4 با داده‌ی انبار و مالی ← مهاجرت ← جدول‌های قدیم نیست، داده‌ی انبار و بیمار سالم، `foreign_key_check` خالی، `billed_at` همه NULL.
+* **حجم:**
+  * سناریوی ۵۰ بیمار و ۲۰۰ سند ← اندازه‌ی دیتابیس پس از `VACUUM` زیر سقفی که `db-size-rules.md` تعیین می‌کند.
+  * سناریوی یک سال پرکار ← گزارش‌ها زیر ۳ ثانیه (NFR).
+* **قفل و رسمی:** ثبت، ابطال و تعدیل در دوره‌ی قفل رد می‌شود. چاپ دوباره‌ی RPT همان hash را می‌دهد.
 * **UI e2e:**
-  * مسیر منشی: فاکتور ← دریافت ← اقساط ← برگشت.
-  * مسیر حسابدار: مصرف، بل، معاش، شمارش صندوق، بستن ماه، صدور R1.
+  * مسیر منشی: فاکتور ← دریافت و تخصیص ← اقساط ← برگشت.
+  * مسیر حسابدار: بل، سند پرداخت، معاش، شمارش صندوق، بستن ماه، صدور R1.
   * نقش‌ها.
-* **آزمون دستی:** طبق حافظه‌ی پروژه فقط یک آزمون دستی نهایی در پایان محصول.
+* **آزمون دستی:** فقط یک آزمون دستی نهایی در پایان محصول (حافظه‌ی پروژه).
 
 ### د۳. ریسک‌های CI و فنی
-* **بازسازی جدول‌ها در SQLite:** FK های انبار به `supplier` با `PRAGMA foreign_keys=OFF` و rebuild در تراکنش انجام می‌شود، و `foreign_key_check` قبل از COMMIT.
+* **بازسازی `supplier` و FK های انبار** خطرناک‌ترین بخش مهاجرت است ← آزمون fixture و `foreign_key_check`.
 * **شماره‌ی مهاجرت** با سشن‌های موازی تداخل دارد ← لحظه‌ی merge تعیین شود.
-* **زمان CI:** fixture رمزنگاری‌شده و property tests زمان را بالا می‌برد ← تعداد محدود و seed ثابت.
-* **`contract.ts`:** حذف انواع billing همه‌ی import های UI را می‌شکند ← حذف و جایگزینی UI در همان PR ۱ب.
-* **trigger ضد ویرایش:** هر کدی که بعد از INSERT، UPDATE می‌کند (مثل snapshot رسید امروز) باید بازنویسی شود.
-* **کارایی:** گزارش‌ها روی `fin_entry_line` با index های ب۶.۱؛ هدف < ۳ ثانیه برای یک سال کلینیک پرکار (NFR فعلی).
-
----
+* **حذف انواع billing از `contract.ts`** همه‌ی import های UI را می‌شکند ← حذف backend و UI قدیم در همان PR فاز ۱.
+* **سشن‌های موازی UI** (layout، آواتار) روی Shell و صفحه‌های بیمار کار می‌کنند ← فاز ۱ بعد از merge آن‌ها، و تغییر در آن فایل‌ها حداقلی.
+* **زمان CI:** property tests و fixture زمان را بالا می‌برند ← تعداد محدود، seed ثابت.
+* **enum عددی:** عوض کردن ترتیب کدها داده را خراب می‌کند ← کدها در `fin/codes.rs` ثابت، با آزمونی که هر کد را به عدد ثابتش قفل می‌کند.
 
 # هـ. سؤال‌های مالک یا حسابدار (پیش‌فرض‌ها اجازه‌ی شروع می‌دهند)
 | # | سؤال | پیش‌فرض |
@@ -769,7 +865,7 @@ I  اختلاف شمارش صندوق                                   −۵۰ 
 | Q5 | چه کسی ماه را می‌بندد؟ چه کسی قفل می‌کند؟ | بستن: حسابدار یا مالک. قفل: فقط مالک. |
 | Q6 | خرید مواد در مبنای تعهدی هنگام خرید مصرف حساب شود (بدون ارزش‌گذاری انبار)؟ | بله. |
 | Q7 | گزارش رسمی به چه زبانی؟ | دری؛ پشتو و انگلیسی قابل انتخاب. |
-| Q8 | هنگام تعویض، مانده‌ی واقعی صندوق و بانک وارد شود؟ | بله، یک سند افتتاحیه‌ی اختیاری. اگر وارد نشود، صفر. |
+| Q8 | هنگام راه‌اندازی هر کلینیک (مشتری تازه)، مانده‌ی واقعی صندوق و بانک وارد شود؟ | بله، یک سند افتتاحیه‌ی اختیاری. اگر وارد نشود، صفر. |
 | Q9 | برگشت از پولی که به فاکتور خورده: آیا قبول است که همیشه «لغو تخصیص + برگشت» باشد (دو سند)؟ | بله. استاندارد است و جمع‌ها عوض نمی‌شوند. |
 
 ---
