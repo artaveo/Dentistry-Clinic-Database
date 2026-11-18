@@ -102,7 +102,8 @@ pub(crate) fn number_of(kind: &str, year: i64, serial: i64) -> String {
 }
 
 /// SQL expression building the printed number of `fin_doc d`.
-pub(crate) const NUMBER_SQL: &str = "upper(d.kind) || '-' || d.year || '-' || substr('000000' || d.serial, -6)";
+pub(crate) const NUMBER_SQL: &str =
+    "upper(d.kind) || '-' || d.year || '-' || substr('000000' || d.serial, -6)";
 
 // ───────────────────────────── the header ─────────────────────────────
 
@@ -262,7 +263,8 @@ fn write_rows(conn: &Connection, doc_id: i64, date: i64, rows: &[Entry], rev: bo
     if sum != 0 {
         return Err(CoreError::Integrity(format!("posting of document {doc_id} is off by {sum}")));
     }
-    let first: i64 = conn.query_row("SELECT COALESCE(MAX(no), 0) FROM fin_gl WHERE doc_id = ?1", [doc_id], |r| r.get(0))?;
+    let first: i64 =
+        conn.query_row("SELECT COALESCE(MAX(no), 0) FROM fin_gl WHERE doc_id = ?1", [doc_id], |r| r.get(0))?;
     for (i, e) in rows.iter().enumerate() {
         conn.execute(
             "INSERT INTO fin_gl(doc_id, no, date, account_id, amount, party_id, rev) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -336,16 +338,26 @@ pub(crate) struct AccountRow {
 pub(crate) fn account_row(conn: &Connection, id: i64) -> Result<Option<AccountRow>> {
     Ok(conn
         .query_row("SELECT id, type, money, is_active FROM fin_account WHERE id = ?1", [id], |r| {
-            Ok(AccountRow { id: r.get(0)?, kind: r.get(1)?, money: r.get(2)?, is_active: r.get::<_, i64>(3)? == 1 })
+            Ok(AccountRow {
+                id: r.get(0)?,
+                kind: r.get(1)?,
+                money: r.get(2)?,
+                is_active: r.get::<_, i64>(3)? == 1,
+            })
         })
         .optional()?)
 }
 
 fn usable(conn: &Connection, field: &str, id: i64) -> Result<AccountRow> {
-    let a = account_row(conn, id)?
-        .ok_or_else(|| CoreError::invalid(field, ValidationRule::AccountNotFound, format!("no account {id}")))?;
+    let a = account_row(conn, id)?.ok_or_else(|| {
+        CoreError::invalid(field, ValidationRule::AccountNotFound, format!("no account {id}"))
+    })?;
     if !a.is_active {
-        return Err(CoreError::invalid(field, ValidationRule::AccountInactive, format!("account {id} is turned off")));
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::AccountInactive,
+            format!("account {id} is turned off"),
+        ));
     }
     Ok(a)
 }
@@ -354,7 +366,11 @@ fn usable(conn: &Connection, field: &str, id: i64) -> Result<AccountRow> {
 pub(crate) fn money_account(conn: &Connection, field: &str, id: i64) -> Result<i64> {
     let a = usable(conn, field, id)?;
     if a.money.is_none() {
-        return Err(CoreError::invalid(field, ValidationRule::AccountKind, format!("{id} is not a money account")));
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::AccountKind,
+            format!("{id} is not a money account"),
+        ));
     }
     Ok(a.id)
 }
@@ -363,7 +379,11 @@ pub(crate) fn money_account(conn: &Connection, field: &str, id: i64) -> Result<i
 pub(crate) fn expense_account(conn: &Connection, field: &str, id: i64) -> Result<i64> {
     let a = usable(conn, field, id)?;
     if a.kind != "expense" || matches!(id, EXPENSES | BAD_DEBT | OVER_SHORT) {
-        return Err(CoreError::invalid(field, ValidationRule::AccountKind, format!("{id} is not an expense account")));
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::AccountKind,
+            format!("{id} is not an expense account"),
+        ));
     }
     Ok(a.id)
 }
@@ -374,7 +394,12 @@ mod tests {
 
     #[test]
     fn tidy_merges_same_account_and_drops_zeroes() {
-        let rows = tidy(vec![dr(RECEIVABLE, 500).of("p1"), dr(RECEIVABLE, 300).of("p1"), cr(INCOME, 800), dr(DISCOUNTS, 0)]);
+        let rows = tidy(vec![
+            dr(RECEIVABLE, 500).of("p1"),
+            dr(RECEIVABLE, 300).of("p1"),
+            cr(INCOME, 800),
+            dr(DISCOUNTS, 0),
+        ]);
         assert_eq!(rows, vec![dr(RECEIVABLE, 800).of("p1"), cr(INCOME, 800)]);
     }
 

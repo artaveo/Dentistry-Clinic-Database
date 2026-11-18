@@ -45,7 +45,10 @@ fn by_expense_account(rows: &[Flow], keep: impl Fn(&Flow) -> bool) -> Vec<Accoun
     for r in rows.iter().filter(|r| r.2 == "expense" && r.1 != BAD_DEBT && keep(r)) {
         *m.entry(r.1).or_default() += r.4;
     }
-    m.into_iter().filter(|(_, v)| *v != 0).map(|(account_id, amount)| AccountTotal { account_id, amount }).collect()
+    m.into_iter()
+        .filter(|(_, v)| *v != 0)
+        .map(|(account_id, amount)| AccountTotal { account_id, amount })
+        .collect()
 }
 
 fn cash_basis(conn: &Connection, rows: &[Flow], from: i64, to: i64) -> Result<CashBasis> {
@@ -71,7 +74,13 @@ fn cash_basis(conn: &Connection, rows: &[Flow], from: i64, to: i64) -> Result<Ca
         if opening == 0 && inflow == 0 && outflow == 0 {
             continue;
         }
-        money_rows.push(MoneyAccountTotal { account_id: id, opening, inflow, outflow, closing: opening + inflow - outflow });
+        money_rows.push(MoneyAccountTotal {
+            account_id: id,
+            opening,
+            inflow,
+            outflow,
+            closing: opening + inflow - outflow,
+        });
     }
     Ok(CashBasis {
         received,
@@ -151,9 +160,21 @@ pub(crate) fn standing_checks(conn: &Connection) -> Result<Vec<CheckResult>> {
     )?;
     Ok(vec![
         check("ledger_balanced", gl_total + unbalanced, 0),
-        check("patients", invoices_left, scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = ?1", &[&RECEIVABLE])?),
-        check("deposits", deposits_docs, -scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = ?1", &[&DEPOSITS])?),
-        check("suppliers", payables_docs, -scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = ?1", &[&PAYABLE])?),
+        check(
+            "patients",
+            invoices_left,
+            scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = ?1", &[&RECEIVABLE])?,
+        ),
+        check(
+            "deposits",
+            deposits_docs,
+            -scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = ?1", &[&DEPOSITS])?,
+        ),
+        check(
+            "suppliers",
+            payables_docs,
+            -scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE account_id = ?1", &[&PAYABLE])?,
+        ),
     ])
 }
 
@@ -171,9 +192,10 @@ pub fn overview(conn: &Connection, p: &PeriodParams) -> Result<FinanceOverview> 
     let mut checks = standing_checks(conn)?;
     checks.push(check("bridge", patient_revenue - write_offs - ar_change + dep_change, cash.net_received));
     // Paid for something that is neither an expense nor a debt (equipment).
-    let assets_bought =
-        sum(&rows, |r| is_pv(r) && r.3.is_none() && r.2 == "asset");
-    let explained = cash.net_received - assets_bought - cash.expenses_total - cash.suppliers_paid + cash.withheld - cash.tax_paid
+    let assets_bought = sum(&rows, |r| is_pv(r) && r.3.is_none() && r.2 == "asset");
+    let explained = cash.net_received - assets_bought - cash.expenses_total - cash.suppliers_paid
+        + cash.withheld
+        - cash.tax_paid
         + cash.owner_in
         - cash.owner_out
         + cash.loans_in

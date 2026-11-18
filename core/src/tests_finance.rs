@@ -12,7 +12,10 @@ fn failure(t: &T, method: &str, params: Value, token: &str) -> (ErrorCode, Strin
         RpcResponse::Error { error } => (
             error.code,
             error.field.clone().unwrap_or_default(),
-            error.rule.map(|r| serde_json::to_value(r).unwrap().as_str().unwrap().to_string()).unwrap_or_default(),
+            error
+                .rule
+                .map(|r| serde_json::to_value(r).unwrap().as_str().unwrap().to_string())
+                .unwrap_or_default(),
         ),
     }
 }
@@ -107,10 +110,12 @@ impl Fx {
         self.t
             .core
             .with_db(|o| {
-                let mut st = o
-                    .conn
-                    .prepare("SELECT account_id, amount FROM fin_gl WHERE doc_id = ?1 AND rev = 0 ORDER BY no")?;
-                let r = st.query_map([id], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                let mut st = o.conn.prepare(
+                    "SELECT account_id, amount FROM fin_gl WHERE doc_id = ?1 AND rev = 0 ORDER BY no",
+                )?;
+                let r = st
+                    .query_map([id], |r| Ok((r.get(0)?, r.get(1)?)))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
                 Ok(r)
             })
             .unwrap()
@@ -125,9 +130,15 @@ fn patient_money_posts_by_the_rules_and_the_books_reconcile() {
     assert_eq!(f.ok(m::FIN_INVOICES_BILLABLE, json!({"patient_id": f.patient})).as_array().unwrap().len(), 2);
 
     // Refused: no lines; a line discount above its line; a whole discount above what is left.
-    assert_eq!(f.fr(m::FIN_INVOICES_CREATE, json!({"patient_id": f.patient})), ("items".into(), "invoice_empty".into()));
     assert_eq!(
-        f.fr(m::FIN_INVOICES_CREATE, json!({"patient_id": f.patient, "items": [{"item_id": t2, "discount": 90_000}]})),
+        f.fr(m::FIN_INVOICES_CREATE, json!({"patient_id": f.patient})),
+        ("items".into(), "invoice_empty".into())
+    );
+    assert_eq!(
+        f.fr(
+            m::FIN_INVOICES_CREATE,
+            json!({"patient_id": f.patient, "items": [{"item_id": t2, "discount": 90_000}]})
+        ),
         ("discount".into(), "discount_range".into())
     );
 
@@ -163,8 +174,7 @@ fn patient_money_posts_by_the_rules_and_the_books_reconcile() {
         ("allocations".into(), "payment_exceeds".into())
     );
     assert_eq!(
-        f.fr(m::FIN_RECEIPTS_CREATE, json!({"patient_id": f.patient, "account_id": 4110, "amount": 1}))
-            .1,
+        f.fr(m::FIN_RECEIPTS_CREATE, json!({"patient_id": f.patient, "account_id": 4110, "amount": 1})).1,
         "account_kind"
     );
 
@@ -201,13 +211,18 @@ fn patient_money_posts_by_the_rules_and_the_books_reconcile() {
     );
 
     // CN 10 000: the last installment shrinks to 10 000.
-    let after_cn =
-        f.ok(m::FIN_INVOICES_ADJUST, json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 10_000, "reason": "goodwill"}));
+    let after_cn = f.ok(
+        m::FIN_INVOICES_ADJUST,
+        json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 10_000, "reason": "goodwill"}),
+    );
     assert_eq!(i(&after_cn["remaining"]), 30_000);
     let plan = after_cn["plan"]["installments"].as_array().unwrap().clone();
     assert_eq!((i(&plan[0]["amount"]), i(&plan[1]["amount"])), (20_000, 10_000));
     assert_eq!(
-        f.fr(m::FIN_INVOICES_ADJUST, json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 40_000, "reason": "x"})),
+        f.fr(
+            m::FIN_INVOICES_ADJUST,
+            json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 40_000, "reason": "x"})
+        ),
         ("amount".into(), "credit_note_exceeds".into())
     );
 
@@ -223,10 +238,16 @@ fn patient_money_posts_by_the_rules_and_the_books_reconcile() {
 
     // RF: 50 000 of the deposit back in cash; more than the deposit is refused.
     assert_eq!(
-        f.fr(m::FIN_RECEIPTS_REFUND, json!({"patient_id": f.patient, "account_id": 1110, "amount": 80_000, "reason": "x"})),
+        f.fr(
+            m::FIN_RECEIPTS_REFUND,
+            json!({"patient_id": f.patient, "account_id": 1110, "amount": 80_000, "reason": "x"})
+        ),
         ("amount".into(), "insufficient_credit".into())
     );
-    let rf = f.ok(m::FIN_RECEIPTS_REFUND, json!({"patient_id": f.patient, "account_id": 1110, "amount": 50_000, "reason": "moved away"}));
+    let rf = f.ok(
+        m::FIN_RECEIPTS_REFUND,
+        json!({"patient_id": f.patient, "account_id": 1110, "amount": 50_000, "reason": "moved away"}),
+    );
     assert_eq!(f.rows(&rf["id"]), vec![(2210, 50_000), (1110, -50_000)]);
     // Refund of 15 000 paid on the invoice: taken off the invoice back to the deposit, then paid out.
     f.ok(
@@ -235,16 +256,27 @@ fn patient_money_posts_by_the_rules_and_the_books_reconcile() {
     );
     assert_eq!(i(&f.invoice(&inv["id"])["remaining"]), 15_000);
     // WO: the 15 000 is written off.
-    let wo =
-        f.ok(m::FIN_INVOICES_ADJUST, json!({"invoice_id": inv["id"], "kind": "write_off", "amount": 15_000, "reason": "uncollectable"}));
+    let wo = f.ok(
+        m::FIN_INVOICES_ADJUST,
+        json!({"invoice_id": inv["id"], "kind": "write_off", "amount": 15_000, "reason": "uncollectable"}),
+    );
     assert_eq!((i(&wo["remaining"]), i(&wo["written_off"]), i(&wo["allocated"])), (0, 15_000, 365_000));
 
     let acc = f.account(&f.patient);
     assert_eq!((i(&acc["owed"]), i(&acc["deposit"]), i(&acc["balance"])), (0, 20_000, -20_000));
-    assert_eq!((i(&acc["invoiced"]), i(&acc["reductions"]), i(&acc["written_off"])), (390_000, 10_000, 15_000));
+    assert_eq!(
+        (i(&acc["invoiced"]), i(&acc["reductions"]), i(&acc["written_off"])),
+        (390_000, 10_000, 15_000)
+    );
     // Ledger balances: cash 150 000 − 50 000 − 15 000, bank 300 000, receivable 0, deposits 20 000.
-    assert_eq!((f.balance(1110), f.balance(1210), f.balance(1310), f.balance(2210)), (85_000, 300_000, 0, -20_000));
-    assert_eq!((f.balance(4110), f.balance(4910), f.balance(4920), f.balance(5810)), (-430_000, 40_000, 10_000, 15_000));
+    assert_eq!(
+        (f.balance(1110), f.balance(1210), f.balance(1310), f.balance(2210)),
+        (85_000, 300_000, 0, -20_000)
+    );
+    assert_eq!(
+        (f.balance(4110), f.balance(4910), f.balance(4920), f.balance(5810)),
+        (-430_000, 40_000, 10_000, 15_000)
+    );
 
     // The statement: one invoice 390 000, credits 150 000 + 300 000 − 50 000 − 15 000 + 10 000 + 15 000.
     let st = f.ok(m::FIN_PATIENTS_STATEMENT, json!({"patient_id": f.patient}));
@@ -254,8 +286,14 @@ fn patient_money_posts_by_the_rules_and_the_books_reconcile() {
     let today = crate::clock::today_iso();
     let o = f.ok(m::FIN_OVERVIEW, json!({"from": today, "to": today}));
     assert!(o["checks"].as_array().unwrap().iter().all(|c| c["ok"] == true), "{}", o["checks"]);
-    assert_eq!((i(&o["cash"]["received"]), i(&o["cash"]["refunded"]), i(&o["cash"]["net_received"])), (450_000, 65_000, 385_000));
-    assert_eq!((i(&o["accrual"]["revenue"]), i(&o["accrual"]["write_offs"]), i(&o["accrual"]["result"])), (380_000, 15_000, 365_000));
+    assert_eq!(
+        (i(&o["cash"]["received"]), i(&o["cash"]["refunded"]), i(&o["cash"]["net_received"])),
+        (450_000, 65_000, 385_000)
+    );
+    assert_eq!(
+        (i(&o["accrual"]["revenue"]), i(&o["accrual"]["write_offs"]), i(&o["accrual"]["result"])),
+        (380_000, 15_000, 365_000)
+    );
     assert_eq!((i(&o["receivables"]), i(&o["deposits"])), (0, 20_000));
 }
 
@@ -307,30 +345,56 @@ fn money_out_bills_transfers_and_cash_counts_post_by_the_rules() {
         json!({"supplier_id": s, "date": today, "reference": "B-77", "lines": [{"account_id": 5260, "amount": 60_000}]}),
     );
     assert_eq!(f.rows(&bill["id"]), vec![(5260, 60_000), (2110, -60_000)]);
-    let pay = f.ok(m::FIN_VOUCHERS_CREATE, json!({"date": today, "account_id": 1110, "purpose": "supplier", "supplier_id": s, "amount": 40_000}));
+    let pay = f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1110, "purpose": "supplier", "supplier_id": s, "amount": 40_000}),
+    );
     assert_eq!(f.rows(&pay["id"]), vec![(2110, 40_000), (1110, -40_000)]);
     let sup = f.ok(m::SUPPLIERS_GET, json!({"id": s}));
-    assert_eq!((i(&sup["purchases_total"]), i(&sup["paid_total"]), i(&sup["balance"])), (60_000, 40_000, 20_000));
+    assert_eq!(
+        (i(&sup["purchases_total"]), i(&sup["paid_total"]), i(&sup["balance"])),
+        (60_000, 40_000, 20_000)
+    );
     assert_eq!(sup["tin"], json!("1000123456"));
     let ledger = f.ok(m::SUPPLIER_LEDGER_LIST, json!({"supplier_id": s}));
     let last = ledger.as_array().unwrap().last().unwrap().clone();
     assert_eq!((last["kind"].as_str(), i(&last["balance"])), (Some("payment"), 20_000));
 
     // The rent tax is paid to the government (20 000 by bank).
-    f.ok(m::FIN_VOUCHERS_CREATE, json!({"date": today, "account_id": 1210, "purpose": "tax", "withholding": "rent", "amount": 20_000}));
+    f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1210, "purpose": "tax", "withholding": "rent", "amount": 20_000}),
+    );
     // The owner puts 50 000 in; 30 000 cash goes to the bank.
-    let cap = f.ok(m::FIN_OTHER_RECEIPTS_CREATE, json!({"date": today, "account_id": 1110, "source": "capital", "amount": 50_000}));
+    let cap = f.ok(
+        m::FIN_OTHER_RECEIPTS_CREATE,
+        json!({"date": today, "account_id": 1110, "source": "capital", "amount": 50_000}),
+    );
     assert_eq!(f.rows(&cap["id"]), vec![(1110, 50_000), (3110, -50_000)]);
     assert_eq!(
-        f.fr(m::FIN_TRANSFERS_CREATE, json!({"date": today, "from_account_id": 1110, "to_account_id": 1110, "amount": 1})).1,
+        f.fr(
+            m::FIN_TRANSFERS_CREATE,
+            json!({"date": today, "from_account_id": 1110, "to_account_id": 1110, "amount": 1})
+        )
+        .1,
         "same_account"
     );
-    f.ok(m::FIN_TRANSFERS_CREATE, json!({"date": today, "from_account_id": 1110, "to_account_id": 1210, "amount": 30_000}));
+    f.ok(
+        m::FIN_TRANSFERS_CREATE,
+        json!({"date": today, "from_account_id": 1110, "to_account_id": 1210, "amount": 30_000}),
+    );
 
     // Cash: 450 000 − 40 000 + 50 000 − 30 000 = 430 000; bank: 300 000 − 180 000 − 20 000 + 30 000 = 130 000.
     let cash = f.ok(m::FIN_CASH_DAY, json!({"account_id": 1110, "date": today}));
     assert_eq!(
-        (i(&cash["opening"]), i(&cash["received"]), i(&cash["paid_out"]), i(&cash["other_in"]), i(&cash["transfers"]), i(&cash["closing"])),
+        (
+            i(&cash["opening"]),
+            i(&cash["received"]),
+            i(&cash["paid_out"]),
+            i(&cash["other_in"]),
+            i(&cash["transfers"]),
+            i(&cash["closing"])
+        ),
         (0, 450_000, 40_000, 50_000, -30_000, 430_000)
     );
     assert_eq!(f.balance(1210), 130_000);
@@ -339,7 +403,10 @@ fn money_out_bills_transfers_and_cash_counts_post_by_the_rules() {
         f.fr(m::FIN_CASH_COUNT, json!({"account_id": 1110, "date": today, "counted": 429_000})),
         ("reason".into(), "cash_reason_required".into())
     );
-    let cc = f.ok(m::FIN_CASH_COUNT, json!({"account_id": 1110, "date": today, "counted": 429_000, "reason": "short"}));
+    let cc = f.ok(
+        m::FIN_CASH_COUNT,
+        json!({"account_id": 1110, "date": today, "counted": 429_000, "reason": "short"}),
+    );
     assert_eq!((i(&cc["book"]), i(&cc["difference"])), (430_000, -1_000));
     assert_eq!(f.balance(1110), 429_000);
     assert_eq!(f.balance(5910), 1_000);
@@ -348,17 +415,32 @@ fn money_out_bills_transfers_and_cash_counts_post_by_the_rules() {
     assert!(o["checks"].as_array().unwrap().iter().all(|c| c["ok"] == true), "{}", o["checks"]);
     let c = &o["cash"];
     assert_eq!(
-        (i(&c["net_received"]), i(&c["expenses_total"]), i(&c["suppliers_paid"]), i(&c["withheld"]), i(&c["tax_paid"])),
+        (
+            i(&c["net_received"]),
+            i(&c["expenses_total"]),
+            i(&c["suppliers_paid"]),
+            i(&c["withheld"]),
+            i(&c["tax_paid"])
+        ),
         (750_000, 200_000, 40_000, 20_000, 20_000)
     );
-    assert_eq!((i(&c["owner_in"]), i(&c["count_differences"]), i(&c["money_closing"])), (50_000, -1_000, 559_000));
+    assert_eq!(
+        (i(&c["owner_in"]), i(&c["count_differences"]), i(&c["money_closing"])),
+        (50_000, -1_000, 559_000)
+    );
     // Accrual: costs are rent 200 000 + medicines 60 000 + cash short 1 000.
-    assert_eq!((i(&o["accrual"]["expenses_total"]), i(&o["payables"]), i(&o["tax_withheld"])), (261_000, 20_000, 0));
+    assert_eq!(
+        (i(&o["accrual"]["expenses_total"]), i(&o["payables"]), i(&o["tax_withheld"])),
+        (261_000, 20_000, 0)
+    );
 
     // Voiding the supplier payment reverses it; the supplier is owed 60 000 again.
     f.ok(m::FIN_DOCS_VOID, json!({"id": pay["id"], "reason": "wrong supplier"}));
     assert_eq!(i(&f.ok(m::SUPPLIERS_GET, json!({"id": s}))["balance"]), 60_000);
-    assert_eq!(f.fr(m::FIN_DOCS_VOID, json!({"id": pay["id"], "reason": "again"})), ("id".into(), "doc_void".into()));
+    assert_eq!(
+        f.fr(m::FIN_DOCS_VOID, json!({"id": pay["id"], "reason": "again"})),
+        ("id".into(), "doc_void".into())
+    );
 }
 
 #[test]
@@ -369,21 +451,30 @@ fn voids_reverse_and_never_break_later_documents() {
         m::FIN_INVOICES_CREATE,
         json!({"patient_id": q, "extra_lines": [{"description": "عکس", "quantity": 1, "unit_price": 100_000}]}),
     );
-    let rc = f.ok(m::FIN_RECEIPTS_CREATE, json!({"patient_id": q, "account_id": 1110, "amount": 100_000, "auto_allocate": true}));
+    let rc = f.ok(
+        m::FIN_RECEIPTS_CREATE,
+        json!({"patient_id": q, "account_id": 1110, "amount": 100_000, "auto_allocate": true}),
+    );
     // An invoice with money on it cannot be voided; void the receipt first.
-    assert_eq!(f.fr(m::FIN_DOCS_VOID, json!({"id": inv["id"], "reason": "x"})), ("id".into(), "invoice_has_payments".into()));
+    assert_eq!(
+        f.fr(m::FIN_DOCS_VOID, json!({"id": inv["id"], "reason": "x"})),
+        ("id".into(), "invoice_has_payments".into())
+    );
     f.ok(m::FIN_DOCS_VOID, json!({"id": rc["id"], "reason": "typed twice"}));
     assert_eq!(i(&f.invoice(&inv["id"])["remaining"]), 100_000);
     let void = f.ok(m::FIN_DOCS_VOID, json!({"id": inv["id"], "reason": "wrong patient"}));
     assert_eq!(void["status"], json!("void"));
     // The posting is reversed (rev rows), never deleted.
-    let net: i64 = f
-        .t
-        .core
-        .with_db(|o| Ok(o.conn.query_row("SELECT SUM(amount), COUNT(*) FROM fin_gl WHERE doc_id = ?1", [i(&inv["id"])], |r| {
-            Ok(r.get::<_, i64>(0)? * 100 + r.get::<_, i64>(1)?)
-        })?))
-        .unwrap();
+    let net: i64 =
+        f.t.core
+            .with_db(|o| {
+                Ok(o.conn.query_row(
+                    "SELECT SUM(amount), COUNT(*) FROM fin_gl WHERE doc_id = ?1",
+                    [i(&inv["id"])],
+                    |r| Ok(r.get::<_, i64>(0)? * 100 + r.get::<_, i64>(1)?),
+                )?)
+            })
+            .unwrap();
     assert_eq!(net, 4, "2 rows posted (receivable, income) + 2 reversed, adding up to 0");
 
     // A deposit already put on an invoice cannot vanish by voiding its receipt.
@@ -393,12 +484,18 @@ fn voids_reverse_and_never_break_later_documents() {
         json!({"patient_id": q, "use_deposit": true, "extra_lines": [{"description": "معاینه", "quantity": 1, "unit_price": 50_000}]}),
     );
     assert_eq!(i(&inv2["remaining"]), 0);
-    assert_eq!(f.fr(m::FIN_DOCS_VOID, json!({"id": rc2["id"], "reason": "x"})), ("id".into(), "doc_not_voidable".into()));
+    assert_eq!(
+        f.fr(m::FIN_DOCS_VOID, json!({"id": rc2["id"], "reason": "x"})),
+        ("id".into(), "doc_not_voidable".into())
+    );
 
     // Issued rows are never rewritten, even by hand.
-    let blocked = f.t.core.with_db(|o| Ok(o.conn.execute("UPDATE fin_gl SET amount = 1 WHERE doc_id = ?1", [i(&rc2["id"])])?));
+    let blocked = f.t.core.with_db(|o| {
+        Ok(o.conn.execute("UPDATE fin_gl SET amount = 1 WHERE doc_id = ?1", [i(&rc2["id"])])?)
+    });
     assert!(blocked.is_err());
-    let blocked = f.t.core.with_db(|o| Ok(o.conn.execute("DELETE FROM fin_doc WHERE id = ?1", [i(&rc2["id"])])?));
+    let blocked =
+        f.t.core.with_db(|o| Ok(o.conn.execute("DELETE FROM fin_doc WHERE id = ?1", [i(&rc2["id"])])?));
     assert!(blocked.is_err());
 
     let today = crate::clock::today_iso();
@@ -422,7 +519,10 @@ fn purchases_and_lab_cases_become_supplier_bills() {
                "lines": [{"item_id": item["id"], "qty": 200, "unit_cost": 15_000, "location_id": "sl-main"}]}),
     );
     let sup = f.ok(m::SUPPLIERS_GET, json!({"id": s}));
-    assert_eq!((i(&sup["purchases_total"]), i(&sup["paid_total"]), i(&sup["balance"])), (30_000, 10_000, 20_000));
+    assert_eq!(
+        (i(&sup["purchases_total"]), i(&sup["paid_total"]), i(&sup["balance"])),
+        (30_000, 10_000, 20_000)
+    );
     assert_eq!(f.balance(5230), 30_000);
     // The bill of a purchase is voided with the purchase, not on its own.
     let bills = f.ok(m::FIN_VOUCHERS_LIST, json!({"kind": "bl", "supplier_id": s}));
@@ -439,8 +539,12 @@ fn purchases_and_lab_cases_become_supplier_bills() {
         json!({"patient_id": f.patient, "lab_id": lab["id"], "work_type": "crown", "teeth": [11], "cost": 120_000}),
     );
     assert_eq!(i(&f.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}))["balance"]), 0);
-    let sent = f.ok(m::LAB_CASES_SET_STATUS, json!({"id": case["id"], "version": case["version"], "status": "sent"}));
-    f.ok(m::LAB_CASES_SET_STATUS, json!({"id": case["id"], "version": sent["version"], "status": "received"}));
+    let sent = f
+        .ok(m::LAB_CASES_SET_STATUS, json!({"id": case["id"], "version": case["version"], "status": "sent"}));
+    f.ok(
+        m::LAB_CASES_SET_STATUS,
+        json!({"id": case["id"], "version": sent["version"], "status": "received"}),
+    );
     let l = f.ok(m::SUPPLIERS_GET, json!({"id": lab["id"]}));
     assert_eq!((i(&l["lab_total"]), i(&l["balance"])), (120_000, 120_000));
     assert_eq!(f.balance(5240), 120_000);
@@ -450,8 +554,14 @@ fn purchases_and_lab_cases_become_supplier_bills() {
 fn reports_add_up_to_the_ledger() {
     let f = fx();
     let t1 = f.done(&f.patient, 36, 350_000);
-    let inv = f.ok(m::FIN_INVOICES_CREATE, json!({"patient_id": f.patient, "items": [{"item_id": t1}], "discount": 50_000}));
-    f.ok(m::FIN_RECEIPTS_CREATE, json!({"patient_id": f.patient, "account_id": 1110, "amount": 200_000, "auto_allocate": true}));
+    let inv = f.ok(
+        m::FIN_INVOICES_CREATE,
+        json!({"patient_id": f.patient, "items": [{"item_id": t1}], "discount": 50_000}),
+    );
+    f.ok(
+        m::FIN_RECEIPTS_CREATE,
+        json!({"patient_id": f.patient, "account_id": 1110, "amount": 200_000, "auto_allocate": true}),
+    );
     f.ok(m::FIN_RECEIPTS_REFUND, json!({"patient_id": f.patient, "account_id": 1110, "amount": 20_000, "reason": "r", "from_invoice_id": inv["id"]}));
     let today = crate::clock::today_iso();
     f.ok(
@@ -463,7 +573,10 @@ fn reports_add_up_to_the_ledger() {
     let d = f.report("daily_summary");
     let tot = d["totals"].as_array().unwrap();
     let v = |c: &Value| i(&c["value"]);
-    assert_eq!((v(&tot[2]), v(&tot[3]), v(&tot[4]), v(&tot[6]), v(&tot[7]), v(&tot[8])), (350_000, 50_000, 300_000, 200_000, 20_000, 180_000));
+    assert_eq!(
+        (v(&tot[2]), v(&tot[3]), v(&tot[4]), v(&tot[6]), v(&tot[7]), v(&tot[8])),
+        (350_000, 50_000, 300_000, 200_000, 20_000, 180_000)
+    );
     // Receipts register: one receipt, one refund.
     let r = f.report("receipts");
     assert_eq!(r["rows"].as_array().unwrap().len(), 2);
@@ -482,7 +595,15 @@ fn reports_add_up_to_the_ledger() {
     // Income statement: cash result 180 000 − 15 000; accrual result 300 000 − 15 000.
     let is = f.report("income_statement");
     assert_eq!((v(&is["totals"][3]), v(&is["totals"][6])), (165_000, 285_000));
-    for kind in ["monthly_summary", "installments", "deposits", "provider_production", "service_revenue", "doctor_shares", "cash_counts"] {
+    for kind in [
+        "monthly_summary",
+        "installments",
+        "deposits",
+        "provider_production",
+        "service_revenue",
+        "doctor_shares",
+        "cash_counts",
+    ] {
         f.report(kind);
     }
 }
@@ -493,7 +614,10 @@ fn accounts_settings_and_permissions() {
     // A clinic's own expense account and a second bank account get the next free codes.
     let fuel = f.ok(m::FIN_ACCOUNTS_SAVE, json!({"parent_id": 5000, "name": "تیل جنراتور"}));
     assert_eq!(fuel["id"], json!(5300));
-    let bank = f.ok(m::FIN_ACCOUNTS_SAVE, json!({"parent_id": 1100, "name": "عزیزی بانک", "money": "bank", "bank_no": "123"}));
+    let bank = f.ok(
+        m::FIN_ACCOUNTS_SAVE,
+        json!({"parent_id": 1100, "name": "عزیزی بانک", "money": "bank", "bank_no": "123"}),
+    );
     assert_eq!(bank["id"], json!(1211));
     assert_eq!(f.fr(m::FIN_ACCOUNTS_SAVE, json!({"parent_id": 5000})).1, "account_name");
     assert_eq!(f.fr(m::FIN_ACCOUNTS_SAVE, json!({"id": 1110, "is_active": false})).1, "account_kind");
@@ -503,7 +627,10 @@ fn accounts_settings_and_permissions() {
     s["legal"]["legal_form"] = json!("natural_person");
     s["receipt_footer"] = json!("تشکر");
     let saved = f.ok(m::FIN_SETTINGS_SAVE, s.clone());
-    assert_eq!((saved["legal"]["tin"].as_str(), saved["receipt_footer"].as_str()), (Some("1001234567"), Some("تشکر")));
+    assert_eq!(
+        (saved["legal"]["tin"].as_str(), saved["receipt_footer"].as_str()),
+        (Some("1001234567"), Some("تشکر"))
+    );
     s["legal"]["tin"] = json!("12 34");
     assert_eq!(f.fr(m::FIN_SETTINGS_SAVE, s).0, "tin");
 
@@ -513,7 +640,11 @@ fn accounts_settings_and_permissions() {
         json!({"username": "rec", "display_name": "پذیرش", "password": "rec-pass-123", "role": "receptionist"}),
     );
     let rec = f.t.login("rec", "rec-pass-123");
-    let r = f.t.call(m::FIN_RECEIPTS_CREATE, json!({"patient_id": f.patient, "account_id": 1110, "amount": 1_000}), Some(&rec));
+    let r = f.t.call(
+        m::FIN_RECEIPTS_CREATE,
+        json!({"patient_id": f.patient, "account_id": 1110, "amount": 1_000}),
+        Some(&rec),
+    );
     assert!(r.is_ok());
     let refund = f.t.call(
         m::FIN_RECEIPTS_REFUND,
@@ -521,7 +652,10 @@ fn accounts_settings_and_permissions() {
         Some(&rec),
     );
     assert_eq!(refund.unwrap_err(), ErrorCode::Forbidden);
-    assert_eq!(f.t.call(m::FIN_OVERVIEW, json!({"from": "2026-01-01", "to": "2026-01-02"}), Some(&rec)).unwrap_err(), ErrorCode::Forbidden);
+    assert_eq!(
+        f.t.call(m::FIN_OVERVIEW, json!({"from": "2026-01-01", "to": "2026-01-02"}), Some(&rec)).unwrap_err(),
+        ErrorCode::Forbidden
+    );
 }
 
 #[test]
@@ -529,9 +663,15 @@ fn a_merged_patient_brings_the_money_along() {
     let f = fx();
     f.ok(m::FIN_RECEIPTS_CREATE, json!({"patient_id": f.patient2, "account_id": 1110, "amount": 70_000}));
     let q = f.ok(m::PATIENTS_GET, json!({"patient_id": f.patient2}));
-    f.ok(m::PATIENTS_MERGE, json!({"keep_id": f.patient, "merge_id": f.patient2, "merge_id_version": q["version"]}));
+    f.ok(
+        m::PATIENTS_MERGE,
+        json!({"keep_id": f.patient, "merge_id": f.patient2, "merge_id_version": q["version"]}),
+    );
     assert_eq!(i(&f.account(&f.patient)["deposit"]), 70_000);
     // A patient with money is archived, never deleted.
     let p = f.ok(m::PATIENTS_GET, json!({"patient_id": f.patient}));
-    assert_eq!(f.fr(m::PATIENTS_DELETE, json!({"id": f.patient, "version": p["version"]})).1, "patient_has_history");
+    assert_eq!(
+        f.fr(m::PATIENTS_DELETE, json!({"id": f.patient, "version": p["version"]})).1,
+        "patient_has_history"
+    );
 }

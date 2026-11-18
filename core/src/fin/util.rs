@@ -17,7 +17,11 @@ pub(crate) const MAX_LIST: u32 = 500;
 pub(crate) fn money(field: &str, v: i64, allow_zero: bool) -> Result<i64> {
     let ok = if allow_zero { v >= 0 } else { v > 0 };
     if !ok || v > MAX_AMOUNT {
-        return Err(CoreError::invalid(field, ValidationRule::BillingAmount, format!("{field} is not a valid amount")));
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::BillingAmount,
+            format!("{field} is not a valid amount"),
+        ));
     }
     Ok(v)
 }
@@ -96,7 +100,11 @@ pub(crate) fn trio(fa: String, ps: String, en: String) -> Translations {
 
 pub(crate) fn check_patient(conn: &Connection, patient_id: &str) -> Result<()> {
     let row: Option<Option<String>> = conn
-        .query_row("SELECT merged_into_id FROM patient WHERE id = ?1 AND deleted_at IS NULL", [patient_id], |r| r.get(0))
+        .query_row(
+            "SELECT merged_into_id FROM patient WHERE id = ?1 AND deleted_at IS NULL",
+            [patient_id],
+            |r| r.get(0),
+        )
         .optional()?;
     match row {
         None => Err(CoreError::invalid("patient_id", ValidationRule::PatientNotFound, "unknown patient")),
@@ -113,7 +121,8 @@ pub(crate) fn check_doctor(conn: &Connection, doctor_id: &Option<String>) -> Res
     match doctor_id.as_deref().filter(|s| !s.is_empty()) {
         None => Ok(None),
         Some(d) => {
-            crate::scheduling::get_doctor(conn, d).map_err(|e| e.on_field("doctor_id", ValidationRule::DoctorNotFound))?;
+            crate::scheduling::get_doctor(conn, d)
+                .map_err(|e| e.on_field("doctor_id", ValidationRule::DoctorNotFound))?;
             Ok(Some(d.to_string()))
         }
     }
@@ -153,7 +162,11 @@ pub(crate) fn doc_day(field: &'static str, s: &str) -> Result<i64> {
         return Err(CoreError::invalid(field, ValidationRule::DateFormat, "the date is in the future"));
     }
     if day < oldest {
-        return Err(CoreError::invalid(field, ValidationRule::DateFormat, "the date is more than a year back"));
+        return Err(CoreError::invalid(
+            field,
+            ValidationRule::DateFormat,
+            "the date is more than a year back",
+        ));
     }
     Ok(ymd(&day))
 }

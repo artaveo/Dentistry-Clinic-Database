@@ -47,13 +47,20 @@ const SETTLED_COLS: &str = "d.amount,
         WHERE l.ref_id = d.id AND a.kind IN ('rc', 'al') AND a.status = 'posted')";
 
 fn settled_from(r: &rusqlite::Row<'_>, at: usize) -> rusqlite::Result<Settled> {
-    Ok(Settled { net: r.get(at)?, reductions: r.get(at + 1)?, written_off: r.get(at + 2)?, allocated: r.get(at + 3)? })
+    Ok(Settled {
+        net: r.get(at)?,
+        reductions: r.get(at + 1)?,
+        written_off: r.get(at + 2)?,
+        allocated: r.get(at + 3)?,
+    })
 }
 
 pub(crate) fn settled(conn: &Connection, invoice_id: i64) -> Result<Settled> {
-    Ok(conn.query_row(&format!("SELECT {SETTLED_COLS} FROM fin_doc d WHERE d.id = ?1"), [invoice_id], |r| {
-        settled_from(r, 0)
-    })?)
+    Ok(conn.query_row(
+        &format!("SELECT {SETTLED_COLS} FROM fin_doc d WHERE d.id = ?1"),
+        [invoice_id],
+        |r| settled_from(r, 0),
+    )?)
 }
 
 /// Allocations and reductions of an invoice made by documents older than `before` (a plan).
@@ -86,7 +93,8 @@ pub(crate) fn pay_state(status: DocStatus, s: &Settled) -> PayState {
 
 // ───────────────────────────── reading ─────────────────────────────
 
-const INVOICE_SELECT: &str = "SELECT d.id, d.year, d.serial, d.party_id, p.full_name, p.patient_number, d.status, d.doc_date,
+const INVOICE_SELECT: &str =
+    "SELECT d.id, d.year, d.serial, d.party_id, p.full_name, p.patient_number, d.status, d.doc_date,
     d.created_at, d.note, d.void_reason, d.print_count, d.created_by";
 
 fn lines_of(conn: &Connection, invoice_id: i64) -> Result<Vec<InvoiceLineInfo>> {
@@ -172,11 +180,13 @@ pub(crate) fn plan_of(conn: &Connection, invoice_id: i64, now: &Settled) -> Resu
         )
         .optional()?;
     let Some((id, year, serial, date, reason)) = row else { return Ok(None) };
-    let version = scalar(conn, "SELECT COUNT(*) FROM fin_doc WHERE ref_id = ?1 AND kind = 'pp' AND id <= ?2", &[
-        &invoice_id,
-        &id,
-    ])?;
-    let mut stmt = conn.prepare_cached("SELECT no, due_date, amount FROM fin_line WHERE doc_id = ?1 ORDER BY no")?;
+    let version = scalar(
+        conn,
+        "SELECT COUNT(*) FROM fin_doc WHERE ref_id = ?1 AND kind = 'pp' AND id <= ?2",
+        &[&invoice_id, &id],
+    )?;
+    let mut stmt =
+        conn.prepare_cached("SELECT no, due_date, amount FROM fin_line WHERE doc_id = ?1 ORDER BY no")?;
     let items: Vec<(i64, i64, i64)> = stmt
         .query_map([id], |r| Ok((r.get(0)?, r.get::<_, Option<i64>>(1)?.unwrap_or(0), r.get(2)?)))?
         .collect::<rusqlite::Result<_>>()?;
@@ -417,7 +427,9 @@ fn service_name(conn: &Connection, service_id: &str) -> Result<(String, i64)> {
             |r| Ok((trio(r.get(0)?, r.get(1)?, r.get(2)?), r.get::<_, i64>(3)?)),
         )
         .optional()?
-        .ok_or_else(|| CoreError::invalid("service_id", ValidationRule::ServiceNotFound, "unknown service"))?;
+        .ok_or_else(|| {
+            CoreError::invalid("service_id", ValidationRule::ServiceNotFound, "unknown service")
+        })?;
     Ok((pick_name(conn, &names)?, price))
 }
 
@@ -482,10 +494,19 @@ pub(crate) fn share_out(total: i64, weights: &[i64]) -> Vec<i64> {
     parts.into_iter().map(|p| p.1).collect()
 }
 
-pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateInvoiceParams) -> Result<InvoiceInfo> {
+pub fn create(
+    conn: &Connection,
+    actor: &Actor,
+    can_override: bool,
+    p: &CreateInvoiceParams,
+) -> Result<InvoiceInfo> {
     check_patient(conn, &p.patient_id)?;
     if p.items.is_empty() && p.extra_lines.is_empty() {
-        return Err(CoreError::invalid("items", ValidationRule::InvoiceEmpty, "an invoice needs at least one line"));
+        return Err(CoreError::invalid(
+            "items",
+            ValidationRule::InvoiceEmpty,
+            "an invoice needs at least one line",
+        ));
     }
     if p.items.len() + p.extra_lines.len() > MAX_LINES {
         return Err(CoreError::invalid("items", ValidationRule::InvoiceEmpty, "at most 100 lines"));
@@ -507,13 +528,22 @@ pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateIn
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?)),
             )
             .optional()?;
-        let (patient, service, teeth, doctor, price, units, billable_now, billed) =
-            row.ok_or_else(|| CoreError::invalid("items", ValidationRule::ItemNotBillable, "unknown treatment"))?;
+        let (patient, service, teeth, doctor, price, units, billable_now, billed) = row.ok_or_else(|| {
+            CoreError::invalid("items", ValidationRule::ItemNotBillable, "unknown treatment")
+        })?;
         if patient != p.patient_id || !billable_now {
-            return Err(CoreError::invalid("items", ValidationRule::ItemNotBillable, "this treatment cannot be invoiced"));
+            return Err(CoreError::invalid(
+                "items",
+                ValidationRule::ItemNotBillable,
+                "this treatment cannot be invoiced",
+            ));
         }
         if billed.is_some() {
-            return Err(CoreError::invalid("items", ValidationRule::ItemAlreadyBilled, "this treatment is already invoiced"));
+            return Err(CoreError::invalid(
+                "items",
+                ValidationRule::ItemAlreadyBilled,
+                "this treatment is already invoiced",
+            ));
         }
         let (name, _) = service_name(conn, &service)?;
         let unit_price = money("unit_price", pick.unit_price.unwrap_or(price), true)?;
@@ -537,7 +567,11 @@ pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateIn
     }
     for x in &p.extra_lines {
         if !(1..=1000).contains(&x.quantity) {
-            return Err(CoreError::invalid("quantity", ValidationRule::BillingAmount, "quantity is 1 to 1000"));
+            return Err(CoreError::invalid(
+                "quantity",
+                ValidationRule::BillingAmount,
+                "quantity is 1 to 1000",
+            ));
         }
         let unit_price = money("unit_price", x.unit_price, true)?;
         let doctor_id = check_doctor(conn, &x.doctor_id)?;
@@ -568,15 +602,27 @@ pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateIn
     }
     let gross: i64 = lines.iter().map(NewLine::gross).sum();
     if gross > MAX_AMOUNT {
-        return Err(CoreError::invalid("items", ValidationRule::BillingAmount, "the invoice total is too large"));
+        return Err(CoreError::invalid(
+            "items",
+            ValidationRule::BillingAmount,
+            "the invoice total is too large",
+        ));
     }
     if lines.iter().any(|l| l.discount > l.gross()) {
-        return Err(CoreError::invalid("discount", ValidationRule::DiscountRange, "a line discount is more than the line"));
+        return Err(CoreError::invalid(
+            "discount",
+            ValidationRule::DiscountRange,
+            "a line discount is more than the line",
+        ));
     }
     let whole = money("discount", p.discount, true)?;
     let after_lines: Vec<i64> = lines.iter().map(|l| l.gross() - l.discount).collect();
     if whole > after_lines.iter().sum::<i64>() {
-        return Err(CoreError::invalid("discount", ValidationRule::DiscountRange, "the discount is more than the total"));
+        return Err(CoreError::invalid(
+            "discount",
+            ValidationRule::DiscountRange,
+            "the discount is more than the total",
+        ));
     }
     for (l, share) in lines.iter_mut().zip(share_out(whole, &after_lines)) {
         l.discount += share;
@@ -585,14 +631,18 @@ pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateIn
     let net = gross - discount;
     let note = optional("note", &p.note, 500)?;
     let date = today();
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Inv),
-        date,
-        patient_id: Some(&p.patient_id),
-        amount: net,
-        note: note.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Inv),
+            date,
+            patient_id: Some(&p.patient_id),
+            amount: net,
+            note: note.as_deref(),
+            ..Default::default()
+        },
+    )?;
     for (i, l) in lines.iter().enumerate() {
         conn.execute(
             "INSERT INTO fin_line(doc_id, no, account_id, amount, qty, unit_price, list_price, discount, item_id, service_id,
@@ -615,10 +665,18 @@ pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateIn
             ],
         )?;
         if let Some(item) = &l.item_id {
-            conn.execute("UPDATE treatment_item SET billed_at = ?1 WHERE id = ?2", params![crate::clock::now_iso(), item])?;
+            conn.execute(
+                "UPDATE treatment_item SET billed_at = ?1 WHERE id = ?2",
+                params![crate::clock::now_iso(), item],
+            )?;
         }
     }
-    post(conn, id, date, vec![dr(RECEIVABLE, net).of(&p.patient_id), dr(DISCOUNTS, discount), cr(INCOME, gross)])?;
+    post(
+        conn,
+        id,
+        date,
+        vec![dr(RECEIVABLE, net).of(&p.patient_id), dr(DISCOUNTS, discount), cr(INCOME, gross)],
+    )?;
     audit::record(
         conn,
         actor,
@@ -626,16 +684,22 @@ pub fn create(conn: &Connection, actor: &Actor, can_override: bool, p: &CreateIn
         Some("patient"),
         Some(&p.patient_id),
         None,
-        Some(&json!({"id": id, "number": number, "net": net, "discount": discount, "price_overrides": overrides})),
+        Some(
+            &json!({"id": id, "number": number, "net": net, "discount": discount, "price_overrides": overrides}),
+        ),
     )?;
     if p.use_deposit && net > 0 {
         let deposit = super::receipts::deposit(conn, &p.patient_id, None)?;
         if deposit > 0 {
-            super::receipts::allocate(conn, actor, &AllocateParams {
-                patient_id: p.patient_id.clone(),
-                allocations: vec![NewAllocation { invoice_id: id, amount: deposit.min(net) }],
-                reason: None,
-            })?;
+            super::receipts::allocate(
+                conn,
+                actor,
+                &AllocateParams {
+                    patient_id: p.patient_id.clone(),
+                    allocations: vec![NewAllocation { invoice_id: id, amount: deposit.min(net) }],
+                    reason: None,
+                },
+            )?;
         }
     }
     if !p.installments.is_empty() {
@@ -673,15 +737,19 @@ pub fn adjust(conn: &Connection, actor: &Actor, p: &AdjustInvoiceParams) -> Resu
         AdjustKind::WriteOff => (DocKind::Wo, BAD_DEBT),
     };
     let date = today();
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(kind),
-        date,
-        patient_id: Some(&patient),
-        ref_id: Some(inv.id),
-        amount,
-        reason: Some(&reason),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(kind),
+            date,
+            patient_id: Some(&patient),
+            ref_id: Some(inv.id),
+            amount,
+            reason: Some(&reason),
+            ..Default::default()
+        },
+    )?;
     post(conn, id, date, vec![dr(account, amount), cr(RECEIVABLE, amount).of(&patient)])?;
     audit::record(
         conn,
@@ -728,15 +796,19 @@ fn write_plan(
             "the installments must add up to what is still owed",
         ));
     }
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Pp),
-        date: today(),
-        patient_id: Some(&patient),
-        ref_id: Some(invoice_id),
-        amount: total,
-        reason,
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Pp),
+            date: today(),
+            patient_id: Some(&patient),
+            ref_id: Some(invoice_id),
+            amount: total,
+            reason,
+            ..Default::default()
+        },
+    )?;
     for (i, (due, amount)) in rows.iter().enumerate() {
         conn.execute(
             "INSERT INTO fin_line(doc_id, no, amount, due_date) VALUES (?1, ?2, ?3, ?4)",
@@ -800,7 +872,11 @@ pub(crate) fn void(conn: &Connection, actor: &Actor, h: &DocHead, reason: &str) 
         ));
     }
     if s.reductions != 0 || s.written_off != 0 {
-        return Err(CoreError::invalid("id", ValidationRule::DocNotVoidable, "void the reductions of this invoice first"));
+        return Err(CoreError::invalid(
+            "id",
+            ValidationRule::DocNotVoidable,
+            "void the reductions of this invoice first",
+        ));
     }
     void_doc(conn, actor, h, reason)?;
     conn.execute(

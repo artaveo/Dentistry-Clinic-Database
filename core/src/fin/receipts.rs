@@ -29,11 +29,14 @@ pub(crate) fn owed(conn: &Connection, patient_id: &str, as_of_doc: Option<i64>) 
 
 fn party_balance(conn: &Connection, account: i64, party: &str, as_of_doc: Option<i64>) -> Result<i64> {
     match as_of_doc {
-        None => scalar(conn, "SELECT SUM(amount) FROM fin_gl WHERE party_id = ?1 AND account_id = ?2", &[
-            &party, &account,
-        ]),
+        None => scalar(
+            conn,
+            "SELECT SUM(amount) FROM fin_gl WHERE party_id = ?1 AND account_id = ?2",
+            &[&party, &account],
+        ),
         Some(doc) => {
-            let at: i64 = conn.query_row("SELECT created_at FROM fin_doc WHERE id = ?1", [doc], |r| r.get(0))?;
+            let at: i64 =
+                conn.query_row("SELECT created_at FROM fin_doc WHERE id = ?1", [doc], |r| r.get(0))?;
             scalar(
                 conn,
                 "SELECT SUM(g.amount) FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id
@@ -169,10 +172,15 @@ fn finish(conn: &Connection, x: Row) -> Result<ReceiptInfo> {
 
 pub fn get(conn: &Connection, id: i64) -> Result<ReceiptInfo> {
     let row = conn
-        .query_row(&format!("{RECEIPT_SELECT} WHERE d.id = ?1 AND d.kind IN ('rc', 'al', 'rf')"), [id], map_row)
+        .query_row(
+            &format!("{RECEIPT_SELECT} WHERE d.id = ?1 AND d.kind IN ('rc', 'al', 'rf')"),
+            [id],
+            map_row,
+        )
         .optional()?
         .ok_or_else(|| {
-            CoreError::api(ErrorCode::NotFound, format!("receipt {id}")).on_field("id", ValidationRule::DocNotFound)
+            CoreError::api(ErrorCode::NotFound, format!("receipt {id}"))
+                .on_field("id", ValidationRule::DocNotFound)
         })?;
     finish(conn, row)
 }
@@ -202,7 +210,9 @@ pub fn list(conn: &Connection, p: &ReceiptListParams) -> Result<Vec<ReceiptInfo>
     }
     if let Some(q) = p.search.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         let like = format!("%{}%", crate::normalize::normalize_for_search(q));
-        filter.push_str(&format!(" AND ({NUMBER_SQL} LIKE ? OR p.patient_number LIKE ? OR p.full_name LIKE ?)"));
+        filter.push_str(&format!(
+            " AND ({NUMBER_SQL} LIKE ? OR p.patient_number LIKE ? OR p.full_name LIKE ?)"
+        ));
         for _ in 0..3 {
             args.push(Value::Text(like.clone()));
         }
@@ -212,7 +222,8 @@ pub fn list(conn: &Connection, p: &ReceiptListParams) -> Result<Vec<ReceiptInfo>
     args.push(Value::Integer(limit));
     args.push(Value::Integer(offset));
     let mut stmt = conn.prepare(&format!("{RECEIPT_SELECT}{filter} ORDER BY d.id DESC LIMIT ? OFFSET ?"))?;
-    let rows: Vec<Row> = stmt.query_map(params_from_iter(args.iter()), map_row)?.collect::<rusqlite::Result<_>>()?;
+    let rows: Vec<Row> =
+        stmt.query_map(params_from_iter(args.iter()), map_row)?.collect::<rusqlite::Result<_>>()?;
     rows.into_iter().map(|r| finish(conn, r)).collect()
 }
 
@@ -221,9 +232,11 @@ pub fn list(conn: &Connection, p: &ReceiptListParams) -> Result<Vec<ReceiptInfo>
 /// An open invoice of this patient and what it still owes.
 fn open_invoice(conn: &Connection, patient_id: &str, invoice_id: i64) -> Result<(String, i64)> {
     let row: Option<(Option<String>, String, i64, i64)> = conn
-        .query_row("SELECT party_id, status, year, serial FROM fin_doc WHERE id = ?1 AND kind = 'inv'", [invoice_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
-        })
+        .query_row(
+            "SELECT party_id, status, year, serial FROM fin_doc WHERE id = ?1 AND kind = 'inv'",
+            [invoice_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
         .optional()?;
     match row {
         Some((Some(p), status, year, serial)) if p == patient_id && status == "posted" => {
@@ -238,7 +251,12 @@ fn open_invoice(conn: &Connection, patient_id: &str, invoice_id: i64) -> Result<
 }
 
 /// Checks the allocations of a receipt or deposit move; returns them as `(invoice, amount)`.
-fn checked(conn: &Connection, patient_id: &str, list: &[NewAllocation], allow_negative: bool) -> Result<Vec<(i64, i64)>> {
+fn checked(
+    conn: &Connection,
+    patient_id: &str,
+    list: &[NewAllocation],
+    allow_negative: bool,
+) -> Result<Vec<(i64, i64)>> {
     let mut out: Vec<(i64, i64)> = Vec::new();
     for a in list {
         if a.amount == 0 {
@@ -252,7 +270,11 @@ fn checked(conn: &Connection, patient_id: &str, list: &[NewAllocation], allow_ne
             ));
         }
         if a.amount.abs() > MAX_AMOUNT {
-            return Err(CoreError::invalid("allocations", ValidationRule::BillingAmount, "amount out of range"));
+            return Err(CoreError::invalid(
+                "allocations",
+                ValidationRule::BillingAmount,
+                "amount out of range",
+            ));
         }
         let (_, remaining) = open_invoice(conn, patient_id, a.invoice_id)?;
         if a.amount > remaining {
@@ -331,22 +353,31 @@ pub fn create(conn: &Connection, actor: &Actor, p: &CreateReceiptParams) -> Resu
     let payer = optional("payer_name", &p.payer_name, 100)?;
     let note = optional("note", &p.note, 300)?;
     let date = today();
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Rc),
-        date,
-        patient_id: Some(&p.patient_id),
-        account_id: Some(account),
-        amount,
-        name: payer.as_deref(),
-        note: note.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Rc),
+            date,
+            patient_id: Some(&p.patient_id),
+            account_id: Some(account),
+            amount,
+            name: payer.as_deref(),
+            note: note.as_deref(),
+            ..Default::default()
+        },
+    )?;
     write_lines(conn, id, &lines)?;
-    post(conn, id, date, vec![
-        dr(account, amount),
-        cr(RECEIVABLE, allocated).of(&p.patient_id),
-        cr(DEPOSITS, amount - allocated).of(&p.patient_id),
-    ])?;
+    post(
+        conn,
+        id,
+        date,
+        vec![
+            dr(account, amount),
+            cr(RECEIVABLE, allocated).of(&p.patient_id),
+            cr(DEPOSITS, amount - allocated).of(&p.patient_id),
+        ],
+    )?;
     audit::record(
         conn,
         actor,
@@ -354,7 +385,9 @@ pub fn create(conn: &Connection, actor: &Actor, p: &CreateReceiptParams) -> Resu
         Some("patient"),
         Some(&p.patient_id),
         None,
-        Some(&json!({"id": id, "number": number, "amount": amount, "allocated": allocated, "account": account})),
+        Some(
+            &json!({"id": id, "number": number, "amount": amount, "allocated": allocated, "account": account}),
+        ),
     )?;
     get(conn, id)
 }
@@ -368,21 +401,33 @@ pub fn allocate(conn: &Connection, actor: &Actor, p: &AllocateParams) -> Result<
     let back = lines.iter().any(|l| l.1 < 0);
     let reason = optional("reason", &p.reason, 300)?;
     if back && reason.is_none() {
-        return Err(CoreError::invalid("reason", ValidationRule::Required, "say why money is taken off an invoice"));
+        return Err(CoreError::invalid(
+            "reason",
+            ValidationRule::Required,
+            "say why money is taken off an invoice",
+        ));
     }
     let net: i64 = lines.iter().map(|l| l.1).sum();
     if net > deposit(conn, &p.patient_id, None)? {
-        return Err(CoreError::invalid("allocations", ValidationRule::InsufficientCredit, "the deposit is smaller than that"));
+        return Err(CoreError::invalid(
+            "allocations",
+            ValidationRule::InsufficientCredit,
+            "the deposit is smaller than that",
+        ));
     }
     let date = today();
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Al),
-        date,
-        patient_id: Some(&p.patient_id),
-        amount: net,
-        reason: reason.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Al),
+            date,
+            patient_id: Some(&p.patient_id),
+            amount: net,
+            reason: reason.as_deref(),
+            ..Default::default()
+        },
+    )?;
     write_lines(conn, id, &lines)?;
     post(conn, id, date, vec![dr(DEPOSITS, net).of(&p.patient_id), cr(RECEIVABLE, net).of(&p.patient_id)])?;
     audit::record(
@@ -410,25 +455,37 @@ pub fn refund(conn: &Connection, actor: &Actor, p: &RefundParams) -> Result<Rece
                 "more than was paid on that invoice",
             ));
         }
-        allocate(conn, actor, &AllocateParams {
-            patient_id: p.patient_id.clone(),
-            allocations: vec![NewAllocation { invoice_id: invoice, amount: -amount }],
-            reason: Some(reason.clone()),
-        })?;
+        allocate(
+            conn,
+            actor,
+            &AllocateParams {
+                patient_id: p.patient_id.clone(),
+                allocations: vec![NewAllocation { invoice_id: invoice, amount: -amount }],
+                reason: Some(reason.clone()),
+            },
+        )?;
     }
     if amount > deposit(conn, &p.patient_id, None)? {
-        return Err(CoreError::invalid("amount", ValidationRule::InsufficientCredit, "the deposit is smaller than that"));
+        return Err(CoreError::invalid(
+            "amount",
+            ValidationRule::InsufficientCredit,
+            "the deposit is smaller than that",
+        ));
     }
     let date = today();
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Rf),
-        date,
-        patient_id: Some(&p.patient_id),
-        account_id: Some(account),
-        amount,
-        reason: Some(&reason),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Rf),
+            date,
+            patient_id: Some(&p.patient_id),
+            account_id: Some(account),
+            amount,
+            reason: Some(&reason),
+            ..Default::default()
+        },
+    )?;
     post(conn, id, date, vec![dr(DEPOSITS, amount).of(&p.patient_id), cr(account, amount)])?;
     audit::record(
         conn,
@@ -437,7 +494,9 @@ pub fn refund(conn: &Connection, actor: &Actor, p: &RefundParams) -> Result<Rece
         Some("patient"),
         Some(&p.patient_id),
         None,
-        Some(&json!({"id": id, "number": number, "amount": amount, "reason": reason, "invoice": p.from_invoice_id})),
+        Some(
+            &json!({"id": id, "number": number, "amount": amount, "reason": reason, "invoice": p.from_invoice_id}),
+        ),
     )?;
     get(conn, id)
 }

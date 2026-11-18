@@ -83,7 +83,9 @@ pub(crate) fn wh_account(k: WithholdingKind) -> i64 {
 fn check_supplier(conn: &Connection, id: &str) -> Result<String> {
     conn.query_row("SELECT id FROM supplier WHERE id = ?1 AND deleted_at IS NULL", [id], |r| r.get(0))
         .optional()?
-        .ok_or_else(|| CoreError::invalid("supplier_id", ValidationRule::SupplierNotFound, "unknown supplier"))
+        .ok_or_else(|| {
+            CoreError::invalid("supplier_id", ValidationRule::SupplierNotFound, "unknown supplier")
+        })
 }
 
 /// An account a bill or an "other" payment may be booked to: an expense account or equipment.
@@ -107,10 +109,18 @@ fn check_lines(conn: &Connection, lines: &[NewVoucherLine], allow_withholding: b
         let amount = money("amount", l.amount, false)?;
         let withheld = money("withheld", l.withheld, true)?;
         if withheld > 0 && (!allow_withholding || l.withholding.is_none()) {
-            return Err(CoreError::invalid("withholding", ValidationRule::Required, "say which tax was withheld"));
+            return Err(CoreError::invalid(
+                "withholding",
+                ValidationRule::Required,
+                "say which tax was withheld",
+            ));
         }
         if withheld > amount {
-            return Err(CoreError::invalid("withheld", ValidationRule::WithheldRange, "more tax withheld than the line"));
+            return Err(CoreError::invalid(
+                "withheld",
+                ValidationRule::WithheldRange,
+                "more tax withheld than the line",
+            ));
         }
         let desc = optional("description", &l.description, 200)?;
         out.push((account, amount, withheld, if withheld > 0 { l.withholding } else { None }, desc));
@@ -140,7 +150,8 @@ fn write_lines(conn: &Connection, doc_id: i64, lines: &[Line], due: Option<i64>)
 
 // ───────────────────────────── reading ─────────────────────────────
 
-const VOUCHER_SELECT: &str = "SELECT d.id, d.kind, d.year, d.serial, d.doc_date, d.created_at, d.account_id, d.purpose,
+const VOUCHER_SELECT: &str =
+    "SELECT d.id, d.kind, d.year, d.serial, d.doc_date, d.created_at, d.account_id, d.purpose,
     d.party_id, s.name, d.name, d.reference, d.note, d.status, d.void_reason, d.print_count, d.created_by
     FROM fin_doc d LEFT JOIN supplier s ON s.id = d.party_id";
 
@@ -243,10 +254,15 @@ fn finish(conn: &Connection, x: Row) -> Result<VoucherInfo> {
 
 pub fn get(conn: &Connection, id: i64) -> Result<VoucherInfo> {
     let row = conn
-        .query_row(&format!("{VOUCHER_SELECT} WHERE d.id = ?1 AND d.kind IN ('pv', 'bl', 'or')"), [id], map_row)
+        .query_row(
+            &format!("{VOUCHER_SELECT} WHERE d.id = ?1 AND d.kind IN ('pv', 'bl', 'or')"),
+            [id],
+            map_row,
+        )
         .optional()?
         .ok_or_else(|| {
-            CoreError::api(ErrorCode::NotFound, format!("voucher {id}")).on_field("id", ValidationRule::DocNotFound)
+            CoreError::api(ErrorCode::NotFound, format!("voucher {id}"))
+                .on_field("id", ValidationRule::DocNotFound)
         })?;
     finish(conn, row)
 }
@@ -281,9 +297,10 @@ pub fn list(conn: &Connection, p: &VoucherListParams) -> Result<Vec<VoucherInfo>
     }
     args.push(Value::Integer(p.limit.unwrap_or(200).min(MAX_LIST) as i64));
     args.push(Value::Integer(p.offset.unwrap_or(0) as i64));
-    let mut stmt =
-        conn.prepare(&format!("{VOUCHER_SELECT}{filter} ORDER BY d.doc_date DESC, d.id DESC LIMIT ? OFFSET ?"))?;
-    let rows: Vec<Row> = stmt.query_map(params_from_iter(args.iter()), map_row)?.collect::<rusqlite::Result<_>>()?;
+    let mut stmt = conn
+        .prepare(&format!("{VOUCHER_SELECT}{filter} ORDER BY d.doc_date DESC, d.id DESC LIMIT ? OFFSET ?"))?;
+    let rows: Vec<Row> =
+        stmt.query_map(params_from_iter(args.iter()), map_row)?.collect::<rusqlite::Result<_>>()?;
     rows.into_iter().map(|r| finish(conn, r)).collect()
 }
 
@@ -338,18 +355,22 @@ pub fn create_voucher(conn: &Connection, actor: &Actor, p: &CreateVoucherParams)
         }
     }
     entries.push(cr(account, gross - withheld));
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Pv),
-        date,
-        supplier_id: supplier.as_deref(),
-        account_id: Some(account),
-        amount: gross - withheld,
-        purpose: Some(purpose_code(p.purpose)),
-        name: name.as_deref(),
-        reference: reference.as_deref(),
-        note: note.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Pv),
+            date,
+            supplier_id: supplier.as_deref(),
+            account_id: Some(account),
+            amount: gross - withheld,
+            purpose: Some(purpose_code(p.purpose)),
+            name: name.as_deref(),
+            reference: reference.as_deref(),
+            note: note.as_deref(),
+            ..Default::default()
+        },
+    )?;
     write_lines(conn, id, &lines, None)?;
     post(conn, id, date, entries)?;
     audit::record(
@@ -359,7 +380,9 @@ pub fn create_voucher(conn: &Connection, actor: &Actor, p: &CreateVoucherParams)
         Some("fin_doc"),
         Some(&id.to_string()),
         None,
-        Some(&json!({"number": number, "purpose": purpose_code(p.purpose), "gross": gross, "withheld": withheld})),
+        Some(
+            &json!({"number": number, "purpose": purpose_code(p.purpose), "gross": gross, "withheld": withheld}),
+        ),
     )?;
     get(conn, id)
 }
@@ -374,16 +397,20 @@ pub fn create_bill(conn: &Connection, actor: &Actor, p: &CreateBillParams) -> Re
     let note = optional("note", &p.note, 300)?;
     let lines = check_lines(conn, &p.lines, false)?;
     let total: i64 = lines.iter().map(|l| l.1).sum();
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Bl),
-        date,
-        supplier_id: Some(&supplier),
-        amount: total,
-        purpose: Some("manual"),
-        reference: reference.as_deref(),
-        note: note.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Bl),
+            date,
+            supplier_id: Some(&supplier),
+            amount: total,
+            purpose: Some("manual"),
+            reference: reference.as_deref(),
+            note: note.as_deref(),
+            ..Default::default()
+        },
+    )?;
     write_lines(conn, id, &lines, due)?;
     let mut entries: Vec<Entry> = lines.iter().map(|l| dr(l.0, l.1)).collect();
     entries.push(cr(PAYABLE, total).of(&supplier));
@@ -436,16 +463,20 @@ pub(crate) fn sync_bill(conn: &Connection, actor: &Actor, b: &ExtBill<'_>) -> Re
         return Ok(());
     }
     let account = if source == "lab" { LAB } else { MATERIALS };
-    let (id, _) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Bl),
-        date,
-        supplier_id: Some(supplier_id),
-        ext_id: Some(ext_id),
-        amount,
-        purpose: Some(source),
-        note: Some(memo),
-        ..Default::default()
-    })?;
+    let (id, _) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Bl),
+            date,
+            supplier_id: Some(supplier_id),
+            ext_id: Some(ext_id),
+            amount,
+            purpose: Some(source),
+            note: Some(memo),
+            ..Default::default()
+        },
+    )?;
     conn.execute(
         "INSERT INTO fin_line(doc_id, no, account_id, amount, name) VALUES (?1, 1, ?2, ?3, ?4)",
         params![id, account, amount, memo],
@@ -455,7 +486,11 @@ pub(crate) fn sync_bill(conn: &Connection, actor: &Actor, b: &ExtBill<'_>) -> Re
 
 // ───────────────────────────── other money in, transfers ─────────────────────────────
 
-pub fn create_other_receipt(conn: &Connection, actor: &Actor, p: &CreateOtherReceiptParams) -> Result<VoucherInfo> {
+pub fn create_other_receipt(
+    conn: &Connection,
+    actor: &Actor,
+    p: &CreateOtherReceiptParams,
+) -> Result<VoucherInfo> {
     let date = doc_day("date", &p.date)?;
     let account = money_account(conn, "account_id", p.account_id)?;
     let amount = money("amount", p.amount, false)?;
@@ -466,16 +501,20 @@ pub fn create_other_receipt(conn: &Connection, actor: &Actor, p: &CreateOtherRec
         OtherReceiptSource::Loan => LOANS,
         OtherReceiptSource::Sale => OTHER_INCOME,
     };
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Or),
-        date,
-        account_id: Some(account),
-        amount,
-        purpose: Some(source_code(p.source)),
-        name: name.as_deref(),
-        note: note.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Or),
+            date,
+            account_id: Some(account),
+            amount,
+            purpose: Some(source_code(p.source)),
+            name: name.as_deref(),
+            note: note.as_deref(),
+            ..Default::default()
+        },
+    )?;
     conn.execute(
         "INSERT INTO fin_line(doc_id, no, account_id, amount) VALUES (?1, 1, ?2, ?3)",
         params![id, credit, amount],
@@ -498,21 +537,29 @@ pub fn create_transfer(conn: &Connection, actor: &Actor, p: &CreateTransferParam
     let from = money_account(conn, "from_account_id", p.from_account_id)?;
     let to = money_account(conn, "to_account_id", p.to_account_id)?;
     if from == to {
-        return Err(CoreError::invalid("to_account_id", ValidationRule::SameAccount, "choose two different accounts"));
+        return Err(CoreError::invalid(
+            "to_account_id",
+            ValidationRule::SameAccount,
+            "choose two different accounts",
+        ));
     }
     let amount = money("amount", p.amount, false)?;
     let reference = optional("reference", &p.reference, 60)?;
     let note = optional("note", &p.note, 300)?;
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Tr),
-        date,
-        account_id: Some(from),
-        account2_id: Some(to),
-        amount,
-        reference: reference.as_deref(),
-        note: note.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Tr),
+            date,
+            account_id: Some(from),
+            account2_id: Some(to),
+            amount,
+            reference: reference.as_deref(),
+            note: note.as_deref(),
+            ..Default::default()
+        },
+    )?;
     post(conn, id, date, vec![dr(to, amount), cr(from, amount)])?;
     audit::record(
         conn,

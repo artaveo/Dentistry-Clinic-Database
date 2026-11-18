@@ -14,12 +14,12 @@ use time::{PrimitiveDateTime, Time};
 
 use crate::audit::{self, Actor};
 use crate::auth::perm;
-use crate::fin::ledger::NUMBER_SQL;
-use crate::fin::util::{iso_of, ymd};
-use crate::fin::{self, date_of, scalar, trio};
 use crate::calendar::GregorianDate;
 use crate::clock::{iso, now, now_iso, parse, today_iso, CLINIC_OFFSET};
 use crate::error::{CoreError, Result};
+use crate::fin::ledger::NUMBER_SQL;
+use crate::fin::util::{iso_of, ymd};
+use crate::fin::{self, date_of, scalar, trio};
 use crate::inventory;
 use crate::patient;
 use crate::scheduling::{format_date, format_minutes, parse_date};
@@ -418,8 +418,10 @@ fn days(c: &Ctx) -> (i64, i64) {
 /// An account in a report: built-in accounts by code (the screen names them), the clinic's own by name.
 fn account_cell(conn: &Connection, id: Option<i64>) -> Result<ReportCell> {
     let Some(id) = id else { return Ok(ReportCell::Empty) };
-    let name: Option<String> =
-        conn.query_row("SELECT name FROM fin_account WHERE id = ?1", [id], |r| r.get(0)).optional()?.flatten();
+    let name: Option<String> = conn
+        .query_row("SELECT name FROM fin_account WHERE id = ?1", [id], |r| r.get(0))
+        .optional()?
+        .flatten();
     Ok(match name {
         Some(n) => text(n),
         None => tag(format!("acct_{id}")),
@@ -473,7 +475,9 @@ fn day_money(c: &Ctx) -> Result<BTreeMap<i64, DayMoney>> {
         "SELECT doc_date, SUM(kind = 'inv'), SUM(kind = 'rc') FROM fin_doc
          WHERE doc_date BETWEEN ?1 AND ?2 AND kind IN ('inv', 'rc') AND status = 'posted' GROUP BY doc_date",
     )?;
-    for row in stmt.query_map(params![from, to], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)))? {
+    for row in stmt.query_map(params![from, to], |r| {
+        Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?))
+    })? {
         let (day, invoices, receipts) = row?;
         let e = out.entry(day).or_default();
         e.invoices = invoices;
@@ -535,7 +539,17 @@ fn receipts_register(c: &Ctx) -> Result<Table> {
     type R = (i64, String, String, String, String, Option<i64>, i64, String, String);
     let raw: Vec<R> = stmt
         .query_map(params![from, to], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?))
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+                r.get(8)?,
+            ))
         })?
         .collect::<rusqlite::Result<_>>()?;
     let mut rows = Vec::with_capacity(raw.len());
@@ -650,57 +664,87 @@ fn adjustments(c: &Ctx) -> Result<Table> {
 }
 
 fn aging(c: &Ctx) -> Result<Table> {
-    let rows = fin::patients::aging(c.conn, &AgingParams { as_of: Some(c.to.clone()), search: None, limit: Some(5000) })?
-        .into_iter()
-        .map(|a| {
-            vec![
-                code(a.patient_number),
-                text(a.patient_name),
-                opt_code(a.phone),
-                int(a.invoice_count),
-                money(a.d0_30),
-                money(a.d31_60),
-                money(a.d61_90),
-                money(a.d90_plus),
-                money(a.total),
-                money(a.deposit),
-                opt_date(a.oldest_date),
-            ]
-        })
-        .collect();
+    let rows = fin::patients::aging(
+        c.conn,
+        &AgingParams { as_of: Some(c.to.clone()), search: None, limit: Some(5000) },
+    )?
+    .into_iter()
+    .map(|a| {
+        vec![
+            code(a.patient_number),
+            text(a.patient_name),
+            opt_code(a.phone),
+            int(a.invoice_count),
+            money(a.d0_30),
+            money(a.d31_60),
+            money(a.d61_90),
+            money(a.d90_plus),
+            money(a.total),
+            money(a.deposit),
+            opt_date(a.oldest_date),
+        ]
+    })
+    .collect();
     Ok(table(
-        &["patient_number", "patient", "phone", "invoices", "d0_30", "d31_60", "d61_90", "d90_plus", "total", "deposit", "oldest"],
+        &[
+            "patient_number",
+            "patient",
+            "phone",
+            "invoices",
+            "d0_30",
+            "d31_60",
+            "d61_90",
+            "d90_plus",
+            "total",
+            "deposit",
+            "oldest",
+        ],
         rows,
         &[3, 4, 5, 6, 7, 8, 9],
     ))
 }
 
 fn installments(c: &Ctx) -> Result<Table> {
-    let rows = fin::patients::due(c.conn, &InstallmentsDueParams { until: Some(c.to.clone()), ..Default::default() })?
-        .into_iter()
-        .map(|i| {
-            vec![
-                code(i.patient_number),
-                text(i.patient_name),
-                opt_code(i.phone),
-                code(i.invoice_number),
-                code(format!("{}/{}", i.no, i.count)),
-                date(i.due_date),
-                money(i.amount),
-                money(i.paid),
-                money(i.amount - i.paid),
-                int(i.days_late),
-                tag(match i.state {
-                    InstallmentState::Overdue => "overdue",
-                    InstallmentState::Partial => "partial",
-                    InstallmentState::Paid => "paid",
-                    InstallmentState::Pending => "pending",
-                }),
-            ]
-        })
-        .collect();
+    let rows = fin::patients::due(
+        c.conn,
+        &InstallmentsDueParams { until: Some(c.to.clone()), ..Default::default() },
+    )?
+    .into_iter()
+    .map(|i| {
+        vec![
+            code(i.patient_number),
+            text(i.patient_name),
+            opt_code(i.phone),
+            code(i.invoice_number),
+            code(format!("{}/{}", i.no, i.count)),
+            date(i.due_date),
+            money(i.amount),
+            money(i.paid),
+            money(i.amount - i.paid),
+            int(i.days_late),
+            tag(match i.state {
+                InstallmentState::Overdue => "overdue",
+                InstallmentState::Partial => "partial",
+                InstallmentState::Paid => "paid",
+                InstallmentState::Pending => "pending",
+            }),
+        ]
+    })
+    .collect();
     Ok(table(
-        &["patient_number", "patient", "phone", "invoice", "installment", "due", "amount", "paid", "unpaid", "days_late", "state"],
+        &[
+            "patient_number",
+            "patient",
+            "phone",
+            "invoice",
+            "installment",
+            "due",
+            "amount",
+            "paid",
+            "unpaid",
+            "days_late",
+            "state",
+        ],
         rows,
         &[6, 7, 8],
     ))
@@ -714,7 +758,9 @@ fn deposits(c: &Ctx) -> Result<Table> {
          ORDER BY 3 DESC {CAP}"
     ))?;
     let rows = stmt
-        .query_map([to], |r| Ok(vec![code(r.get::<_, String>(0)?), text(r.get::<_, String>(1)?), money(r.get(2)?)]))?
+        .query_map([to], |r| {
+            Ok(vec![code(r.get::<_, String>(0)?), text(r.get::<_, String>(1)?), money(r.get(2)?)])
+        })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(table(&["patient_number", "patient", "deposit"], rows, &[2]))
 }
@@ -730,7 +776,8 @@ fn expenses(c: &Ctx) -> Result<Table> {
             AND (d.kind = 'bl' OR (d.kind = 'pv' AND d.purpose IN ('expense', 'other')))
          ORDER BY d.doc_date, d.id, l.no {CAP}"
     ))?;
-    type R = (i64, String, String, i64, String, Option<String>, Option<String>, i64, i64, Option<i64>, String);
+    type R =
+        (i64, String, String, i64, String, Option<String>, Option<String>, i64, i64, Option<i64>, String);
     let raw: Vec<R> = stmt
         .query_map(params![from, to], |r| {
             Ok((
@@ -768,7 +815,20 @@ fn expenses(c: &Ctx) -> Result<Table> {
         ]);
     }
     Ok(table(
-        &["date", "number", "kind", "account", "description", "payee", "tin", "gross", "withheld", "net", "paid_from", "status"],
+        &[
+            "date",
+            "number",
+            "kind",
+            "account",
+            "description",
+            "payee",
+            "tin",
+            "gross",
+            "withheld",
+            "net",
+            "paid_from",
+            "status",
+        ],
         rows,
         &[7, 8, 9],
     ))
@@ -825,7 +885,14 @@ fn provider_production(c: &Ctx) -> Result<Table> {
     let rows = stmt
         .query_map(params![from, to, c.doctor], |r| {
             let (gross, discount): (i64, i64) = (r.get(3)?, r.get(4)?);
-            Ok(vec![opt_text(r.get(0)?), int(r.get(1)?), int(r.get(2)?), money(gross), money(discount), money(gross - discount)])
+            Ok(vec![
+                opt_text(r.get(0)?),
+                int(r.get(1)?),
+                int(r.get(2)?),
+                money(gross),
+                money(discount),
+                money(gross - discount),
+            ])
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(table(&["doctor", "patients", "units", "gross", "discount", "net"], rows, &[2, 3, 4, 5]))
@@ -880,7 +947,11 @@ fn cash_counts(c: &Ctx) -> Result<Table> {
             opt_text(k.created_by_name),
         ]);
     }
-    Ok(table(&["date", "number", "account", "book", "counted", "difference", "reason", "user"], rows, &[3, 4, 5]))
+    Ok(table(
+        &["date", "number", "account", "book", "counted", "difference", "reason", "user"],
+        rows,
+        &[3, 4, 5],
+    ))
 }
 
 /// Month by month: money in and out (cash method) next to work invoiced and costs incurred (accrual).
@@ -894,7 +965,9 @@ fn income_statement(c: &Ctx) -> Result<Table> {
     )?;
     type R = (i64, String, i64, String, bool, i64);
     let raw: Vec<R> = stmt
-        .query_map(params![from, to], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?
+        .query_map(params![from, to], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
+        })?
         .collect::<rusqlite::Result<_>>()?;
     // (received, cash expenses, revenue, accrual costs)
     let mut months: BTreeMap<String, (i64, i64, i64, i64)> = BTreeMap::new();

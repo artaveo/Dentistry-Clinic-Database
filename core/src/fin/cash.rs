@@ -55,15 +55,15 @@ pub fn counts(conn: &Connection, p: &CashCountListParams) -> Result<Vec<CashCoun
     let mut stmt = conn.prepare(&format!(
         "{COUNT_SELECT} AND d.doc_date BETWEEN ?1 AND ?2 AND (?3 IS NULL OR d.account_id = ?3) ORDER BY d.doc_date DESC, d.id DESC"
     ))?;
-    let rows = stmt
-        .query_map(params![from, to, p.account_id], map_count)?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let rows =
+        stmt.query_map(params![from, to, p.account_id], map_count)?.collect::<rusqlite::Result<Vec<_>>>()?;
     named(conn, rows)
 }
 
 fn counts_of_day(conn: &Connection, account: i64, date: i64) -> Result<Vec<CashCountInfo>> {
-    let mut stmt =
-        conn.prepare(&format!("{COUNT_SELECT} AND d.doc_date = ?1 AND d.account_id = ?2 AND d.status = 'posted' ORDER BY d.id"))?;
+    let mut stmt = conn.prepare(&format!(
+        "{COUNT_SELECT} AND d.doc_date = ?1 AND d.account_id = ?2 AND d.status = 'posted' ORDER BY d.id"
+    ))?;
     let rows = stmt.query_map(params![date, account], map_count)?.collect::<rusqlite::Result<Vec<_>>>()?;
     named(conn, rows)
 }
@@ -78,9 +78,12 @@ pub fn day(conn: &Connection, p: &CashDayParams) -> Result<CashDayInfo> {
         "SELECT d.kind, COALESCE(SUM(g.amount), 0) FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id
          WHERE g.account_id = ?1 AND g.date = ?2 GROUP BY d.kind",
     )?;
-    let by_kind: Vec<(String, i64)> =
-        stmt.query_map(params![account, date], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
-    let sum = |kinds: &[&str]| by_kind.iter().filter(|(k, _)| kinds.contains(&k.as_str())).map(|(_, a)| a).sum::<i64>();
+    let by_kind: Vec<(String, i64)> = stmt
+        .query_map(params![account, date], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    let sum = |kinds: &[&str]| {
+        by_kind.iter().filter(|(k, _)| kinds.contains(&k.as_str())).map(|(_, a)| a).sum::<i64>()
+    };
     let receipt_count = scalar(
         conn,
         "SELECT COUNT(*) FROM fin_doc WHERE kind = 'rc' AND account_id = ?1 AND doc_date = ?2 AND status = 'posted'",
@@ -118,14 +121,18 @@ pub fn count(conn: &Connection, actor: &Actor, p: &CreateCashCountParams) -> Res
             "write why the count differs from the books",
         ));
     }
-    let (id, number) = insert_doc(conn, actor, &NewDoc {
-        kind: Some(DocKind::Cc),
-        date,
-        account_id: Some(account),
-        amount: counted,
-        reason: reason.as_deref(),
-        ..Default::default()
-    })?;
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Cc),
+            date,
+            account_id: Some(account),
+            amount: counted,
+            reason: reason.as_deref(),
+            ..Default::default()
+        },
+    )?;
     post(conn, id, date, vec![dr(account, difference), cr(OVER_SHORT, difference)])?;
     audit::record(
         conn,
@@ -134,7 +141,9 @@ pub fn count(conn: &Connection, actor: &Actor, p: &CreateCashCountParams) -> Res
         Some("fin_doc"),
         Some(&id.to_string()),
         None,
-        Some(&json!({"number": number, "account": account, "book": book, "counted": counted, "difference": difference})),
+        Some(
+            &json!({"number": number, "account": account, "book": book, "counted": counted, "difference": difference}),
+        ),
     )?;
     let mut stmt = conn.prepare(&format!("{COUNT_SELECT} AND d.id = ?1"))?;
     let rows = stmt.query_map([id], map_count)?.collect::<rusqlite::Result<Vec<_>>>()?;

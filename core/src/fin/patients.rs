@@ -32,7 +32,9 @@ pub(crate) fn open_installments(conn: &Connection, patient_id: Option<&str>) -> 
          ORDER BY pp.id",
     )?;
     let plans: Vec<(i64, i64, i64, String)> = stmt
-        .query_map([patient_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get::<_, Option<String>>(3)?.unwrap_or_default())))?
+        .query_map([patient_id], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get::<_, Option<String>>(3)?.unwrap_or_default()))
+        })?
         .collect::<rusqlite::Result<_>>()?;
     let today = today();
     let mut out = Vec::new();
@@ -82,7 +84,8 @@ pub fn due(conn: &Connection, p: &InstallmentsDueParams) -> Result<Vec<Installme
 // ───────────────────────────── account ─────────────────────────────
 
 pub fn account(conn: &Connection, patient_id: &str) -> Result<PatientAccount> {
-    let mut stmt = conn.prepare("SELECT id FROM fin_doc WHERE kind = 'inv' AND party_id = ?1 AND status = 'posted'")?;
+    let mut stmt =
+        conn.prepare("SELECT id FROM fin_doc WHERE kind = 'inv' AND party_id = ?1 AND status = 'posted'")?;
     let ids: Vec<i64> = stmt.query_map([patient_id], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
     let mut total = Settled::default();
     let mut owed = 0;
@@ -113,7 +116,11 @@ pub fn account(conn: &Connection, patient_id: &str) -> Result<PatientAccount> {
         balance: owed - deposit,
         billable_count,
         billable_total,
-        overdue: open.iter().filter(|i| i.state == InstallmentState::Overdue).map(|i| i.amount - i.paid).sum(),
+        overdue: open
+            .iter()
+            .filter(|i| i.state == InstallmentState::Overdue)
+            .map(|i| i.amount - i.paid)
+            .sum(),
         next_due: open.into_iter().next(),
     })
 }
@@ -200,7 +207,9 @@ pub fn aging(conn: &Connection, p: &AgingParams) -> Result<Vec<AgingRow>> {
          FROM fin_doc d WHERE d.kind = 'inv' AND d.status = 'posted' AND d.doc_date <= ?1",
     )?;
     let rows: Vec<(String, i64, i64)> = stmt
-        .query_map([as_of], |r| Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get(1)?, r.get(2)?)))?
+        .query_map([as_of], |r| {
+            Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get(1)?, r.get(2)?))
+        })?
         .collect::<rusqlite::Result<_>>()?;
     let mut by: BTreeMap<String, AgingRow> = BTreeMap::new();
     for (patient, date, left) in rows {
@@ -236,13 +245,23 @@ pub fn aging(conn: &Connection, p: &AgingParams) -> Result<Vec<AgingRow>> {
             row.oldest_date = Some(iso);
         }
     }
-    let search = p.search.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(crate::normalize::normalize_for_search);
+    let search = p
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(crate::normalize::normalize_for_search);
     let open = open_installments(conn, None)?;
     let mut out = Vec::new();
     for (patient, mut row) in by {
         let (name, number, phone) = patient_names(conn, &patient)?;
         if let Some(q) = &search {
-            let hay = format!("{} {} {}", crate::normalize::normalize_for_search(&name), number, phone.clone().unwrap_or_default());
+            let hay = format!(
+                "{} {} {}",
+                crate::normalize::normalize_for_search(&name),
+                number,
+                phone.clone().unwrap_or_default()
+            );
             if !hay.contains(q.as_str()) {
                 continue;
             }

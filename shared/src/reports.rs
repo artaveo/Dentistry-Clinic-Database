@@ -127,9 +127,9 @@ impl ReportKind {
     pub fn group(self) -> &'static str {
         use ReportKind::*;
         match self {
-            DailySummary | MonthlySummary | Receipts | Invoices | Adjustments | Aging | Installments | Deposits
-            | Expenses | MoneyBook | ProviderProduction | ServiceRevenue | DoctorShares | CashCounts
-            | IncomeStatement => "financial",
+            DailySummary | MonthlySummary | Receipts | Invoices | Adjustments | Aging | Installments
+            | Deposits | Expenses | MoneyBook | ProviderProduction | ServiceRevenue | DoctorShares
+            | CashCounts | IncomeStatement => "financial",
             Patients | Treatments | Procedures | ToothConditions | DoctorActivity | FollowUps
             | RecallList | ReferralSources => "clinical",
             Stock | LowStock | Purchases | Consumption | Expiry | SupplierBalance => "inventory",

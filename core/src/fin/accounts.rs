@@ -41,7 +41,8 @@ fn money_code(m: MoneyKind) -> &'static str {
     }
 }
 
-const ACCOUNT_SELECT: &str = "SELECT a.id, a.parent_id, a.type, a.name, a.money, a.bank_name, a.bank_no, a.is_system,
+const ACCOUNT_SELECT: &str =
+    "SELECT a.id, a.parent_id, a.type, a.name, a.money, a.bank_name, a.bank_no, a.is_system,
     a.is_active, a.version, (SELECT COALESCE(SUM(g.amount), 0) FROM fin_gl g WHERE g.account_id = a.id)
     FROM fin_account a";
 
@@ -71,9 +72,8 @@ pub fn list(conn: &Connection, p: &AccountListParams) -> Result<Vec<AccountInfo>
 }
 
 pub fn get(conn: &Connection, id: i64) -> Result<AccountInfo> {
-    conn.query_row(&format!("{ACCOUNT_SELECT} WHERE a.id = ?1"), [id], map_account).map_err(|_| {
-        CoreError::invalid("id", ValidationRule::AccountNotFound, format!("no account {id}"))
-    })
+    conn.query_row(&format!("{ACCOUNT_SELECT} WHERE a.id = ?1"), [id], map_account)
+        .map_err(|_| CoreError::invalid("id", ValidationRule::AccountNotFound, format!("no account {id}")))
 }
 
 /// A new expense account (under 5000) or money account (under 1100), or a change of name / on-off.
@@ -84,7 +84,9 @@ pub fn save(conn: &Connection, actor: &Actor, p: &SaveAccountParams) -> Result<A
     match p.id {
         None => {
             let parent = p.parent_id.unwrap_or(EXPENSES);
-            let name = name.ok_or_else(|| CoreError::invalid("name", ValidationRule::AccountName, "the account needs a name"))?;
+            let name = name.ok_or_else(|| {
+                CoreError::invalid("name", ValidationRule::AccountName, "the account needs a name")
+            })?;
             let (kind, money, lo, hi) = match parent {
                 EXPENSES => ("expense", None, 5300, 5799),
                 MONEY => {
@@ -104,10 +106,15 @@ pub fn save(conn: &Connection, actor: &Actor, p: &SaveAccountParams) -> Result<A
                     ))
                 }
             };
-            let taken: i64 = scalar(conn, "SELECT MAX(id) FROM fin_account WHERE id BETWEEN ?1 AND ?2", &[&lo, &hi])?;
+            let taken: i64 =
+                scalar(conn, "SELECT MAX(id) FROM fin_account WHERE id BETWEEN ?1 AND ?2", &[&lo, &hi])?;
             let id = if taken == 0 { lo } else { taken + 1 };
             if id > hi {
-                return Err(CoreError::invalid("parent_id", ValidationRule::AccountKind, "no free account code left"));
+                return Err(CoreError::invalid(
+                    "parent_id",
+                    ValidationRule::AccountKind,
+                    "no free account code left",
+                ));
             }
             conn.execute(
                 "INSERT INTO fin_account(id, parent_id, type, name, money, bank_name, bank_no, is_active)
@@ -115,16 +122,32 @@ pub fn save(conn: &Connection, actor: &Actor, p: &SaveAccountParams) -> Result<A
                 params![id, parent, kind, name, money.map(money_code), bank_name, bank_no, p.is_active],
             )?;
             let after = get(conn, id)?;
-            audit::record(conn, actor, "account.create", Some("fin_account"), Some(&id.to_string()), None, Some(&json!(after)))?;
+            audit::record(
+                conn,
+                actor,
+                "account.create",
+                Some("fin_account"),
+                Some(&id.to_string()),
+                None,
+                Some(&json!(after)),
+            )?;
             Ok(after)
         }
         Some(id) => {
             let before = get(conn, id)?;
             if !p.is_active && matches!(id, CASH | RECEIVABLE | DEPOSITS | PAYABLE | INCOME) {
-                return Err(CoreError::invalid("is_active", ValidationRule::AccountKind, "this account cannot be turned off"));
+                return Err(CoreError::invalid(
+                    "is_active",
+                    ValidationRule::AccountKind,
+                    "this account cannot be turned off",
+                ));
             }
             if !before.is_system && name.is_none() {
-                return Err(CoreError::invalid("name", ValidationRule::AccountName, "the account needs a name"));
+                return Err(CoreError::invalid(
+                    "name",
+                    ValidationRule::AccountName,
+                    "the account needs a name",
+                ));
             }
             let changed = conn.execute(
                 "UPDATE fin_account SET name = CASE WHEN is_system = 1 THEN name ELSE ?1 END, bank_name = ?2, bank_no = ?3,

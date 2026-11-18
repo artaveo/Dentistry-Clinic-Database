@@ -24,7 +24,10 @@ use crate::error::Result;
 
 /// A merged patient's money follows the kept record (documents and their sub-ledger rows).
 pub(crate) fn merge_patient(conn: &Connection, keep_id: &str, merge_id: &str) -> Result<()> {
-    conn.execute("UPDATE fin_doc SET party_id = ?1 WHERE party = 'patient' AND party_id = ?2", params![keep_id, merge_id])?;
+    conn.execute(
+        "UPDATE fin_doc SET party_id = ?1 WHERE party = 'patient' AND party_id = ?2",
+        params![keep_id, merge_id],
+    )?;
     conn.execute("UPDATE fin_gl SET party_id = ?1 WHERE party_id = ?2", params![keep_id, merge_id])?;
     Ok(())
 }

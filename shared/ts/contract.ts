@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "payment_method_not_found" | "payment_method_name" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "payment_not_found" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "expense_category_not_found" | "expense_not_found" | "cash_day_closed" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "supplier_payment_not_found" | "supplier_payment_void" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed" | "backup_minute_range" | "backup_retention_range" | "usb_interval_range" | "cloud_folder" | "activation_code_format" | "usb_mount_unknown" | "backup_file_unknown" | "tooth_conflict" | "finding_not_found" | "item_duplicate" | "patient_has_history" | "stock_code_taken" | "appointment_not_started" | "recall_duplicate";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "account_not_found" | "account_inactive" | "account_kind" | "account_name" | "doc_not_found" | "doc_void" | "doc_not_voidable" | "allocation_invalid" | "same_account" | "withheld_range" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed" | "backup_minute_range" | "backup_retention_range" | "usb_interval_range" | "cloud_folder" | "activation_code_format" | "usb_mount_unknown" | "backup_file_unknown" | "tooth_conflict" | "finding_not_found" | "item_duplicate" | "patient_has_history" | "stock_code_taken" | "appointment_not_started" | "recall_duplicate";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "server_unreachable" | "license_read_only" | "license_server_unavailable" | "license_rejected" | "backup_invalid" | "internal";
 
@@ -1230,61 +1230,141 @@ export type TimelineParams = { patient_id: string,
  */
 kinds: Array<TimelineKind>, limit: number, };
 
-export type InvoiceStatus = "issued" | "void";
+export type AccountType = "asset" | "liability" | "equity" | "income" | "contra" | "expense";
+
+export type MoneyKind = "cash" | "bank" | "mobile";
+
+export type DocKind = "inv" | "rc" | "al" | "rf" | "cn" | "wo" | "pp" | "bl" | "pv" | "or" | "tr" | "cc";
+
+export type DocStatus = "posted" | "void" | "superseded";
 
 export type PayState = "unpaid" | "partial" | "paid" | "void";
 
-export type PaymentKind = "payment" | "credit" | "refund";
-
 export type InstallmentState = "pending" | "partial" | "paid" | "overdue";
+
+export type AdjustKind = "reduction" | "write_off";
+
+export type VoucherPurpose = "expense" | "supplier" | "tax" | "drawing" | "loan" | "other";
+
+export type WithholdingKind = "rent" | "contractor";
+
+export type OtherReceiptSource = "capital" | "loan" | "sale";
 
 export type CommissionBasis = "payment" | "treatment";
 
 export type CommissionKind = "percent" | "fixed";
 
-export type PaymentMethodInfo = { id: string, code: string, name: Translations, 
-/**
- * Counts in the cash drawer at closing.
- */
-is_cash: boolean, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
+export type LegalForm = "natural_person" | "partnership" | "llc" | "corporation";
 
-export type SavePaymentMethodParams = { 
-/**
- * None = a new method.
- */
-id: string | null, name: Translations, is_cash: boolean, is_active: boolean, version: number | null, };
+export type TaxRegime = "unknown" | "fixed" | "income_brt";
 
-export type InvoiceLineInfo = { id: string, treatment_item_id: string | null, service_id: string | null, names: Translations, teeth: Array<number>, surfaces: string, doctor_id: string | null, quantity: number, unit_price: number, 
+export type DocIdParams = { id: number, };
+
+export type VoidDocParams = { id: number, reason: string, };
+
+export type DocPrintedParams = { id: number, 
+/**
+ * Saved as a PDF instead of printed on paper.
+ */
+pdf: boolean, };
+
+export type DocSummary = { id: number, kind: DocKind, 
+/**
+ * `RC-1405-000012`
+ */
+number: string, date: string, status: DocStatus, amount: number, print_count: number, };
+
+export type PeriodParams = { from: string, to: string, };
+
+export type AccountInfo = { 
+/**
+ * The account code (1110).
+ */
+id: number, parent_id: number | null, kind: AccountType, 
+/**
+ * None for a built-in account: the UI shows its own label for the code.
+ */
+name: string | null, money: MoneyKind | null, bank_name: string | null, bank_no: string | null, is_system: boolean, is_active: boolean, 
+/**
+ * Debits − credits so far (today included).
+ */
+balance: number, version: number, };
+
+export type AccountListParams = { include_inactive: boolean, };
+
+export type SaveAccountParams = { 
+/**
+ * None = a new account; Core picks the next free code under the parent.
+ */
+id: number | null, 
+/**
+ * 5000 for an expense account, 1100 for a money account (new accounts only).
+ */
+parent_id: number | null, 
+/**
+ * Required for a clinic's own account; ignored for a built-in one.
+ */
+name: string | null, 
+/**
+ * For a new money account: cash, bank or mobile.
+ */
+money: MoneyKind | null, bank_name: string | null, bank_no: string | null, is_active: boolean, version: number | null, };
+
+export type InvoiceLineInfo = { no: number, treatment_item_id: string | null, service_id: string | null, 
+/**
+ * The service name as invoiced.
+ */
+name: string, teeth: Array<number>, doctor_id: string | null, doctor_name: string | null, quantity: number, unit_price: number, 
 /**
  * The treatment's price before it was changed for this invoice (0 = none to compare with).
  */
-listed_price: number, line_total: number, };
+listed_price: number, 
+/**
+ * `quantity × unit_price`.
+ */
+gross: number, 
+/**
+ * This line's discount, its share of the invoice discount included.
+ */
+discount: number, 
+/**
+ * `gross − discount`.
+ */
+net: number, };
 
 export type InstallmentInfo = { no: number, due_date: string, amount: number, 
 /**
- * Covered so far by what the invoice has received (oldest installment first).
+ * Covered so far by what was allocated to the invoice (oldest installment first).
  */
 paid: number, state: InstallmentState, };
 
-export type CreditNoteInfo = { id: string, number: string, amount: number, reason: string, issued_at: string, };
-
-export type InvoiceInfo = { id: string, 
+export type PlanInfo = { id: number, number: string, 
 /**
- * `INV-1405-000001`
+ * 1, 2, … each time the plan is replaced.
  */
-number: string, patient_id: string, patient_name: string, patient_number: string, status: InvoiceStatus, pay_state: PayState, issued_at: string, local_date: string, lines: Array<InvoiceLineInfo>, subtotal: number, discount: number, credit_notes_total: number, 
+version: number, date: string, reason: string | null, installments: Array<InstallmentInfo>, };
+
+export type AdjustmentInfo = { id: number, number: string, kind: AdjustKind, date: string, amount: number, reason: string, status: DocStatus, };
+
+export type AllocationInfo = { doc_id: number, kind: DocKind, number: string, date: string, amount: number, };
+
+export type InvoiceInfo = { id: number, number: string, patient_id: string, patient_name: string, patient_number: string, status: DocStatus, pay_state: PayState, date: string, created_at: string, lines: Array<InvoiceLineInfo>, gross: number, discount: number, 
 /**
- * Subtotal − discount − credit notes: what the patient owes for this invoice.
+ * `gross − discount`: what was invoiced.
  */
 net: number, 
 /**
- * Received for this invoice (payments and credit used), refunds not yet taken off.
+ * Price reductions after the invoice (posted ones).
  */
-paid: number, refunded: number, 
+reductions: number, written_off: number, 
 /**
- * `net − (paid − refunded)`, never below 0.
+ * Money put towards the invoice (receipts and deposit).
  */
-remaining: number, note: string | null, void_reason: string | null, installments: Array<InstallmentInfo>, credit_notes: Array<CreditNoteInfo>, print_count: number, created_by_name: string | null, version: number, };
+allocated: number, 
+/**
+ * `net − reductions − written_off − allocated`.
+ */
+remaining: number, note: string | null, void_reason: string | null, plan: PlanInfo | null, adjustments: Array<AdjustmentInfo>, allocations: Array<AllocationInfo>, print_count: number, created_by_name: string | null, };
 
 export type BillableItem = { item_id: string, service_id: string, names: Translations, teeth: Array<number>, surfaces: string, units: number, unit_price: number, doctor_id: string | null, completed_at: string | null, details: string | null, 
 /**
@@ -1296,23 +1376,41 @@ export type InvoiceItemPick = { item_id: string,
 /**
  * None = the treatment's price. A different price needs `billing.override`.
  */
-unit_price: number | null, };
+unit_price: number | null, 
+/**
+ * Discount on this line.
+ */
+discount: number, };
 
 export type NewInvoiceLine = { service_id: string | null, 
 /**
  * Required when there is no service.
  */
-description: string | null, teeth: Array<number>, quantity: number, unit_price: number, doctor_id: string | null, };
+description: string | null, teeth: Array<number>, quantity: number, unit_price: number, discount: number, doctor_id: string | null, };
 
 export type NewInstallment = { due_date: string, amount: number, };
 
-export type CreateInvoiceParams = { patient_id: string, items: Array<InvoiceItemPick>, extra_lines: Array<NewInvoiceLine>, discount: number, note: string | null, installments: Array<NewInstallment>, };
+export type CreateInvoiceParams = { patient_id: string, items: Array<InvoiceItemPick>, extra_lines: Array<NewInvoiceLine>, 
+/**
+ * Discount on the whole invoice, shared out over the lines.
+ */
+discount: number, note: string | null, 
+/**
+ * Put the patient's deposit towards the new invoice at once.
+ */
+use_deposit: boolean, installments: Array<NewInstallment>, };
 
-export type VoidInvoiceParams = { id: string, version: number, reason: string, };
+export type AdjustInvoiceParams = { invoice_id: number, kind: AdjustKind, amount: number, reason: string, };
 
-export type CreditNoteParams = { invoice_id: string, amount: number, reason: string, };
-
-export type SetInstallmentsParams = { invoice_id: string, installments: Array<NewInstallment>, };
+export type SetPlanParams = { invoice_id: number, 
+/**
+ * Empty = remove the plan.
+ */
+installments: Array<NewInstallment>, 
+/**
+ * Why a plan is replaced (required when one exists).
+ */
+reason: string | null, };
 
 export type InvoiceListParams = { patient_id: string | null, 
 /**
@@ -1324,115 +1422,319 @@ open_only: boolean, from: string | null, to: string | null,
  */
 search: string | null, limit: number | null, offset: number | null, };
 
-export type ReceiptLine = { names: Translations, amount: number, };
+export type AllocationLine = { invoice_id: number, invoice_number: string, amount: number, };
 
-export type ReceiptSnapshot = { patient_name: string, patient_number: string, invoice_number: string | null, lines: Array<ReceiptLine>, invoice_net: number, 
+export type ReceiptInfo = { id: number, kind: DocKind, number: string, patient_id: string, patient_name: string, patient_number: string, date: string, created_at: string, 
 /**
- * Received for the invoice after this payment.
+ * The money account (none for an allocation).
  */
-paid_after: number, remaining_after: number, 
+account_id: number | null, amount: number, allocations: Array<AllocationLine>, 
 /**
- * The patient's credit after this payment.
+ * The part of a receipt left as the patient's deposit.
  */
-credit_after: number, method: Translations | null, };
+to_deposit: number, payer_name: string | null, note: string | null, reason: string | null, status: DocStatus, void_reason: string | null, 
+/**
+ * What the patient still owed on invoices right after this document.
+ */
+owed_after: number, 
+/**
+ * The patient's deposit right after this document.
+ */
+deposit_after: number, print_count: number, created_by_name: string | null, };
 
-export type PaymentInfo = { id: string, 
-/**
- * `RC-1405-000001` (payment), `CU-…` (credit used), `RV-…` (refund).
- */
-number: string, kind: PaymentKind, patient_id: string, patient_name: string, invoice_id: string | null, invoice_number: string | null, method_id: string | null, method: Translations | null, amount: number, paid_at: string, local_date: string, note: string | null, 
-/**
- * A refund's original payment.
- */
-refund_of: string | null, returns_to_credit: boolean, reason: string | null, 
-/**
- * How much of this payment has been given back.
- */
-refunded: number, print_count: number, last_printed_at: string | null, receipt: ReceiptSnapshot, created_by_name: string | null, version: number, };
+export type NewAllocation = { invoice_id: number, amount: number, };
 
-export type AddPaymentParams = { patient_id: string, 
+export type CreateReceiptParams = { patient_id: string, account_id: number, amount: number, 
 /**
- * None = an advance payment (credit).
+ * Where the money goes; empty with `auto_allocate` = oldest invoices first; the rest is deposit.
  */
-invoice_id: string | null, amount: number, 
-/**
- * Required unless `use_credit`.
- */
-method_id: string | null, 
-/**
- * Pay the invoice from the patient's credit instead of with money.
- */
-use_credit: boolean, note: string | null, };
+allocations: Array<NewAllocation>, auto_allocate: boolean, payer_name: string | null, note: string | null, };
 
-export type RefundParams = { payment_id: string, amount: number, reason: string, 
-/**
- * A cash payment's refund hands money back unless this is set (the amount becomes credit instead).
- */
-to_credit: boolean, };
+export type AllocateParams = { patient_id: string, allocations: Array<NewAllocation>, reason: string | null, };
 
-export type PaymentListParams = { patient_id: string | null, invoice_id: string | null, from: string | null, to: string | null, limit: number | null, offset: number | null, };
+export type RefundParams = { patient_id: string, account_id: number, amount: number, reason: string, from_invoice_id: number | null, };
 
-export type PatientAccount = { patient_id: string, invoice_count: number, 
+export type ReceiptListParams = { patient_id: string | null, 
 /**
- * Sum of invoice lines.
+ * rc, al or rf; None = all three.
  */
-total: number, 
-/**
- * Discounts and credit notes.
- */
-discount: number, paid: number, refunded: number, remaining: number, 
-/**
- * Advance money not yet put on an invoice.
- */
-credit: number, 
-/**
- * Completed treatments not invoiced yet.
- */
-unbilled_count: number, unbilled_total: number, };
+kind: DocKind | null, account_id: number | null, from: string | null, to: string | null, search: string | null, limit: number | null, offset: number | null, };
 
-export type DebtorInfo = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, remaining: number, invoice_count: number, oldest_invoice_at: string | null, last_payment_at: string | null, 
+export type InstallmentDue = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, invoice_id: number, invoice_number: string, no: number, count: number, due_date: string, amount: number, paid: number, state: InstallmentState, 
 /**
- * The earliest installment date still unpaid.
+ * Days past the due date (0 when not due yet).
  */
-next_due: string | null, overdue: boolean, };
-
-export type DebtorListParams = { search: string | null, limit: number | null, };
-
-export type StatementLine = { at: string, 
-/**
- * `invoice`, `payment`, `credit`, `refund`, `credit_note`.
- */
-kind: string, number: string, description: string, 
-/**
- * What the patient owes more (invoice).
- */
-debit: number, 
-/**
- * What the patient has paid or was credited.
- */
-credit: number, 
-/**
- * Running balance owed after this line (negative = in credit).
- */
-balance: number, };
-
-export type StatementInfo = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, from: string | null, to: string | null, generated_at: string, opening_balance: number, lines: Array<StatementLine>, account: PatientAccount, };
-
-export type StatementParams = { patient_id: string, from: string | null, to: string | null, };
-
-export type InstallmentDue = { invoice_id: string, invoice_number: string, patient_id: string, patient_name: string, phone: string | null, no: number, due_date: string, amount: number, unpaid: number, overdue: boolean, };
+days_late: number, };
 
 export type InstallmentsDueParams = { 
 /**
- * Installments due on or before this date (default: a week from today).
+ * Due on or before this day (default today); unpaid ones only.
  */
-through: string | null, };
+until: string | null, overdue_only: boolean, patient_id: string | null, };
 
-export type BillingSettings = { commission_enabled: boolean, commission_basis: CommissionBasis, 
+export type PatientAccount = { patient_id: string, 
+/**
+ * Net of all posted invoices.
+ */
+invoiced: number, reductions: number, written_off: number, allocated: number, 
+/**
+ * Still owed on invoices.
+ */
+owed: number, 
+/**
+ * Money held for the patient (not yet put on an invoice).
+ */
+deposit: number, 
+/**
+ * `owed − deposit`: positive = the patient owes the clinic.
+ */
+balance: number, billable_count: number, billable_total: number, overdue: number, next_due: InstallmentDue | null, };
+
+export type StatementLine = { date: string, doc_id: number, kind: DocKind, number: string, 
+/**
+ * What it is for (invoice lines, reason, …).
+ */
+description: string, 
+/**
+ * Raises what the patient owes (invoice).
+ */
+charge: number, 
+/**
+ * Lowers it (money received, reductions, write-offs) — refunds count negative.
+ */
+credit: number, 
+/**
+ * `owed − deposit` after this line.
+ */
+balance: number, };
+
+export type StatementInfo = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, from: string | null, to: string, opening: number, lines: Array<StatementLine>, charges: number, credits: number, closing: number, };
+
+export type StatementParams = { patient_id: string, from: string | null, to: string | null, };
+
+export type AgingRow = { patient_id: string, patient_name: string, patient_number: string, phone: string | null, invoice_count: number, d0_30: number, d31_60: number, d61_90: number, d90_plus: number, total: number, deposit: number, oldest_date: string | null, last_receipt: string | null, next_due: string | null, };
+
+export type AgingParams = { 
+/**
+ * Owed as of this day (default today).
+ */
+as_of: string | null, search: string | null, limit: number | null, };
+
+export type VoucherLineInfo = { no: number, account_id: number, description: string | null, 
+/**
+ * Gross amount of the line.
+ */
+amount: number, withheld: number, withholding: WithholdingKind | null, };
+
+export type VoucherInfo = { id: number, kind: DocKind, number: string, date: string, created_at: string, 
+/**
+ * The money account (none for a bill).
+ */
+account_id: number | null, purpose: VoucherPurpose | null, source: OtherReceiptSource | null, supplier_id: string | null, supplier_name: string | null, 
+/**
+ * Who was paid / who paid (free text).
+ */
+name: string | null, 
+/**
+ * Bank slip, vendor's bill number, …
+ */
+reference: string | null, lines: Array<VoucherLineInfo>, gross: number, withheld: number, 
+/**
+ * Money that actually moved: `gross − withheld`.
+ */
+net: number, due_date: string | null, note: string | null, status: DocStatus, void_reason: string | null, print_count: number, created_by_name: string | null, };
+
+export type NewVoucherLine = { account_id: number, amount: number, description: string | null, 
+/**
+ * Tax withheld from this line, entered by hand (vouchers only).
+ */
+withheld: number, withholding: WithholdingKind | null, };
+
+export type CreateVoucherParams = { date: string, account_id: number, purpose: VoucherPurpose, 
+/**
+ * Required for `supplier`; optional for an expense bought from a known supplier.
+ */
+supplier_id: string | null, name: string | null, reference: string | null, note: string | null, 
+/**
+ * Expense lines; for `supplier` one line is made from `amount`.
+ */
+lines: Array<NewVoucherLine>, 
+/**
+ * For supplier / tax / drawing / loan / other: the amount paid.
+ */
+amount: number, 
+/**
+ * For `tax`: which withheld tax is paid.
+ */
+withholding: WithholdingKind | null, };
+
+export type CreateBillParams = { supplier_id: string, date: string, due_date: string | null, reference: string | null, note: string | null, lines: Array<NewVoucherLine>, };
+
+export type CreateOtherReceiptParams = { date: string, account_id: number, source: OtherReceiptSource, amount: number, name: string | null, note: string | null, };
+
+export type VoucherListParams = { 
+/**
+ * pv, bl or or; None = all three.
+ */
+kind: DocKind | null, purpose: VoucherPurpose | null, 
+/**
+ * Vouchers with a line on this (expense) account, or paid from this money account.
+ */
+account_id: number | null, supplier_id: string | null, from: string | null, to: string | null, limit: number | null, offset: number | null, };
+
+export type CreateTransferParams = { date: string, from_account_id: number, to_account_id: number, amount: number, reference: string | null, note: string | null, };
+
+export type CashCountInfo = { id: number, number: string, account_id: number, date: string, created_at: string, 
+/**
+ * What the books say was in the account at the count.
+ */
+book: number, counted: number, 
+/**
+ * `counted − book`.
+ */
+difference: number, reason: string | null, status: DocStatus, created_by_name: string | null, };
+
+export type CashDayInfo = { account_id: number, date: string, opening: number, 
+/**
+ * From patients (receipts).
+ */
+received: number, 
+/**
+ * Back to patients (refunds).
+ */
+refunded: number, 
+/**
+ * Paid out (vouchers).
+ */
+paid_out: number, 
+/**
+ * Other money in (capital, loans, sales).
+ */
+other_in: number, 
+/**
+ * Transfers in − transfers out.
+ */
+transfers: number, 
+/**
+ * Over/short booked by earlier counts that day.
+ */
+adjustments: number, closing: number, receipt_count: number, counts: Array<CashCountInfo>, };
+
+export type CashDayParams = { account_id: number, date: string, };
+
+export type CreateCashCountParams = { account_id: number, date: string, counted: number, 
+/**
+ * Required when the count differs from the books.
+ */
+reason: string | null, };
+
+export type CashCountListParams = { account_id: number | null, from: string | null, to: string | null, };
+
+export type LedgerLine = { date: string, doc_id: number, kind: DocKind, number: string, description: string, 
+/**
+ * + debit, − credit.
+ */
+amount: number, balance: number, 
+/**
+ * A reversing row written when the document was voided.
+ */
+reversal: boolean, };
+
+export type AccountLedger = { account_id: number, from: string, to: string, opening: number, lines: Array<LedgerLine>, closing: number, truncated: boolean, };
+
+export type AccountLedgerParams = { account_id: number, 
+/**
+ * Only this supplier's or patient's rows (sub-ledger).
+ */
+party_id: string | null, from: string, to: string, };
+
+export type AccountTotal = { account_id: number, amount: number, };
+
+export type MoneyAccountTotal = { account_id: number, opening: number, inflow: number, outflow: number, closing: number, };
+
+export type CashBasis = { 
+/**
+ * From patients.
+ */
+received: number, 
+/**
+ * Back to patients.
+ */
+refunded: number, 
+/**
+ * `received − refunded`.
+ */
+net_received: number, 
+/**
+ * Paid for expenses, by expense account.
+ */
+expenses: Array<AccountTotal>, expenses_total: number, 
+/**
+ * Paid to suppliers and labs.
+ */
+suppliers_paid: number, 
+/**
+ * `net_received − expenses_total − suppliers_paid`.
+ */
+operating: number, 
+/**
+ * Tax kept back from payments in the period (owed to the government, not money out yet).
+ */
+withheld: number, owner_in: number, owner_out: number, loans_in: number, loans_out: number, tax_paid: number, other_income: number, 
+/**
+ * Over (+) / short (−) at cash counts.
+ */
+count_differences: number, money: Array<MoneyAccountTotal>, money_opening: number, money_closing: number, };
+
+export type AccrualBasis = { gross: number, discounts: number, reductions: number, other_income: number, 
+/**
+ * `gross − discounts − reductions + other_income`.
+ */
+revenue: number, expenses: Array<AccountTotal>, expenses_total: number, write_offs: number, 
+/**
+ * `revenue − expenses_total − write_offs`.
+ */
+result: number, };
+
+export type CheckResult = { 
+/**
+ * `ledger_balanced`, `patients`, `deposits`, `suppliers`, `bridge`, `money`.
+ */
+key: string, ok: boolean, 
+/**
+ * The two numbers compared.
+ */
+left: number, right: number, };
+
+export type FinanceOverview = { from: string, to: string, cash: CashBasis, accrual: AccrualBasis, 
+/**
+ * Owed by patients on invoices (end of period).
+ */
+receivables: number, 
+/**
+ * Held for patients (end of period).
+ */
+deposits: number, 
+/**
+ * Owed to suppliers and labs (end of period).
+ */
+payables: number, 
+/**
+ * Withheld tax not yet paid to the government (end of period).
+ */
+tax_withheld: number, overdue_installments: number, checks: Array<CheckResult>, };
+
+export type LegalProfile = { legal_name: string | null, legal_form: LegalForm | null, tax_regime: TaxRegime | null, 
+/**
+ * Taxpayer identification number.
+ */
+tin: string | null, business_license_no: string | null, health_license_no: string | null, tax_office: string | null, owner_name: string | null, owner_father_name: string | null, official_address: string | null, };
+
+export type FinanceSettings = { share_enabled: boolean, share_basis: CommissionBasis, 
 /**
  * Printed at the foot of every receipt.
  */
-receipt_footer: string, };
+receipt_footer: string, legal: LegalProfile, };
 
 export type CommissionRuleInfo = { id: string, 
 /**
@@ -1448,59 +1750,15 @@ export type SaveCommissionRuleParams = { id: string | null, doctor_id: string | 
 
 export type CommissionReportParams = { doctor_id: string | null, from: string, to: string, };
 
-export type CommissionLine = { date: string, invoice_number: string, patient_name: string, names: Translations, 
+export type CommissionLine = { date: string, invoice_number: string, patient_name: string, name: string, 
 /**
- * What the commission is taken from.
+ * What the share is taken from.
  */
 base: number, commission: number, };
 
 export type DoctorCommission = { doctor_id: string, doctor_name: string, base: number, commission: number, lines: Array<CommissionLine>, };
 
 export type CommissionReport = { basis: CommissionBasis, from: string, to: string, doctors: Array<DoctorCommission>, base_total: number, commission_total: number, };
-
-export type ExpenseCategoryInfo = { id: string, name: Translations, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
-
-export type SaveExpenseCategoryParams = { id: string | null, name: Translations, is_active: boolean, version: number | null, };
-
-export type ExpenseInfo = { id: string, category_id: string, category: Translations, amount: number, local_date: string, description: string, payee: string | null, 
-/**
- * Paid out of the cash drawer (counts at the daily closing).
- */
-from_cash: boolean, created_by_name: string | null, version: number, };
-
-export type AddExpenseParams = { category_id: string, amount: number, date: string, description: string, payee: string | null, from_cash: boolean, };
-
-export type DeleteExpenseParams = { id: string, version: number, reason: string, };
-
-export type PeriodParams = { from: string, to: string, };
-
-export type DateParams = { date: string, };
-
-export type MethodTotal = { method: Translations, is_cash: boolean, received: number, refunded: number, };
-
-export type CashClosingInfo = { id: string, date: string, expected: number, counted: number, 
-/**
- * `counted − expected`.
- */
-difference: number, reason: string | null, closed_at: string, closed_by_name: string | null, };
-
-export type CashDay = { date: string, by_method: Array<MethodTotal>, cash_in: number, cash_refunds: number, cash_expenses: number, expected: number, payment_count: number, closing: CashClosingInfo | null, };
-
-export type CloseCashParams = { date: string, counted: number, 
-/**
- * Required when the count differs from the expected amount.
- */
-reason: string | null, };
-
-export type CategoryTotal = { category: Translations, amount: number, };
-
-export type FinanceSummary = { from: string, to: string, invoiced: number, received: number, refunded: number, expenses: number, 
-/**
- * `received − refunded − expenses`.
- */
-profit: number, by_method: Array<MethodTotal>, by_category: Array<CategoryTotal>, };
-
-export type ExpenseListParams = { from: string | null, to: string | null, };
 
 export type StockLookupInfo = { id: string, name: Translations, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
 
@@ -1586,9 +1844,13 @@ export type MaterialLine = { item_id: string, qty: number, };
 
 export type SaveServiceMaterialsParams = { service_id: string, materials: Array<MaterialLine>, };
 
-export type SupplierInfo = { id: string, kind: SupplierKind, name: string, contact_person: string | null, phone: string | null, address: string | null, note: string | null, is_active: boolean, 
+export type SupplierInfo = { id: string, kind: SupplierKind, name: string, contact_person: string | null, phone: string | null, address: string | null, note: string | null, 
 /**
- * Bought from this supplier.
+ * Taxpayer number (on the clinic's withholding register).
+ */
+tin: string | null, license_no: string | null, is_active: boolean, 
+/**
+ * Bought from this supplier (bills from purchases and bills entered by hand).
  */
 purchases_total: number, 
 /**
@@ -1604,7 +1866,7 @@ returns_total: number, paid_total: number,
  */
 balance: number, version: number, };
 
-export type SaveSupplierParams = { id: string | null, kind: SupplierKind, name: string, contact_person: string | null, phone: string | null, address: string | null, note: string | null, is_active: boolean, version: number | null, };
+export type SaveSupplierParams = { id: string | null, kind: SupplierKind, name: string, contact_person: string | null, phone: string | null, address: string | null, note: string | null, tin: string | null, license_no: string | null, is_active: boolean, version: number | null, };
 
 export type SupplierListParams = { kind: SupplierKind | null, include_inactive: boolean, 
 /**
@@ -1614,7 +1876,11 @@ owing_only: boolean, };
 
 export type SupplierIdParams = { supplier_id: string, };
 
-export type LedgerEntry = { kind: LedgerKind, local_date: string, number: string | null, description: string, amount: number, balance: number, };
+export type LedgerEntry = { 
+/**
+ * The finance document (bill or payment voucher).
+ */
+doc_id: number, kind: LedgerKind, local_date: string, number: string | null, description: string, amount: number, balance: number, };
 
 export type PurchaseLineInfo = { id: string, item_id: string, item_name: Translations, unit: Translations, qty: number, unit_cost: number, line_total: number, lot_no: string | null, expiry_date: string | null, location: Translations, };
 
@@ -1624,19 +1890,17 @@ export type PurchaseLineParams = { item_id: string, qty: number, unit_cost: numb
 
 export type CreatePurchaseParams = { supplier_id: string, date: string | null, note: string | null, lines: Array<PurchaseLineParams>, 
 /**
- * Paid on the spot (recorded as a payment to the supplier).
+ * Paid on the spot (a payment voucher to the supplier from `account_id`).
  */
-paid: number, method_id: string | null, };
+paid: number, 
+/**
+ * The money account it was paid from (finance account code).
+ */
+account_id: number | null, };
 
 export type PurchaseListParams = { supplier_id: string | null, from: string | null, to: string | null, };
 
 export type VoidWithReasonParams = { id: string, version: number, reason: string, };
-
-export type SupplierPaymentInfo = { id: string, number: string, supplier_id: string, supplier_name: string, amount: number, method_id: string | null, method: Translations | null, local_date: string, note: string | null, void: boolean, void_reason: string | null, created_by_name: string | null, version: number, };
-
-export type AddSupplierPaymentParams = { supplier_id: string, amount: number, method_id: string, date: string | null, note: string | null, };
-
-export type SupplierPaymentListParams = { supplier_id: string | null, from: string | null, to: string | null, };
 
 export type LabCaseInfo = { id: string, number: string, patient_id: string, patient_name: string, patient_number: string, doctor_id: string | null, doctor_name: string | null, treatment_item_id: string | null, lab_id: string, lab_name: string, teeth: Array<number>, work_type: string, shade: string | null, status: LabStatus, sent_date: string | null, expected_date: string | null, received_date: string | null, delivered_date: string | null, cost: number, note: string | null, cancel_reason: string | null, 
 /**
@@ -1686,7 +1950,7 @@ export type SupplierKind = "supplier" | "lab";
 
 export type LabStatus = "planned" | "sent" | "received" | "delivered" | "cancelled";
 
-export type LedgerKind = "purchase" | "lab" | "return" | "payment";
+export type LedgerKind = "purchase" | "lab" | "return" | "payment" | "bill";
 
 export type LanPairingInfo = { code: string, expires_in_seconds: number, attempts_left: number, };
 
@@ -1738,13 +2002,17 @@ low_stock: number | null, pending_lab: number | null, backup: BackupStatus | nul
  */
 license: string | null, };
 
-export type ReportKind = "daily_revenue" | "monthly_revenue" | "payments" | "outstanding" | "discounts" | "refunds" | "doctor_revenue" | "doctor_commission" | "service_revenue" | "expenses" | "profit_loss" | "cash_closings" | "patients" | "treatments" | "procedures" | "tooth_conditions" | "doctor_activity" | "follow_ups" | "recall_list" | "referral_sources" | "stock" | "low_stock" | "purchases" | "consumption" | "expiry" | "supplier_balance";
+export type ReportKind = "daily_summary" | "monthly_summary" | "receipts" | "invoices" | "adjustments" | "aging" | "installments" | "deposits" | "expenses" | "money_book" | "provider_production" | "service_revenue" | "doctor_shares" | "cash_counts" | "income_statement" | "patients" | "treatments" | "procedures" | "tooth_conditions" | "doctor_activity" | "follow_ups" | "recall_list" | "referral_sources" | "stock" | "low_stock" | "purchases" | "consumption" | "expiry" | "supplier_balance";
 
 export type ReportParams = { kind: ReportKind, 
 /**
  * First day of the period (clinic-local ISO date).
  */
 from: string, to: string, doctor_id: string | null, service_id: string | null, 
+/**
+ * The money account of a money book (default the cash drawer, 1110).
+ */
+account_id: number | null, 
 /**
  * How "monthly" rows are grouped (default Shamsi).
  */
@@ -2035,40 +2303,42 @@ export interface Api {
   "perio.save": { params: SavePerioParams; result: PerioExamInfo };
   "perio.delete": { params: IdVersionParams; result: Empty };
   "timeline.list": { params: TimelineParams; result: Array<TimelineEvent> };
-  "payment_methods.list": { params: IncludeInactiveParams; result: Array<PaymentMethodInfo> };
-  "payment_methods.save": { params: SavePaymentMethodParams; result: PaymentMethodInfo };
-  "invoices.billable": { params: PatientIdParams; result: Array<BillableItem> };
-  "invoices.list": { params: InvoiceListParams; result: Array<InvoiceInfo> };
-  "invoices.get": { params: IdParams; result: InvoiceInfo };
-  "invoices.create": { params: CreateInvoiceParams; result: InvoiceInfo };
-  "invoices.void": { params: VoidInvoiceParams; result: InvoiceInfo };
-  "invoices.credit_note": { params: CreditNoteParams; result: InvoiceInfo };
-  "invoices.set_installments": { params: SetInstallmentsParams; result: InvoiceInfo };
-  "invoices.mark_printed": { params: MarkPrintedParams; result: InvoiceInfo };
-  "payments.list": { params: PaymentListParams; result: Array<PaymentInfo> };
-  "payments.get": { params: IdParams; result: PaymentInfo };
-  "payments.add": { params: AddPaymentParams; result: PaymentInfo };
-  "payments.refund": { params: RefundParams; result: PaymentInfo };
-  "payments.mark_printed": { params: MarkPrintedParams; result: PaymentInfo };
-  "billing.account": { params: PatientIdParams; result: PatientAccount };
-  "billing.debtors": { params: DebtorListParams; result: Array<DebtorInfo> };
-  "billing.statement": { params: StatementParams; result: StatementInfo };
-  "billing.installments_due": { params: InstallmentsDueParams; result: Array<InstallmentDue> };
-  "billing.summary": { params: PeriodParams; result: FinanceSummary };
-  "billing.settings_get": { params: Empty; result: BillingSettings };
-  "billing.settings_save": { params: BillingSettings; result: BillingSettings };
-  "commission.rules_list": { params: Empty; result: Array<CommissionRuleInfo> };
-  "commission.rules_save": { params: SaveCommissionRuleParams; result: CommissionRuleInfo };
-  "commission.rules_delete": { params: IdVersionParams; result: Empty };
-  "commission.report": { params: CommissionReportParams; result: CommissionReport };
-  "expense_categories.list": { params: IncludeInactiveParams; result: Array<ExpenseCategoryInfo> };
-  "expense_categories.save": { params: SaveExpenseCategoryParams; result: ExpenseCategoryInfo };
-  "expenses.list": { params: ExpenseListParams; result: Array<ExpenseInfo> };
-  "expenses.add": { params: AddExpenseParams; result: ExpenseInfo };
-  "expenses.delete": { params: DeleteExpenseParams; result: Empty };
-  "cash.day": { params: DateParams; result: CashDay };
-  "cash.close": { params: CloseCashParams; result: CashClosingInfo };
-  "cash.closings": { params: ExpenseListParams; result: Array<CashClosingInfo> };
+  "fin.accounts.list": { params: AccountListParams; result: Array<AccountInfo> };
+  "fin.accounts.save": { params: SaveAccountParams; result: AccountInfo };
+  "fin.accounts.ledger": { params: AccountLedgerParams; result: AccountLedger };
+  "fin.invoices.billable": { params: PatientIdParams; result: Array<BillableItem> };
+  "fin.invoices.list": { params: InvoiceListParams; result: Array<InvoiceInfo> };
+  "fin.invoices.get": { params: DocIdParams; result: InvoiceInfo };
+  "fin.invoices.create": { params: CreateInvoiceParams; result: InvoiceInfo };
+  "fin.invoices.adjust": { params: AdjustInvoiceParams; result: InvoiceInfo };
+  "fin.invoices.set_plan": { params: SetPlanParams; result: InvoiceInfo };
+  "fin.receipts.list": { params: ReceiptListParams; result: Array<ReceiptInfo> };
+  "fin.receipts.get": { params: DocIdParams; result: ReceiptInfo };
+  "fin.receipts.create": { params: CreateReceiptParams; result: ReceiptInfo };
+  "fin.receipts.allocate": { params: AllocateParams; result: ReceiptInfo };
+  "fin.receipts.refund": { params: RefundParams; result: ReceiptInfo };
+  "fin.patients.account": { params: PatientIdParams; result: PatientAccount };
+  "fin.patients.statement": { params: StatementParams; result: StatementInfo };
+  "fin.receivables.aging": { params: AgingParams; result: Array<AgingRow> };
+  "fin.receivables.due": { params: InstallmentsDueParams; result: Array<InstallmentDue> };
+  "fin.vouchers.list": { params: VoucherListParams; result: Array<VoucherInfo> };
+  "fin.vouchers.get": { params: DocIdParams; result: VoucherInfo };
+  "fin.vouchers.create": { params: CreateVoucherParams; result: VoucherInfo };
+  "fin.bills.create": { params: CreateBillParams; result: VoucherInfo };
+  "fin.other_receipts.create": { params: CreateOtherReceiptParams; result: VoucherInfo };
+  "fin.transfers.create": { params: CreateTransferParams; result: DocSummary };
+  "fin.cash.day": { params: CashDayParams; result: CashDayInfo };
+  "fin.cash.count": { params: CreateCashCountParams; result: CashCountInfo };
+  "fin.cash.counts": { params: CashCountListParams; result: Array<CashCountInfo> };
+  "fin.docs.void": { params: VoidDocParams; result: DocSummary };
+  "fin.docs.printed": { params: DocPrintedParams; result: DocSummary };
+  "fin.overview": { params: PeriodParams; result: FinanceOverview };
+  "fin.settings.get": { params: Empty; result: FinanceSettings };
+  "fin.settings.save": { params: FinanceSettings; result: FinanceSettings };
+  "fin.shares.rules_list": { params: Empty; result: Array<CommissionRuleInfo> };
+  "fin.shares.rules_save": { params: SaveCommissionRuleParams; result: CommissionRuleInfo };
+  "fin.shares.rules_delete": { params: IdVersionParams; result: Empty };
+  "fin.shares.preview": { params: CommissionReportParams; result: CommissionReport };
   "stock_categories.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };
   "stock_categories.save": { params: SaveStockLookupParams; result: StockLookupInfo };
   "stock_units.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };
@@ -2098,9 +2368,6 @@ export interface Api {
   "purchases.get": { params: IdParams; result: PurchaseInfo };
   "purchases.create": { params: CreatePurchaseParams; result: PurchaseInfo };
   "purchases.void": { params: VoidWithReasonParams; result: PurchaseInfo };
-  "supplier_payments.list": { params: SupplierPaymentListParams; result: Array<SupplierPaymentInfo> };
-  "supplier_payments.add": { params: AddSupplierPaymentParams; result: SupplierPaymentInfo };
-  "supplier_payments.void": { params: VoidWithReasonParams; result: SupplierPaymentInfo };
   "lab_cases.list": { params: LabCaseListParams; result: Array<LabCaseInfo> };
   "lab_cases.get": { params: IdParams; result: LabCaseInfo };
   "lab_cases.create": { params: CreateLabCaseParams; result: LabCaseInfo };

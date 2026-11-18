@@ -3759,7 +3759,9 @@ fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_righ
     );
     // Paid on the spot is a payment voucher out of the cash drawer.
     let today = crate::clock::today_iso();
-    let cash_day = |t: &T| t.ok(m::FIN_CASH_DAY, json!({"account_id": 1110, "date": today}), Some(&owner))["paid_out"].clone();
+    let cash_day = |t: &T| {
+        t.ok(m::FIN_CASH_DAY, json!({"account_id": 1110, "date": today}), Some(&owner))["paid_out"].clone()
+    };
     assert_eq!(cash_day(&t), 10_000);
 
     // A bank payment is not cash; voiding the cash one gives the money back to the drawer.
@@ -3777,7 +3779,8 @@ fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_righ
     t.ok(m::FIN_DOCS_VOID, json!({"id": cash_pay["id"], "reason": "اشتباه"}), Some(&owner));
     assert_eq!(cash_day(&t), 0);
     assert_eq!(t.ok(m::SUPPLIERS_GET, json!({"id": sid}), Some(&owner))["balance"], 20_000);
-    let (_, _, rule) = rule_of(&t, m::FIN_DOCS_VOID, json!({"id": cash_pay["id"], "reason": "دوباره"}), &owner);
+    let (_, _, rule) =
+        rule_of(&t, m::FIN_DOCS_VOID, json!({"id": cash_pay["id"], "reason": "دوباره"}), &owner);
     assert_eq!(rule.as_deref(), Some("doc_void"));
     assert_eq!(bank_pay["net"], 5_000);
 
@@ -3824,13 +3827,7 @@ fn inventory_purchases_suppliers_and_payments_keep_the_balance_and_the_cash_righ
     assert_eq!(rule.as_deref(), Some("purchase_void"));
 
     let actions = t.audit_actions(&owner);
-    for a in [
-        "supplier.create",
-        "purchase.create",
-        "purchase.void",
-        "voucher.create",
-        "fin.void",
-    ] {
+    for a in ["supplier.create", "purchase.create", "purchase.void", "voucher.create", "fin.void"] {
         assert!(actions.contains(&a.to_string()), "{a} is audited");
     }
 }

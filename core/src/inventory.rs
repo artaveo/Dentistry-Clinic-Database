@@ -11,14 +11,14 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::audit::{self, Actor};
+use crate::clock::{now_iso, today_iso};
+use crate::db::expect_one_row;
+use crate::error::{CoreError, Result};
 use crate::fin::spend::{sync_bill, ExtBill};
 use crate::fin::util::{iso_of, ymd};
 use crate::fin::{
     check_patient, date_of, money, next_number, opt_date, optional, parse_teeth, required, scalar, trio,
 };
-use crate::clock::{now_iso, today_iso};
-use crate::db::expect_one_row;
-use crate::error::{CoreError, Result};
 use crate::formulary::clean_translations;
 use crate::ids::{new_id, seed_id};
 use crate::scheduling::{format_date, parse_date};
@@ -1072,14 +1072,18 @@ pub fn return_to_supplier(conn: &Connection, actor: &Actor, p: &ReturnStockParam
     record_move(conn, actor, &mv)?;
     if credit > 0 {
         let ext = new_id();
-        sync_bill(conn, actor, &ExtBill {
-            ext_id: &ext,
-            source: "return",
-            supplier_id: &supplier.id,
-            amount: -credit,
-            date: ymd(&date),
-            memo: reason.as_deref().unwrap_or("return"),
-        })?;
+        sync_bill(
+            conn,
+            actor,
+            &ExtBill {
+                ext_id: &ext,
+                source: "return",
+                supplier_id: &supplier.id,
+                amount: -credit,
+                date: ymd(&date),
+                memo: reason.as_deref().unwrap_or("return"),
+            },
+        )?;
     }
     audit::record(
         conn,
@@ -1612,27 +1616,35 @@ pub fn create_purchase(conn: &Connection, actor: &Actor, p: &CreatePurchaseParam
         None,
         Some(&json!({"number": number, "supplier": supplier.name, "total": total, "lines": lines.len()})),
     )?;
-    sync_bill(conn, actor, &ExtBill {
-        ext_id: &id,
-        source: "purchase",
-        supplier_id: &supplier.id,
-        amount: total,
-        date: ymd(&date),
-        memo: &number,
-    })?;
+    sync_bill(
+        conn,
+        actor,
+        &ExtBill {
+            ext_id: &id,
+            source: "purchase",
+            supplier_id: &supplier.id,
+            amount: total,
+            date: ymd(&date),
+            memo: &number,
+        },
+    )?;
     if paid > 0 {
-        crate::fin::spend::create_voucher(conn, actor, &CreateVoucherParams {
-            date: date.clone(),
-            account_id: p.account_id.unwrap_or(1110),
-            purpose: VoucherPurpose::Supplier,
-            supplier_id: Some(supplier.id.clone()),
-            name: None,
-            reference: Some(number.clone()),
-            note: None,
-            lines: Vec::new(),
-            amount: paid,
-            withholding: None,
-        })?;
+        crate::fin::spend::create_voucher(
+            conn,
+            actor,
+            &CreateVoucherParams {
+                date: date.clone(),
+                account_id: p.account_id.unwrap_or(1110),
+                purpose: VoucherPurpose::Supplier,
+                supplier_id: Some(supplier.id.clone()),
+                name: None,
+                reference: Some(number.clone()),
+                note: None,
+                lines: Vec::new(),
+                amount: paid,
+                withholding: None,
+            },
+        )?;
     }
     get_purchase(conn, &id)
 }
@@ -1684,14 +1696,18 @@ pub fn void_purchase(conn: &Connection, actor: &Actor, p: &VoidWithReasonParams)
         params![reason, now_iso(), p.id, p.version],
     )?;
     expect_one_row(changed, "purchase")?;
-    sync_bill(conn, actor, &ExtBill {
-        ext_id: &p.id,
-        source: "purchase",
-        supplier_id: &before.supplier_id,
-        amount: 0,
-        date: ymd(&date),
-        memo: &reason,
-    })?;
+    sync_bill(
+        conn,
+        actor,
+        &ExtBill {
+            ext_id: &p.id,
+            source: "purchase",
+            supplier_id: &before.supplier_id,
+            amount: 0,
+            date: ymd(&date),
+            memo: &reason,
+        },
+    )?;
     audit::record(
         conn,
         actor,
@@ -1881,14 +1897,18 @@ fn sync_lab_bill(conn: &Connection, actor: &Actor, case_id: &str) -> Result<()> 
     let c = get_lab_case(conn, case_id)?;
     let billed = matches!(c.status, LabStatus::Received | LabStatus::Delivered);
     let date = c.received_date.clone().unwrap_or_else(today_iso);
-    sync_bill(conn, actor, &ExtBill {
-        ext_id: &c.id,
-        source: "lab",
-        supplier_id: &c.lab_id,
-        amount: if billed { c.cost } else { 0 },
-        date: ymd(&date),
-        memo: &c.number,
-    })
+    sync_bill(
+        conn,
+        actor,
+        &ExtBill {
+            ext_id: &c.id,
+            source: "lab",
+            supplier_id: &c.lab_id,
+            amount: if billed { c.cost } else { 0 },
+            date: ymd(&date),
+            memo: &c.number,
+        },
+    )
 }
 
 pub fn update_lab_case(conn: &Connection, actor: &Actor, p: &UpdateLabCaseParams) -> Result<LabCaseInfo> {

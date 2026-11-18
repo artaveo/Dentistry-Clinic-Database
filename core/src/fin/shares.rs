@@ -33,7 +33,11 @@ pub fn get_settings(conn: &Connection) -> Result<FinanceSettings> {
 fn clean_legal(l: &LegalProfile) -> Result<LegalProfile> {
     let tin = optional("tin", &l.tin, 20)?;
     if tin.as_deref().is_some_and(|t| !t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')) {
-        return Err(CoreError::invalid("tin", ValidationRule::InvalidParams, "a TIN has digits and letters only"));
+        return Err(CoreError::invalid(
+            "tin",
+            ValidationRule::InvalidParams,
+            "a TIN has digits and letters only",
+        ));
     }
     Ok(LegalProfile {
         legal_name: optional("legal_name", &l.legal_name, 120)?,
@@ -53,18 +57,35 @@ pub fn save_settings(conn: &Connection, actor: &Actor, p: &FinanceSettings) -> R
     let before = get_settings(conn)?;
     let footer = p.receipt_footer.trim();
     if footer.chars().count() > 200 {
-        return Err(CoreError::invalid("receipt_footer", ValidationRule::DocumentText, "at most 200 characters"));
+        return Err(CoreError::invalid(
+            "receipt_footer",
+            ValidationRule::DocumentText,
+            "at most 200 characters",
+        ));
     }
     let legal = clean_legal(&p.legal)?;
     set_setting(conn, actor, "fin.share_enabled", if p.share_enabled { "1" } else { "0" })?;
-    set_setting(conn, actor, "fin.share_basis", match p.share_basis {
-        CommissionBasis::Payment => "payment",
-        CommissionBasis::Treatment => "treatment",
-    })?;
+    set_setting(
+        conn,
+        actor,
+        "fin.share_basis",
+        match p.share_basis {
+            CommissionBasis::Payment => "payment",
+            CommissionBasis::Treatment => "treatment",
+        },
+    )?;
     set_setting(conn, actor, "fin.receipt_footer", footer)?;
     set_setting(conn, actor, "fin.legal", &serde_json::to_string(&legal)?)?;
     let after = get_settings(conn)?;
-    audit::record(conn, actor, "billing.settings", Some("setting"), None, Some(&json!(before)), Some(&json!(after)))?;
+    audit::record(
+        conn,
+        actor,
+        "billing.settings",
+        Some("setting"),
+        None,
+        Some(&json!(before)),
+        Some(&json!(after)),
+    )?;
     Ok(after)
 }
 
@@ -98,14 +119,21 @@ pub fn list_rules(conn: &Connection) -> Result<Vec<CommissionRuleInfo>> {
     Ok(rows)
 }
 
-pub fn save_rule(conn: &Connection, actor: &Actor, p: &SaveCommissionRuleParams) -> Result<CommissionRuleInfo> {
+pub fn save_rule(
+    conn: &Connection,
+    actor: &Actor,
+    p: &SaveCommissionRuleParams,
+) -> Result<CommissionRuleInfo> {
     let doctor = check_doctor(conn, &p.doctor_id)?;
     let service = match p.service_id.as_deref().filter(|s| !s.is_empty()) {
         None => None,
         Some(s) => {
-            let found: Option<String> =
-                conn.query_row("SELECT id FROM service WHERE id = ?1 AND deleted_at IS NULL", [s], |r| r.get(0)).optional()?;
-            Some(found.ok_or_else(|| CoreError::invalid("service_id", ValidationRule::ServiceNotFound, "unknown service"))?)
+            let found: Option<String> = conn
+                .query_row("SELECT id FROM service WHERE id = ?1 AND deleted_at IS NULL", [s], |r| r.get(0))
+                .optional()?;
+            Some(found.ok_or_else(|| {
+                CoreError::invalid("service_id", ValidationRule::ServiceNotFound, "unknown service")
+            })?)
         }
     };
     let ok = match p.kind {
@@ -113,7 +141,11 @@ pub fn save_rule(conn: &Connection, actor: &Actor, p: &SaveCommissionRuleParams)
         CommissionKind::Fixed => (0..=MAX_AMOUNT).contains(&p.value),
     };
     if !ok {
-        return Err(CoreError::invalid("value", ValidationRule::CommissionValue, "the share value is out of range"));
+        return Err(CoreError::invalid(
+            "value",
+            ValidationRule::CommissionValue,
+            "the share value is out of range",
+        ));
     }
     let kind = if p.kind == CommissionKind::Fixed { "fixed" } else { "percent" };
     let now = now_iso();
@@ -154,9 +186,18 @@ pub fn save_rule(conn: &Connection, actor: &Actor, p: &SaveCommissionRuleParams)
         }
     };
     let after = list_rules(conn)?.into_iter().find(|r| r.id == id).ok_or_else(|| {
-        CoreError::api(ErrorCode::NotFound, "commission rule").on_field("id", ValidationRule::CommissionRuleNotFound)
+        CoreError::api(ErrorCode::NotFound, "commission rule")
+            .on_field("id", ValidationRule::CommissionRuleNotFound)
     })?;
-    audit::record(conn, actor, "commission.rule", Some("commission_rule"), Some(&id), None, Some(&json!(after)))?;
+    audit::record(
+        conn,
+        actor,
+        "commission.rule",
+        Some("commission_rule"),
+        Some(&id),
+        None,
+        Some(&json!(after)),
+    )?;
     Ok(after)
 }
 
@@ -172,7 +213,11 @@ pub fn delete_rule(conn: &Connection, actor: &Actor, id: &str, version: i64) -> 
 }
 
 /// The most specific rule: doctor + service, doctor, service, everyone.
-fn rate<'a>(rules: &'a [CommissionRuleInfo], doctor: &str, service: Option<&str>) -> Option<&'a CommissionRuleInfo> {
+fn rate<'a>(
+    rules: &'a [CommissionRuleInfo],
+    doctor: &str,
+    service: Option<&str>,
+) -> Option<&'a CommissionRuleInfo> {
     let find = |d: Option<&str>, s: Option<&str>| {
         rules.iter().find(|r| r.doctor_id.as_deref() == d && r.service_id.as_deref() == s)
     };
@@ -322,7 +367,12 @@ pub fn preview(conn: &Connection, p: &CommissionReportParams) -> Result<Commissi
 mod tests {
     use super::*;
 
-    fn rule(doctor: Option<&str>, service: Option<&str>, kind: CommissionKind, value: i64) -> CommissionRuleInfo {
+    fn rule(
+        doctor: Option<&str>,
+        service: Option<&str>,
+        kind: CommissionKind,
+        value: i64,
+    ) -> CommissionRuleInfo {
         CommissionRuleInfo {
             id: format!("{doctor:?}{service:?}"),
             doctor_id: doctor.map(Into::into),

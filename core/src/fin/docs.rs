@@ -67,5 +67,9 @@ pub fn printed(conn: &Connection, actor: &Actor, p: &DocPrintedParams) -> Result
 
 /// Used by tests and the health check: every document's posting adds up to 0.
 pub(crate) fn unbalanced_docs(conn: &Connection) -> Result<i64> {
-    scalar(conn, "SELECT COUNT(*) FROM (SELECT doc_id FROM fin_gl GROUP BY doc_id HAVING SUM(amount) <> 0)", &[])
+    scalar(
+        conn,
+        "SELECT COUNT(*) FROM (SELECT doc_id FROM fin_gl GROUP BY doc_id HAVING SUM(amount) <> 0)",
+        &[],
+    )
 }

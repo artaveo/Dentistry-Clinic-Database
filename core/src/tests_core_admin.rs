@@ -119,11 +119,7 @@ fn patient_export_and_purchase_data_are_limited_to_the_right_roles() {
     for role in ["receptionist", "doctor", "assistant"] {
         let tok = token(&tokens, role);
         assert_eq!(t.call(m::PURCHASES_LIST, json!({}), Some(tok)), Err(ErrorCode::Forbidden), "{role}");
-        assert_eq!(
-            t.call(m::FIN_VOUCHERS_LIST, json!({}), Some(tok)),
-            Err(ErrorCode::Forbidden),
-            "{role}"
-        );
+        assert_eq!(t.call(m::FIN_VOUCHERS_LIST, json!({}), Some(tok)), Err(ErrorCode::Forbidden), "{role}");
         assert_eq!(
             t.call(m::SUPPLIER_LEDGER_LIST, json!({"supplier_id": sid}), Some(tok)),
             Err(ErrorCode::Forbidden),
