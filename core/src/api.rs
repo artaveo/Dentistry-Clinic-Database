@@ -27,6 +27,7 @@ use crate::inventory::{self, Lookup};
 use crate::keys::RecoveryKey;
 use crate::medical;
 use crate::patient;
+use crate::rekey;
 use crate::reports;
 use crate::session::{state_of, Session};
 use crate::settings;
@@ -615,6 +616,72 @@ impl Core {
                     backup::distribute(&o.conn, &o.key, &self.config, usb.as_ref(), &info)?;
                     backup::apply_retention(&o.conn, &self.config)?;
                     Ok(info)
+                })?)
+            }
+            m::BACKUP_REGENERATE_KEY => {
+                // Owner only (the same permission as restore: no other role can hold it).
+                s.require(perm::BACKUP_RESTORE)?;
+                let RegenerateRecoveryKeyParams { password } = params(p)?;
+                let usb = self.usb();
+                ok(self.with_db(|o| {
+                    // Same failed-attempt counter and lockout as login and the lock screen. The
+                    // counter is written by `verify_unlock` itself (no transaction here).
+                    let outcome = auth::verify_unlock(&o.conn, &s.user.id, &password);
+                    if !matches!(outcome, Ok(true)) {
+                        audit::record(
+                            &o.conn,
+                            &actor(&s),
+                            "backup.regenerate_key_failed",
+                            Some("app_user"),
+                            Some(&s.user.id),
+                            None,
+                            None,
+                        )?;
+                        outcome?;
+                        return Err(CoreError::api(ErrorCode::InvalidCredentials, "wrong password")
+                            .on_field("password", ValidationRule::WrongPassword));
+                    }
+                    let new = rekey::regenerate_live(&self.config.db_path(), &o.key)?;
+                    let local = rekey::rewrap_folder(&self.config.backup_dir(), &o.key, &new);
+                    let folders = |source| {
+                        backup::source_folders(&o.conn, &o.key, &self.config, usb.as_ref(), source)
+                            .unwrap_or_default()
+                    };
+                    let mut usb_report = rekey::FolderReport::default();
+                    for dir in folders(BackupSource::Usb) {
+                        let r = rekey::rewrap_folder(&dir, &o.key, &new);
+                        usb_report.updated += r.updated;
+                        usb_report.failed += r.failed;
+                    }
+                    let mut cloud_report = rekey::FolderReport::default();
+                    for dir in folders(BackupSource::Cloud) {
+                        let r = rekey::rewrap_folder(&dir, &o.key, &new);
+                        cloud_report.updated += r.updated;
+                        cloud_report.failed += r.failed;
+                    }
+                    let result = RegenerateRecoveryKeyResult {
+                        recovery_key: new.to_display(),
+                        local_updated: local.updated,
+                        usb_updated: usb_report.updated,
+                        cloud_updated: cloud_report.updated,
+                        failed: local.failed + usb_report.failed + cloud_report.failed,
+                    };
+                    // The key itself is never written to the audit log.
+                    audit::record(
+                        &o.conn,
+                        &actor(&s),
+                        "backup.regenerate_key",
+                        Some("app_user"),
+                        Some(&s.user.id),
+                        None,
+                        Some(&json!({
+                            "local_updated": result.local_updated,
+                            "usb_updated": result.usb_updated,
+                            "cloud_updated": result.cloud_updated,
+                            "failed": result.failed,
+                        })),
+                    )?;
+                    Ok(result)
                 })?)
             }
             m::BACKUP_LIST => {

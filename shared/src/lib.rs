@@ -3575,6 +3575,7 @@ api! {
     "backup.restore_preview" => BACKUP_RESTORE_PREVIEW(RestoreTarget) -> RestorePreview;
     "backup.restore"         => BACKUP_RESTORE(RestoreParams) -> RestoreResult;
     "backup.scan"            => BACKUP_SCAN(ScanBackupsParams) -> Vec<RestoreCandidate>;
+    "backup.regenerate_key"  => BACKUP_REGENERATE_KEY(RegenerateRecoveryKeyParams) -> RegenerateRecoveryKeyResult;
     "backup.restore_new"     => BACKUP_RESTORE_NEW(RestoreNewParams) -> Empty;
     "license.status"         => LICENSE_STATUS(Empty) -> LicenseStatus;
     "license.activate"       => LICENSE_ACTIVATE(ActivateParams) -> LicenseStatus;
@@ -3976,6 +3977,8 @@ pub fn typescript_bindings() -> String {
         RestoreResult,
         ScanBackupsParams,
         RestoreNewParams,
+        RegenerateRecoveryKeyParams,
+        RegenerateRecoveryKeyResult,
         LicenseState,
         LicenseStatus,
         ActivateParams,

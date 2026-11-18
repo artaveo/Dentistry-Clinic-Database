@@ -36,6 +36,7 @@ pub mod patient;
 pub mod perio;
 pub mod recall;
 pub mod recovery;
+pub mod rekey;
 pub mod reports;
 pub mod restore;
 pub mod scheduling;
@@ -60,6 +61,8 @@ mod tests_core_money;
 mod tests_phase10;
 #[cfg(test)]
 mod tests_phase11;
+#[cfg(test)]
+mod tests_rekey;
 
 pub use crate::config::{Config, Environment};
 pub use crate::core::Core;

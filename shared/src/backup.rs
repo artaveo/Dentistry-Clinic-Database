@@ -208,3 +208,21 @@ pub struct RestoreNewParams {
     pub file_name: String,
     pub recovery_key: String,
 }
+
+// Regenerate the Recovery Key (Owner only). The Owner's current password is asked again.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct RegenerateRecoveryKeyParams {
+    pub password: String,
+}
+
+// The new key in printable form (shown once, never stored) and how far the backup key files followed.
+// Copies on a USB device or cloud folder that was not reachable keep the old key.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct RegenerateRecoveryKeyResult {
+    pub recovery_key: String,
+    pub local_updated: u32,
+    pub usb_updated: u32,
+    pub cloud_updated: u32,
+    // Backup key files that could not be updated (read-only drive, other clinic, ...).
+    pub failed: u32,
+}
