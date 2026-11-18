@@ -12,8 +12,8 @@ use std::collections::HashMap;
 
 use artaveo_shared::{
     ActiveStatus, AddLeaveParams, ChairInfo, CreateChairParams, CreateDoctorParams, DoctorInfo, ErrorCode,
-    LeaveInfo, LeaveResult, PersonSex, ScheduleSlot, SetScheduleParams, UpdateChairParams, UpdateDoctorParams,
-    ValidationRule,
+    LeaveInfo, LeaveResult, PersonSex, ScheduleSlot, SetScheduleParams, UpdateChairParams,
+    UpdateDoctorParams, ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
@@ -96,7 +96,12 @@ fn sex_code(s: PersonSex) -> &'static str {
 
 /// OF-050: points the doctor at a stored photo (hash of the small JPEG in the attachment store),
 /// or removes it.
-pub fn set_doctor_photo(conn: &Connection, actor: &Actor, doctor_id: &str, photo: Option<&str>) -> Result<DoctorInfo> {
+pub fn set_doctor_photo(
+    conn: &Connection,
+    actor: &Actor,
+    doctor_id: &str,
+    photo: Option<&str>,
+) -> Result<DoctorInfo> {
     let before = get_doctor(conn, doctor_id)?;
     let changed = conn.execute(
         "UPDATE doctor SET photo_sha256 = ?1, updated_at = ?2, updated_by = ?3 WHERE id = ?4 AND deleted_at IS NULL",

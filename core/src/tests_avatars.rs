@@ -30,7 +30,8 @@ fn migration_adds_photo_and_sex_columns() {
         t.core
             .with_db(|o| {
                 let mut stmt = o.conn.prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))?;
-                let names = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                let names =
+                    stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
                 Ok(names)
             })
             .unwrap()
@@ -97,7 +98,8 @@ fn patient_photo_is_stored_encrypted_small_and_served_only_when_in_use() {
     // Served as a small JPEG; the file on disk is encrypted, not a plain image.
     let got = t.ok(m::PHOTOS_GET, json!({"id": photo}), Some(&owner));
     let url = got["data_url"].as_str().unwrap();
-    let jpeg = data_encoding::BASE64.decode(url.trim_start_matches("data:image/jpeg;base64,").as_bytes()).unwrap();
+    let jpeg =
+        data_encoding::BASE64.decode(url.trim_start_matches("data:image/jpeg;base64,").as_bytes()).unwrap();
     let img = image::load_from_memory(&jpeg).unwrap();
     assert_eq!((img.width(), img.height()), (256, 192));
     let file = t.core.config().attachments_dir().join(&photo[0..2]).join(format!("{photo}.bin"));
@@ -113,15 +115,25 @@ fn patient_photo_is_stored_encrypted_small_and_served_only_when_in_use() {
     assert_eq!(av[0]["photo_id"], photo.as_str());
     assert!(av[0]["age"].as_i64().unwrap() >= 10);
     let many: Vec<String> = (0..501).map(|i| i.to_string()).collect();
-    assert_eq!(t.call(m::PATIENTS_AVATARS, json!({"patient_ids": many}), Some(&owner)), Err(ErrorCode::Validation));
+    assert_eq!(
+        t.call(m::PATIENTS_AVATARS, json!({"patient_ids": many}), Some(&owner)),
+        Err(ErrorCode::Validation)
+    );
 
     // Not an image, or too big: refused, nothing changes.
     assert_eq!(
-        t.call(m::PATIENTS_SET_PHOTO, json!({"id": pid, "data_base64": data_encoding::BASE64.encode(b"%PDF-1.4")}), Some(&owner)),
+        t.call(
+            m::PATIENTS_SET_PHOTO,
+            json!({"id": pid, "data_base64": data_encoding::BASE64.encode(b"%PDF-1.4")}),
+            Some(&owner)
+        ),
         Err(ErrorCode::Validation)
     );
     let huge = data_encoding::BASE64.encode(&vec![0x89u8; crate::attachment::MAX_PHOTO_BYTES + 1]);
-    assert_eq!(t.call(m::PATIENTS_SET_PHOTO, json!({"id": pid, "data_base64": huge}), Some(&owner)), Err(ErrorCode::Validation));
+    assert_eq!(
+        t.call(m::PATIENTS_SET_PHOTO, json!({"id": pid, "data_base64": huge}), Some(&owner)),
+        Err(ErrorCode::Validation)
+    );
 
     // Any other attachment hash is never served through photos.get.
     let xray = t.ok(
@@ -132,7 +144,11 @@ fn patient_photo_is_stored_encrypted_small_and_served_only_when_in_use() {
     let xray_hash: String = t
         .core
         .with_db(|o| {
-            Ok(o.conn.query_row("SELECT sha256 FROM patient_attachment WHERE id = ?1", [xray["id"].as_str().unwrap()], |r| r.get(0))?)
+            Ok(o.conn.query_row(
+                "SELECT sha256 FROM patient_attachment WHERE id = ?1",
+                [xray["id"].as_str().unwrap()],
+                |r| r.get(0),
+            )?)
         })
         .unwrap();
     assert_eq!(t.call(m::PHOTOS_GET, json!({"id": xray_hash}), Some(&owner)), Err(ErrorCode::NotFound));
@@ -173,8 +189,10 @@ fn merge_keeps_a_photo() {
     t.setup();
     let owner = t.login("owner", "owner-pass-1");
     let keep = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan"}), Some(&owner));
-    let dupe = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan", "allow_duplicate": true}), Some(&owner));
-    let dupe = t.ok(m::PATIENTS_SET_PHOTO, json!({"id": dupe["id"], "data_base64": png(80, 80)}), Some(&owner));
+    let dupe =
+        t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan", "allow_duplicate": true}), Some(&owner));
+    let dupe =
+        t.ok(m::PATIENTS_SET_PHOTO, json!({"id": dupe["id"], "data_base64": png(80, 80)}), Some(&owner));
     t.ok(
         m::PATIENTS_MERGE,
         json!({"keep_id": keep["id"], "merge_id": dupe["id"], "merge_id_version": dupe["version"]}),
@@ -184,8 +202,10 @@ fn merge_keeps_a_photo() {
     assert_eq!(kept["photo_id"], dupe["photo_id"], "the kept record takes the merged record's photo");
 
     // A kept record that has its own photo keeps it.
-    let other = t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan", "allow_duplicate": true}), Some(&owner));
-    let other = t.ok(m::PATIENTS_SET_PHOTO, json!({"id": other["id"], "data_base64": png(90, 70)}), Some(&owner));
+    let other =
+        t.ok(m::PATIENTS_CREATE, json!({"full_name": "Ahmad Khan", "allow_duplicate": true}), Some(&owner));
+    let other =
+        t.ok(m::PATIENTS_SET_PHOTO, json!({"id": other["id"], "data_base64": png(90, 70)}), Some(&owner));
     t.ok(
         m::PATIENTS_MERGE,
         json!({"keep_id": keep["id"], "merge_id": other["id"], "merge_id_version": other["version"]}),

@@ -977,7 +977,12 @@ pub(crate) fn age_on(birth: &str, today: &str) -> Option<i64> {
 
 /// Points the patient at a stored photo (`attachment::store` hash of the small JPEG), or removes
 /// it. The bytes stay in the encrypted store (an older backup may still need them).
-pub fn set_photo(conn: &Connection, actor: &Actor, patient_id: &str, photo: Option<&str>) -> Result<PatientInfo> {
+pub fn set_photo(
+    conn: &Connection,
+    actor: &Actor,
+    patient_id: &str,
+    photo: Option<&str>,
+) -> Result<PatientInfo> {
     let before = get_patient(conn, patient_id)?;
     let changed = conn.execute(
         "UPDATE patient SET photo_sha256 = ?1, updated_at = ?2, updated_by = ?3 WHERE id = ?4 AND deleted_at IS NULL",
