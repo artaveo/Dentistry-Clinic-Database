@@ -17,6 +17,8 @@ import { AppointmentDialog } from "./AppointmentDialog";
 import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { RECALL_KINDS, RECALL_STATUS_TONE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
+import { PatientPic } from "../../ui/Avatar";
+import { usePatientAvatars } from "../../ui/usePatientAvatars";
 
 type Tab = "call" | "booked" | "closed";
 type Window = "all" | "overdue" | "7" | "14" | "30";
@@ -40,6 +42,7 @@ export function RecallsPage({ clinic, perms, clinicName }: { clinic: ClinicProfi
   // OF-039: a booked recall's visit can be cancelled or moved from the call list itself.
   const [visit, setVisit] = useState<AppointmentInfo | null>(null);
   const today = todayIso();
+  const avatars = usePatientAvatars((items ?? []).map((r) => r.patient_id));
 
   const openVisit = (r: RecallInfo) => {
     if (!r.appointment_id) return;
@@ -103,7 +106,7 @@ export function RecallsPage({ clinic, perms, clinicName }: { clinic: ClinicProfi
                 {!items && <SkeletonRows cols={7} />}
                 {items?.map((r) => (
                   <tr key={r.id} data-testid={`recall-row-${r.patient_number}`}>
-                    <td><span className="cell-strong">{r.patient_name}</span><br /><span className="subtle t-caption"><bdi className="ltr num">{r.patient_number}</bdi></span></td>
+                    <td><span className="person-line"><PatientPic id={r.patient_id} name={r.patient_name} avatars={avatars} /><span className="person-text"><span className="cell-strong">{r.patient_name}</span><span className="subtle t-caption"><bdi className="ltr num">{r.patient_number}</bdi></span></span></span></td>
                     <td><bdi className="ltr" data-testid="recall-phone">{r.patient_phone ?? "—"}</bdi></td>
                     <td><span className="cell-strong">{t(`recall.kind.${r.kind}`)}</span><br /><Badge tone={r.repeat_months ? "accent" : "neutral"}>{r.repeat_months ? t("recall.type.recall") : t("recall.type.follow")}</Badge>{r.repeat_months ? <span className="subtle t-caption"><br />{t("recall.every")} {digits(r.repeat_months, lang)} {t("recall.months")}</span> : null}{r.note ? <span className="subtle t-caption"><br />{r.note}</span> : null}</td>
                     <td>{formatDate(r.due_date + "T06:00:00Z", lang, calendar)}<br />{dueText(r)}</td>

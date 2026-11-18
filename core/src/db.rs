@@ -62,6 +62,7 @@ pub static MIGRATIONS: &[Migration] = &[
         name: "backup_manager",
         sql: include_str!("../migrations/0018_backup_manager.sql"),
     },
+    Migration { version: 19, name: "avatars", sql: include_str!("../migrations/0019_avatars.sql") },
 ];
 
 /// Files next to the database.

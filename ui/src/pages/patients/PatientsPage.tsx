@@ -15,6 +15,7 @@ import { PatientForm } from "./PatientForm";
 import { PatientProfile } from "./PatientProfile";
 import type { BillingPerms } from "../billing/common";
 import { ImportDialog } from "./ImportDialog";
+import { PersonAvatar } from "../../ui/Avatar";
 
 type View = { kind: "list" } | { kind: "create"; name?: string } | { kind: "edit"; patient: PatientInfo } | { kind: "profile"; id: string };
 
@@ -190,7 +191,12 @@ function PatientList({ canEdit, onCreate, onOpen }: { canEdit: boolean; onCreate
                 {items?.map((p) => (
                   <tr key={p.id} className="patient-row" tabIndex={0} onClick={() => onOpen(p.id)} onKeyDown={rowKeys(() => onOpen(p.id))} style={{ cursor: "pointer" }} data-testid={`patient-row-${p.patient_number}`}>
                     <td><bdi className="ltr num">{p.patient_number}</bdi></td>
-                    <td className="cell-strong">{p.full_name}{p.status !== "active" && <> <Badge dot>{t("patients.status.inactive")}</Badge></>}</td>
+                    <td>
+                      <span className="person-line">
+                        <PersonAvatar kind="patient" name={p.full_name} sex={p.sex} age={p.date_of_birth ? ageOn(p.date_of_birth) : p.approximate_age} photoId={p.photo_id} size="sm" decorative testId={`patient-avatar-${p.patient_number}`} />
+                        <span className="cell-strong">{p.full_name}{p.status !== "active" && <> <Badge dot>{t("patients.status.inactive")}</Badge></>}</span>
+                      </span>
+                    </td>
                     <td>{p.father_name ?? "—"}</td>
                     <td><bdi className="ltr">{p.phone ?? "—"}</bdi></td>
                     <td>{ageText(p, lang, t)}</td>

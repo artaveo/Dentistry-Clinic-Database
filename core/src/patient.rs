@@ -4,8 +4,8 @@
 //! triggers, so normalization (`crate::normalize`) stays in one place.
 
 use artaveo_shared::{
-    AttachmentInfo, AttachmentKind, CreatePatientParams, MergePatientsParams, PatientInfo, PatientListParams,
-    PatientListResult, PatientStatus, UpdatePatientParams, ValidationRule,
+    AttachmentInfo, AttachmentKind, CreatePatientParams, MergePatientsParams, PatientAvatar, PatientInfo,
+    PatientListParams, PatientListResult, PatientStatus, PersonSex, UpdatePatientParams, ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::json;
@@ -148,8 +148,18 @@ const PATIENT_SELECT: &str =
           ELSE approximate_age END,
      phone, secondary_phone, province_id, district_id, address,
      emergency_contact_name, emergency_contact_phone, emergency_contact_relationship_id, referral_source_id,
-     notes, registration_date, status, merged_into_id, version
+     notes, registration_date, status, merged_into_id, version,
+     (SELECT ri.code FROM reference_item ri WHERE ri.id = patient.gender_id), photo_sha256
      FROM patient WHERE deleted_at IS NULL";
+
+/// `male`/`female` (the gender reference codes) → [`PersonSex`]; anything else is unknown.
+pub(crate) fn sex_from_code(code: Option<&str>) -> Option<PersonSex> {
+    match code {
+        Some("male") => Some(PersonSex::Male),
+        Some("female") => Some(PersonSex::Female),
+        _ => None,
+    }
+}
 
 fn map_patient(r: &rusqlite::Row<'_>) -> rusqlite::Result<PatientInfo> {
     Ok(PatientInfo {
@@ -178,6 +188,8 @@ fn map_patient(r: &rusqlite::Row<'_>) -> rusqlite::Result<PatientInfo> {
         },
         merged_into_id: r.get(20)?,
         version: r.get(21)?,
+        sex: sex_from_code(r.get::<_, Option<String>>(22)?.as_deref()),
+        photo_id: r.get(23)?,
     })
 }
 
@@ -758,6 +770,12 @@ pub fn merge_patients(conn: &Connection, actor: &Actor, p: &MergePatientsParams)
         )?;
     }
     merge_medical_history(conn, &p.keep_id, &p.merge_id)?;
+    // OF-049: a kept record without a photo takes the merged record's photo.
+    conn.execute(
+        "UPDATE patient SET photo_sha256 = (SELECT m.photo_sha256 FROM patient m WHERE m.id = ?2)
+         WHERE id = ?1 AND photo_sha256 IS NULL",
+        params![p.keep_id, p.merge_id],
+    )?;
     conn.execute(
         "UPDATE OR IGNORE dental_chart SET patient_id = ?1 WHERE patient_id = ?2",
         params![p.keep_id, p.merge_id],
@@ -940,9 +958,95 @@ pub fn delete_attachment(conn: &Connection, actor: &Actor, id: &str, version: i6
     Ok(before)
 }
 
+// ───────────────────────────── pictures (OF-049) ─────────────────────────────
+
+/// Most patients one `patients.avatars` call may ask about (a calendar week or a queue).
+pub const MAX_AVATAR_IDS: usize = 500;
+
+/// Whole years between an ISO birth date and an ISO day (`None` when either is not a date).
+pub(crate) fn age_on(birth: &str, today: &str) -> Option<i64> {
+    let part = |s: &str, a: usize, b: usize| s.get(a..b).and_then(|x| x.parse::<i64>().ok());
+    let (by, bm, bd) = (part(birth, 0, 4)?, part(birth, 5, 7)?, part(birth, 8, 10)?);
+    let (ty, tm, td) = (part(today, 0, 4)?, part(today, 5, 7)?, part(today, 8, 10)?);
+    let mut age = ty - by;
+    if (tm, td) < (bm, bd) {
+        age -= 1;
+    }
+    Some(age.max(0))
+}
+
+/// Points the patient at a stored photo (`attachment::store` hash of the small JPEG), or removes
+/// it. The bytes stay in the encrypted store (an older backup may still need them).
+pub fn set_photo(conn: &Connection, actor: &Actor, patient_id: &str, photo: Option<&str>) -> Result<PatientInfo> {
+    let before = get_patient(conn, patient_id)?;
+    let changed = conn.execute(
+        "UPDATE patient SET photo_sha256 = ?1, updated_at = ?2, updated_by = ?3 WHERE id = ?4 AND deleted_at IS NULL",
+        params![photo, now_iso(), actor.user_id, patient_id],
+    )?;
+    expect_one_row(changed, "patient")?;
+    audit::record(
+        conn,
+        actor,
+        "patient.set_photo",
+        Some("patient"),
+        Some(patient_id),
+        Some(&json!({ "photo": before.photo_id.is_some() })),
+        Some(&json!({ "photo": photo.is_some() })),
+    )?;
+    get_patient(conn, patient_id)
+}
+
+/// Sex, age and photo of each listed patient that exists (unknown or deleted ids are left out).
+pub fn avatars(conn: &Connection, patient_ids: &[String]) -> Result<Vec<PatientAvatar>> {
+    if patient_ids.len() > MAX_AVATAR_IDS {
+        return Err(CoreError::invalid(
+            "patient_ids",
+            ValidationRule::InvalidParams,
+            format!("at most {MAX_AVATAR_IDS} patients per call"),
+        ));
+    }
+    let today = crate::clock::today_iso();
+    let mut stmt = conn.prepare(&format!("{PATIENT_SELECT} AND id = ?1"))?;
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for id in patient_ids {
+        if !seen.insert(id.as_str()) {
+            continue;
+        }
+        if let Some(p) = stmt.query_row([id], map_patient).optional()? {
+            let age = match p.date_of_birth.as_deref() {
+                Some(d) => age_on(d, &today),
+                None => p.approximate_age,
+            };
+            out.push(PatientAvatar { patient_id: p.id, sex: p.sex, age, photo_id: p.photo_id });
+        }
+    }
+    Ok(out)
+}
+
+/// Whether `photo_id` is the photo of a patient or doctor that still exists: `photos.get` serves
+/// nothing else from the attachment store.
+pub fn photo_in_use(conn: &Connection, photo_id: &str) -> Result<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM patient WHERE photo_sha256 = ?1 AND deleted_at IS NULL)
+             OR EXISTS(SELECT 1 FROM doctor WHERE photo_sha256 = ?1 AND deleted_at IS NULL)",
+        [photo_id],
+        |r| r.get(0),
+    )?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn age_counts_whole_years() {
+        assert_eq!(age_on("2015-06-10", "2026-06-09"), Some(10));
+        assert_eq!(age_on("2015-06-10", "2026-06-10"), Some(11));
+        assert_eq!(age_on("2026-01-01", "2026-11-18"), Some(0));
+        assert_eq!(age_on("not a date", "2026-11-18"), None);
+        assert_eq!(age_on("2030-01-01", "2026-11-18"), Some(0), "never negative");
+    }
 
     #[test]
     fn validation_rules() {

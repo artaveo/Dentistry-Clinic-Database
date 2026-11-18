@@ -222,7 +222,7 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
               <ErrorState message={error} onRetry={() => setTick((x) => x + 1)} />
             ) : (
               <div className="table-wrap" aria-busy={busy}>
-                <table className="table report-table" data-testid="report-table" aria-label={title}>
+                <table className="table table-compact report-table" data-testid="report-table" aria-label={title}>
                   <caption className="sr-only">{title}</caption>
                   <thead>
                     <tr>

@@ -123,6 +123,8 @@ export function Shell({
   const [patientsNav, setPatientsNav] = useState(0);
   const activeSection: Section = sectionIds.includes(section) ? section : sectionIds[0];
   useEffect(() => setCurrentPage(tab === "settings" ? activeSection : tab === "appointments" && apptSub !== "calendar" ? apptSub : tab), [tab, activeSection, apptSub]);
+  // Every page opens at its very top (the page body is one shared scroller, so it would keep the old position).
+  useEffect(() => { document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "auto" }); }, [tab, activeSection, apptSub]);
   /** The patient the global search asked to open (9.7). */
   const [openPatient, setOpenPatient] = useState<{ id: string; n: number } | null>(null);
   const [locked, setLocked] = useState(session.locked);
@@ -285,6 +287,7 @@ export function Shell({
         <div className="header-end">
           <NotificationBell calendar={clinic?.calendar_system ?? "shamsi"} go={go} hideStock={!modules.stock} />
           <UserMenu
+            userId={session.user.id}
             displayName={session.user.display_name}
             roleLabel={roleText(t, session.user.role, session.user.role_label)}
             onAbout={tabAllowed.settings ? undefined : () => go("system")}

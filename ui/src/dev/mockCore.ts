@@ -107,6 +107,8 @@ const state = {
   medicalHistory: new Map<string, MH>(),
   medicalQuestions: parseQuestions(questionsPsv),
   attachments: [] as A[],
+  /** OF-049/OF-050: photo id → data URL. */
+  photos: new Map<string, string>(),
   doctors: [] as DoctorInfo[],
   chairs: [] as ChairInfo[],
   appointments: [] as AppointmentInfo[],
@@ -180,12 +182,17 @@ function seed() {
     ["احمد خان", "کریم داد", "0700123456", "gender/male"],
     ["زرغونه احمدی", "", "0744567890", "gender/female"],
     ["نجیب الله رحیمی", "عبدالله", "0788112233", "gender/male"],
+    ["سارا احمدی", "احمد خان", "0799001122", "gender/female"],
+    ["یوسف کریمی", "محمود", "0766554433", "gender/male"],
+    ["کامران نوری", "", "0711223344", null],
   ];
+  const ages = [34, 29, 41, 8, 10, 52];
   samples.forEach(([full_name, father_name, phone, gender], i) => {
     state.patientSeq++;
     const patient: P = {
       id: uuid(), patient_number: `P-${String(state.patientSeq).padStart(6, "0")}`, full_name, father_name: father_name || null,
-      preferred_language: "fa", gender_id: gender, date_of_birth: null, approximate_age: 25 + i * 8, phone, secondary_phone: null,
+      sex: sexOf(gender), photo_id: null,
+      preferred_language: "fa", gender_id: gender, date_of_birth: null, approximate_age: ages[i], phone, secondary_phone: null,
       province_id: "KBL", district_id: "KBL-5", address: "کابل، کارته چهار", emergency_contact_name: null, emergency_contact_phone: null,
       emergency_contact_relationship_id: null, referral_source_id: "referral_source/family_friend", notes: null,
       registration_date: iso(new Date(Date.now() - i * day2)).slice(0, 10), status: "active", merged_into_id: null, version: 1,
@@ -210,11 +217,13 @@ function seed() {
 function seedScheduling() {
   const hours = [0, 1, 2, 3, 4, 5].flatMap((day) => [{ day, start: "08:00", end: "12:00" }, { day, start: "14:00", end: "17:00" }]);
   state.doctors = [
-    { id: "d1", user_id: null, username: null, full_name: "داکتر احمد رحیمی", specialty: null, specialty_ids: ["specialty/orthodontics"], license_number: "MoPH-10234", color: "#0e7490", status: "active", sort_order: 1, hours, breaks: [], chair_ids: [], leaves: [], version: 1 },
-    { id: "d2", user_id: null, username: null, full_name: "داکتر فرید سلطانی", specialty: null, specialty_ids: ["specialty/oral_surgery"], license_number: null, color: "#f59e0b", status: "active", sort_order: 2, hours, breaks: [], chair_ids: [], leaves: [], version: 1 },
+    // The owner is also the clinic's first doctor: the header shows the doctor picture.
+    { id: "d1", user_id: state.users[0]?.id ?? null, username: state.users[0]?.username ?? null, full_name: "داکتر احمد رحیمی", specialty: null, specialty_ids: ["specialty/orthodontics"], license_number: "MoPH-10234", color: "#0e7490", status: "active", sort_order: 1, hours, breaks: [], chair_ids: [], leaves: [], version: 1, sex: "male", photo_id: null },
+    { id: "d2", user_id: null, username: null, full_name: "داکتر فرید سلطانی", specialty: null, specialty_ids: ["specialty/oral_surgery"], license_number: null, color: "#f59e0b", status: "active", sort_order: 2, hours, breaks: [], chair_ids: ["c2"], leaves: [], version: 1, sex: "male", photo_id: null },
+    { id: "d3", user_id: null, username: null, full_name: "داکتر زرغونه نوری", specialty: null, specialty_ids: [], license_number: null, color: "#db2777", status: "active", sort_order: 3, hours, breaks: [], chair_ids: [], leaves: [], version: 1, sex: "female", photo_id: null },
   ];
   if (typeof location !== "undefined" && new URLSearchParams(location.search).get("solo") === "1") state.doctors = state.doctors.slice(0, 1);
-  state.chairs = [{ id: "c1", name: "چوکی ۱", status: "active", sort_order: 1, version: 1 }, { id: "c2", name: "چوکی ۲", status: "active", sort_order: 2, version: 1 }];
+  state.chairs = [{ id: "c1", name: "یونیت ۱", status: "active", sort_order: 1, version: 1 }, { id: "c2", name: "یونیت ۲", status: "active", sort_order: 2, version: 1 }];
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kabul" }).format(new Date());
   [["09:00", "09:30", 0, "d1", "c1", "scheduled"], ["09:30", "10:15", 1, "d1", "c1", "confirmed"], ["10:00", "10:30", 2, "d2", "c2", "scheduled"]]
     .filter(([, , , d]) => state.doctors.some((x) => x.id === d))
@@ -228,6 +237,18 @@ function mockRecall(patientId: string, kind: RecallInfo["kind"], due: string, re
   const r: RecallInfo = { id: uuid(), patient_id: pt.id, patient_number: pt.patient_number, patient_name: pt.full_name, patient_phone: pt.phone, kind, due_date: due, repeat_months: repeat, note, status: "pending", appointment_id: null, source_appointment_id: null, last_contacted_at: null, contact_note: null, version: 1 };
   state.recalls.push(r);
   return r;
+}
+
+/** Mock reference ids are `gender/<code>`. */
+function sexOf(genderId: string | null | undefined): P["sex"] {
+  return genderId === "gender/male" ? "male" : genderId === "gender/female" ? "female" : null;
+}
+/** Keeps a photo (base64 JPEG) under a new id; `null` removes it. */
+function mockPhoto(base64: string | null): string | null {
+  if (!base64) return null;
+  const id = uuid().replace(/-/g, "");
+  state.photos.set(id, `data:image/jpeg;base64,${base64}`);
+  return id;
 }
 
 const mins = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
@@ -437,6 +458,7 @@ function call(method: string, p: any, token: string | null): unknown {
         address: p.address || null, emergency_contact_name: p.emergency_contact_name || null, emergency_contact_phone: p.emergency_contact_phone || null,
         emergency_contact_relationship_id: p.emergency_contact_relationship_id || null, referral_source_id: p.referral_source_id || null,
         notes: p.notes || null, registration_date: p.registration_date || iso().slice(0, 10), status: "active", merged_into_id: null, version: 1,
+        sex: sexOf(p.gender_id), photo_id: null,
       };
       state.patients.push(patient);
       record(s.user, "patient.create", "patient", patient.id);
@@ -454,7 +476,7 @@ function call(method: string, p: any, token: string | null): unknown {
         phone: p.phone || null, secondary_phone: p.secondary_phone || null, province_id: p.province_id || null, district_id: p.district_id || null,
         address: p.address || null, emergency_contact_name: p.emergency_contact_name || null, emergency_contact_phone: p.emergency_contact_phone || null,
         emergency_contact_relationship_id: p.emergency_contact_relationship_id || null, referral_source_id: p.referral_source_id || null,
-        notes: p.notes || null, status: p.status, version: patient.version + 1,
+        notes: p.notes || null, status: p.status, version: patient.version + 1, sex: sexOf(p.gender_id),
       });
       record(s.user, "patient.update", "patient", patient.id);
       return patient;
@@ -657,7 +679,7 @@ function call(method: string, p: any, token: string | null): unknown {
       need(s, "doctors.manage");
       if (!/^#[0-9a-fA-F]{6}$/.test(p.color)) invalid("color", "color_format");
       if (!p.full_name.trim()) invalid("full_name", "full_name_length");
-      const d: DoctorInfo = { id: uuid(), user_id: p.user_id, username: null, full_name: p.full_name.trim(), specialty: p.specialty ?? null, specialty_ids: p.specialty_ids ?? [], license_number: p.license_number ?? null, color: p.color.toLowerCase(), status: "active", sort_order: state.doctors.length + 1, hours: [], breaks: [], chair_ids: [], leaves: [], version: 1 };
+      const d: DoctorInfo = { id: uuid(), user_id: p.user_id, username: null, full_name: p.full_name.trim(), specialty: p.specialty ?? null, specialty_ids: p.specialty_ids ?? [], license_number: p.license_number ?? null, color: p.color.toLowerCase(), status: "active", sort_order: state.doctors.length + 1, hours: [], breaks: [], chair_ids: [], leaves: [], version: 1, sex: p.sex ?? null, photo_id: null };
       state.doctors.push(d);
       return d;
     }
@@ -665,9 +687,29 @@ function call(method: string, p: any, token: string | null): unknown {
       need(s, "doctors.manage");
       const d = state.doctors.find((x) => x.id === p.id) ?? fail("not_found", "doctor");
       if (d.version !== p.version) fail("conflict", "changed");
-      Object.assign(d, { full_name: p.full_name.trim(), specialty: p.specialty, color: p.color.toLowerCase(), status: p.status, user_id: p.user_id, version: d.version + 1 });
+      Object.assign(d, { full_name: p.full_name.trim(), specialty: p.specialty, specialty_ids: p.specialty_ids ?? d.specialty_ids, license_number: p.license_number ?? null, color: p.color.toLowerCase(), status: p.status, user_id: p.user_id, sex: p.sex ?? null, version: d.version + 1 });
       return d;
     }
+    case "doctors.set_photo": {
+      need(s, "doctors.manage");
+      const d = state.doctors.find((x) => x.id === p.id) ?? fail("not_found", "doctor");
+      d.photo_id = mockPhoto(p.data_base64);
+      return d;
+    }
+    case "patients.set_photo": {
+      need(s, "patients.edit");
+      const patient = findPatient(p.id);
+      patient.photo_id = mockPhoto(p.data_base64);
+      record(s.user, "patient.set_photo", "patient", patient.id);
+      return patient;
+    }
+    case "patients.avatars":
+      return (p.patient_ids as string[]).flatMap((id) => {
+        const x = state.patients.find((y) => y.id === id);
+        return x ? [{ patient_id: x.id, sex: x.sex, age: x.approximate_age, photo_id: x.photo_id }] : [];
+      });
+    case "photos.get":
+      return { data_url: state.photos.get(p.id) ?? fail("not_found", "photo") };
     case "doctors.set_schedule": {
       need(s, "doctors.manage");
       const d = state.doctors.find((x) => x.id === p.doctor_id) ?? fail("not_found", "doctor");

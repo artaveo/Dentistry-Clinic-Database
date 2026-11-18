@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FlaskConical, FolderPlus, Layers, Pencil, Plus, Search, Tags } from "lucide-react";
+import { FlaskConical, FolderPlus, Pencil, Plus, Search, Tags } from "lucide-react";
 import type { CatalogInfo, ChartSymbol, DocumentTemplateInfo, ServiceCategoryInfo, ServiceInfo, ToothScope, Translations } from "../../../shared/ts/contract";
 import { CHART_SYMBOLS } from "../chart/model";
 import { ApiError, isSessionError, rpc } from "../lib/api";
@@ -9,7 +9,7 @@ import { tr } from "../lib/medical";
 import { formatAmount } from "../lib/money";
 import { useI18n } from "../i18n";
 import { Button, IconButton } from "../ui/Button";
-import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
+import { Card, Page, PageHeader } from "../ui/Card";
 import { Switch } from "../ui/Controls";
 import { Field, Select, TextInput } from "../ui/Field";
 import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../ui/Feedback";
@@ -78,35 +78,32 @@ export function CatalogPage() {
         <span>{t("catalog.services")}: <strong className="num">{digits(catalog?.services.length ?? 0, lang)}</strong></span>
         <span className={unpriced ? "catalog-unpriced warn" : "catalog-unpriced ok"} data-testid="catalog-unpriced">{t("catalog.unpriced")}: <strong className="num">{digits(unpriced, lang)}</strong>{unpriced > 0 && <> — {t("catalog.unpricedHint")}</>}</span>
       </p>
-      <div className="catalog-layout">
-        <Card flush className="catalog-cats">
-          <CardHeader icon={Layers} title={t("catalog.categories")} />
-          <div className="catalog-cat-list" role="group" aria-label={t("catalog.categories")}>
-            <button type="button" aria-pressed={category === "all"} className="catalog-cat" onClick={() => setCategory("all")} data-testid="catalog-cat-all">
-              <span className="cell-strong">{t("catalog.all")}</span>
+      {/* One full-width table: the categories are a filter strip above it (a side list left the table ~250px wide). */}
+      <Card flush className="catalog-main">
+        <div className="catalog-toolbar">
+          <TextInput icon={Search} placeholder={t("catalog.search")} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="catalog-search" />
+          {(() => {
+            const cur = catalog?.categories.find((c) => c.id === category);
+            return cur ? <Button size="sm" icon={Pencil} onClick={() => setEditingCat({ cat: cur })} data-testid={`catalog-cat-edit-${cur.code}`}>{t("catalog.editCategory")}</Button> : null;
+          })()}
+        </div>
+        <div className="catalog-chips" role="group" aria-label={t("catalog.categories")}>
+          <button type="button" aria-pressed={category === "all"} className="catalog-chip" onClick={() => setCategory("all")} data-testid="catalog-cat-all">
+            {t("catalog.all")} <span className="catalog-chip-n num">{digits(catalog?.services.filter((s) => !s.parent_id).length ?? 0, lang)}</span>
+          </button>
+          {catalog?.categories.map((c) => (
+            <button key={c.id} type="button" aria-pressed={category === c.id} className={`catalog-chip ${c.is_active ? "" : "inactive"}`} onClick={() => setCategory(c.id)} title={specialtyName(c.specialty_id)} data-testid={`catalog-cat-${c.code}`}>
+              {tr(c.name, lang)} <span className="catalog-chip-n num">{digits(catalog.services.filter((s) => s.category_id === c.id && !s.parent_id).length, lang)}</span>
             </button>
-            {catalog?.categories.map((c) => (
-              <div key={c.id} className="catalog-cat-row">
-                <button type="button" aria-pressed={category === c.id} className={`catalog-cat ${c.is_active ? "" : "inactive"}`} onClick={() => setCategory(c.id)} data-testid={`catalog-cat-${c.code}`}>
-                  <span className="cell-strong">{tr(c.name, lang)}</span>
-                  <span className="subtle t-caption">{specialtyName(c.specialty_id)} · {digits(catalog.services.filter((s) => s.category_id === c.id && !s.parent_id).length, lang)}</span>
-                </button>
-                <IconButton icon={Pencil} size="sm" label={t("common.edit")} onClick={() => setEditingCat({ cat: c })} data-testid={`catalog-cat-edit-${c.code}`} />
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card flush className="catalog-main">
-          <div className="catalog-toolbar">
-            <TextInput icon={Search} placeholder={t("catalog.search")} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="catalog-search" />
-          </div>
+          ))}
+        </div>
           <div className="table-wrap">
             <table className="table" data-testid="catalog-table">
               <thead>
-                <tr><th>{t("catalog.code")}</th><th>{t("catalog.name")}</th><th className="col-opt">{t("catalog.specialty")}</th><th className="col-opt">{t("catalog.scope")}</th><th className="num">{t("catalog.price")}</th><th className="cell-actions"><span className="visually-hidden">{t("common.edit")}</span></th></tr>
+                <tr><th>{t("catalog.code")}</th><th>{t("catalog.name")}</th><th className="num">{t("catalog.price")}</th><th className="cell-actions"><span className="visually-hidden">{t("common.edit")}</span></th></tr>
               </thead>
               <tbody>
-                {!catalog && <SkeletonRows cols={6} />}
+                {!catalog && <SkeletonRows cols={4} />}
                 {shown.map((s) => {
                   const hasVariants = catalog!.services.some((v) => v.parent_id === s.id);
                   return (
@@ -114,15 +111,14 @@ export function CatalogPage() {
                       <td><bdi className="chip-code">{s.code}</bdi></td>
                       <td>
                         <span className={s.parent_id ? "" : "cell-strong"}>{s.parent_id ? `↳ ${tr(s.name, lang)}` : tr(s.name, lang)}</span>
-                        <span className="row" style={{ gap: 4, marginTop: 2 }}>
+                        <span className="catalog-meta">
+                          <span className="subtle">{[s.specialty_id ? specialtyName(s.specialty_id) : "", t(`catalog.scope.${s.tooth_scope}`)].filter(Boolean).join(" · ")}</span>
                           {s.sessions > 1 && <Badge>{t("catalog.sessionsN").replace("{n}", digits(s.sessions, lang))}</Badge>}
                           {s.lab_required && <Badge tone="info" icon={FlaskConical}>{t("catalog.lab")}</Badge>}
                           {s.needs_surface && <Badge>{t("catalog.surface")}</Badge>}
                           {!s.is_active && <Badge dot>{t("users.inactive")}</Badge>}
                         </span>
                       </td>
-                      <td className="col-opt">{specialtyName(s.specialty_id)}</td>
-                      <td className="col-opt">{t(`catalog.scope.${s.tooth_scope}`)}</td>
                       <td className="num">{hasVariants ? <span className="subtle">{t("catalog.byVariant")}</span> : s.price ? formatAmount(s.price, lang) : <Badge tone="warning" dot>{t("catalog.noPrice")}</Badge>}</td>
                       <td className="cell-actions">
                         <div className="row" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
@@ -137,8 +133,7 @@ export function CatalogPage() {
             </table>
             {catalog && shown.length === 0 && <EmptyState icon={Tags} title={t("catalog.none")} />}
           </div>
-        </Card>
-      </div>
+      </Card>
       {editingCat && <CategoryDialog cat={editingCat.cat} onClose={() => setEditingCat(null)} onSaved={() => { setEditingCat(null); saved(); }} />}
       {editing && catalog && <ServiceDialog catalog={catalog} templates={templates} {...editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); saved(); }} />}
     </Page>

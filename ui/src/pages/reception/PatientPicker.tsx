@@ -7,6 +7,9 @@ import { Button } from "../../ui/Button";
 import { Field, TextInput } from "../../ui/Field";
 import { Notice } from "../../ui/Feedback";
 import { v } from "../../lib/validation";
+import { PatientPic, PersonAvatar } from "../../ui/Avatar";
+import { usePatientAvatars } from "../../ui/usePatientAvatars";
+import { ageOn } from "../../lib/dates";
 
 export type PickedPatient = { id: string; name: string; number: string; phone?: string | null };
 
@@ -36,6 +39,7 @@ export function PatientPicker({ value, onChange, canCreate, error, testId = "pat
   const [failure, setFailure] = useState("");
   const [busy, setBusy] = useState(false);
   const timer = useRef<number | undefined>(undefined);
+  const avatars = usePatientAvatars(value ? [value.id] : []);
 
   useEffect(() => {
     window.clearTimeout(timer.current);
@@ -99,7 +103,9 @@ export function PatientPicker({ value, onChange, canCreate, error, testId = "pat
 
   if (value) {
     return (
+      // The picture helps tell apart patients with the same name (OF-049).
       <div className="patient-chip" data-testid={testId}>
+        <PatientPic id={value.id} name={value.name} avatars={avatars} />
         <div className="patient-chip-text">
           <span className="cell-strong" data-testid={`${testId}-name`}>{value.name}</span>
           <span className="subtle t-caption"><bdi className="ltr num">{value.number}</bdi>{value.phone ? <> · <bdi className="ltr">{value.phone}</bdi></> : null}</span>
@@ -121,8 +127,13 @@ export function PatientPicker({ value, onChange, canCreate, error, testId = "pat
               {found.map((p) => (
                 <li key={p.id}>
                   <button type="button" onClick={() => onChange(pick(p))} data-testid={`${testId}-result-${p.patient_number}`}>
-                    <span className="cell-strong">{p.full_name}</span>
-                    <span className="subtle t-caption">{p.father_name ? `${p.father_name} · ` : ""}<bdi className="ltr num">{p.patient_number}</bdi>{p.phone ? <> · <bdi className="ltr">{p.phone}</bdi></> : null}</span>
+                    <span className="person-line">
+                      <PersonAvatar kind="patient" name={p.full_name} sex={p.sex} age={p.date_of_birth ? ageOn(p.date_of_birth) : p.approximate_age} photoId={p.photo_id} size="sm" decorative />
+                      <span className="person-text">
+                        <span className="cell-strong">{p.full_name}</span>
+                        <span className="subtle t-caption">{p.father_name ? `${p.father_name} · ` : ""}<bdi className="ltr num">{p.patient_number}</bdi>{p.phone ? <> · <bdi className="ltr">{p.phone}</bdi></> : null}</span>
+                      </span>
+                    </span>
                   </button>
                 </li>
               ))}

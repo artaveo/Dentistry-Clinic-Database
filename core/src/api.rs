@@ -1648,6 +1648,57 @@ impl Core {
                     Ok(out)
                 })?)
             }
+            m::PATIENTS_SET_PHOTO | m::DOCTORS_SET_PHOTO => {
+                // OF-049/OF-050: the photo is shrunk to a small JPEG and kept in the encrypted
+                // attachment store (so backups with images carry it, like X-rays).
+                let is_patient = method == m::PATIENTS_SET_PHOTO;
+                s.require(if is_patient { perm::PATIENTS_EDIT } else { perm::DOCTORS_MANAGE })?;
+                let SetPhotoParams { id, data_base64 } = params(p)?;
+                let photo = match data_base64.as_deref() {
+                    Some(b64) => Some(attachment::make_photo(&decode_attachment(b64)?)?),
+                    None => None,
+                };
+                let dir = self.config.attachments_dir();
+                let a = actor(&s);
+                if is_patient {
+                    ok(self.with_tx_keyed(|c, key| {
+                        let hash = match &photo {
+                            Some(bytes) => Some(attachment::store(&dir, key, bytes)?.0),
+                            None => None,
+                        };
+                        patient::set_photo(c, &a, &id, hash.as_deref())
+                    })?)
+                } else {
+                    ok(self.with_tx_keyed(|c, key| {
+                        let hash = match &photo {
+                            Some(bytes) => Some(attachment::store(&dir, key, bytes)?.0),
+                            None => None,
+                        };
+                        scheduling::set_doctor_photo(c, &a, &id, hash.as_deref())
+                    })?)
+                }
+            }
+            m::PATIENTS_AVATARS => {
+                s.require_any(&[perm::PATIENTS_VIEW, perm::APPOINTMENTS_VIEW])?;
+                let PatientIdsParams { patient_ids } = params(p)?;
+                ok(self.with_db(|o| patient::avatars(&o.conn, &patient_ids))?)
+            }
+            m::PHOTOS_GET => {
+                // Anyone who sees patients or the calendar sees their pictures; only a hash that a
+                // patient or doctor really points at is served (never another attachment).
+                s.require_any(&[perm::PATIENTS_VIEW, perm::APPOINTMENTS_VIEW])?;
+                let IdParams { id } = params(p)?;
+                let dir = self.config.attachments_dir();
+                let bytes = self.with_db(|o| {
+                    if !patient::photo_in_use(&o.conn, &id)? {
+                        return Err(CoreError::api(ErrorCode::NotFound, format!("photo {id}")));
+                    }
+                    attachment::read(&dir, &o.key, &id)
+                })?;
+                ok(AttachmentData {
+                    data_url: format!("data:image/jpeg;base64,{}", data_encoding::BASE64.encode(&bytes)),
+                })
+            }
             m::PATIENTS_IMPORT_INSPECT => {
                 s.require(perm::PATIENTS_EDIT)?;
                 let p: ImportInspectParams = params(p)?;

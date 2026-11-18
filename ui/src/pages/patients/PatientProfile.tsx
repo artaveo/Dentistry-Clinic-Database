@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  CalendarClock, Ellipsis, FileHeart, FileText, Grid3x3, History, Images, Merge, NotebookPen, Pencil, ScrollText, Trash2, TriangleAlert, Wallet,
+  CalendarClock, Camera, Ellipsis, FileHeart, FileText, Grid3x3, History, Images, Merge, NotebookPen, Pencil, ScrollText, Trash2, TriangleAlert, Wallet,
 } from "lucide-react";
 import type { ClinicProfile, MedicalHistoryInfo, PatientInfo, TreatmentItemInfo } from "../../../../shared/ts/contract";
 import { ApiError, isSessionError, rpc } from "../../lib/api";
@@ -12,7 +12,9 @@ import { BackButton, Button, IconButton } from "../../ui/Button";
 import { Card, CardHeader, Page } from "../../ui/Card";
 import { Segmented } from "../../ui/Controls";
 import { Badge, ErrorState, Loading, Notice } from "../../ui/Feedback";
-import { Avatar } from "../../ui/Brand";
+import { PersonAvatar } from "../../ui/Avatar";
+import { PhotoDialog } from "../../ui/PhotoDialog";
+import { rememberPatient } from "../../ui/usePatientAvatars";
 import { Popover } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
 import { useConfirm } from "../../ui/ConfirmDialog";
@@ -112,6 +114,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
   const [financeSub, setFinanceSub] = useState<FinanceSub>("invoices");
   const [docSub, setDocSub] = useState<DocSub>("documents");
   const [merging, setMerging] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [historyMenu, setHistoryMenu] = useState(false);
   const [blockedBy, setBlockedBy] = useState<number | null>(null);
@@ -153,6 +156,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
     rpc("patients.get", { patient_id: patientId })
       .then((p) => {
         setPatient(p);
+        rememberPatient(p);
         setError("");
       })
       .catch((e) => !isSessionError(e) && setError(err(e)));
@@ -202,7 +206,13 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
       <div className="profile-sticky">
         <header className="profile-head">
           <BackButton onBack={onBack} label={t("patients.backShort")} testId="patient-back" />
-          <Avatar name={patient.full_name} size="sm" />
+          {canEdit ? (
+            <button type="button" className="avatar-button" onClick={() => setPhotoOpen(true)} title={t(patient.photo_id ? "avatar.photo.change" : "avatar.photo.add")} aria-label={t(patient.photo_id ? "avatar.photo.change" : "avatar.photo.add")} data-testid="patient-photo-open">
+              <PersonAvatar kind="patient" name={patient.full_name} sex={patient.sex} age={age} photoId={patient.photo_id} size="sm" decorative testId="patient-header-avatar" />
+            </button>
+          ) : (
+            <PersonAvatar kind="patient" name={patient.full_name} sex={patient.sex} age={age} photoId={patient.photo_id} size="sm" decorative testId="patient-header-avatar" />
+          )}
           <h1 className="profile-name" data-testid="page-title">{patient.full_name}</h1>
           <bdi className="ltr num profile-id">{patient.patient_number}</bdi>
           {age != null && <span className="profile-age">{t(patient.date_of_birth ? "patients.header.age" : "patients.header.ageAbout").replace("{n}", digits(age, lang))}</span>}
@@ -219,6 +229,9 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
                 testId="patient-menu"
                 trigger={<IconButton icon={Ellipsis} size="sm" label={t("patients.moreActions")} aria-expanded={menu} onClick={() => setMenu((x) => !x)} data-testid="patient-more" />}
               >
+                <button type="button" className="menu-item" onClick={() => { setMenu(false); setPhotoOpen(true); }} data-testid="patient-photo-menu">
+                  <Camera aria-hidden /> {t(patient.photo_id ? "avatar.photo.change" : "avatar.photo.add")}
+                </button>
                 <button type="button" className="menu-item" onClick={() => { setMenu(false); setMerging(true); }} data-testid="patient-merge-open">
                   <Merge aria-hidden /> {t("patients.merge")}
                 </button>
@@ -287,7 +300,14 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
         <Card>
           <CardHeader title={t("patients.tab.overview")} />
           <div className="person" style={{ marginBottom: "var(--space-4)" }}>
-            <Avatar name={patient.full_name} size="lg" />
+            <span className="photo-edit">
+              <PersonAvatar kind="patient" name={patient.full_name} sex={patient.sex} age={age} photoId={patient.photo_id} size="lg" testId="patient-overview-avatar" />
+              {canEdit && (
+                <button type="button" className="photo-edit-btn" onClick={() => setPhotoOpen(true)} title={t(patient.photo_id ? "avatar.photo.change" : "avatar.photo.add")} aria-label={t(patient.photo_id ? "avatar.photo.change" : "avatar.photo.add")} data-testid="patient-photo-edit">
+                  <Camera aria-hidden />
+                </button>
+              )}
+            </span>
             <div className="person-text">
               <span className="cell-strong">{patient.full_name}</span>
               {patient.father_name && <span className="person-sub">{t("patient.field.fatherName")}: {patient.father_name}</span>}
@@ -383,6 +403,20 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
       {tab === "timeline" && <TimelineTab patient={patient} calendar={clinic?.calendar_system ?? "shamsi"} />}
       {tab === "audit" && <PatientAuditTab patientId={patient.id} />}
 
+      {photoOpen && (
+        <PhotoDialog
+          title={t("avatar.photo.title.patient")}
+          person={{ kind: "patient", name: patient.full_name, sex: patient.sex, age, photoId: patient.photo_id }}
+          hasPhoto={!!patient.photo_id}
+          onSave={async (b64) => {
+            const p = await rpc("patients.set_photo", { id: patient.id, data_base64: b64 });
+            setPatient(p);
+            rememberPatient(p);
+            toast.success(t(b64 ? "avatar.photo.saved" : "avatar.photo.removed"));
+          }}
+          onClose={() => setPhotoOpen(false)}
+        />
+      )}
       {merging && patient && (
         <MergeDialog
           patient={patient}

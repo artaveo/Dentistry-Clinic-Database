@@ -96,7 +96,7 @@ export function LabTab({ perms, calendar, canCreatePatients }: { perms: Inventor
           </Select>
         </div>
         <div className="table-wrap">
-          <table className="table" data-testid="lab-table">
+          <table className="table table-compact" data-testid="lab-table">
             <thead>
               <tr>
                 <th>{t("doc.patient")}</th>
@@ -126,7 +126,7 @@ export function LabTab({ perms, calendar, canCreatePatients }: { perms: Inventor
                         {c.shade && <> · {t("labcase.shade")} <bdi className="ltr">{c.shade}</bdi></>}
                       </div>
                     </td>
-                    <td className="nowrap">{c.lab_name}{c.doctor_name && <div className="t-caption subtle">{c.doctor_name}</div>}</td>
+                    <td className="lab-lab">{c.lab_name}{c.doctor_name && <div className="t-caption subtle">{c.doctor_name}</div>}</td>
                     <td>
                       <span className="nowrap cell-strong">{c.received_date || c.expected_date ? formatDate(c.received_date ?? c.expected_date, lang, calendar) : "—"}</span>
                       <div className="t-caption subtle">{c.received_date ? t("labcase.received") : c.expected_date ? t("labcase.expected") : ""}{c.sent_date && <> · {t("labcase.sent")} <span className="nowrap">{formatDate(c.sent_date, lang, calendar)}</span></>}</div>

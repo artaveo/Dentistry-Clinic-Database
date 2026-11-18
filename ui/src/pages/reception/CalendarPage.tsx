@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react";
 import type { AppointmentInfo, AppointmentStatus, CalendarSystem, ClinicProfile, DayCount } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
 import { addDays, fromMinutes, inCalendar, isInMonth, monthRange, monthWeeks, nowMinutes, shiftMonth, todayIso, toMinutes, weekDays, weekdayIndex } from "../../lib/calendar";
@@ -18,6 +18,7 @@ import { LIVE, MOVABLE, ruleText } from "./labels";
 import { isSolo, useScheduling, type Perms } from "./useScheduling";
 import { specialtiesText, useSpecialties } from "../../lib/clinical";
 import { useLive } from "../../lib/lan";
+import { DoctorPic } from "../../ui/Avatar";
 
 type View = "day" | "week" | "month";
 type Group = "doctor" | "chair";
@@ -144,26 +145,19 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
     return [lo, hi] as const;
   }, [clinic, items]);
 
-  // U-09: the grid is tall (a full working day); open it at the current time (or the first visit) instead of at the top.
-  const scrolledFor = useRef("");
+  // The calendar opens like every other page: at its very top. It never scrolls by itself (not to "now", not to the
+  // first booking); the explicit "now" button below does that on request. Changing day/view also starts at the top.
   useEffect(() => {
-    if (!items || view === "month") return;
-    const key = `${view}|${anchor}`;
-    if (scrolledFor.current === key) return;
-    scrolledFor.current = key;
-    const first = items.length ? Math.min(...items.map((a) => toMinutes(a.start_time))) : null;
-    const focus = anchor === today || (view === "week" && weekDays(anchor).includes(today)) ? nowMinutes() : first;
+    gridRef.current?.closest(".app-main")?.scrollTo({ top: 0, behavior: "auto" });
+  }, [view, anchor]);
+  const showNow = view !== "month" && (anchor === today || (view === "week" && weekDays(anchor).slice(0, weekCount).includes(today)));
+  const jumpToNow = () => {
     const scroller = gridRef.current?.closest(".app-main");
     const body = gridRef.current?.querySelector<HTMLElement>(".tg-body");
-    if (focus === null || !scroller || !body) return;
-    const desired = body.offsetTop + Math.max(0, focus - startMin - 60) * PX_PER_MIN;
-    // Never scroll past the day header: the calendar must open with its header row (and the first hours) in view,
-    // not at the bottom of the page. Late in the day the grid just starts at its top.
-    const head = gridRef.current?.querySelector<HTMLElement>(".tg-head");
-    const headTop = head ? head.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop : 0;
-    const target = Math.max(0, Math.min(desired, headTop));
-    scroller.scrollTo({ top: target, behavior: "auto" });
-  }, [items, view, anchor, startMin, today]);
+    if (!scroller || !body) return;
+    const bodyTop = body.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    scroller.scrollTo({ top: Math.max(0, bodyTop + (nowMinutes() - startMin) * PX_PER_MIN - scroller.clientHeight / 2), behavior: "smooth" });
+  };
 
   const columns: Column[] = useMemo(() => {
     if (view === "week") {
@@ -363,6 +357,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
         <div className="row">
           <IconButton icon={ChevronRight} label={t("cal.prev")} onClick={() => step(-1)} data-testid="cal-prev" className="flip-rtl-btn" />
           <Button onClick={() => setAnchor(today)} data-testid="cal-today">{t("cal.today")}</Button>
+          {showNow && items && <Button variant="subtle" icon={Clock} title={t("cal.nowHint")} onClick={jumpToNow} data-testid="cal-now">{t("cal.now")}</Button>}
           <IconButton icon={ChevronLeft} label={t("cal.next")} onClick={() => step(1)} data-testid="cal-next" className="flip-rtl-btn" />
           {/* OF-038: the date opens a calendar to jump straight to any day or month. */}
           <button type="button" className="cal-title" onClick={() => setPicking(true)} aria-haspopup="dialog" data-testid="cal-title">
@@ -395,7 +390,7 @@ export function CalendarPage({ clinic, perms, clinicName }: { clinic: ClinicProf
               <div className="tg-corner" />
               {columns.map((c) => (
                 <div key={c.key} className={`tg-colhead ${c.date === today && view === "week" ? "today" : ""}`}>
-                  {c.color && <span className="dot-swatch" style={{ background: c.color }} aria-hidden />}
+                  {c.doctorId ? <DoctorPic doctor={shownDoctors.find((d) => d.id === c.doctorId)} name={c.label} color={c.color} size="sm" testId={`cal-doctor-avatar-${c.doctorId}`} /> : c.color && <span className="dot-swatch" style={{ background: c.color }} aria-hidden />}
                   <span className="cell-strong">{c.label}</span>
                   {c.sub && <span className="subtle t-caption">{c.sub}</span>}
                 </div>

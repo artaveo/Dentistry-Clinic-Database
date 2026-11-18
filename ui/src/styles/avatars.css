@@ -1,0 +1,82 @@
+/* People pictures (OF-049, OF-050) and the dental-unit illustration (OF-051). */
+
+.person-avatar {
+  --avatar-size: 40px;
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  width: var(--avatar-size); height: var(--avatar-size); border-radius: 50%;
+  overflow: hidden; isolation: isolate;
+  font-weight: 650; font-size: calc(var(--avatar-size) * .4); line-height: 1;
+  background: var(--accent-soft); color: var(--accent-text);
+  /* A hairline keeps the round picture crisp on glass cards in both themes. */
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+.person-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; }
+.person-avatar.xs { --avatar-size: 24px; font-size: 11px; }
+.person-avatar.sm { --avatar-size: 32px; font-size: 13px; }
+.person-avatar.md { --avatar-size: 40px; }
+.person-avatar.lg { --avatar-size: 64px; }
+.person-avatar.xl { --avatar-size: 112px; }
+.person-avatar.letter::before { content: attr(data-initial); }
+.person-avatar.letter.doctor { background: var(--fill-hover); color: var(--text-2); }
+/* A doctor's calendar colour as a ring, with a gap so it reads on any background. */
+.person-avatar.ringed { overflow: visible; box-shadow: 0 0 0 2px var(--glass-overlay), 0 0 0 4px var(--avatar-ring); }
+.person-avatar.ringed img { border-radius: 50%; }
+
+/* A picture that opens the photo dialog. */
+.avatar-button { flex: none; padding: 0; border: none; background: none; border-radius: 50%; cursor: pointer; display: inline-grid; }
+.avatar-button:hover .person-avatar { box-shadow: 0 0 0 2px var(--accent-ring); }
+.avatar-button:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+
+/* A name with its picture in a table cell or a card line. */
+.person-line { display: inline-flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.person-line .person-text { display: flex; flex-direction: column; min-width: 0; }
+.person-line .person-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Profile photo controls under the large picture in the patient header. */
+.photo-edit { position: relative; display: inline-grid; }
+.photo-edit .photo-edit-btn {
+  position: absolute; inset-block-end: -2px; inset-inline-end: -2px;
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid var(--glass-overlay); background: var(--accent); color: var(--on-accent); cursor: pointer;
+  box-shadow: var(--shadow-1);
+}
+.photo-edit .photo-edit-btn:hover { background: var(--accent-hover); }
+.photo-edit .photo-edit-btn:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.photo-edit .photo-edit-btn svg { width: 15px; height: 15px; }
+.photo-preview { display: grid; justify-items: center; gap: var(--space-3); }
+.photo-preview video, .photo-preview canvas { width: 240px; height: 240px; border-radius: 50%; object-fit: cover; background: var(--fill-subtle); }
+
+/* Doctors list: one clickable row per doctor. */
+.doctor-row { cursor: pointer; }
+.doctor-row:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -2px; }
+
+/* Doctor page header: the large figure stands at the start of the card, details beside it. */
+.doctor-hero { display: grid; grid-template-columns: auto 1fr; gap: var(--space-6); align-items: end; }
+.doctor-hero .doctor-figure { height: 210px; width: auto; margin-block-end: calc(var(--space-6) * -1); align-self: end; pointer-events: none; user-select: none; }
+.doctor-hero .doctor-figure-photo { align-self: center; }
+.doctor-hero .doctor-facts { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); color: var(--text-2); font-size: 13px; }
+.doctor-hero .doctor-facts > span { display: inline-flex; align-items: center; gap: 6px; }
+.doctor-hero .doctor-facts svg { width: 15px; height: 15px; color: var(--text-3); }
+.doctor-week { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--space-2); }
+.doctor-week .day { border-radius: var(--radius-md); padding: var(--space-3); background: var(--fill-subtle); display: grid; gap: 4px; min-height: 76px; align-content: start; }
+.doctor-week .day.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.doctor-week .day.off { opacity: .6; }
+.doctor-week .day .day-name { font-weight: 600; font-size: 13px; }
+.doctor-week .day .day-hours { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.doctor-week .day .day-count { font-size: 12px; color: var(--accent-text); font-weight: 600; }
+@media (max-width: 720px) { .doctor-hero { grid-template-columns: 1fr; } .doctor-hero .doctor-figure { height: 160px; margin-block-end: 0; } }
+
+.stat-bar { display: block; height: 8px; border-radius: var(--radius-full); background: var(--fill-hover); overflow: hidden; }
+.stat-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+
+/* Units (OF-051): a small illustration per unit with its live status. */
+.unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); padding: var(--space-4) var(--space-5) var(--space-5); }
+.unit-tile {
+  display: grid; grid-template-columns: 72px 1fr auto; align-items: center; gap: var(--space-3);
+  padding: var(--space-3); border-radius: var(--radius-lg); background: var(--fill-subtle); border: 1px solid var(--line);
+}
+.unit-tile.inactive { opacity: .62; }
+.unit-tile img { width: 72px; height: 56px; object-fit: contain; }
+.unit-tile .unit-name { font-weight: 600; }
+.unit-tile .unit-status { font-size: 12px; color: var(--text-2); display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unit-hero { width: 132px; height: auto; }

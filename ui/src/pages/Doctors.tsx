@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarOff, Clock, Pencil, Plus, Stethoscope, Trash2, Armchair } from "lucide-react";
-import type { CalendarSystem, ChairInfo, ClinicProfile, DoctorInfo, ScheduleSlot, UserInfo } from "../../../shared/ts/contract";
+import { CalendarOff, Pencil, Plus, Stethoscope, Trash2, Armchair } from "lucide-react";
+import type { CalendarSystem, ChairInfo, ClinicProfile, DoctorInfo, PersonSex, ScheduleSlot, UserInfo } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "../lib/api";
 import { todayIso } from "../lib/calendar";
 import { digits, formatDate } from "../lib/dates";
@@ -8,7 +8,7 @@ import { useForm, v } from "../lib/validation";
 import { useI18n } from "../i18n";
 import { Button, IconButton } from "../ui/Button";
 import { Card, CardHeader, Page, PageHeader } from "../ui/Card";
-import { ChipGroup, Switch } from "../ui/Controls";
+import { ChipGroup, Segmented, Switch } from "../ui/Controls";
 import { specialtiesText, useSpecialties } from "../lib/clinical";
 import { tr } from "../lib/medical";
 import { DateField } from "../ui/DateField";
@@ -18,6 +18,9 @@ import { Dialog } from "../ui/Overlay";
 import { TimePicker12 } from "../ui/TimePicker";
 import { useToast } from "../ui/Toast";
 import { ruleText } from "./reception/labels";
+import { DOCTORS_CHANGED, DoctorPic, illustrations } from "../ui/Avatar";
+import { PhotoDialog } from "../ui/PhotoDialog";
+import { DoctorPage } from "./DoctorPage";
 
 const COLORS = ["#0e7490", "#f59e0b", "#7c3aed", "#16a34a", "#dc2626", "#db2777", "#2563eb", "#0d9488", "#ea580c", "#64748b"];
 
@@ -32,6 +35,9 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
   const [doctorDialog, setDoctorDialog] = useState<{ doctor?: DoctorInfo } | null>(null);
   const [schedule, setSchedule] = useState<string | null>(null);
   const [chairDialog, setChairDialog] = useState<{ chair?: ChairInfo } | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [photoFor, setPhotoFor] = useState<string | null>(null);
+  const toast = useToast();
 
   // Every reload and every saved doctor bumps this, so an older reload still in flight (started by,
   // say, removing a leave) can never put an outdated doctor back after a newer save.
@@ -48,39 +54,96 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
     if (d) {
       seq.current++;
       setDoctors((list) => list?.map((x) => (x.id === d.id ? d : x)) ?? null);
+      window.dispatchEvent(new Event(DOCTORS_CHANGED));
     }
     load();
   };
 
   const scheduled = doctors?.find((d) => d.id === schedule) ?? null;
+  const opened = doctors?.find((d) => d.id === openId) ?? null;
+  const photoDoctor = doctors?.find((d) => d.id === photoFor) ?? null;
   const summary = (d: DoctorInfo) => {
     const days = new Set(d.hours.map((h) => h.day));
     return days.size ? `${digits(days.size, lang)} ${t("doctors.daysPerWeek")}` : t("doctors.noHours");
   };
+  // OF-051: which unit is in use right now, and by whom (patients in treatment today).
+  const [busy, setBusy] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    const d = todayIso();
+    rpc("appointments.list", { date_from: d, date_to: d, doctor_id: null, chair_id: null, patient_id: null, statuses: ["in_treatment"], limit: 200, offset: 0 })
+      .then((list) => setBusy(new Map(list.filter((a) => a.chair_id).map((a) => [a.chair_id as string, a.patient_name]))))
+      .catch(() => setBusy(new Map()));
+  }, [doctors]);
+  const open = (d: DoctorInfo) => setOpenId(d.id);
+  // Opening or leaving a doctor's page starts at the top, like any other page.
+  useEffect(() => {
+    document.querySelector(".app-main")?.scrollTo({ top: 0 });
+  }, [openId]);
+
+  const dialogs = (
+    <>
+      {doctorDialog && <DoctorDialog doctor={doctorDialog.doctor} onClose={() => setDoctorDialog(null)} onSaved={saved} />}
+      {chairDialog && <ChairDialog chair={chairDialog.chair} onClose={() => setChairDialog(null)} onSaved={load} />}
+      {scheduled && chairs && <ScheduleDialog doctor={scheduled} chairs={chairs.filter((c) => c.status === "active")} calendar={calendar} onClose={() => setSchedule(null)} onSaved={saved} />}
+      {photoDoctor && (
+        <PhotoDialog
+          title={t("avatar.photo.title.doctor")}
+          person={{ kind: "doctor", name: photoDoctor.full_name, sex: photoDoctor.sex, photoId: photoDoctor.photo_id, ring: photoDoctor.color }}
+          hasPhoto={!!photoDoctor.photo_id}
+          onSave={async (b64) => {
+            saved(await rpc("doctors.set_photo", { id: photoDoctor.id, data_base64: b64 }));
+            toast.success(t(b64 ? "avatar.photo.saved" : "avatar.photo.removed"));
+          }}
+          onClose={() => setPhotoFor(null)}
+        />
+      )}
+    </>
+  );
+
+  // OF-050: the doctor's own page, with editing and the work schedule moved into it.
+  if (opened) {
+    return (
+      <>
+        <DoctorPage
+          doctor={opened}
+          chairs={chairs ?? []}
+          calendar={calendar}
+          canManage
+          onBack={() => setOpenId(null)}
+          onEdit={() => setDoctorDialog({ doctor: opened })}
+          onSchedule={() => setSchedule(opened.id)}
+          onPhoto={() => setPhotoFor(opened.id)}
+        />
+        {dialogs}
+      </>
+    );
+  }
 
   return (
     <Page testId="page-doctors">
       <PageHeader title={t("nav.doctors")} description={t("doctors.subtitle")} />
       {error && <ErrorState message={error} onRetry={load} />}
       <Card flush>
-        <CardHeader icon={Stethoscope} title={t("doctors.title")} description={t("doctors.hint")} actions={<Button variant="primary" icon={Plus} onClick={() => setDoctorDialog({})} data-testid="doctor-add-open">{t("doctors.add")}</Button>} />
+        <CardHeader icon={Stethoscope} title={t("doctors.title")} description={t("doctors.openHint")} actions={<Button variant="primary" icon={Plus} onClick={() => setDoctorDialog({})} data-testid="doctor-add-open">{t("doctors.add")}</Button>} />
         <div className="table-wrap">
           <table className="table" data-testid="doctor-list">
-            <thead><tr><th>{t("doctors.name")}</th><th>{t("doctors.specialty")}</th><th>{t("doctors.schedule")}</th><th>{t("users.status")}</th><th className="cell-actions"><span className="visually-hidden">{t("users.edit")}</span></th></tr></thead>
+            <thead><tr><th>{t("doctors.name")}</th><th>{t("doctors.specialty")}</th><th>{t("doctors.schedule")}</th><th>{t("users.status")}</th></tr></thead>
             <tbody>
-              {!doctors && <SkeletonRows cols={5} />}
+              {!doctors && <SkeletonRows cols={4} />}
               {doctors?.map((d) => (
-                <tr key={d.id} data-testid={`doctor-row-${d.id}`}>
-                  <td><span className="row"><span className="dot-swatch lg" style={{ background: d.color }} aria-hidden /><span className="cell-strong">{d.full_name}</span></span>{d.username && <span className="subtle t-caption"><br /><bdi className="ltr">{d.username}</bdi></span>}</td>
+                <tr key={d.id} className="doctor-row" tabIndex={0} onClick={() => open(d)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(d); } }} data-testid={`doctor-row-${d.id}`}>
+                  <td>
+                    <span className="person-line" data-testid={`doctor-open-${d.full_name}`}>
+                      <DoctorPic doctor={d} name={d.full_name} size="md" testId={`doctor-avatar-${d.id}`} />
+                      <span className="person-text">
+                        <span className="cell-strong">{d.full_name}</span>
+                        {d.username && <span className="subtle t-caption"><bdi className="ltr">{d.username}</bdi></span>}
+                      </span>
+                    </span>
+                  </td>
                   <td>{specialtiesText(d, specialties, lang) || "—"}{d.license_number && <span className="subtle t-caption"><br />{t("doctors.license")}: <bdi className="ltr">{d.license_number}</bdi></span>}</td>
                   <td>{summary(d)}{d.leaves.length > 0 && <span className="subtle t-caption"><br />{t("doctors.leaves")}: {digits(d.leaves.length, lang)}</span>}</td>
                   <td>{d.status === "active" ? <Badge tone="success" dot>{t("users.active")}</Badge> : <Badge dot>{t("users.inactive")}</Badge>}</td>
-                  <td className="cell-actions">
-                    <div className="row" style={{ justifyContent: "flex-end" }}>
-                      <Button size="sm" icon={Clock} onClick={() => setSchedule(d.id)} data-testid={`doctor-schedule-${d.full_name}`}>{t("doctors.editSchedule")}</Button>
-                      <IconButton icon={Pencil} label={t("users.edit")} size="sm" onClick={() => setDoctorDialog({ doctor: d })} data-testid={`doctor-edit-${d.full_name}`} />
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -90,28 +153,30 @@ export function DoctorsPage({ clinic }: { clinic: ClinicProfile | null }) {
       </Card>
 
       <Card flush>
-        <CardHeader icon={Armchair} title={t("chairs.title")} description={t("chairs.hint")} actions={<Button variant="primary" icon={Plus} onClick={() => setChairDialog({})} data-testid="chair-add-open">{t("chairs.add")}</Button>} />
-        <div className="table-wrap">
-          <table className="table" data-testid="chair-list">
-            <thead><tr><th>{t("chairs.name")}</th><th>{t("users.status")}</th><th className="cell-actions"><span className="visually-hidden">{t("users.edit")}</span></th></tr></thead>
-            <tbody>
-              {!chairs && <SkeletonRows cols={3} />}
-              {chairs?.map((c) => (
-                <tr key={c.id}>
-                  <td className="cell-strong">{c.name}</td>
-                  <td>{c.status === "active" ? <Badge tone="success" dot>{t("users.active")}</Badge> : <Badge dot>{t("users.inactive")}</Badge>}</td>
-                  <td className="cell-actions"><IconButton icon={Pencil} label={t("users.edit")} size="sm" onClick={() => setChairDialog({ chair: c })} data-testid={`chair-edit-${c.name}`} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {chairs?.length === 0 && <EmptyState icon={Armchair} title={t("chairs.empty")}>{t("chairs.emptyHint")}</EmptyState>}
-        </div>
+        <CardHeader icon={Armchair} title={t("chairs.title")} description={`${t("chairs.hint")} ${t("unit.statusHint")}`} actions={<Button variant="primary" icon={Plus} onClick={() => setChairDialog({})} data-testid="chair-add-open">{t("chairs.add")}</Button>} />
+        {!chairs && <div style={{ padding: "var(--space-4)" }}><SkeletonRows cols={1} /></div>}
+        {chairs && chairs.length > 0 && (
+          <div className="unit-grid" data-testid="chair-list">
+            {chairs.map((c) => {
+              const who = busy.get(c.id);
+              return (
+                <div key={c.id} className={`unit-tile ${c.status === "active" ? "" : "inactive"}`} data-testid={`unit-${c.name}`}>
+                  <img src={illustrations.dentalUnit} alt="" />
+                  <span style={{ minWidth: 0 }}>
+                    <span className="unit-name">{c.name}</span>
+                    <span className="unit-status">
+                      {c.status !== "active" ? <Badge dot>{t("unit.inactive")}</Badge> : who ? <Badge tone="warning" dot testId={`unit-status-${c.name}`}>{t("unit.busy").replace("{name}", who)}</Badge> : <Badge tone="success" dot testId={`unit-status-${c.name}`}>{t("unit.free")}</Badge>}
+                    </span>
+                  </span>
+                  <IconButton icon={Pencil} label={t("chairs.edit")} size="sm" onClick={() => setChairDialog({ chair: c })} data-testid={`chair-edit-${c.name}`} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {chairs?.length === 0 && <EmptyState icon={Armchair} title={t("chairs.empty")}>{t("chairs.emptyHint")}</EmptyState>}
       </Card>
-
-      {doctorDialog && <DoctorDialog doctor={doctorDialog.doctor} onClose={() => setDoctorDialog(null)} onSaved={saved} />}
-      {chairDialog && <ChairDialog chair={chairDialog.chair} onClose={() => setChairDialog(null)} onSaved={load} />}
-      {scheduled && chairs && <ScheduleDialog doctor={scheduled} chairs={chairs.filter((c) => c.status === "active")} calendar={calendar} onClose={() => setSchedule(null)} onSaved={saved} />}
+      {dialogs}
     </Page>
   );
 }
@@ -124,6 +189,7 @@ function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClo
   const [users, setUsers] = useState<UserInfo[] | null>(null);
   const [active, setActive] = useState(doctor ? doctor.status === "active" : true);
   const [color, setColor] = useState(doctor?.color ?? COLORS[0]);
+  const [sex, setSex] = useState<PersonSex | "unset">(doctor?.sex ?? "unset");
   const form = useForm(
     { full_name: doctor?.full_name ?? "", license_number: doctor?.license_number ?? "", user_id: doctor?.user_id ?? "" },
     { full_name: v.fullName, license_number: (s) => ([...s.trim()].length > 50 ? "rule.license_length" : null) },
@@ -149,6 +215,7 @@ function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClo
       license_number: form.values.license_number.trim() || null,
       color,
       user_id: form.values.user_id || null,
+      sex: sex === "unset" ? null : sex,
     };
     try {
       const d = doctor
@@ -176,6 +243,21 @@ function DoctorDialog({ doctor, onClose, onSaved }: { doctor?: DoctorInfo; onClo
         <Field label={t("doctors.name")} hint={t("hint.doctorName")} error={form.error("full_name") && t(form.error("full_name")!)}>
           <TextInput value={form.values.full_name} onChange={(e) => form.set("full_name", e.target.value)} onBlur={() => form.blur("full_name")} data-testid="doctor-name" />
         </Field>
+        {/* OF-050: chooses the default picture (no guess from the name). */}
+        <div className="field">
+          <span className="field-label">{t("doctors.sex")}<span className="optional">{t("common.optional")}</span></span>
+          <Segmented<PersonSex | "unset">
+            value={sex}
+            onChange={setSex}
+            label={t("doctors.sex")}
+            options={[
+              { value: "male", label: t("doctors.sex.male"), testId: "doctor-sex-male" },
+              { value: "female", label: t("doctors.sex.female"), testId: "doctor-sex-female" },
+              { value: "unset", label: t("doctors.sex.unset"), testId: "doctor-sex-unset" },
+            ]}
+          />
+          <span className="field-hint">{t("doctors.sexHint")}</span>
+        </div>
         {/* M2: one or more specialties from the clinic's list (Settings → Clinical lists). */}
         <div className="field">
           <span className="field-label">{t("doctors.specialties")}<span className="optional">{t("common.optional")}</span></span>

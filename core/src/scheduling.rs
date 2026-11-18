@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use artaveo_shared::{
     ActiveStatus, AddLeaveParams, ChairInfo, CreateChairParams, CreateDoctorParams, DoctorInfo, ErrorCode,
-    LeaveInfo, LeaveResult, ScheduleSlot, SetScheduleParams, UpdateChairParams, UpdateDoctorParams,
+    LeaveInfo, LeaveResult, PersonSex, ScheduleSlot, SetScheduleParams, UpdateChairParams, UpdateDoctorParams,
     ValidationRule,
 };
 use rusqlite::{params, Connection, OptionalExtension};
@@ -87,8 +87,36 @@ fn status_code(s: ActiveStatus) -> &'static str {
     }
 }
 
+fn sex_code(s: PersonSex) -> &'static str {
+    match s {
+        PersonSex::Male => "male",
+        PersonSex::Female => "female",
+    }
+}
+
+/// OF-050: points the doctor at a stored photo (hash of the small JPEG in the attachment store),
+/// or removes it.
+pub fn set_doctor_photo(conn: &Connection, actor: &Actor, doctor_id: &str, photo: Option<&str>) -> Result<DoctorInfo> {
+    let before = get_doctor(conn, doctor_id)?;
+    let changed = conn.execute(
+        "UPDATE doctor SET photo_sha256 = ?1, updated_at = ?2, updated_by = ?3 WHERE id = ?4 AND deleted_at IS NULL",
+        params![photo, now_iso(), actor.user_id, doctor_id],
+    )?;
+    expect_one_row(changed, "doctor")?;
+    audit::record(
+        conn,
+        actor,
+        "doctor.set_photo",
+        Some("doctor"),
+        Some(doctor_id),
+        Some(&json!({ "photo": before.photo_id.is_some() })),
+        Some(&json!({ "photo": photo.is_some() })),
+    )?;
+    get_doctor(conn, doctor_id)
+}
+
 const DOCTOR_SELECT: &str = "SELECT d.id, d.user_id, u.username, d.full_name, d.specialty, d.color, d.status,
-        d.sort_order, d.version, d.license_number
+        d.sort_order, d.version, d.license_number, d.sex, d.photo_sha256
      FROM doctor d LEFT JOIN app_user u ON u.id = d.user_id AND u.deleted_at IS NULL
      WHERE d.deleted_at IS NULL";
 
@@ -103,6 +131,8 @@ struct DoctorRow {
     sort_order: i64,
     version: i64,
     license_number: Option<String>,
+    sex: Option<String>,
+    photo_sha256: Option<String>,
 }
 
 fn map_doctor_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<DoctorRow> {
@@ -117,6 +147,8 @@ fn map_doctor_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<DoctorRow> {
         sort_order: r.get(7)?,
         version: r.get(8)?,
         license_number: r.get(9)?,
+        sex: r.get(10)?,
+        photo_sha256: r.get(11)?,
     })
 }
 
@@ -191,6 +223,8 @@ fn assemble(conn: &Connection, rows: Vec<DoctorRow>) -> Result<Vec<DoctorInfo>> 
             color: d.color,
             sort_order: d.sort_order,
             version: d.version,
+            sex: crate::patient::sex_from_code(d.sex.as_deref()),
+            photo_id: d.photo_sha256,
         })
         .collect())
 }
@@ -290,8 +324,8 @@ pub fn create_doctor(conn: &Connection, actor: &Actor, p: &CreateDoctorParams) -
     )?;
     conn.execute(
         "INSERT INTO doctor(id, user_id, full_name, specialty, color, sort_order, license_number, created_at, created_by,
-            updated_at, updated_by)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?8,?9)",
+            updated_at, updated_by, sex)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?8,?9,?10)",
         params![
             id,
             user_id,
@@ -301,7 +335,8 @@ pub fn create_doctor(conn: &Connection, actor: &Actor, p: &CreateDoctorParams) -
             order,
             p.license_number.as_deref().map(str::trim).filter(|s| !s.is_empty()),
             now,
-            actor.user_id
+            actor.user_id,
+            p.sex.map(sex_code)
         ],
     )?;
     crate::specialty::set_for_doctor(conn, &id, &specialties)?;
@@ -318,7 +353,7 @@ pub fn update_doctor(conn: &Connection, actor: &Actor, p: &UpdateDoctorParams) -
     check_user_link(conn, user_id, Some(&p.id))?;
     let changed = conn.execute(
         "UPDATE doctor SET user_id=?1, full_name=?2, specialty=?3, color=?4, status=?5,
-            updated_at=?6, updated_by=?7, version=version+1, license_number=?10
+            updated_at=?6, updated_by=?7, version=version+1, license_number=?10, sex=?11
          WHERE id=?8 AND version=?9 AND deleted_at IS NULL",
         params![
             user_id,
@@ -330,7 +365,8 @@ pub fn update_doctor(conn: &Connection, actor: &Actor, p: &UpdateDoctorParams) -
             actor.user_id,
             p.id,
             p.version,
-            p.license_number.as_deref().map(str::trim).filter(|s| !s.is_empty())
+            p.license_number.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            p.sex.map(sex_code)
         ],
     )?;
     expect_one_row(changed, "doctor")?;

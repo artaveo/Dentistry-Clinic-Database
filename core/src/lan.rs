@@ -323,6 +323,7 @@ pub fn is_change(method: &str) -> bool {
         "state",
         "touch",
         "rules_list",
+        "avatars",
     ];
     !QUIET_TOPICS.contains(&topic) && !READS.contains(&action)
 }
@@ -655,6 +656,9 @@ mod tests {
         assert!(is_change("appointments.set_status"));
         assert!(is_change("payments.add"));
         assert!(!is_change("patients.list"));
+        assert!(!is_change("patients.avatars"));
+        assert!(!is_change("photos.get"));
+        assert!(is_change("patients.set_photo"));
         assert!(!is_change("session.touch"));
         assert!(!is_change("auth.login"));
         assert!(!is_change("presence.enter"));

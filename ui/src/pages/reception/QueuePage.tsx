@@ -23,6 +23,8 @@ import { teethLabel } from "../../chart/numbering";
 import { SessionDots } from "../patients/clinical/SessionDots";
 import { NextSessionOffer } from "../patients/clinical/NextSessionOffer";
 import { itemService } from "../patients/clinical/labels";
+import { DoctorPic, PatientPic } from "../../ui/Avatar";
+import { usePatientAvatars } from "../../ui/usePatientAvatars";
 
 const POLL_MS = 10_000;
 
@@ -79,6 +81,7 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
     };
   }, [items]);
   const solo = isSolo(clinic, doctors);
+  const avatars = usePatientAvatars((items ?? []).map((a) => a.patient_id));
 
   if (setupError) return <Page><ErrorState message={err(setupError)} onRetry={reload} /></Page>;
   if (error && !items) return <Page><ErrorState message={error} onRetry={load} /></Page>;
@@ -121,12 +124,13 @@ export function QueuePage({ clinic, perms, clinicName }: { clinic: ClinicProfile
                 <article key={a.id} className={`queue-card st-${a.status}`} data-testid={`queue-card-${a.id}`}>
                   <button type="button" className="queue-card-main" onClick={() => setOpen(a)} data-testid={`queue-open-${a.id}`}>
                     <span className="row queue-card-top">
+                      <PatientPic id={a.patient_id} name={a.patient_name} avatars={avatars} testId={`queue-avatar-${a.id}`} />
                       {a.queue_number != null && <span className="queue-ticket" title={t("queue.ticket")} data-testid={`queue-ticket-${a.id}`}>{digits(a.queue_number, lang)}</span>}
                       <span className="cell-strong queue-name">{a.patient_name}</span>
                     </span>
                     <span className="subtle t-caption">
                       {a.is_walk_in ? t("queue.walkInBadge") : `${formatTime(a.start_time, lang)} – ${formatTime(a.end_time, lang)}`}
-                      {solo ? (a.chair_name ? ` · ${a.chair_name}` : "") : <>{" · "}<span className="dot-swatch" style={{ background: a.doctor_color }} aria-hidden /> {a.doctor_name}{a.chair_name ? ` · ${a.chair_name}` : ""}</>}
+                      {solo ? (a.chair_name ? ` · ${a.chair_name}` : "") : <>{" · "}<DoctorPic doctor={doctors.find((d) => d.id === a.doctor_id)} name={a.doctor_name} color={a.doctor_color} size="xs" /> {a.doctor_name}{a.chair_name ? ` · ${a.chair_name}` : ""}</>}
                     </span>
                     {a.reason && <span className="t-caption">{a.reason}</span>}
                     {/* PA-25: the allergy is seen when the patient is called in, not only inside the record. */}

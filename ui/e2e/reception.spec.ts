@@ -57,12 +57,15 @@ test("doctors and chairs: add them, validate live, set a schedule and a leave", 
   await page.getByTestId("chair-add-open").click();
   await page.getByTestId("chair-name").fill("یونیت ۱");
   await page.getByTestId("chair-save").click();
-  await expect(page.getByTestId("field-error")).toContainText("یونیت‌ای با این نام وجود دارد"); // Core error under the field
+  await expect(page.getByTestId("field-error")).toContainText("یونیتی با این نام وجود دارد"); // Core error under the field
   await page.getByTestId("chair-name").fill("یونیت ۲");
   await page.getByTestId("chair-save").click();
   await expect(page.getByTestId("chair-list")).toContainText("یونیت ۲");
 
   // The second doctor works Saturday mornings only; the first has no hour limit.
+  // OF-050: the work schedule is on the doctor's own page (the list row opens it).
+  await page.getByTestId("doctor-open-داکتر فرید سلطانی").click();
+  await expect(page.getByTestId("page-doctor")).toBeVisible();
   await page.getByTestId("doctor-schedule-داکتر فرید سلطانی").click();
   await page.getByTestId("hours-0-add").click();
   await page.getByTestId("leave-reason").fill("سفر");
@@ -80,6 +83,8 @@ test("doctors and chairs: add them, validate live, set a schedule and a leave", 
   // the next test checks its own toast.
   await expect(toast()).toHaveText("تغییرات ذخیره شد.");
   await expect(page.getByTestId("schedule-save")).toHaveCount(0);
+  await page.getByTestId("doctor-back").click();
+  await expect(page.getByTestId("doctor-list")).toBeVisible();
 });
 
 test("book an appointment with a patient registered on the spot; a double booking is refused", async () => {

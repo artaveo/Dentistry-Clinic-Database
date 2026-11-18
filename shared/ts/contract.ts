@@ -230,7 +230,15 @@ export type SupportReport = { file_name: string, path: string, bytes: number, };
 
 export type PatientStatus = "active" | "inactive";
 
-export type PatientInfo = { id: string, patient_number: string, full_name: string, father_name: string | null, preferred_language: Language | null, gender_id: string | null, date_of_birth: string | null, approximate_age: number | null, phone: string | null, secondary_phone: string | null, province_id: string | null, district_id: string | null, address: string | null, emergency_contact_name: string | null, emergency_contact_phone: string | null, emergency_contact_relationship_id: string | null, referral_source_id: string | null, notes: string | null, registration_date: string, status: PatientStatus, merged_into_id: string | null, version: number, };
+export type PatientInfo = { id: string, patient_number: string, full_name: string, father_name: string | null, preferred_language: Language | null, gender_id: string | null, date_of_birth: string | null, approximate_age: number | null, phone: string | null, secondary_phone: string | null, province_id: string | null, district_id: string | null, address: string | null, emergency_contact_name: string | null, emergency_contact_phone: string | null, emergency_contact_relationship_id: string | null, referral_source_id: string | null, notes: string | null, registration_date: string, status: PatientStatus, merged_into_id: string | null, version: number, 
+/**
+ * OF-049: the sex behind `gender_id` (male/female), for the default picture.
+ */
+sex: PersonSex | null, 
+/**
+ * OF-049: the patient's photo, if one was set (`photos.get`); none = the default picture.
+ */
+photo_id: string | null, };
 
 export type CreatePatientParams = { full_name: string, father_name: string | null, preferred_language: Language | null, gender_id: string | null, date_of_birth: string | null, approximate_age: number | null, phone: string | null, secondary_phone: string | null, province_id: string | null, district_id: string | null, address: string | null, emergency_contact_name: string | null, emergency_contact_phone: string | null, emergency_contact_relationship_id: string | null, referral_source_id: string | null, notes: string | null, registration_date: string | null, allow_duplicate: boolean, };
 
@@ -429,13 +437,21 @@ hours: Array<ScheduleSlot>, breaks: Array<ScheduleSlot>,
 /**
  * Chairs this doctor may use; empty = any chair.
  */
-chair_ids: Array<string>, leaves: Array<LeaveInfo>, version: number, };
+chair_ids: Array<string>, leaves: Array<LeaveInfo>, version: number, 
+/**
+ * OF-050: chooses the default picture; unset = a neutral picture.
+ */
+sex: PersonSex | null, 
+/**
+ * OF-050: the doctor's photo, if one was set (`photos.get`).
+ */
+photo_id: string | null, };
 
 export type DoctorListParams = { include_inactive: boolean, };
 
-export type CreateDoctorParams = { full_name: string, specialty: string | null, specialty_ids: Array<string>, license_number: string | null, color: string, user_id: string | null, };
+export type CreateDoctorParams = { full_name: string, specialty: string | null, specialty_ids: Array<string>, license_number: string | null, color: string, user_id: string | null, sex: PersonSex | null, };
 
-export type UpdateDoctorParams = { id: string, version: number, full_name: string, specialty: string | null, specialty_ids: Array<string>, license_number: string | null, color: string, status: ActiveStatus, user_id: string | null, };
+export type UpdateDoctorParams = { id: string, version: number, full_name: string, specialty: string | null, specialty_ids: Array<string>, license_number: string | null, color: string, status: ActiveStatus, user_id: string | null, sex: PersonSex | null, };
 
 export type SetScheduleParams = { doctor_id: string, version: number, hours: Array<ScheduleSlot>, breaks: Array<ScheduleSlot>, chair_ids: Array<string>, };
 
@@ -1868,6 +1884,29 @@ export type OfflineRequestInfo = { request_code: string, };
 
 export type OfflineApplyParams = { response_code: string, };
 
+/**
+ * OF-049/OF-050: a person's sex, used only to choose the default picture.
+ */
+export type PersonSex = "male" | "female";
+
+/**
+ * What the UI needs to draw a patient's picture in lists that only know the patient's id
+ * (calendar, queue, recalls, search).
+ */
+export type PatientAvatar = { patient_id: string, sex: PersonSex | null, 
+/**
+ * Age in whole years (from the birth date, or the approximate age).
+ */
+age: number | null, photo_id: string | null, };
+
+export type PatientIdsParams = { patient_ids: Array<string>, };
+
+/**
+ * Sets (`data_base64` = a png/jpeg/webp image) or removes (`None`) the photo of the patient or
+ * doctor `id`. The Core shrinks it to a small JPEG and stores it encrypted like an attachment.
+ */
+export type SetPhotoParams = { id: string, data_base64: string | null, };
+
 export interface Api {
   "app.status": { params: Empty; result: AppStatus };
   "app.setup": { params: SetupParams; result: SetupResult };
@@ -2108,6 +2147,10 @@ export interface Api {
   "license.verify": { params: Empty; result: LicenseStatus };
   "license.offline_request": { params: Empty; result: OfflineRequestInfo };
   "license.offline_apply": { params: OfflineApplyParams; result: LicenseStatus };
+  "patients.set_photo": { params: SetPhotoParams; result: PatientInfo };
+  "patients.avatars": { params: PatientIdsParams; result: Array<PatientAvatar> };
+  "doctors.set_photo": { params: SetPhotoParams; result: DoctorInfo };
+  "photos.get": { params: IdParams; result: AttachmentData };
 }
 
 export const PUBLIC_METHODS = ["app.status","app.setup","app.clinic_logo","auth.login","auth.recover_owner","backup.scan","backup.restore_new"] as const;

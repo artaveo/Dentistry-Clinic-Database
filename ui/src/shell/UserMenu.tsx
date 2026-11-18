@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Gauge, Info, KeyRound, LockKeyhole, LogOut, Monitor, Moon, Sun } from "lucide-react";
-import type { ThemePreference } from "../../../shared/ts/contract";
+import type { DoctorInfo, ThemePreference } from "../../../shared/ts/contract";
+import { rpc } from "../lib/api";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
-import { Avatar } from "../ui/Brand";
+import { DOCTORS_CHANGED, DoctorPic, PersonAvatar } from "../ui/Avatar";
 import { Segmented, Switch } from "../ui/Controls";
 import { Popover } from "../ui/Overlay";
 
 /** User menu (roadmap 2.2): who's signed in, appearance, performance mode, password, lock, sign out. */
 export function UserMenu({
+  userId,
   displayName,
   roleLabel,
   onAbout,
@@ -16,6 +18,8 @@ export function UserMenu({
   onLock,
   onLogout,
 }: {
+  /** The signed-in user, to find the doctor linked to this login (if any). */
+  userId?: string;
   displayName: string;
   roleLabel: string;
   /** Only for people whose Settings menu item is hidden: opens "About the app". */
@@ -27,6 +31,22 @@ export function UserMenu({
   const { t } = useI18n();
   const { theme, setTheme, perf, setPerf } = useTheme();
   const [open, setOpen] = useState(false);
+  // OF-050: a user who is one of the clinic's doctors gets the doctor's picture; others keep the initial.
+  const [doctor, setDoctor] = useState<DoctorInfo | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    const find = () =>
+      rpc("doctors.list", { include_inactive: true })
+        .then((list) => live && setDoctor(list.find((d) => d.user_id === userId) ?? null))
+        .catch(() => live && setDoctor(null));
+    find();
+    window.addEventListener(DOCTORS_CHANGED, find);
+    return () => {
+      live = false;
+      window.removeEventListener(DOCTORS_CHANGED, find);
+    };
+  }, [userId]);
   const close = (fn: () => void) => () => {
     setOpen(false);
     fn();
@@ -39,7 +59,7 @@ export function UserMenu({
       testId="user-menu"
       trigger={
         <button type="button" className="user-trigger" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="current-user">
-          <Avatar name={displayName} />
+          {doctor ? <DoctorPic doctor={doctor} name={displayName} size="md" testId="current-user-avatar" /> : <PersonAvatar kind="user" name={displayName} size="md" decorative testId="current-user-avatar" />}
           <span className="user-text">
             <span className="user-name">{displayName}</span>
             <span className="user-role">{roleLabel}</span>

@@ -145,9 +145,42 @@ pub fn make_thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Largest photo upload (before shrinking) for a patient's or doctor's picture (OF-049).
+pub const MAX_PHOTO_BYTES: usize = 5 * 1024 * 1024;
+
+/// Checks an uploaded profile photo (png, jpeg, webp; at most 5 MiB) and shrinks it to a small JPEG
+/// (longest side [`THUMBNAIL_SIDE`]), so a photo is the same few KiB whatever the camera made.
+pub fn make_photo(bytes: &[u8]) -> Result<Vec<u8>> {
+    use artaveo_shared::ValidationRule;
+    let bad = |m: &str| CoreError::invalid("data_base64", ValidationRule::AttachmentType, m.to_string());
+    if bytes.is_empty() || bytes.len() > MAX_PHOTO_BYTES {
+        return Err(bad("a photo must be 1 byte - 5 MiB"));
+    }
+    let is_png = bytes.starts_with(&[0x89, b'P', b'N', b'G']);
+    let is_jpeg = bytes.starts_with(&[0xFF, 0xD8, 0xFF]);
+    let is_webp = bytes.len() > 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP";
+    if !(is_png || is_jpeg || is_webp) {
+        return Err(bad("a photo must be a png, jpg or webp image"));
+    }
+    make_thumbnail(bytes).ok_or_else(|| bad("the photo could not be read"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn photos_are_checked_and_shrunk() {
+        let big = png(1200, 900);
+        let small = make_photo(&big).expect("a PNG is a valid photo");
+        let img = image::load_from_memory(&small).unwrap();
+        assert_eq!((img.width(), img.height()), (256, 192));
+        assert!(small.starts_with(&[0xFF, 0xD8, 0xFF]), "stored as JPEG");
+        assert!(make_photo(b"%PDF-1.4 not a photo").is_err());
+        assert!(make_photo(b"").is_err());
+        assert!(make_photo(&vec![0x89; MAX_PHOTO_BYTES + 1]).is_err(), "too large");
+        assert!(make_photo(&big[..64]).is_err(), "truncated image");
+    }
 
     fn png(w: u32, h: u32) -> Vec<u8> {
         let img = image::RgbaImage::from_pixel(w, h, image::Rgba([200, 30, 30, 255]));

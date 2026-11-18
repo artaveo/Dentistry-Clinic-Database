@@ -25,6 +25,7 @@ import { PatientPicker, type PickedPatient } from "./PatientPicker";
 import { StatusActions } from "./StatusActions";
 import { AlertLine } from "./AlertLine";
 import { MOVABLE, SCHEDULE_RULES, STATUS_TONE } from "./labels";
+import { DoctorPic, PatientPicById } from "../../ui/Avatar";
 
 export type Defaults = {
   date?: string;
@@ -274,7 +275,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
             </Notice>
           )}
           {editing ? (
-            <div className="patient-chip"><div className="patient-chip-text"><span className="cell-strong">{patient?.name}</span><span className="subtle t-caption"><bdi className="ltr num">{patient?.number}</bdi>{patient?.phone ? <> · <bdi className="ltr">{patient.phone}</bdi></> : null}</span></div></div>
+            <div className="patient-chip">{patient && <PatientPicById id={patient.id} name={patient.name} />}<div className="patient-chip-text"><span className="cell-strong">{patient?.name}</span><span className="subtle t-caption"><bdi className="ltr num">{patient?.number}</bdi>{patient?.phone ? <> · <bdi className="ltr">{patient.phone}</bdi></> : null}</span></div></div>
           ) : (
             <PatientPicker value={patient} onChange={setPatient} canCreate={perms.createPatients} error={patientError || null} />
           )}
@@ -326,7 +327,7 @@ export function AppointmentDialog({ appointment, defaults, doctors, chairs, cale
           )}
           <div className="grid-2">
             {!solo && (
-              <Field label={t("appt.doctor")} error={e("doctor_id")}>
+              <Field label={<span className="person-line" style={{ gap: 8 }}>{form.values.doctor_id && <DoctorPic doctor={doctors.find((d) => d.id === form.values.doctor_id)} name="" size="xs" testId="appt-doctor-avatar" />}{t("appt.doctor")}</span>} error={e("doctor_id")}>
                 <Select value={form.values.doctor_id} disabled={!movable || readOnly} onChange={(x) => { form.set("doctor_id", x.target.value); form.set("chair_id", ""); }} data-testid="appt-doctor">
                   {service?.specialty_id ? (
                     <>

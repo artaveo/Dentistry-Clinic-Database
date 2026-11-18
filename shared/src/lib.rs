@@ -687,6 +687,45 @@ pub struct PatientInfo {
     pub status: PatientStatus,
     pub merged_into_id: Option<String>,
     pub version: i64,
+    /// OF-049: the sex behind `gender_id` (male/female), for the default picture.
+    #[serde(default)]
+    pub sex: Option<PersonSex>,
+    /// OF-049: the patient's photo, if one was set (`photos.get`); none = the default picture.
+    #[serde(default)]
+    pub photo_id: Option<String>,
+}
+
+/// OF-049/OF-050: a person's sex, used only to choose the default picture.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PersonSex {
+    Male,
+    Female,
+}
+
+/// What the UI needs to draw a patient's picture in lists that only know the patient's id
+/// (calendar, queue, recalls, search).
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+pub struct PatientAvatar {
+    pub patient_id: String,
+    pub sex: Option<PersonSex>,
+    /// Age in whole years (from the birth date, or the approximate age).
+    pub age: Option<i64>,
+    pub photo_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PatientIdsParams {
+    pub patient_ids: Vec<String>,
+}
+
+/// Sets (`data_base64` = a png/jpeg/webp image) or removes (`None`) the photo of the patient or
+/// doctor `id`. The Core shrinks it to a small JPEG and stores it encrypted like an attachment.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SetPhotoParams {
+    pub id: String,
+    #[serde(default)]
+    pub data_base64: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -1125,6 +1164,12 @@ pub struct DoctorInfo {
     pub chair_ids: Vec<String>,
     pub leaves: Vec<LeaveInfo>,
     pub version: i64,
+    /// OF-050: chooses the default picture; unset = a neutral picture.
+    #[serde(default)]
+    pub sex: Option<PersonSex>,
+    /// OF-050: the doctor's photo, if one was set (`photos.get`).
+    #[serde(default)]
+    pub photo_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -1145,6 +1190,8 @@ pub struct CreateDoctorParams {
     pub color: String,
     #[serde(default)]
     pub user_id: Option<String>,
+    #[serde(default)]
+    pub sex: Option<PersonSex>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -1162,6 +1209,8 @@ pub struct UpdateDoctorParams {
     pub status: ActiveStatus,
     #[serde(default)]
     pub user_id: Option<String>,
+    #[serde(default)]
+    pub sex: Option<PersonSex>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -3582,6 +3631,10 @@ api! {
     "license.verify"         => LICENSE_VERIFY(Empty) -> LicenseStatus;
     "license.offline_request" => LICENSE_OFFLINE_REQUEST(Empty) -> OfflineRequestInfo;
     "license.offline_apply"  => LICENSE_OFFLINE_APPLY(OfflineApplyParams) -> LicenseStatus;
+    "patients.set_photo"     => PATIENTS_SET_PHOTO(SetPhotoParams) -> PatientInfo;
+    "patients.avatars"       => PATIENTS_AVATARS(PatientIdsParams) -> Vec<PatientAvatar>;
+    "doctors.set_photo"      => DOCTORS_SET_PHOTO(SetPhotoParams) -> DoctorInfo;
+    "photos.get"             => PHOTOS_GET(IdParams) -> AttachmentData;
 }
 
 /// Methods callable without a session (status, first-run setup, the clinic
@@ -3984,6 +4037,10 @@ pub fn typescript_bindings() -> String {
         ActivateParams,
         OfflineRequestInfo,
         OfflineApplyParams,
+        PersonSex,
+        PatientAvatar,
+        PatientIdsParams,
+        SetPhotoParams,
     );
     out.push_str(&ts_api_map(&cfg));
     out.push_str(&format!(
