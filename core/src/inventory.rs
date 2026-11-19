@@ -1637,6 +1637,8 @@ pub fn create_purchase(conn: &Connection, actor: &Actor, p: &CreatePurchaseParam
                 account_id: p.account_id.unwrap_or(1110),
                 purpose: VoucherPurpose::Supplier,
                 supplier_id: Some(supplier.id.clone()),
+                employee_id: None,
+                doctor_id: None,
                 name: None,
                 reference: Some(number.clone()),
                 note: None,
