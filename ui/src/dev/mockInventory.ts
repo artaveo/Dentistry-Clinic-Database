@@ -76,7 +76,7 @@ function addPurchase(supplierId: string, date: string, lines: { item: string; qt
   if (paid) {
     const id = payments.length + 1;
     payments.push({
-      id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date, created_at: date, account_id: 1110, purpose: "supplier", source: null, supplier_id: supplierId, supplier_name: s.name,
+      id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date, created_at: date, account_id: 1110, purpose: "supplier", source: null, supplier_id: supplierId, supplier_name: s.name, employee_id: null, doctor_id: null, party_name: s.name,
       name: null, reference: null, lines: [], gross: paid, withheld: 0, net: paid, due_date: null, note: null, status: "posted", void_reason: null, print_count: 0, created_by_name: "مالک",
     });
   }
@@ -334,7 +334,7 @@ function answer(method: string, p: any): unknown {
       const id = payments.length + 1;
       const pay: VoucherInfo = {
         id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date: p.date ?? day(0), created_at: new Date().toISOString(), account_id: p.account_id, purpose: "supplier", source: null,
-        supplier_id: s.id, supplier_name: s.name, name: null, reference: p.reference, lines: [], gross: p.amount, withheld: 0, net: p.amount, due_date: null, note: p.note, status: "posted", void_reason: null, print_count: 0, created_by_name: "مالک",
+        supplier_id: s.id, supplier_name: s.name, employee_id: null, doctor_id: null, party_name: s.name, name: null, reference: p.reference, lines: [], gross: p.amount, withheld: 0, net: p.amount, due_date: null, note: p.note, status: "posted", void_reason: null, print_count: 0, created_by_name: "مالک",
       };
       payments.push(pay);
       recompute();

@@ -19,3 +19,11 @@
 /* Document numbers (RC-1405-000001) and the date column never break across lines in finance tables. */
 .table td bdi.ltr.num { white-space: nowrap; }
 [data-testid="page-billing"] .table td:first-child { white-space: nowrap; }
+
+/* Payroll draft: one compact amount field per cell, so a whole month fits without scrolling sideways. */
+.table.payroll-grid td, .table.payroll-grid th { padding-inline: var(--space-2); }
+.payroll-grid th { white-space: normal; }
+.table.payroll-grid td:first-child, .table.payroll-grid th:first-child { padding-inline-start: var(--space-6); white-space: normal; }
+.payroll-grid td .control { width: 6.5rem; min-width: 0; height: var(--control-sm, 34px); margin-inline-start: auto; }
+.payroll-grid td .control input { min-width: 0; width: 100%; }
+.payroll-grid .control-suffix { display: none; } /* the column totals carry the currency */

@@ -40,7 +40,7 @@ const DISTRICTS: Record<string, [string, string, string, string][]> = {
 type Session = { user: UserInfo; perms: string[]; last: number; locked: boolean };
 type U = UserInfo & { password: string };
 
-const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.view", "billing.edit", "billing.void", "billing.override", "reports.view"];
+const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.view", "billing.edit", "billing.void", "billing.override", "finance.payroll", "reports.view"];
 const ROLE_PERMS: Record<string, string[]> = {
   owner: ALL_PERMS,
   administrator: ALL_PERMS.filter((p) => p !== "backup.restore"),

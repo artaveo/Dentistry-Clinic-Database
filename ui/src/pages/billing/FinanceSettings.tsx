@@ -2,10 +2,10 @@
 // for official reports, the chart of accounts the clinic extends (expense and money accounts), the receipt, and
 // the doctor share rules.
 import { useEffect, useState } from "react";
-import { Building2, Landmark, Percent, Plus, Printer, Trash2, Wallet } from "lucide-react";
-import type { AccountInfo, CalendarSystem, CommissionBasis, CommissionReport, CommissionRuleInfo, FinanceSettings, LegalForm, LegalProfile, MoneyKind, TaxRegime } from "../../../../shared/ts/contract";
+import { Building2, CheckCircle2, Landmark, Percent, Plus, Printer, ReceiptText, Trash2, Wallet } from "lucide-react";
+import type { AccountInfo, CalendarSystem, CommissionBasis, CommissionReport, CommissionRuleInfo, DoctorCommission, DoctorShareBalance, FinanceSettings, LegalForm, LegalProfile, MoneyKind, ShareStatementInfo, TaxRegime } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
-import { accountName, amountRule, invalidateAccounts, parseAfn, useAccounts } from "../../lib/billing";
+import { accountName, afnInput, amountRule, invalidateAccounts, parseAfn, useAccounts } from "../../lib/billing";
 import { monthRange, todayIso } from "../../lib/calendar";
 import { serviceName, useCatalog } from "../../lib/clinical";
 import { digits, formatDate } from "../../lib/dates";
@@ -25,43 +25,89 @@ import { CommissionSheet } from "../../print/finance";
 import { useLetterhead } from "../../print/letterhead";
 import { ReceiptSettings } from "../../print/receipt";
 import { useScheduling } from "../reception/useScheduling";
-import { invalidateBillingSettings, minorOf, useBillingSettings } from "./common";
+import { AmountInput, MoneyAccountSelect, StatusBadge, invalidateBillingSettings, minorOf, useBillingSettings } from "./common";
+import type { BillingPerms } from "./common";
+import { VoidDialog } from "./BillingPage";
+import { useConfirm } from "../../ui/ConfirmDialog";
 
 // ───────────────────────────── doctor shares ─────────────────────────────
 
-export function CommissionTab({ calendar }: { calendar: CalendarSystem }) {
+export function CommissionTab({ perms, calendar }: { perms: BillingPerms; calendar: CalendarSystem }) {
   const { t, lang, err } = useI18n();
+  const toast = useToast();
   const letterhead = useLetterhead();
   const settings = useBillingSettings();
+  const { confirm, dialog } = useConfirm();
   const [from, setFrom] = useState(monthRange(todayIso(), calendar).from);
   const [to, setTo] = useState(todayIso());
   const [report, setReport] = useState<CommissionReport | null>(null);
+  const [statements, setStatements] = useState<ShareStatementInfo[] | null>(null);
+  const [balances, setBalances] = useState<DoctorShareBalance[] | null>(null);
   const [error, setError] = useState("");
-  const [printing, setPrinting] = useState(false);
+  const [printing, setPrinting] = useState<CommissionReport | null>(null);
+  const [printTitle, setPrintTitle] = useState<{ title?: string; number?: string }>({});
+  const [voiding, setVoiding] = useState<ShareStatementInfo | null>(null);
+  const [paying, setPaying] = useState<DoctorShareBalance | null>(null);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (from > to) return;
-    rpc("fin.shares.preview", { doctor_id: null, from, to })
-      .then((r) => {
+    Promise.all([rpc("fin.shares.preview", { doctor_id: null, from, to }), rpc("fin.shares.statements", { doctor_id: null }), rpc("fin.shares.balances", {})])
+      .then(([r, st, b]) => {
         setReport(r);
+        setStatements(st);
+        setBalances(b);
         setError("");
       })
       .catch((e) => !isSessionError(e) && setError(err(e)));
   }, [from, to, tick]);
   if (error && !report) return <ErrorState message={error} onRetry={() => setTick((x) => x + 1)} />;
   const money = (v: number) => formatAmount(v, lang);
+  const approve = async (d: DoctorCommission) => {
+    const ok = await confirm({
+      title: `${t("comm.approve")} · ${d.doctor_name}`,
+      text: t("comm.approve.hint").replace("{n}", money(d.commission)).replace("{from}", formatDate(from, lang, calendar)).replace("{to}", formatDate(to, lang, calendar)),
+      confirm: t("comm.approve"),
+      testId: "approve-confirm",
+    });
+    if (!ok) return;
+    try {
+      await rpc("fin.shares.statement_create", { doctor_id: d.doctor_id, from, to, date: todayIso() });
+      invalidateAccounts();
+      toast.success(t("comm.approved"));
+      setTick((x) => x + 1);
+    } catch (x) {
+      toast.error(err(x));
+    }
+  };
+  const asReport = (s: ShareStatementInfo): CommissionReport => ({
+    basis: s.basis, from: s.from, to: s.to, base_total: s.base, commission_total: s.share,
+    doctors: [{ doctor_id: s.doctor_id, doctor_name: s.doctor_name, base: s.base, commission: s.share, lines: s.lines }],
+  });
+  const covered = (doctor: string) => statements?.some((s) => s.status === "posted" && s.doctor_id === doctor && s.from <= to && s.to >= from);
   return (
     <div className="stack" data-testid="billing-commission">
       <div className="row" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
         <Field label={t("period.from")}><DateField value={from} onChange={setFrom} calendar={calendar} label={t("period.from")} testId="commission-from" yearsBefore={3} yearsAfter={0} /></Field>
         <Field label={t("period.to")}><DateField value={to} onChange={setTo} calendar={calendar} label={t("period.to")} testId="commission-to" yearsBefore={3} yearsAfter={0} /></Field>
-        <Button icon={Printer} disabled={!report || !letterhead || !report.doctors.length} onClick={() => setPrinting(true)} data-testid="commission-print">{t("comm.print")}</Button>
+        <Button icon={Printer} disabled={!report || !letterhead || !report.doctors.length} onClick={() => { setPrintTitle({}); setPrinting(report); }} data-testid="commission-print">{t("comm.print")}</Button>
       </div>
       {settings && !settings.share_enabled && <Notice tone="info" testId="commission-off">{t("comm.off")}</Notice>}
       {report && settings?.share_enabled && <Notice tone="info">{t(`comm.basis.${report.basis}.hint`)} {t("comm.previewNote")}</Notice>}
       {report?.doctors.map((d) => (
         <Card flush key={d.doctor_id} data-testid={`commission-doctor-${d.doctor_id}`}>
-          <CardHeader icon={Percent} title={d.doctor_name} description={`${t("comm.base")}: ${money(d.base)}`} actions={<Badge tone="accent">{t("comm.owed")}: {money(d.commission)}</Badge>} />
+          <CardHeader
+            icon={Percent}
+            title={d.doctor_name}
+            description={`${t("comm.base")}: ${money(d.base)}`}
+            actions={
+              <div className="row">
+                <Badge tone="accent">{t("comm.owed")}: {money(d.commission)}</Badge>
+                {perms.payroll && d.commission > 0 && (covered(d.doctor_id)
+                  ? <Badge tone="success" icon={CheckCircle2}>{t("comm.alreadyApproved")}</Badge>
+                  : <Button size="sm" variant="primary" icon={CheckCircle2} onClick={() => approve(d)} data-testid={`commission-approve-${d.doctor_id}`}>{t("comm.approve")}</Button>)}
+              </div>
+            }
+          />
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>{t("doc.date")}</th><th>{t("rcpt.invoice")}</th><th>{t("doc.patient")}</th><th>{t("inv.col.service")}</th><th className="num">{t("comm.base")}</th><th className="num">{t("comm.amount")}</th></tr></thead>
@@ -75,8 +121,104 @@ export function CommissionTab({ calendar }: { calendar: CalendarSystem }) {
         </Card>
       ))}
       {report && settings?.share_enabled && !report.doctors.length && <EmptyState icon={Percent} title={t("comm.none")}>{t("comm.noneHint")}</EmptyState>}
-      {printing && report && letterhead && <DocumentPreview title={t("comm.title")} paper="a4" fileStem={`COMM-${from}-${to}`} testId="commission-preview" onClose={() => setPrinting(false)} sheet={<CommissionSheet report={report} letterhead={letterhead} lang={lang} calendar={calendar} />} />}
+
+      {balances && balances.length > 0 && (
+        <Card flush>
+          <CardHeader icon={Wallet} title={t("comm.balances")} description={t("comm.balances.hint")} />
+          <div className="table-wrap">
+            <table className="table" data-testid="share-balances">
+              <thead><tr><th>{t("comm.doctor")}</th><th className="num">{t("comm.approvedTotal")}</th><th className="num">{t("comm.paidTotal")}</th><th className="num">{t("staff.owed")}</th><th /></tr></thead>
+              <tbody>
+                {balances.map((b) => (
+                  <tr key={b.doctor_id} data-testid={`share-balance-${b.doctor_id}`}>
+                    <td className="cell-strong">{b.doctor_name}</td>
+                    <td className="num">{money(b.approved)}</td>
+                    <td className="num">{money(b.paid)}</td>
+                    <td className="num cell-strong">{money(b.owed)}</td>
+                    <td className="cell-actions">{perms.payroll && perms.edit && b.owed > 0 && <Button size="sm" variant="link" onClick={() => setPaying(b)} data-testid={`share-pay-${b.doctor_id}`}>{t("comm.pay")}</Button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {statements && statements.length > 0 && (
+        <Card flush>
+          <CardHeader icon={ReceiptText} title={t("comm.statements")} description={t("comm.statements.hint")} />
+          <div className="table-wrap">
+            <table className="table" data-testid="share-statements">
+              <thead><tr><th>{t("rcpt.number")}</th><th>{t("comm.doctor")}</th><th>{t("stmt.period")}</th><th className="num">{t("comm.base")}</th><th className="num">{t("comm.amount")}</th><th /></tr></thead>
+              <tbody>
+                {statements.map((s) => (
+                  <tr key={s.id} className={s.status !== "posted" ? "row-void" : undefined} data-testid={`share-statement-${s.number}`}>
+                    <td><bdi className="ltr num">{s.number}</bdi> <StatusBadge status={s.status} /></td>
+                    <td>{s.doctor_name}</td>
+                    <td>{formatDate(s.from, lang, calendar)} — {formatDate(s.to, lang, calendar)}</td>
+                    <td className="num">{money(s.base)}</td>
+                    <td className="num cell-strong">{money(s.share)}</td>
+                    <td className="cell-actions">
+                      <span className="row">
+                        <Button size="sm" variant="link" icon={Printer} disabled={!letterhead} onClick={() => { setPrintTitle({ title: t("comm.statement"), number: s.number }); setPrinting(asReport(s)); }}>{t("comm.print")}</Button>
+                        {perms.void && perms.payroll && s.status === "posted" && <Button size="sm" variant="link" onClick={() => setVoiding(s)} data-testid={`share-void-${s.number}`}>{t("fin.void")}</Button>}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {printing && letterhead && <DocumentPreview title={printTitle.title ?? t("comm.title")} paper="a4" fileStem={printTitle.number ?? `COMM-${from}-${to}`} testId="commission-preview" onClose={() => setPrinting(null)} sheet={<CommissionSheet report={printing} title={printTitle.title} number={printTitle.number} letterhead={letterhead} lang={lang} calendar={calendar} />} />}
+      {voiding && <VoidDialog id={voiding.id} number={voiding.number} onClose={() => setVoiding(null)} onDone={() => { setVoiding(null); invalidateAccounts(); toast.success(t("fin.voided")); setTick((x) => x + 1); }} />}
+      {paying && <SharePayDialog balance={paying} calendar={calendar} onClose={() => setPaying(null)} onDone={() => { setPaying(null); invalidateAccounts(); toast.success(t("staff.paid")); setTick((x) => x + 1); }} />}
+      {dialog}
     </div>
+  );
+}
+
+function SharePayDialog({ balance, calendar, onClose, onDone }: { balance: DoctorShareBalance; calendar: CalendarSystem; onClose: () => void; onDone: () => void }) {
+  const { t, lang, err } = useI18n();
+  const [date, setDate] = useState(todayIso());
+  const [account, setAccount] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const form = useForm({ amount: afnInput(balance.owed) }, { amount: (s) => amountRule(s) ?? (minorOf(s) > balance.owed ? "rule.amount_too_high" : null) });
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!form.validate() || account === null) return;
+    setBusy(true);
+    try {
+      await rpc("fin.vouchers.create", { date, account_id: account, purpose: "share", supplier_id: null, employee_id: null, doctor_id: balance.doctor_id, name: null, reference: null, note: null, lines: [], amount: minorOf(form.values.amount), withholding: null });
+      onDone();
+    } catch (x) {
+      if (!form.serverError(x)) setError(err(x));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      title={`${t("comm.pay")} · ${balance.doctor_name}`}
+      description={t("staff.paySalary.hint").replace("{n}", formatAmount(balance.owed, lang))}
+      onClose={onClose}
+      testId="share-pay-dialog"
+      dismissOnScrim={false}
+      footer={<><Button onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" icon={Wallet} loading={busy} onClick={submit} data-testid="share-pay-save">{t("common.save")}</Button></>}
+    >
+      <form className="stack" onSubmit={submit} noValidate>
+        {error && <Notice tone="danger">{error}</Notice>}
+        <div className="grid-2">
+          <Field label={t("pay.amount")} error={form.error("amount") && t(form.error("amount")!)}><AmountInput value={form.values.amount} onChange={(v) => form.set("amount", v)} testId="share-pay-amount" autoFocus /></Field>
+          <Field label={t("exp.paidFrom")}><MoneyAccountSelect value={account} onChange={setAccount} testId="share-pay-account" /></Field>
+          <Field label={t("doc.date")}><DateField value={date} onChange={setDate} calendar={calendar} label={t("doc.date")} testId="share-pay-date" yearsBefore={1} yearsAfter={0} /></Field>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

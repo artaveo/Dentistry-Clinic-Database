@@ -176,3 +176,35 @@ test("doctor-share settings and preview", async () => {
   await page.getByTestId("billing-tab-commission").click();
   await expect(page.getByTestId("billing-commission")).toBeVisible();
 });
+
+test("finance phase 2: an employee, the month's payroll, paying the salary", async () => {
+  await page.getByTestId("tab-billing").click();
+  await page.getByTestId("billing-tab-staff").click();
+  await page.getByTestId("staff-employees").click();
+  await page.getByTestId("employee-add").click();
+  await page.getByTestId("employee-name").fill("کارمند آزمایشی");
+  await page.getByTestId("employee-position").fill("نرس");
+  await page.getByTestId("employee-base").fill("20000");
+  await page.getByTestId("employee-save").click();
+  await expect(page.getByTestId("employee-dialog")).toBeHidden();
+  await expect(page.getByTestId("employees-table")).toContainText("کارمند آزمایشی");
+
+  // The month's payroll starts at the base salary; 2 000 extra and 1 100 salary tax make it 20 900.
+  await page.getByTestId("staff-payroll").click();
+  await expect(page.getByTestId("payroll-table")).toContainText("کارمند آزمایشی");
+  await page.getByTestId("payroll-extra-0").fill("2000");
+  await page.getByTestId("payroll-tax-0").fill("1100");
+  await expect(page.getByTestId("payroll-net")).toContainText("۲۰٬۹۰۰");
+  await page.getByTestId("payroll-approve").click();
+  await expect(page.getByTestId("payroll-print")).toBeVisible();
+  await shot("10-payroll");
+
+  // What the payroll owes is paid from the cash box; nothing is owed after.
+  await page.getByTestId("staff-employees").click();
+  await expect(page.getByTestId("staff-owed")).toContainText("۲۰٬۹۰۰");
+  await page.locator('[data-testid^="employee-pay-"]').first().click();
+  await expect(page.getByTestId("staff-pay-amount")).toHaveValue("20900");
+  await page.getByTestId("staff-pay-save").click();
+  await expect(page.getByTestId("staff-pay-dialog")).toBeHidden();
+  await expect(page.getByTestId("staff-owed")).not.toContainText("۲۰٬۹۰۰");
+});

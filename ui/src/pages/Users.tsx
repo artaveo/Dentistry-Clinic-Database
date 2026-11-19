@@ -291,7 +291,7 @@ const PERMISSION_GROUPS: { key: string; codes: string[] }[] = [
   { key: "patients", codes: ["patients.view", "patients.edit"] },
   { key: "appointments", codes: ["appointments.view", "appointments.edit", "appointments.treat", "doctors.manage"] },
   { key: "clinical", codes: ["clinical.view", "clinical.edit"] },
-  { key: "billing", codes: ["billing.view", "billing.edit", "billing.void", "reports.view"] },
+  { key: "billing", codes: ["billing.view", "billing.edit", "billing.void", "billing.override", "finance.payroll", "reports.view"] },
   { key: "inventory", codes: ["inventory.manage"] },
   { key: "admin", codes: ["users.manage", "settings.manage", "audit.view", "backup.view", "backup.create", "backup.restore"] },
 ];

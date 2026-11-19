@@ -46,6 +46,17 @@ Rules: CI only (no local cargo), rustfmt + contract regeneration through a `fmt/
 - Cargo.lock: the fmt workflow rewrites it; restore `git checkout origin/main -- Cargo.lock` before merging.
 - UI rewritten: lib/billing.ts, print/receipt.tsx, print/finance.tsx, pages/billing/{common,dialogs,InvoiceDetail,PatientBilling,BillingPage,BillingExtras,FinanceSettings}.tsx.
 
+## Phase 2 — staff, payroll, doctor-share statements (branch `fmt/fin-phase2`)
+| # | Decision | Why |
+|---|---|---|
+| I14 | Employees in `fin_employee` with the monthly base salary on the row (no versioned compensation plans): the payroll line freezes what was paid, so history never depends on today's salary. Doctor share rules stay `commission_rule`. | Lean (db-size rules); the frozen documents carry history. |
+| I15 | One permission `finance.payroll` (owner, administrator, accountant) for employees, payroll, share statements, salary/advance/share vouchers, voiding them, and the payroll register (R8). | Salaries are private; one switch is enough for a small clinic. |
+| I16 | Payroll = `fin_doc` kind `pr` (period in `ext_id` as `yyyymmdd-yyyymmdd`) + `fin_pay_line` (base, extra, commission, advance, tax per employee). Dr 5110 gross; Cr 2310 net and 1320 advance per employee; Cr 2410 tax. One posted payroll per overlapping period. | Same document model as phase 1. |
+| I17 | Share statement = `fin_doc` kind `ds` + `fin_line` (invoice, base, share) copied from the preview; Dr 5120 / Cr 2320 (doctor). Later reductions do not change it. One posted statement per doctor per overlapping period. | Frozen as the design asks (S-rule). |
+| I18 | Vouchers gain purposes salary (Dr 2310, ≤ owed), advance (Dr 1320), share (Dr 2320, ≤ owed); tax payments gain `wage` (2410). Voiding a payroll, statement or staff voucher is refused when it would leave money paid but not owed. | Books stay consistent; the overview counts `staff_paid`. |
+| I19 | Migration 0022 rebuilds `fin_doc` (rows, indexes, triggers) to widen the kind and party CHECKs. | SQLite cannot alter a CHECK; nothing references fin_doc by FK. |
+
+Status: core + tests (hand-computed: 3 employees with advances, payroll 460 000 / 399 000 net, salaries, wage tax, voids refused; statement 18 000 frozen against a later reduction) pushed; UI (Staff tab, statements/balances/pay on the shares tab, payroll print, R8/R9 in reports, i18n, mocks), e2e (payroll flow in v070), manual guide (MON-24..28, REP-16/17).
+
 ## Next
-Phase 1 done. Phase 2 (payroll, compensation plans and frozen doctor-share statements) waits for the owner's go-ahead.
-Review fixes from the dev-mock pass (`ui/src/dev/mockFinance.ts`): net paid total on Expenses, no-wrap document numbers and dates, zero rows hidden in the reconciliation, legal details card moved last, live refresh on the `fin` topic, summary column labels. The seed binary (`artaveo-seed`, performance gate) now runs the new report kinds.
+Phase 2: full CI on `fmt/fin-phase2`, merge to main, report. Then phase 3 (periods, close and lock, journals and trial balance, adjusting entries), phase 4 (official reports with hash, opening balances, year close), phase 5 (dashboard, notifications, guide, visual review, volume test).
