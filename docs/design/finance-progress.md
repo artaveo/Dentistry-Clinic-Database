@@ -37,8 +37,8 @@ Rules: CI only (no local cargo), rustfmt + contract regeneration through a `fmt/
 - [x] Rust tests (tests_finance.rs: hand-computed patient money, money out, voids, purchases/labs, reports, settings, merge); clippy + core tests green on CI except one dashboard expectation (fixed in bc2dc26)
 - [x] UI: finance pages, patient account, print, inventory tabs (supplier payments → vouchers), reports page, dev mocks, i18n (`i18n/parts/finance.*.json`), CSS (`styles/finance.css`); tsc, vitest, i18n:check, vite build green locally
 - [x] e2e specs (v070 rewritten for the new screens; v090, v100 updated); manual guides 04b and 06 rewritten with hand-computed numbers; 03, 07, 12, 14, 15 references updated
-- [ ] Full CI (lint, tests, E2E) green
-- [ ] Before merge: `git checkout origin/main -- Cargo.lock`, delete `.github/workflows/fmt.yml`, revert the TEMP `fmt/fin-phase1` branch in `ci.yml` `on.push.branches`, contract.ts regenerated, merge to main
+- [x] Full CI (lint, tests, E2E, Windows x64/arm64 installers) green on the branch: run 44535750025 (58c417d), then the last labels commit d7c1947
+- [x] Before merge: Cargo.lock as on main, `.github/workflows/fmt.yml` deleted, TEMP branch removed from `ci.yml`, contract.ts up to date (CI check), merged to main
 
 ## Log
 - Branch `fmt/fin-phase1` (temporary workflow `.github/workflows/fmt.yml`: fmt + contract + clippy + core tests). Run 44384077411: clippy green, 1 test (doctor dashboard net of discount) fixed in bc2dc26; run 44523269838 (bc2dc26): clippy + all Rust tests green.
@@ -47,4 +47,5 @@ Rules: CI only (no local cargo), rustfmt + contract regeneration through a `fmt/
 - UI rewritten: lib/billing.ts, print/receipt.tsx, print/finance.tsx, pages/billing/{common,dialogs,InvoiceDetail,PatientBilling,BillingPage,BillingExtras,FinanceSettings}.tsx.
 
 ## Next
-Full CI on the branch (E2E is the first run of the new screens against the real Core); fix what it finds; then merge to main and report phase 1. Not visually reviewed in a browser yet: the dev mock Core does not serve `fin.*`, so the finance pages need the real Core (E2E screenshots with `SHOTS=1`, or the desktop build).
+Phase 1 done. Phase 2 (payroll, compensation plans and frozen doctor-share statements) waits for the owner's go-ahead.
+Review fixes from the dev-mock pass (`ui/src/dev/mockFinance.ts`): net paid total on Expenses, no-wrap document numbers and dates, zero rows hidden in the reconciliation, legal details card moved last, live refresh on the `fin` topic, summary column labels. The seed binary (`artaveo-seed`, performance gate) now runs the new report kinds.

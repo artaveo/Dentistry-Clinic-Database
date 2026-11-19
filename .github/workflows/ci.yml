@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "fmt/fin-phase1"] # TEMP (finance phase 1): full CI on the branch; revert before merging
+    branches: [main]
     tags: ["v*"]
     # A change that only touches documents (roadmap, release notes, screenshots) builds nothing.
     # Tag pushes are never filtered, so a release always runs the whole CI.
