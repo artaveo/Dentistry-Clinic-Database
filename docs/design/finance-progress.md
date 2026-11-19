@@ -38,10 +38,11 @@ Rules: CI only (no local cargo), rustfmt + contract regeneration through a `fmt/
 - [x] UI: finance pages, patient account, print, inventory tabs (supplier payments → vouchers), reports page, dev mocks, i18n (`i18n/parts/finance.*.json`), CSS (`styles/finance.css`); tsc, vitest, i18n:check, vite build green locally
 - [x] e2e specs (v070 rewritten for the new screens; v090, v100 updated); manual guides 04b and 06 rewritten with hand-computed numbers; 03, 07, 12, 14, 15 references updated
 - [ ] Full CI (lint, tests, E2E) green
-- [ ] Before merge: `git checkout origin/main -- Cargo.lock`, delete `.github/workflows/fmt.yml`, contract.ts regenerated, merge to main
+- [ ] Before merge: `git checkout origin/main -- Cargo.lock`, delete `.github/workflows/fmt.yml`, revert the TEMP `fmt/fin-phase1` branch in `ci.yml` `on.push.branches`, contract.ts regenerated, merge to main
 
 ## Log
-- Branch `fmt/fin-phase1` (temporary workflow `.github/workflows/fmt.yml`: fmt + contract + clippy + core tests). Run 44384077411: clippy green, 1 test (doctor dashboard net of discount) fixed in bc2dc26.
+- Branch `fmt/fin-phase1` (temporary workflow `.github/workflows/fmt.yml`: fmt + contract + clippy + core tests). Run 44384077411: clippy green, 1 test (doctor dashboard net of discount) fixed in bc2dc26; run 44523269838 (bc2dc26): clippy + all Rust tests green.
+- No GitHub sign-in on this computer, so full CI cannot be dispatched: `ci.yml` temporarily lists `fmt/fin-phase1` under `on.push.branches` (revert before merging).
 - Cargo.lock: the fmt workflow rewrites it; restore `git checkout origin/main -- Cargo.lock` before merging.
 - UI rewritten: lib/billing.ts, print/receipt.tsx, print/finance.tsx, pages/billing/{common,dialogs,InvoiceDetail,PatientBilling,BillingPage,BillingExtras,FinanceSettings}.tsx.
 
