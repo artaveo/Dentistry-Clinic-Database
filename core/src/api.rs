@@ -49,11 +49,16 @@ fn ok<T: Serialize>(v: T) -> Result<Value> {
     Ok(serde_json::to_value(v)?)
 }
 
-/// Reports need `reports.view`; the inventory ones also need to be allowed to see stock.
+/// Reports need `reports.view`; the inventory ones also need to be allowed to see stock, the payroll
+/// register the payroll permission.
 fn require_report(s: &Session, kind: ReportKind) -> Result<()> {
     s.require(perm::REPORTS_VIEW)?;
     if kind.group() == "inventory" {
         s.require(perm::INVENTORY_VIEW)?;
+    }
+    // Salaries are seen only by whoever runs the payroll.
+    if kind == ReportKind::Payroll {
+        s.require(perm::FINANCE_PAYROLL)?;
     }
     Ok(())
 }

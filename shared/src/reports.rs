@@ -133,7 +133,7 @@ impl ReportKind {
         match self {
             DailySummary | MonthlySummary | Receipts | Invoices | Adjustments | Aging | Installments
             | Deposits | Expenses | MoneyBook | ProviderProduction | ServiceRevenue | DoctorShares
-            | CashCounts | IncomeStatement => "financial",
+            | CashCounts | IncomeStatement | Payroll | Withholding => "financial",
             Patients | Treatments | Procedures | ToothConditions | DoctorActivity | FollowUps
             | RecallList | ReferralSources => "clinical",
             Stock | LowStock | Purchases | Consumption | Expiry | SupplierBalance => "inventory",
