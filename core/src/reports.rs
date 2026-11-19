@@ -361,6 +361,8 @@ pub fn run(conn: &Connection, p: &ReportParams) -> Result<ReportResult> {
         DoctorShares => doctor_shares(&c)?,
         CashCounts => cash_counts(&c)?,
         IncomeStatement => income_statement(&c)?,
+        Payroll => payroll(&c)?,
+        Withholding => withholding(&c)?,
         Patients => patients(&c)?,
         Treatments => treatments(&c)?,
         Procedures => procedures(&c)?,
@@ -1005,6 +1007,95 @@ fn income_statement(c: &Ctx) -> Result<Table> {
         rows,
         &[1, 2, 3, 4, 5, 6],
     ))
+}
+
+/// R8: every employee line of the payrolls approved in the period.
+fn payroll(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let rows = collect(
+        c,
+        &format!(
+            "SELECT d.doc_date, {NUMBER_SQL}, d.ext_id, e.full_name, e.father_name, e.tin, l.base, l.extra, l.commission,
+                l.advance, l.tax
+             FROM fin_pay_line l JOIN fin_doc d ON d.id = l.doc_id LEFT JOIN fin_employee e ON e.id = l.employee_id
+             WHERE d.kind = 'pr' AND d.status = 'posted' AND d.doc_date BETWEEN ?1 AND ?2
+             ORDER BY d.doc_date, d.id, e.full_name {CAP}"
+        ),
+        &[&from, &to],
+        |r| {
+            let (base, extra, commission, advance, tax): (i64, i64, i64, i64, i64) =
+                (r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?);
+            let gross = base + extra + commission;
+            let period: Option<String> = r.get(2)?;
+            let (f, t) = fin::shares::period_of(&period);
+            Ok(vec![
+                date(iso_of(r.get(0)?)),
+                code(r.get::<_, String>(1)?),
+                text(format!("{} – {}", iso_of(f), iso_of(t))),
+                opt_text(r.get(3)?),
+                opt_text(r.get(4)?),
+                opt_code(r.get(5)?),
+                money(base),
+                money(extra),
+                money(commission),
+                money(gross),
+                money(advance),
+                money(tax),
+                money(gross - advance - tax),
+            ])
+        },
+    )?;
+    Ok(table(
+        &[
+            "date", "number", "period", "employee", "father_name", "tin", "base", "extra", "commission", "gross",
+            "advance", "tax", "net",
+        ],
+        rows,
+        &[6, 7, 8, 9, 10, 11, 12],
+    ))
+}
+
+/// R9: tax withheld (salaries, rent, contractors) and paid to the government, month by month, with
+/// what is still to pay at the end of each month.
+fn withholding(c: &Ctx) -> Result<Table> {
+    let (from, to) = days(c);
+    let mut stmt = c.conn.prepare(
+        "SELECT g.date, g.account_id, (d.kind = 'pv' AND d.purpose = 'tax'), g.amount
+         FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id
+         WHERE g.account_id IN (2410, 2420, 2430) AND g.date BETWEEN ?1 AND ?2 ORDER BY g.date",
+    )?;
+    let raw: Vec<(i64, i64, bool, i64)> = stmt
+        .query_map(params![from, to], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    // (account, month) -> (withheld, paid)
+    let mut months: BTreeMap<(i64, String), (i64, i64)> = BTreeMap::new();
+    for (day, account, paid, amount) in raw {
+        let e = months.entry((account, month_key(&iso_of(day), c.calendar))).or_default();
+        if paid {
+            e.1 += amount;
+        } else {
+            e.0 -= amount;
+        }
+    }
+    let mut rows = Vec::new();
+    let mut open: BTreeMap<i64, i64> = BTreeMap::new();
+    for ((account, month), (withheld, paid)) in months {
+        let left = match open.entry(account) {
+            std::collections::btree_map::Entry::Occupied(e) => e.into_mut(),
+            std::collections::btree_map::Entry::Vacant(e) => {
+                e.insert(-fin::ledger::balance(c.conn, account, None, from - 1)?)
+            }
+        };
+        *left += withheld - paid;
+        rows.push(vec![
+            ReportCell::Month { value: month },
+            tag(format!("acct_{account}")),
+            money(withheld),
+            money(paid),
+            money(*left),
+        ]);
+    }
+    Ok(table(&["month", "account", "withheld", "paid", "unpaid"], rows, &[2, 3]))
 }
 
 fn patients(c: &Ctx) -> Result<Table> {

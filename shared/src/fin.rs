@@ -64,6 +64,10 @@ pub enum DocKind {
     Tr,
     /// Cash count at the end of a day (CC).
     Cc,
+    /// Monthly payroll: salaries earned, tax withheld and advances taken back (PR).
+    Pr,
+    /// A doctor's share statement, frozen when approved (DS).
+    Ds,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
@@ -118,6 +122,12 @@ pub enum VoucherPurpose {
     /// Paying back a loan.
     Loan,
     Other,
+    /// Paying an employee the salary a payroll owes them.
+    Salary,
+    /// An advance on salary, taken back from a later payroll.
+    Advance,
+    /// Paying a doctor the share an approved statement owes them.
+    Share,
 }
 
 /// Tax the clinic withheld from a payment (the amount is entered by hand; the app never computes it).
@@ -128,6 +138,8 @@ pub enum WithholdingKind {
     Rent,
     /// Art. 72: a contractor.
     Contractor,
+    /// Salary tax withheld by the payroll (only for paying it to the government).
+    Wage,
 }
 
 /// Money in that is not from a patient.
@@ -728,6 +740,12 @@ pub struct VoucherInfo {
     pub source: Option<OtherReceiptSource>,
     pub supplier_id: Option<String>,
     pub supplier_name: Option<String>,
+    /// The employee paid (salary, advance).
+    pub employee_id: Option<String>,
+    /// The doctor paid (share).
+    pub doctor_id: Option<String>,
+    /// The supplier, employee or doctor paid, by name.
+    pub party_name: Option<String>,
     /// Who was paid / who paid (free text).
     pub name: Option<String>,
     /// Bank slip, vendor's bill number, …
@@ -772,6 +790,12 @@ pub struct CreateVoucherParams {
     pub reference: Option<String>,
     #[serde(default)]
     pub note: Option<String>,
+    /// Required for `salary` and `advance`.
+    #[serde(default)]
+    pub employee_id: Option<String>,
+    /// Required for `share`.
+    #[serde(default)]
+    pub doctor_id: Option<String>,
     /// Expense lines; for `supplier` one line is made from `amount`.
     #[serde(default)]
     pub lines: Vec<NewVoucherLine>,
@@ -976,6 +1000,8 @@ pub struct CashBasis {
     pub expenses_total: i64,
     /// Paid to suppliers and labs.
     pub suppliers_paid: i64,
+    /// Salaries, advances and doctor shares paid.
+    pub staff_paid: i64,
     /// `net_received − expenses_total − suppliers_paid`.
     pub operating: i64,
     /// Tax kept back from payments in the period (owed to the government, not money out yet).
@@ -1109,6 +1135,8 @@ pub struct CommissionReportParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CommissionLine {
+    pub invoice_id: i64,
+    pub service_id: Option<String>,
     pub date: String,
     pub invoice_number: String,
     pub patient_name: String,
@@ -1135,4 +1163,194 @@ pub struct CommissionReport {
     pub doctors: Vec<DoctorCommission>,
     pub base_total: i64,
     pub commission_total: i64,
+}
+
+// ───────────────────────────── staff and payroll ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct EmployeeInfo {
+    pub id: String,
+    pub full_name: String,
+    pub father_name: Option<String>,
+    /// Taxpayer number (on the payroll register).
+    pub tin: Option<String>,
+    pub national_id: Option<String>,
+    pub phone: Option<String>,
+    pub position: String,
+    /// When the employee is also one of the clinic's doctors.
+    pub doctor_id: Option<String>,
+    pub hire_date: String,
+    pub end_date: Option<String>,
+    /// Monthly base salary, the payroll's starting point.
+    pub base_salary: i64,
+    pub note: Option<String>,
+    pub is_active: bool,
+    /// Salary approved and not paid yet.
+    pub owed: i64,
+    /// Advances paid and not yet taken back.
+    pub advances: i64,
+    pub version: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SaveEmployeeParams {
+    #[serde(default)]
+    pub id: Option<String>,
+    pub full_name: String,
+    #[serde(default)]
+    pub father_name: Option<String>,
+    #[serde(default)]
+    pub tin: Option<String>,
+    #[serde(default)]
+    pub national_id: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    pub position: String,
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+    pub hire_date: String,
+    #[serde(default)]
+    pub end_date: Option<String>,
+    pub base_salary: i64,
+    #[serde(default)]
+    pub note: Option<String>,
+    #[serde(default = "yes")]
+    pub is_active: bool,
+    #[serde(default)]
+    pub version: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct EmployeeListParams {
+    #[serde(default)]
+    pub include_inactive: bool,
+}
+
+/// One employee's line of a payroll. Gross = base + extra + commission; net = gross − advance − tax.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PayrollLineInfo {
+    pub employee_id: String,
+    pub full_name: String,
+    pub father_name: Option<String>,
+    pub tin: Option<String>,
+    pub position: String,
+    pub base: i64,
+    /// Allowances and overtime.
+    pub extra: i64,
+    pub commission: i64,
+    pub gross: i64,
+    /// Advance taken back.
+    pub advance: i64,
+    /// Salary tax withheld (entered by hand).
+    pub tax: i64,
+    pub net: i64,
+    /// Paid so far on this employee's salary (all payrolls, oldest first).
+    pub paid: i64,
+    /// Advances outstanding before this payroll (draft only).
+    pub advances_open: i64,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PayrollInfo {
+    /// None for a draft that is not approved yet.
+    pub id: Option<i64>,
+    pub number: Option<String>,
+    pub from: String,
+    pub to: String,
+    pub date: Option<String>,
+    pub status: Option<DocStatus>,
+    pub lines: Vec<PayrollLineInfo>,
+    pub gross: i64,
+    pub advance: i64,
+    pub tax: i64,
+    pub net: i64,
+    pub void_reason: Option<String>,
+    pub created_by_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PayrollDraftParams {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct NewPayrollLine {
+    pub employee_id: String,
+    pub base: i64,
+    #[serde(default)]
+    pub extra: i64,
+    #[serde(default)]
+    pub commission: i64,
+    #[serde(default)]
+    pub advance: i64,
+    #[serde(default)]
+    pub tax: i64,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreatePayrollParams {
+    pub from: String,
+    pub to: String,
+    /// The day the payroll is approved (booked).
+    pub date: String,
+    pub lines: Vec<NewPayrollLine>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PayrollListParams {
+    #[serde(default)]
+    pub from: Option<String>,
+    #[serde(default)]
+    pub to: Option<String>,
+}
+
+/// An approved doctor's share statement: the lines are frozen; later price reductions do not change it.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ShareStatementInfo {
+    pub id: i64,
+    pub number: String,
+    pub doctor_id: String,
+    pub doctor_name: String,
+    pub from: String,
+    pub to: String,
+    pub date: String,
+    pub basis: CommissionBasis,
+    pub lines: Vec<CommissionLine>,
+    pub base: i64,
+    pub share: i64,
+    pub status: DocStatus,
+    pub void_reason: Option<String>,
+    pub print_count: i64,
+    pub created_by_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CreateShareStatementParams {
+    pub doctor_id: String,
+    pub from: String,
+    pub to: String,
+    /// The day the statement is approved (booked).
+    pub date: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ShareStatementListParams {
+    #[serde(default)]
+    pub doctor_id: Option<String>,
+}
+
+/// What a doctor is owed from approved statements and what was paid.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DoctorShareBalance {
+    pub doctor_id: String,
+    pub doctor_name: String,
+    pub approved: i64,
+    pub paid: i64,
+    pub owed: i64,
 }

@@ -242,6 +242,12 @@ pub enum ValidationRule {
     SameAccount,
     /// Withheld tax is more than the line.
     WithheldRange,
+    /// No such employee.
+    EmployeeNotFound,
+    /// A payroll or share statement already covers part of this period.
+    PeriodTaken,
+    /// More advance taken back than the employee still owes.
+    AdvanceExceeds,
     // Phase 8: inventory, suppliers, dental lab.
     StockItemNotFound,
     StockLookupNotFound,
@@ -3579,6 +3585,16 @@ api! {
     "fin.shares.rules_save"       => FIN_SHARES_RULES_SAVE(SaveCommissionRuleParams) -> CommissionRuleInfo;
     "fin.shares.rules_delete"     => FIN_SHARES_RULES_DELETE(IdVersionParams) -> Empty;
     "fin.shares.preview"          => FIN_SHARES_PREVIEW(CommissionReportParams) -> CommissionReport;
+    "fin.shares.statement_create" => FIN_SHARES_STATEMENT_CREATE(CreateShareStatementParams) -> ShareStatementInfo;
+    "fin.shares.statements"       => FIN_SHARES_STATEMENTS(ShareStatementListParams) -> Vec<ShareStatementInfo>;
+    "fin.shares.statement_get"    => FIN_SHARES_STATEMENT_GET(DocIdParams) -> ShareStatementInfo;
+    "fin.shares.balances"         => FIN_SHARES_BALANCES(Empty) -> Vec<DoctorShareBalance>;
+    "fin.employees.list"          => FIN_EMPLOYEES_LIST(EmployeeListParams) -> Vec<EmployeeInfo>;
+    "fin.employees.save"          => FIN_EMPLOYEES_SAVE(SaveEmployeeParams) -> EmployeeInfo;
+    "fin.payroll.draft"           => FIN_PAYROLL_DRAFT(PayrollDraftParams) -> PayrollInfo;
+    "fin.payroll.create"          => FIN_PAYROLL_CREATE(CreatePayrollParams) -> PayrollInfo;
+    "fin.payroll.list"            => FIN_PAYROLL_LIST(PayrollListParams) -> Vec<PayrollInfo>;
+    "fin.payroll.get"             => FIN_PAYROLL_GET(DocIdParams) -> PayrollInfo;
     "stock_categories.list"      => STOCK_CATEGORIES_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
     "stock_categories.save"      => STOCK_CATEGORIES_SAVE(SaveStockLookupParams) -> StockLookupInfo;
     "stock_units.list"           => STOCK_UNITS_LIST(IncludeInactiveParams) -> Vec<StockLookupInfo>;
@@ -3971,6 +3987,19 @@ pub fn typescript_bindings() -> String {
         CommissionLine,
         DoctorCommission,
         CommissionReport,
+        EmployeeInfo,
+        SaveEmployeeParams,
+        EmployeeListParams,
+        PayrollLineInfo,
+        PayrollInfo,
+        PayrollDraftParams,
+        NewPayrollLine,
+        CreatePayrollParams,
+        PayrollListParams,
+        ShareStatementInfo,
+        CreateShareStatementParams,
+        ShareStatementListParams,
+        DoctorShareBalance,
         StockLookupInfo,
         SaveStockLookupParams,
         StockItemInfo,

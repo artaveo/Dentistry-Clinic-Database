@@ -104,6 +104,10 @@ pub enum ReportKind {
     CashCounts,
     /// Month by month: the cash result and the accrual result side by side.
     IncomeStatement,
+    /// Payroll register: one row per employee per payroll of the period (R8).
+    Payroll,
+    /// Withheld tax register: withheld and paid, by month and kind (R9).
+    Withholding,
     // Clinical (9.3)
     Patients,
     Treatments,

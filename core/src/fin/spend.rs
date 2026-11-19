@@ -26,6 +26,9 @@ fn purpose_code(p: VoucherPurpose) -> &'static str {
         VoucherPurpose::Drawing => "drawing",
         VoucherPurpose::Loan => "loan",
         VoucherPurpose::Other => "other",
+        VoucherPurpose::Salary => "salary",
+        VoucherPurpose::Advance => "advance",
+        VoucherPurpose::Share => "share",
     }
 }
 
@@ -37,6 +40,9 @@ fn purpose_of(s: &str) -> Option<VoucherPurpose> {
         "drawing" => VoucherPurpose::Drawing,
         "loan" => VoucherPurpose::Loan,
         "other" => VoucherPurpose::Other,
+        "salary" => VoucherPurpose::Salary,
+        "advance" => VoucherPurpose::Advance,
+        "share" => VoucherPurpose::Share,
         _ => return None,
     })
 }
@@ -62,6 +68,7 @@ fn wh_code(k: WithholdingKind) -> &'static str {
     match k {
         WithholdingKind::Rent => "rent",
         WithholdingKind::Contractor => "contractor",
+        WithholdingKind::Wage => "wage",
     }
 }
 
@@ -77,6 +84,7 @@ pub(crate) fn wh_account(k: WithholdingKind) -> i64 {
     match k {
         WithholdingKind::Rent => TAX_RENT,
         WithholdingKind::Contractor => TAX_CONTRACTOR,
+        WithholdingKind::Wage => TAX_WAGE,
     }
 }
 
@@ -113,6 +121,13 @@ fn check_lines(conn: &Connection, lines: &[NewVoucherLine], allow_withholding: b
                 "withholding",
                 ValidationRule::Required,
                 "say which tax was withheld",
+            ));
+        }
+        if withheld > 0 && l.withholding == Some(WithholdingKind::Wage) {
+            return Err(CoreError::invalid(
+                "withholding",
+                ValidationRule::WithheldRange,
+                "salary tax is withheld by the payroll, not on an expense",
             ));
         }
         if withheld > amount {
@@ -152,8 +167,11 @@ fn write_lines(conn: &Connection, doc_id: i64, lines: &[Line], due: Option<i64>)
 
 const VOUCHER_SELECT: &str =
     "SELECT d.id, d.kind, d.year, d.serial, d.doc_date, d.created_at, d.account_id, d.purpose,
-    d.party_id, s.name, d.name, d.reference, d.note, d.status, d.void_reason, d.print_count, d.created_by
-    FROM fin_doc d LEFT JOIN supplier s ON s.id = d.party_id";
+    d.party_id, s.name, d.name, d.reference, d.note, d.status, d.void_reason, d.print_count, d.created_by,
+    d.party, COALESCE(s.name, e.full_name, dr.full_name)
+    FROM fin_doc d LEFT JOIN supplier s ON s.id = d.party_id AND d.party = 'supplier'
+    LEFT JOIN fin_employee e ON e.id = d.party_id AND d.party = 'employee'
+    LEFT JOIN doctor dr ON dr.id = d.party_id AND d.party = 'doctor'";
 
 struct Row {
     id: i64,
@@ -164,7 +182,7 @@ struct Row {
     created_at: i64,
     account_id: Option<i64>,
     purpose: Option<String>,
-    supplier_id: Option<String>,
+    party_id: Option<String>,
     supplier_name: Option<String>,
     name: Option<String>,
     reference: Option<String>,
@@ -173,6 +191,8 @@ struct Row {
     void_reason: Option<String>,
     print_count: i64,
     created_by: Option<String>,
+    party: Option<String>,
+    party_name: Option<String>,
 }
 
 fn map_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Row> {
@@ -185,7 +205,7 @@ fn map_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Row> {
         created_at: r.get(5)?,
         account_id: r.get(6)?,
         purpose: r.get(7)?,
-        supplier_id: r.get(8)?,
+        party_id: r.get(8)?,
         supplier_name: r.get(9)?,
         name: r.get(10)?,
         reference: r.get(11)?,
@@ -194,6 +214,8 @@ fn map_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Row> {
         void_reason: r.get(14)?,
         print_count: r.get(15)?,
         created_by: r.get(16)?,
+        party: r.get(17)?,
+        party_name: r.get(18)?,
     })
 }
 
@@ -236,8 +258,11 @@ fn finish(conn: &Connection, x: Row) -> Result<VoucherInfo> {
         account_id: x.account_id,
         purpose: if kind == DocKind::Pv { x.purpose.as_deref().and_then(purpose_of) } else { None },
         source: if kind == DocKind::Or { x.purpose.as_deref().and_then(source_of) } else { None },
-        supplier_id: x.supplier_id,
+        supplier_id: x.party_id.clone().filter(|_| x.party.as_deref() == Some("supplier")),
         supplier_name: x.supplier_name,
+        employee_id: x.party_id.clone().filter(|_| x.party.as_deref() == Some("employee")),
+        doctor_id: x.party_id.clone().filter(|_| x.party.as_deref() == Some("doctor")),
+        party_name: x.party_name,
         name: x.name,
         reference: x.reference,
         lines,
@@ -316,6 +341,8 @@ pub fn create_voucher(conn: &Connection, actor: &Actor, p: &CreateVoucherParams)
     let name = optional("name", &p.name, 100)?;
     let reference = optional("reference", &p.reference, 60)?;
     let note = optional("note", &p.note, 300)?;
+    let mut employee: Option<String> = None;
+    let mut doctor: Option<String> = None;
     // (lines to write, ledger entries)
     let (lines, mut entries): (Vec<Line>, Vec<Entry>) = match p.purpose {
         VoucherPurpose::Expense | VoucherPurpose::Other => {
@@ -337,6 +364,39 @@ pub fn create_voucher(conn: &Connection, actor: &Actor, p: &CreateVoucherParams)
             let amount = money("amount", p.amount, false)?;
             let acc = wh_account(kind);
             (vec![(acc, amount, 0, None, None)], vec![dr(acc, amount)])
+        }
+        VoucherPurpose::Salary | VoucherPurpose::Advance => {
+            let e = p.employee_id.as_deref().filter(|s| !s.is_empty()).ok_or_else(|| {
+                CoreError::invalid("employee_id", ValidationRule::Required, "choose the employee being paid")
+            })?;
+            let e = super::staff::get_employee(conn, e)?;
+            let amount = money("amount", p.amount, false)?;
+            let acc = if p.purpose == VoucherPurpose::Salary { WAGES_PAYABLE } else { ADVANCES };
+            if p.purpose == VoucherPurpose::Salary && amount > e.owed {
+                return Err(CoreError::invalid(
+                    "amount",
+                    ValidationRule::PaymentExceeds,
+                    format!("the clinic owes {} only {}", e.full_name, e.owed),
+                ));
+            }
+            employee = Some(e.id.clone());
+            (vec![(acc, amount, 0, None, None)], vec![dr(acc, amount).of(&e.id)])
+        }
+        VoucherPurpose::Share => {
+            let d = check_doctor(conn, &p.doctor_id)?.ok_or_else(|| {
+                CoreError::invalid("doctor_id", ValidationRule::Required, "choose the doctor being paid")
+            })?;
+            let amount = money("amount", p.amount, false)?;
+            let owed = -balance(conn, SHARES_PAYABLE, Some(&d), 99_991_231)?;
+            if amount > owed {
+                return Err(CoreError::invalid(
+                    "amount",
+                    ValidationRule::PaymentExceeds,
+                    format!("approved shares not yet paid are {owed}"),
+                ));
+            }
+            doctor = Some(d.clone());
+            (vec![(SHARES_PAYABLE, amount, 0, None, None)], vec![dr(SHARES_PAYABLE, amount).of(&d)])
         }
         VoucherPurpose::Drawing | VoucherPurpose::Loan => {
             let acc = if p.purpose == VoucherPurpose::Drawing { DRAWINGS } else { LOANS };
@@ -362,6 +422,8 @@ pub fn create_voucher(conn: &Connection, actor: &Actor, p: &CreateVoucherParams)
             kind: Some(DocKind::Pv),
             date,
             supplier_id: supplier.as_deref(),
+            employee_id: employee.as_deref(),
+            doctor_id: doctor.as_deref(),
             account_id: Some(account),
             amount: gross - withheld,
             purpose: Some(purpose_code(p.purpose)),

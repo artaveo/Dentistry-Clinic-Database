@@ -331,6 +331,10 @@ pub fn is_change(method: &str) -> bool {
         "ledger",
         "aging",
         "due",
+        "draft",
+        "statements",
+        "statement_get",
+        "balances",
     ];
     !QUIET_TOPICS.contains(&topic) && !READS.contains(&action)
 }

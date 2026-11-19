@@ -28,25 +28,42 @@ pub fn void(conn: &Connection, actor: &Actor, p: &VoidDocParams) -> Result<DocSu
         }
         _ => void_doc(conn, actor, &h, &reason)?,
     }
+    let party: Option<String> =
+        conn.query_row("SELECT party FROM fin_doc WHERE id = ?1", [h.id], |r| r.get(0))?;
     if matches!(h.kind, DocKind::Rc | DocKind::Al | DocKind::Rf | DocKind::Cn | DocKind::Wo) {
         if let Some(patient) = &h.party_id {
             super::receipts::check_books(conn, patient)?;
         }
     }
+    if matches!(h.kind, DocKind::Pr | DocKind::Ds | DocKind::Pv) {
+        super::staff::check_staff_books(conn)?;
+    }
     audit::record(
         conn,
         actor,
         "fin.void",
-        Some(match (&h.party_id, h.kind) {
-            (None, _) => "fin_doc",
-            (Some(_), DocKind::Bl | DocKind::Pv) => "supplier",
-            (Some(_), _) => "patient",
+        Some(match party.as_deref() {
+            Some("patient") => "patient",
+            Some("supplier") => "supplier",
+            Some("employee") => "employee",
+            Some("doctor") => "doctor",
+            _ => "fin_doc",
         }),
         Some(&h.party_id.clone().unwrap_or_else(|| h.id.to_string())),
         Some(&json!({"number": h.number, "amount": h.amount})),
         Some(&json!({"reason": reason})),
     )?;
     Ok(summary(&head(conn, h.id)?))
+}
+
+/// A payroll, a share statement, or a salary / advance / share payment: voiding it needs the payroll
+/// permission as well.
+pub fn is_staff_doc(conn: &Connection, id: i64) -> Result<bool> {
+    Ok(scalar(
+        conn,
+        "SELECT COUNT(*) FROM fin_doc WHERE id = ?1 AND (kind IN ('pr', 'ds') OR party IN ('employee', 'doctor'))",
+        &[&id],
+    )? > 0)
 }
 
 /// Counts a print (or a PDF) of a document; the copy number goes on the paper.
