@@ -380,7 +380,8 @@ pub(crate) fn period_of(key: &Option<String>) -> (i64, i64) {
 }
 
 /// SQL: a posted document of kind ?4 (for party ?1 when given) whose period overlaps ?2..?3.
-pub(crate) const OVERLAP_SQL: &str = "SELECT EXISTS(SELECT 1 FROM fin_doc WHERE kind = ?4 AND status = 'posted'
+pub(crate) const OVERLAP_SQL: &str =
+    "SELECT EXISTS(SELECT 1 FROM fin_doc WHERE kind = ?4 AND status = 'posted'
     AND (?1 IS NULL OR party_id = ?1)
     AND CAST(substr(ext_id, 1, 8) AS INTEGER) <= ?3 AND CAST(substr(ext_id, 10, 8) AS INTEGER) >= ?2)";
 
@@ -512,8 +513,21 @@ pub fn get_statement(conn: &Connection, id: i64) -> Result<ShareStatementInfo> {
             CoreError::api(ErrorCode::NotFound, format!("share statement {id}"))
                 .on_field("id", ValidationRule::DocNotFound)
         })?;
-    let (id, year, serial, doctor_id, doctor_name, key, date, basis, share, status, void_reason, print_count, by) =
-        row;
+    let (
+        id,
+        year,
+        serial,
+        doctor_id,
+        doctor_name,
+        key,
+        date,
+        basis,
+        share,
+        status,
+        void_reason,
+        print_count,
+        by,
+    ) = row;
     let mut stmt = conn.prepare_cached(&format!(
         "SELECT l.ref_id, l.service_id, l.due_date, {}, COALESCE(p.full_name, ''), COALESCE(l.name, ''),
             COALESCE(l.list_price, 0), l.amount

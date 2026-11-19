@@ -195,16 +195,16 @@ pub fn overview(conn: &Connection, p: &PeriodParams) -> Result<FinanceOverview> 
     checks.push(check("bridge", patient_revenue - write_offs - ar_change + dep_change, cash.net_received));
     // Paid for something that is neither an expense nor a debt (equipment).
     let assets_bought = sum(&rows, |r| is_pv(r) && r.3.is_none() && r.2 == "asset" && r.1 != ADVANCES);
-    let explained = cash.net_received - assets_bought - cash.expenses_total - cash.suppliers_paid
-        - cash.staff_paid
-        + cash.withheld
-        - cash.tax_paid
-        + cash.owner_in
-        - cash.owner_out
-        + cash.loans_in
-        - cash.loans_out
-        + cash.other_income
-        + cash.count_differences;
+    let explained =
+        cash.net_received - assets_bought - cash.expenses_total - cash.suppliers_paid - cash.staff_paid
+            + cash.withheld
+            - cash.tax_paid
+            + cash.owner_in
+            - cash.owner_out
+            + cash.loans_in
+            - cash.loans_out
+            + cash.other_income
+            + cash.count_differences;
     checks.push(check("money", explained, cash.money_closing - cash.money_opening));
     let overdue = super::patients::open_installments(conn, None)?
         .into_iter()

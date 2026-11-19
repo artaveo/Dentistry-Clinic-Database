@@ -20,7 +20,8 @@ use super::util::*;
 
 // ───────────────────────────── employees ─────────────────────────────
 
-const EMPLOYEE_SELECT: &str = "SELECT e.id, e.full_name, e.father_name, e.tin, e.national_id, e.phone, e.position,
+const EMPLOYEE_SELECT: &str =
+    "SELECT e.id, e.full_name, e.father_name, e.tin, e.national_id, e.phone, e.position,
     e.doctor_id, e.hire_date, e.end_date, e.base_salary, e.note, e.is_active, e.version,
     -COALESCE((SELECT SUM(g.amount) FROM fin_gl g WHERE g.account_id = 2310 AND g.party_id = e.id), 0),
     COALESCE((SELECT SUM(g.amount) FROM fin_gl g WHERE g.account_id = 1320 AND g.party_id = e.id), 0)
@@ -56,12 +57,12 @@ pub fn list_employees(conn: &Connection, p: &EmployeeListParams) -> Result<Vec<E
 }
 
 pub fn get_employee(conn: &Connection, id: &str) -> Result<EmployeeInfo> {
-    conn.query_row(&format!("{EMPLOYEE_SELECT} WHERE e.id = ?1"), [id], map_employee)
-        .optional()?
-        .ok_or_else(|| {
+    conn.query_row(&format!("{EMPLOYEE_SELECT} WHERE e.id = ?1"), [id], map_employee).optional()?.ok_or_else(
+        || {
             CoreError::api(ErrorCode::NotFound, format!("employee {id}"))
                 .on_field("employee_id", ValidationRule::EmployeeNotFound)
-        })
+        },
+    )
 }
 
 fn clean_tin(field: &str, v: &Option<String>) -> Result<Option<String>> {
@@ -84,7 +85,11 @@ pub fn save_employee(conn: &Connection, actor: &Actor, p: &SaveEmployeeParams) -
     let hire = ymd(&date_of("hire_date", &p.hire_date)?);
     let end = opt_date("end_date", &p.end_date)?.map(|d| ymd(&d));
     if end.is_some_and(|e| e < hire) {
-        return Err(CoreError::invalid("end_date", ValidationRule::PeriodRange, "the end is before the start"));
+        return Err(CoreError::invalid(
+            "end_date",
+            ValidationRule::PeriodRange,
+            "the end is before the start",
+        ));
     }
     let base = money("base_salary", p.base_salary, true)?;
     let now = now_secs();
@@ -121,7 +126,9 @@ pub fn save_employee(conn: &Connection, actor: &Actor, p: &SaveEmployeeParams) -
                 "employee.update",
                 Some("employee"),
                 Some(id),
-                Some(&json!({"name": before.full_name, "base_salary": before.base_salary, "active": before.is_active})),
+                Some(
+                    &json!({"name": before.full_name, "base_salary": before.base_salary, "active": before.is_active}),
+                ),
                 Some(&json!({"name": full_name, "base_salary": base, "active": p.is_active})),
             )?;
             id.to_string()
@@ -278,9 +285,14 @@ pub fn create(conn: &Connection, actor: &Actor, p: &CreatePayrollParams) -> Resu
     let mut rows: Vec<PayRow> = Vec::new();
     for (i, l) in p.lines.iter().enumerate() {
         let field = |f: &str| format!("lines.{i}.{f}");
-        let e = get_employee(conn, &l.employee_id).map_err(|e| e.on_field(&field("employee_id"), ValidationRule::EmployeeNotFound))?;
+        let e = get_employee(conn, &l.employee_id)
+            .map_err(|e| e.on_field(&field("employee_id"), ValidationRule::EmployeeNotFound))?;
         if !seen.insert(e.id.clone()) {
-            return Err(CoreError::invalid(&field("employee_id"), ValidationRule::ItemDuplicate, "an employee is twice on the payroll"));
+            return Err(CoreError::invalid(
+                &field("employee_id"),
+                ValidationRule::ItemDuplicate,
+                "an employee is twice on the payroll",
+            ));
         }
         let base = money(&field("base"), l.base, true)?;
         let extra = money(&field("extra"), l.extra, true)?;
@@ -289,7 +301,11 @@ pub fn create(conn: &Connection, actor: &Actor, p: &CreatePayrollParams) -> Resu
         let tax = money(&field("tax"), l.tax, true)?;
         let gross = base + extra + commission;
         if gross > MAX_AMOUNT {
-            return Err(CoreError::invalid(&field("base"), ValidationRule::BillingAmount, "the salary is too large"));
+            return Err(CoreError::invalid(
+                &field("base"),
+                ValidationRule::BillingAmount,
+                "the salary is too large",
+            ));
         }
         if advance > e.advances {
             return Err(CoreError::invalid(
@@ -299,7 +315,11 @@ pub fn create(conn: &Connection, actor: &Actor, p: &CreatePayrollParams) -> Resu
             ));
         }
         if tax + advance > gross {
-            return Err(CoreError::invalid(&field("tax"), ValidationRule::WithheldRange, "the deductions are more than the salary"));
+            return Err(CoreError::invalid(
+                &field("tax"),
+                ValidationRule::WithheldRange,
+                "the deductions are more than the salary",
+            ));
         }
         if gross == 0 && advance == 0 {
             continue;
@@ -344,7 +364,9 @@ pub fn create(conn: &Connection, actor: &Actor, p: &CreatePayrollParams) -> Resu
         Some("fin_doc"),
         Some(&id.to_string()),
         None,
-        Some(&json!({"number": number, "from": iso_of(from), "to": iso_of(to), "gross": gross_total, "net": net_total})),
+        Some(
+            &json!({"number": number, "from": iso_of(from), "to": iso_of(to), "gross": gross_total, "net": net_total}),
+        ),
     )?;
     get(conn, id)
 }
