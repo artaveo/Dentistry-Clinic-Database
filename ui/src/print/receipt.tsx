@@ -5,10 +5,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { FileDown, FolderOpen, Printer, Settings2 } from "lucide-react";
-import type { CalendarSystem, Language, PaymentInfo } from "../../../shared/ts/contract";
+import type { CalendarSystem, Language, ReceiptInfo } from "../../../shared/ts/contract";
 import { inCalendar } from "../lib/calendar";
 import { formatDateTime } from "../lib/dates";
-import { tr } from "../lib/medical";
 import { formatAmount } from "../lib/money";
 import { useI18n } from "../i18n";
 import { Button } from "../ui/Button";
@@ -102,15 +101,15 @@ export function receiptFolder(localDate: string): string {
 }
 
 /** The receipt at its real width; its height follows its content. */
-export function ReceiptSheet({ payment, letterhead, lang, calendar, widthMm, footer, copy }: { payment: PaymentInfo; letterhead: Letterhead; lang: Language; calendar: CalendarSystem; widthMm: number; footer: string; copy: boolean }) {
+export function ReceiptSheet({ receipt, account, letterhead, lang, calendar, widthMm, footer, copy }: { receipt: ReceiptInfo; account: string | null; letterhead: Letterhead; lang: Language; calendar: CalendarSystem; widthMm: number; footer: string; copy: boolean }) {
   const t = docT(lang);
-  const r = payment.receipt;
+  const r = receipt;
   const c = letterhead.clinic;
   const money = (v: number) => formatAmount(v, lang);
   const small = widthMm < 70;
-  const title = payment.kind === "refund" ? t("rcpt.title.refund") : payment.kind === "credit" ? t("rcpt.title.credit") : payment.invoice_id ? t("rcpt.title.payment") : t("rcpt.title.advance");
+  const title = r.kind === "rf" ? t("rcpt.title.refund") : r.kind === "al" ? t("rcpt.title.allocation") : r.allocations.length ? t("rcpt.title.payment") : t("rcpt.title.advance");
   return (
-    <article className={`rcpt ${small ? "rcpt-narrow" : ""}`} dir={lang === "en" ? "ltr" : "rtl"} lang={lang} style={{ width: `${widthMm}mm`, ["--doc-accent" as string]: c.color_primary }} data-testid={`receipt-${payment.number}`} data-width={widthMm}>
+    <article className={`rcpt ${small ? "rcpt-narrow" : ""}`} dir={lang === "en" ? "ltr" : "rtl"} lang={lang} style={{ width: `${widthMm}mm`, ["--doc-accent" as string]: c.color_primary }} data-testid={`receipt-${r.number}`} data-width={widthMm}>
       <header className="rcpt-head">
         {letterhead.logo ? <img className="rcpt-logo" src={letterhead.logo} alt="" /> : <span className="rcpt-monogram">{[...c.name.trim()][0] ?? "؟"}</span>}
         <div className="rcpt-clinic">{c.name}</div>
@@ -118,32 +117,32 @@ export function ReceiptSheet({ payment, letterhead, lang, calendar, widthMm, foo
       </header>
       <div className="rcpt-title">{title}</div>
       {copy && <div className="rcpt-copy" data-testid="receipt-copy">{t("rcpt.copy")}</div>}
+      {r.status === "void" && <div className="rcpt-copy" data-testid="receipt-void">{t("fin.status.void")}</div>}
       <dl className="rcpt-facts">
-        <div><dt>{t("rcpt.number")}</dt><dd><bdi className="ltr">{payment.number}</bdi></dd></div>
-        <div><dt>{t("rcpt.date")}</dt><dd>{formatDateTime(payment.paid_at, lang, calendar)}</dd></div>
+        <div><dt>{t("rcpt.number")}</dt><dd><bdi className="ltr">{r.number}</bdi></dd></div>
+        <div><dt>{t("rcpt.date")}</dt><dd>{formatDateTime(r.created_at, lang, calendar)}</dd></div>
         <div><dt>{t("rcpt.patient")}</dt><dd><strong>{r.patient_name}</strong> <bdi className="ltr">{r.patient_number}</bdi></dd></div>
-        {r.invoice_number && <div><dt>{t("rcpt.invoice")}</dt><dd><bdi className="ltr">{r.invoice_number}</bdi></dd></div>}
+        {r.payer_name && <div><dt>{t("rcpt.payer")}</dt><dd>{r.payer_name}</dd></div>}
       </dl>
-      {r.lines.length > 0 && (
+      {r.allocations.length > 0 && (
         <ul className="rcpt-lines">
-          {r.lines.map((l, i) => (
-            <li key={i}><span>{tr(l.names, lang)}</span><span className="rcpt-amt">{money(l.amount)}</span></li>
+          {r.allocations.map((a) => (
+            <li key={a.invoice_id}><span>{t("rcpt.invoice")} <bdi className="ltr">{a.invoice_number}</bdi></span><span className="rcpt-amt">{a.amount < 0 ? "− " : ""}{money(Math.abs(a.amount))}</span></li>
           ))}
         </ul>
       )}
       <div className="rcpt-totals">
-        {r.invoice_number && <div><span>{t("rcpt.invoiceTotal")}</span><span className="rcpt-amt">{money(r.invoice_net)}</span></div>}
-        <div className="rcpt-main"><span>{payment.kind === "refund" ? t("rcpt.refunded") : t("rcpt.paid")}</span><span className="rcpt-amt">{money(payment.amount)}</span></div>
-        {payment.method && <div><span>{t("rcpt.method")}</span><span>{tr(payment.method, lang)}</span></div>}
-        {r.invoice_number && <div><span>{t("rcpt.paidSoFar")}</span><span className="rcpt-amt">{money(r.paid_after)}</span></div>}
-        {r.invoice_number && <div className="rcpt-balance"><span>{t("rcpt.balance")}</span><span className="rcpt-amt">{money(r.remaining_after)}</span></div>}
-        {r.credit_after > 0 && <div><span>{t("rcpt.credit")}</span><span className="rcpt-amt">{money(r.credit_after)}</span></div>}
+        <div className="rcpt-main"><span>{r.kind === "rf" ? t("rcpt.refunded") : r.kind === "al" ? t("rcpt.allocated") : t("rcpt.paid")}</span><span className="rcpt-amt">{money(Math.abs(r.amount))}</span></div>
+        {account && <div><span>{t("rcpt.method")}</span><span>{account}</span></div>}
+        {r.kind === "rc" && r.to_deposit > 0 && <div><span>{t("rcpt.toDeposit")}</span><span className="rcpt-amt">{money(r.to_deposit)}</span></div>}
+        <div className="rcpt-balance"><span>{t("rcpt.balance")}</span><span className="rcpt-amt">{money(r.owed_after)}</span></div>
+        {r.deposit_after > 0 && <div><span>{t("rcpt.credit")}</span><span className="rcpt-amt">{money(r.deposit_after)}</span></div>}
       </div>
-      {payment.reason && <div className="rcpt-note">{t("rcpt.reason")}: {payment.reason}</div>}
-      {payment.note && payment.kind !== "refund" && <div className="rcpt-note">{payment.note}</div>}
+      {r.reason && <div className="rcpt-note">{t("rcpt.reason")}: {r.reason}</div>}
+      {r.note && <div className="rcpt-note">{r.note}</div>}
       <footer className="rcpt-foot">
         {footer && <div>{footer}</div>}
-        {payment.created_by_name && <div className="rcpt-meta">{t("rcpt.receivedBy")}: {payment.created_by_name}</div>}
+        {r.created_by_name && <div className="rcpt-meta">{t("rcpt.receivedBy")}: {r.created_by_name}</div>}
         {letterhead.brandFooter && <div className="rcpt-brand"><DentalMark size={8} /> Artaveo Dental</div>}
       </footer>
     </article>
@@ -227,10 +226,10 @@ function useReceiptPage(profile: ReceiptProfile, heightMm: number) {
 }
 
 /**
- * Preview, print and PDF of one receipt or voucher. Every print or PDF is counted by the Core
- * (`payments.mark_printed`): a reprint is the same receipt marked «کپی»; it never records a payment.
+ * Preview, print and PDF of one receipt, refund or allocation. Every print or PDF is counted by the Core
+ * (`fin.docs.printed`): a reprint is the same receipt marked «کپی»; it never records money.
  */
-export function ReceiptPreview({ payment, calendar, footer, onPrinted, onClose }: { payment: PaymentInfo; calendar: CalendarSystem; footer: string; onPrinted: (pdf: boolean) => Promise<PaymentInfo | void>; onClose: () => void }) {
+export function ReceiptPreview({ receipt, account, calendar, footer, onPrinted, onClose }: { receipt: ReceiptInfo; account: string | null; calendar: CalendarSystem; footer: string; onPrinted: (pdf: boolean) => Promise<number | void>; onClose: () => void }) {
   const { t, lang: uiLang } = useI18n();
   const toast = useToast();
   const letterhead = useLetterhead();
@@ -242,7 +241,7 @@ export function ReceiptPreview({ payment, calendar, footer, onPrinted, onClose }
   const [busy, setBusy] = useState<"" | "print" | "pdf">("");
   const [error, setError] = useState("");
   const [savedPath, setSavedPath] = useState<string | null>(null);
-  const [current, setCurrent] = useState(payment);
+  const [current, setCurrent] = useState(receipt);
   const measure = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(120);
   const copy = current.print_count > 0;
@@ -262,7 +261,7 @@ export function ReceiptPreview({ payment, calendar, footer, onPrinted, onClose }
   }, [letterhead, lang, sheetW, current.print_count, footer]);
 
   if (!letterhead) return null;
-  const sheet = <ReceiptSheet payment={current} letterhead={letterhead} lang={lang} calendar={calendar} widthMm={sheetW} footer={footer} copy={copy} />;
+  const sheet = <ReceiptSheet receipt={current} account={account} letterhead={letterhead} lang={lang} calendar={calendar} widthMm={sheetW} footer={footer} copy={copy} />;
   const placed = (
     <div style={{ transform: profile.offsetX || profile.offsetY ? `translate(${profile.offsetX}mm, ${profile.offsetY}mm)` : undefined }}>
       <ReceiptPage mode={profile.mode} copies={copies} sheetW={sheetW}>{sheet}</ReceiptPage>
@@ -271,8 +270,8 @@ export function ReceiptPreview({ payment, calendar, footer, onPrinted, onClose }
   const canPrint = profile.mode !== "pdf" && (!desktop || !!profile.printer);
 
   const finish = async (pdf: boolean) => {
-    const next = await onPrinted(pdf);
-    if (next) setCurrent(next);
+    const count = await onPrinted(pdf);
+    if (typeof count === "number") setCurrent({ ...current, print_count: count });
   };
   const print = async () => {
     setError("");
@@ -293,7 +292,7 @@ export function ReceiptPreview({ payment, calendar, footer, onPrinted, onClose }
     try {
       await new Promise((r) => setTimeout(r, 60));
       // A PDF is the receipt's own size, filed by year and month (6.9).
-      const path = await savePdfAt(current.number, { w: sheetW, h: Math.ceil(height) + 8 }, receiptFolder(current.local_date));
+      const path = await savePdfAt(current.number, { w: sheetW, h: Math.ceil(height) + 8 }, receiptFolder(current.date));
       await finish(true);
       if (path) {
         setSavedPath(path);

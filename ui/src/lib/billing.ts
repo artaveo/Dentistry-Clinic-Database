@@ -1,7 +1,8 @@
-// Phase 6 helpers shared by the billing screens: reading an amount a person typed, the payment methods
-// (fetched once, refreshed after an edit), and the words for the states of money documents.
+// Helpers shared by the finance screens (docs/design/finance-standard.md): reading an amount a person typed,
+// the chart of accounts (fetched once, refreshed after an edit), account names, and the words for the states
+// of money documents.
 import { useEffect, useState } from "react";
-import type { InvoiceInfo, InvoiceListParams, PaymentListParams, PayState, PaymentInfo, PaymentMethodInfo } from "../../../shared/ts/contract";
+import type { AccountInfo, DocKind, InvoiceInfo, InvoiceListParams, PayState, ReceiptListParams, VoucherListParams } from "../../../shared/ts/contract";
 import { rpc } from "./api";
 import { latinDigits } from "./dates";
 
@@ -33,17 +34,20 @@ export function amountRule(s: string, allowZero = false): string | null {
   return null;
 }
 
-let methods: Promise<PaymentMethodInfo[]> | null = null;
+// ───────────────────────────── the chart of accounts ─────────────────────────────
+
+let accounts: Promise<AccountInfo[]> | null = null;
 const listeners = new Set<() => void>();
 
-export function invalidatePaymentMethods() {
-  methods = null;
+/** Call after an account was added or changed, or after money moved (balances). */
+export function invalidateAccounts() {
+  accounts = null;
   listeners.forEach((l) => l());
 }
 
-/** Every payment method, switched-off ones included (an old payment keeps its method). */
-export function usePaymentMethods(): PaymentMethodInfo[] | null {
-  const [value, setValue] = useState<PaymentMethodInfo[] | null>(null);
+/** Every account, switched-off ones included (an old document keeps its account). */
+export function useAccounts(): AccountInfo[] | null {
+  const [value, setValue] = useState<AccountInfo[] | null>(null);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const bump = () => setTick((x) => x + 1);
@@ -54,17 +58,39 @@ export function usePaymentMethods(): PaymentMethodInfo[] | null {
   }, []);
   useEffect(() => {
     let live = true;
-    methods ??= rpc("payment_methods.list", { include_inactive: true }).catch((e) => {
-      methods = null;
+    accounts ??= rpc("fin.accounts.list", { include_inactive: true }).catch((e) => {
+      accounts = null;
       throw e;
     });
-    methods.then((v) => live && setValue(v)).catch(() => {});
+    accounts.then((v) => live && setValue(v)).catch(() => {});
     return () => {
       live = false;
     };
   }, [tick]);
   return value;
 }
+
+/** Money accounts (cash drawers, banks, mobile money) that are turned on. */
+export const moneyAccounts = (list: AccountInfo[] | null) => (list ?? []).filter((a) => a.money && a.is_active);
+
+/** Expense accounts a person books to by hand (not the parent 5000, bad debts or cash over/short). */
+export const expenseAccounts = (list: AccountInfo[] | null) =>
+  (list ?? []).filter((a) => a.kind === "expense" && a.is_active && ![5000, 5810, 5910].includes(a.id));
+
+/** An account's name: the clinic's own name, or the built-in label for its code. */
+export function accountName(a: Pick<AccountInfo, "id" | "name"> | undefined | null, t: (k: string) => string): string {
+  if (!a) return "—";
+  return a.name ?? t(`fin.account.${a.id}`);
+}
+
+/** The name of an account by its code, from a loaded list. */
+export function accountNameOf(id: number | null | undefined, list: AccountInfo[] | null, t: (k: string) => string): string {
+  if (id === null || id === undefined) return "—";
+  const a = (list ?? []).find((x) => x.id === id);
+  return a ? accountName(a, t) : t(`fin.account.${id}`);
+}
+
+// ───────────────────────────── documents ─────────────────────────────
 
 export const PAY_TONE: Record<PayState, "danger" | "warning" | "success" | "neutral"> = {
   unpaid: "danger",
@@ -74,13 +100,14 @@ export const PAY_TONE: Record<PayState, "danger" | "warning" | "success" | "neut
 };
 
 /** Whether the invoice still takes money. */
-export const isOpen = (i: Pick<InvoiceInfo, "status" | "remaining">) => i.status === "issued" && i.remaining > 0;
+export const isOpen = (i: Pick<InvoiceInfo, "status" | "remaining">) => i.status === "posted" && i.remaining > 0;
 
-/** How a money row is called on screen: the receipt number, or "credit used" / "refund". */
-export const paymentTitleKey = (p: Pick<PaymentInfo, "kind" | "invoice_id">) =>
-  p.kind === "refund" ? "pay.kind.refund" : p.kind === "credit" ? "pay.kind.credit" : p.invoice_id ? "pay.kind.payment" : "pay.kind.advance";
+/** The word for a kind of document ("receipt", "refund", …). */
+export const docKindKey = (k: DocKind) => `fin.doc.${k}`;
 
-/** Fills the unused filters of a payment list request. */
-export const payQ = (p: Partial<PaymentListParams>): PaymentListParams => ({ patient_id: null, invoice_id: null, from: null, to: null, limit: null, offset: null, ...p });
 /** Fills the unused filters of an invoice list request. */
 export const invQ = (p: Partial<InvoiceListParams>): InvoiceListParams => ({ patient_id: null, open_only: false, from: null, to: null, search: null, limit: null, offset: null, ...p });
+/** Fills the unused filters of a receipt list request. */
+export const rcQ = (p: Partial<ReceiptListParams>): ReceiptListParams => ({ patient_id: null, kind: null, account_id: null, from: null, to: null, search: null, limit: null, offset: null, ...p });
+/** Fills the unused filters of a voucher list request. */
+export const pvQ = (p: Partial<VoucherListParams>): VoucherListParams => ({ kind: null, purpose: null, account_id: null, supplier_id: null, from: null, to: null, limit: null, offset: null, ...p });

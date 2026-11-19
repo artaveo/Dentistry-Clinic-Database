@@ -1,10 +1,9 @@
-// Full A4 financial documents (Phase 6, 6.11): the invoice, the patient's statement, the day's cash report and the
-// doctor commission settlement. Each has its own layout, on the clinic's letterhead like every printed
-// document; the receipt is a separate, small document (print/receipt.tsx).
-import type { CalendarSystem, CashClosingInfo, CashDay, CommissionReport, ExpenseInfo, InvoiceInfo, Language, PaymentInfo, StatementInfo, ToothNumbering } from "../../../shared/ts/contract";
-import { surfacesText, teethLabel } from "../chart/numbering";
+// Full A4 financial documents (docs/design/finance-standard.md): the invoice, the patient's statement, a money
+// account's day and the doctor share preview. Each has its own layout, on the clinic's letterhead like every
+// printed document; the receipt is a separate, small document (print/receipt.tsx).
+import type { CalendarSystem, CashDayInfo, CommissionReport, InvoiceInfo, Language, ReceiptInfo, StatementInfo, ToothNumbering, VoucherInfo } from "../../../shared/ts/contract";
+import { teethLabel } from "../chart/numbering";
 import { formatDate, formatDateTime } from "../lib/dates";
-import { tr } from "../lib/medical";
 import { formatAmount } from "../lib/money";
 import { Letterhead as HeaderBlock, Sheet } from "./DocumentSheet";
 import { docT, num } from "./docText";
@@ -52,15 +51,16 @@ function Totals({ rows, lang }: { rows: { label: string; value: number; strong?:
   );
 }
 
-export function InvoiceSheet({ invoice, payments, numbering, footer, ...c }: Common & { invoice: InvoiceInfo; payments: PaymentInfo[]; numbering: ToothNumbering; footer?: string }) {
+export function InvoiceSheet({ invoice, numbering, footer, ...c }: Common & { invoice: InvoiceInfo; numbering: ToothNumbering; footer?: string }) {
   const { lang, calendar, letterhead } = c;
   const t = docT(lang);
   const money = (v: number) => formatAmount(v, lang);
-  const received = payments.filter((p) => p.kind !== "refund");
+  const received = invoice.allocations.filter((a) => a.amount !== 0);
+  const adjusted = invoice.adjustments.filter((a) => a.status === "posted");
   return (
     <Sheet paper="a4" lang={lang} letterhead={letterhead} testId={`invoice-sheet-${invoice.number}`} void={invoice.status === "void"}>
       <HeaderBlock letterhead={letterhead} lang={lang} doctor={null} />
-      <Title title={t("inv.title")} number={invoice.number} date={invoice.issued_at} lang={lang} calendar={calendar} />
+      <Title title={t("inv.title")} number={invoice.number} date={invoice.date} lang={lang} calendar={calendar} />
       <PatientBlock name={invoice.patient_name} number={invoice.patient_number} lang={lang} />
       <div className="doc-body">
         <table className="doc-table fin-table" data-testid="invoice-lines">
@@ -71,18 +71,20 @@ export function InvoiceSheet({ invoice, payments, numbering, footer, ...c }: Com
               <th>{t("inv.col.teeth")}</th>
               <th className="num">{t("inv.col.qty")}</th>
               <th className="num">{t("inv.col.unit")}</th>
+              <th className="num">{t("inv.col.discount")}</th>
               <th className="num">{t("inv.col.total")}</th>
             </tr>
           </thead>
           <tbody>
-            {invoice.lines.map((l, i) => (
-              <tr key={l.id}>
-                <td>{num(i + 1, lang)}</td>
-                <td>{tr(l.names, lang)}</td>
-                <td><bdi>{[teethLabel(l.teeth, numbering, lang), surfacesText(l.surfaces, l.teeth[0])].filter(Boolean).join(" ")}</bdi></td>
+            {invoice.lines.map((l) => (
+              <tr key={l.no}>
+                <td>{num(l.no, lang)}</td>
+                <td>{l.name}</td>
+                <td><bdi>{teethLabel(l.teeth, numbering, lang)}</bdi></td>
                 <td className="num">{num(l.quantity, lang)}</td>
                 <td className="num">{money(l.unit_price)}</td>
-                <td className="num">{money(l.line_total)}</td>
+                <td className="num">{l.discount ? money(l.discount) : ""}</td>
+                <td className="num">{money(l.net)}</td>
               </tr>
             ))}
           </tbody>
@@ -90,33 +92,42 @@ export function InvoiceSheet({ invoice, payments, numbering, footer, ...c }: Com
         <Totals
           lang={lang}
           rows={[
-            { label: t("inv.subtotal"), value: invoice.subtotal },
+            { label: t("inv.subtotal"), value: invoice.gross },
             ...(invoice.discount ? [{ label: t("inv.discount"), value: invoice.discount, negative: true }] : []),
-            ...(invoice.credit_notes_total ? [{ label: t("inv.creditNotes"), value: invoice.credit_notes_total, negative: true }] : []),
             { label: t("inv.net"), value: invoice.net, strong: true },
-            { label: t("inv.paid"), value: invoice.paid - invoice.refunded },
+            ...(invoice.reductions ? [{ label: t("inv.reductions"), value: invoice.reductions, negative: true }] : []),
+            ...(invoice.written_off ? [{ label: t("inv.writtenOff"), value: invoice.written_off, negative: true }] : []),
+            { label: t("inv.paid"), value: invoice.allocated },
             { label: t("inv.remaining"), value: invoice.remaining, strong: true },
           ]}
         />
         {invoice.note && <div className="doc-note">{invoice.note}</div>}
-        {received.length > 0 && (
+        {(received.length > 0 || adjusted.length > 0) && (
           <>
             <h2 className="doc-h2">{t("inv.payments")}</h2>
             <table className="doc-table fin-table">
               <tbody>
                 {received.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={`a${p.doc_id}`}>
                     <td><bdi className="ltr">{p.number}</bdi></td>
-                    <td>{formatDate(p.paid_at, lang, calendar)}</td>
-                    <td>{p.kind === "credit" ? t("pay.kind.credit") : tr(p.method, lang)}</td>
-                    <td className="num">{money(p.amount)}</td>
+                    <td>{formatDate(p.date, lang, calendar)}</td>
+                    <td>{t(`fin.doc.${p.kind}`)}</td>
+                    <td className="num">{p.amount < 0 ? "− " : ""}{money(Math.abs(p.amount))}</td>
+                  </tr>
+                ))}
+                {adjusted.map((a) => (
+                  <tr key={`j${a.id}`}>
+                    <td><bdi className="ltr">{a.number}</bdi></td>
+                    <td>{formatDate(a.date, lang, calendar)}</td>
+                    <td>{t(a.kind === "write_off" ? "fin.doc.wo" : "fin.doc.cn")} · {a.reason}</td>
+                    <td className="num">{money(a.amount)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </>
         )}
-        {invoice.installments.length > 0 && (
+        {invoice.plan && invoice.plan.installments.length > 0 && (
           <>
             <h2 className="doc-h2">{t("inv.installments")}</h2>
             <table className="doc-table fin-table" data-testid="invoice-installments">
@@ -124,7 +135,7 @@ export function InvoiceSheet({ invoice, payments, numbering, footer, ...c }: Com
                 <tr><th>#</th><th>{t("inst.due")}</th><th className="num">{t("inst.amount")}</th><th>{t("inst.state")}</th></tr>
               </thead>
               <tbody>
-                {invoice.installments.map((i) => (
+                {invoice.plan.installments.map((i) => (
                   <tr key={i.no}>
                     <td>{num(i.no, lang)}</td>
                     <td>{formatDate(i.due_date, lang, calendar)}</td>
@@ -151,16 +162,14 @@ export function StatementSheet({ statement, ...c }: Common & { statement: Statem
   const { lang, calendar, letterhead } = c;
   const t = docT(lang);
   const money = (v: number) => formatAmount(v, lang);
-  const a = statement.account;
-  const balance = statement.lines.length ? statement.lines[statement.lines.length - 1].balance : statement.opening_balance;
   return (
     <Sheet paper="a4" lang={lang} letterhead={letterhead} testId="statement-sheet">
       <HeaderBlock letterhead={letterhead} lang={lang} doctor={null} />
-      <Title title={t("stmt.title")} date={statement.generated_at} lang={lang} calendar={calendar} />
+      <Title title={t("stmt.title")} date={statement.to} lang={lang} calendar={calendar} />
       <PatientBlock name={statement.patient_name} number={statement.patient_number} phone={statement.phone} lang={lang} />
-      {(statement.from || statement.to) && (
+      {statement.from && (
         <div className="doc-meta" style={{ marginBottom: "2mm" }}>
-          <span>{t("stmt.period")}: {statement.from ? formatDate(statement.from, lang, calendar) : "…"} — {statement.to ? formatDate(statement.to, lang, calendar) : "…"}</span>
+          <span>{t("stmt.period")}: {formatDate(statement.from, lang, calendar)} — {formatDate(statement.to, lang, calendar)}</span>
         </div>
       )}
       <div className="doc-body">
@@ -175,16 +184,16 @@ export function StatementSheet({ statement, ...c }: Common & { statement: Statem
             </tr>
           </thead>
           <tbody>
-            {statement.opening_balance !== 0 && (
-              <tr className="muted-row"><td colSpan={4}>{t("stmt.opening")}</td><td className="num">{money(statement.opening_balance)}</td></tr>
+            {statement.opening !== 0 && (
+              <tr className="muted-row"><td colSpan={4}>{t("stmt.opening")}</td><td className="num">{money(statement.opening)}</td></tr>
             )}
-            {statement.lines.map((l, i) => (
-              <tr key={i}>
-                <td>{formatDate(l.at, lang, calendar)}</td>
-                <td>{t(`stmt.kind.${l.kind}`)} <bdi className="ltr">{l.number}</bdi>{l.description && <span className="doc-muted"> · {l.description}</span>}</td>
-                <td className="num">{l.debit ? money(l.debit) : ""}</td>
-                <td className="num">{l.credit ? money(l.credit) : ""}</td>
-                <td className="num">{money(l.balance)}</td>
+            {statement.lines.map((l) => (
+              <tr key={l.doc_id}>
+                <td>{formatDate(l.date, lang, calendar)}</td>
+                <td>{t(`fin.doc.${l.kind}`)} <bdi className="ltr">{l.number}</bdi>{l.description && <span className="doc-muted"> · {l.description}</span>}</td>
+                <td className="num">{l.charge ? money(l.charge) : ""}</td>
+                <td className="num">{l.credit ? `${l.credit < 0 ? "− " : ""}${money(Math.abs(l.credit))}` : ""}</td>
+                <td className="num">{l.balance < 0 ? "− " : ""}{money(Math.abs(l.balance))}</td>
               </tr>
             ))}
           </tbody>
@@ -192,12 +201,9 @@ export function StatementSheet({ statement, ...c }: Common & { statement: Statem
         <Totals
           lang={lang}
           rows={[
-            { label: t("acct.total"), value: a.total },
-            { label: t("acct.discount"), value: a.discount, negative: true },
-            { label: t("acct.paid"), value: a.paid },
-            { label: t("acct.refunded"), value: a.refunded },
-            ...(a.credit ? [{ label: t("acct.credit"), value: a.credit }] : []),
-            { label: balance < 0 ? t("stmt.inCredit") : t("acct.remaining"), value: Math.abs(balance), strong: true },
+            { label: t("stmt.charges"), value: statement.charges },
+            { label: t("stmt.credits"), value: statement.credits },
+            { label: statement.closing < 0 ? t("stmt.inCredit") : t("acct.remaining"), value: Math.abs(statement.closing), strong: true },
           ]}
         />
       </div>
@@ -205,72 +211,83 @@ export function StatementSheet({ statement, ...c }: Common & { statement: Statem
   );
 }
 
-export function CashDaySheet({ day, payments, expenses, ...c }: Common & { day: CashDay; payments: PaymentInfo[]; expenses: ExpenseInfo[] }) {
+/** One money account on one day: where the money came from and went, the receipts and payments, the counts. */
+export function CashDaySheet({ day, account, receipts, vouchers, ...c }: Common & { day: CashDayInfo; account: string; receipts: ReceiptInfo[]; vouchers: VoucherInfo[] }) {
   const { lang, calendar, letterhead } = c;
   const t = docT(lang);
   const money = (v: number) => formatAmount(v, lang);
-  const closing: CashClosingInfo | null = day.closing;
+  const last = day.counts[day.counts.length - 1] ?? null;
   return (
     <Sheet paper="a4" lang={lang} letterhead={letterhead} testId="cash-sheet">
       <HeaderBlock letterhead={letterhead} lang={lang} doctor={null} />
-      <Title title={t("cash.report")} date={day.date} lang={lang} calendar={calendar} />
+      <Title title={`${t("cash.report")} — ${account}`} date={day.date} lang={lang} calendar={calendar} />
       <div className="doc-body">
-        <h2 className="doc-h2">{t("cash.byMethod")}</h2>
-        <table className="doc-table fin-table">
-          <thead><tr><th>{t("rcpt.method")}</th><th className="num">{t("cash.received")}</th><th className="num">{t("cash.refunded")}</th></tr></thead>
-          <tbody>
-            {day.by_method.map((m, i) => (
-              <tr key={i}><td>{tr(m.method, lang)}</td><td className="num">{money(m.received)}</td><td className="num">{money(m.refunded)}</td></tr>
-            ))}
-            {!day.by_method.length && <tr><td colSpan={3} className="doc-muted">{t("cash.noPayments")}</td></tr>}
-          </tbody>
-        </table>
         <Totals
           lang={lang}
           rows={[
-            { label: t("cash.cashIn"), value: day.cash_in },
-            { label: t("cash.cashRefunds"), value: day.cash_refunds, negative: true },
-            { label: t("cash.cashExpenses"), value: day.cash_expenses, negative: true },
-            { label: t("cash.expected"), value: day.expected, strong: true },
-            ...(closing ? [{ label: t("cash.counted"), value: closing.counted }, { label: t("cash.difference"), value: Math.abs(closing.difference), strong: closing.difference !== 0 }] : []),
+            { label: t("cash.opening"), value: day.opening },
+            { label: t("cash.received"), value: day.received },
+            ...(day.other_in ? [{ label: t("cash.otherIn"), value: day.other_in }] : []),
+            ...(day.refunded ? [{ label: t("cash.refunded"), value: day.refunded, negative: true }] : []),
+            ...(day.paid_out ? [{ label: t("cash.paidOut"), value: day.paid_out, negative: true }] : []),
+            ...(day.transfers ? [{ label: t("cash.transfers"), value: Math.abs(day.transfers), negative: day.transfers < 0 }] : []),
+            ...(day.adjustments ? [{ label: t("cash.adjustments"), value: Math.abs(day.adjustments), negative: day.adjustments < 0 }] : []),
+            { label: t("cash.closing"), value: day.closing, strong: true },
           ]}
         />
-        {closing?.reason && <div className="doc-note">{t("cash.reason")}: {closing.reason}</div>}
-        {payments.length > 0 && (
+        {receipts.length > 0 && (
           <>
             <h2 className="doc-h2">{t("cash.paymentsOfDay")}</h2>
             <table className="doc-table fin-table" data-testid="cash-payments">
               <tbody>
-                {payments.map((p) => (
+                {receipts.map((p) => (
                   <tr key={p.id}>
                     <td><bdi className="ltr">{p.number}</bdi></td>
                     <td>{p.patient_name}</td>
-                    <td>{p.kind === "credit" ? t("pay.kind.credit") : tr(p.method, lang)}</td>
-                    <td className="num">{p.kind === "refund" ? "− " : ""}{money(p.amount)}</td>
+                    <td>{t(`fin.doc.${p.kind}`)}</td>
+                    <td className="num">{p.kind === "rf" ? "− " : ""}{money(p.amount)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </>
         )}
-        {expenses.length > 0 && (
+        {vouchers.length > 0 && (
           <>
             <h2 className="doc-h2">{t("cash.expensesOfDay")}</h2>
             <table className="doc-table fin-table">
               <tbody>
-                {expenses.map((e) => (
-                  <tr key={e.id}><td>{tr(e.category, lang)}</td><td>{e.description}</td><td className="num">{money(e.amount)}</td></tr>
+                {vouchers.map((v) => (
+                  <tr key={v.id}><td><bdi className="ltr">{v.number}</bdi></td><td>{v.name ?? v.supplier_name ?? t(`fin.purpose.${v.purpose ?? "other"}`)}</td><td className="num">{money(v.net)}</td></tr>
                 ))}
               </tbody>
             </table>
           </>
         )}
+        {day.counts.length > 0 && (
+          <>
+            <h2 className="doc-h2">{t("cash.counts")}</h2>
+            <table className="doc-table fin-table">
+              <tbody>
+                {day.counts.map((k) => (
+                  <tr key={k.id}>
+                    <td><bdi className="ltr">{k.number}</bdi></td>
+                    <td>{t("cash.book")}: {money(k.book)}</td>
+                    <td>{t("cash.counted")}: {money(k.counted)}</td>
+                    <td className="num">{k.difference ? `${k.difference > 0 ? "+" : "−"}${money(Math.abs(k.difference))}` : "✓"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {last?.reason && <div className="doc-note">{t("cash.reason")}: {last.reason}</div>}
+          </>
+        )}
       </div>
       <div className="doc-signatures">
-        <div className="doc-sign"><span className="doc-sign-line" />{closing?.closed_by_name ?? t("inv.sign.cashier")}</div>
+        <div className="doc-sign"><span className="doc-sign-line" />{last?.created_by_name ?? t("inv.sign.cashier")}</div>
         <div className="doc-sign"><span className="doc-sign-line" />{t("cash.sign.manager")}</div>
       </div>
-      <div className="doc-meta"><span>{closing ? `${t("cash.closedAt")}: ${formatDateTime(closing.closed_at, lang, calendar)}` : t("cash.notClosed")}</span></div>
+      <div className="doc-meta"><span>{last ? `${t("cash.countedAt")}: ${formatDateTime(last.created_at, lang, calendar)}` : t("cash.notCounted")}</span></div>
     </Sheet>
   );
 }
@@ -295,7 +312,7 @@ export function CommissionSheet({ report, ...c }: Common & { report: CommissionR
               <thead><tr><th>{t("doc.date")}</th><th>{t("rcpt.invoice")}</th><th>{t("doc.patient")}</th><th>{t("inv.col.service")}</th><th className="num">{t("comm.base")}</th><th className="num">{t("comm.amount")}</th></tr></thead>
               <tbody>
                 {d.lines.map((l, i) => (
-                  <tr key={i}><td>{formatDate(l.date, lang, calendar)}</td><td><bdi className="ltr">{l.invoice_number}</bdi></td><td>{l.patient_name}</td><td>{tr(l.names, lang)}</td><td className="num">{money(l.base)}</td><td className="num">{money(l.commission)}</td></tr>
+                  <tr key={i}><td>{formatDate(l.date, lang, calendar)}</td><td><bdi className="ltr">{l.invoice_number}</bdi></td><td>{l.patient_name}</td><td>{l.name}</td><td className="num">{money(l.base)}</td><td className="num">{money(l.commission)}</td></tr>
                 ))}
               </tbody>
             </table>

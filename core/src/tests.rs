@@ -4099,7 +4099,8 @@ fn dashboard_shows_the_clinic_to_the_owner_and_only_their_own_work_to_a_doctor()
     assert_eq!((own["scope"].as_str(), own["doctor_name"].as_str()), (Some("doctor"), Some("دکتر احمد")));
     assert_eq!(
         (own["revenue_basis"].as_str(), own["revenue_today"].as_i64()),
-        (Some("invoiced"), Some(350_000))
+        // The doctor's own work today, net of the 20 000 discount (as every production report counts it).
+        (Some("invoiced"), Some(330_000))
     );
     assert!(own["outstanding"].is_null() && own["low_stock"].is_null() && own["backup"].is_null(), "{own}");
     assert_eq!(own["treatments_completed"], 1);
