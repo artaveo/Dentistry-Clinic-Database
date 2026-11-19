@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Ban, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import type { CalendarSystem, PurchaseInfo } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
-import { amountRule, parseAfn, usePaymentMethods } from "../../lib/billing";
+import { amountRule, parseAfn } from "../../lib/billing";
 import { addDays, todayIso } from "../../lib/calendar";
 import { digits, formatDate } from "../../lib/dates";
 import { formatQty, parseQty, purchaseQ, qtyRule, useStockLookup } from "../../lib/inventory";
@@ -19,7 +19,7 @@ import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../../ui/Fe
 import { Field, Select, TextInput } from "../../ui/Field";
 import { Dialog } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
-import { AmountInput } from "../billing/common";
+import { AmountInput, MoneyAccountSelect } from "../billing/common";
 import { ReasonDialog } from "../billing/dialogs";
 import { ExpiryInput, QtyInput, useAction, useItemOptions, useSupplierOptions } from "./common";
 import type { InventoryPerms } from "./common";
@@ -182,13 +182,12 @@ function PurchaseDialog({ calendar, perms, onClose, onDone }: { calendar: Calend
   const items = useItemOptions();
   const places = useStockLookup("locations");
   const suppliers = useSupplierOptions("supplier");
-  const methods = usePaymentMethods();
   const [supplier, setSupplier] = useState("");
   const [date, setDate] = useState(todayIso());
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<Line[]>([emptyLine("")]);
   const [paid, setPaid] = useState("");
-  const [method, setMethod] = useState("");
+  const [account, setAccount] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const { busy, error, run } = useAction();
   const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
@@ -200,9 +199,6 @@ function PurchaseDialog({ calendar, perms, onClose, onDone }: { calendar: Calend
   useEffect(() => {
     if (firstPlace) setLines((ls) => ls.map((l) => (l.place ? l : { ...l, place: firstPlace })));
   }, [firstPlace]);
-  useEffect(() => {
-    if (!method && methods?.length) setMethod((methods.find((m) => m.is_active && m.is_cash) ?? methods.find((m) => m.is_active))?.id ?? "");
-  }, [methods]);
 
   const patch = (i: number, p: Partial<Line>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
   const lineRule = (l: Line) => (!l.item ? "rule.required" : qtyRule(l.qty) ?? (l.cost.trim() ? amountRule(l.cost, true) : "rule.required"));
@@ -224,7 +220,7 @@ function PurchaseDialog({ calendar, perms, onClose, onDone }: { calendar: Calend
           note: note.trim() || null,
           lines: lines.map((l) => ({ item_id: l.item, qty: parseQty(l.qty) ?? 0, unit_cost: parseAfn(l.cost) ?? 0, lot_no: l.lot.trim() || null, expiry_date: l.expiry, location_id: l.place })),
           paid: paidMinor,
-          method_id: paidMinor > 0 ? method || null : null,
+          account_id: paidMinor > 0 ? account : null,
         });
         onDone();
       },
@@ -303,10 +299,8 @@ function PurchaseDialog({ calendar, perms, onClose, onDone }: { calendar: Calend
               <AmountInput value={paid} onChange={setPaid} testId="purchase-paid" />
             </Field>
             {paidMinor > 0 && (
-              <Field label={t("pay.method")}>
-                <Select value={method} onChange={(e) => setMethod(e.target.value)} data-testid="purchase-method">
-                  {methods?.filter((m) => m.is_active).map((m) => <option key={m.id} value={m.id}>{tr(m.name, lang)}</option>)}
-                </Select>
+              <Field label={t("exp.paidFrom")}>
+                <MoneyAccountSelect value={account} onChange={setAccount} testId="purchase-method" />
               </Field>
             )}
           </div>

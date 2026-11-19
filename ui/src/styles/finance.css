@@ -1,0 +1,17 @@
+/* Finance screens: the reconciliation tables of the overview, totals rows and voucher lines. */
+
+/* A reconciliation reads like a statement: label left, amount right, subtotals ruled. */
+.table.recon td { height: 40px; }
+.table.recon tbody tr:hover { background: transparent; }
+.table.recon td.num { width: 1%; white-space: nowrap; }
+.recon-muted td { color: var(--text-3); font-size: var(--text-caption); }
+.table tr.recon-total td,
+.table tr.table-total td {
+  font-weight: 650; color: var(--text); background: var(--fill-subtle);
+  border-top: 1px solid var(--line-strong); border-bottom: none;
+}
+.table tbody tr.recon-total:hover, .table tbody tr.table-total:hover { background: var(--fill-subtle); }
+
+/* Expense voucher: each line is a small group, separated so long forms stay scannable. */
+.voucher-line { padding-bottom: var(--space-3); border-bottom: 1px dashed var(--line); }
+.voucher-line:last-child { border-bottom: none; padding-bottom: 0; }

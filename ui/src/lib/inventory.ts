@@ -2,7 +2,7 @@
 // hundredths of an afghani), the places / categories / units lists, tones of the status badges, and
 // reading a list of tooth numbers a person typed.
 import { useCallback, useEffect, useState } from "react";
-import type { BatchState, Language, LabCaseListParams, LabStatus, PurchaseListParams, StockBatchListParams, StockItemListParams, StockLookupInfo, StockMovementListParams, SupplierListParams, SupplierPaymentListParams } from "../../../shared/ts/contract";
+import type { BatchState, Language, LabCaseListParams, LabStatus, PurchaseListParams, StockBatchListParams, StockItemListParams, StockLookupInfo, StockMovementListParams, SupplierListParams } from "../../../shared/ts/contract";
 import { isSessionError, rpc } from "./api";
 import { afnInput, parseAfn } from "./billing";
 import { digits, latinDigits } from "./dates";
@@ -72,5 +72,4 @@ export const batchQ = (p: Partial<StockBatchListParams> = {}): StockBatchListPar
 export const moveQ = (p: Partial<StockMovementListParams> = {}): StockMovementListParams => ({ item_id: null, from: null, to: null, kind: null, ...p });
 export const supplierQ = (p: Partial<SupplierListParams> = {}): SupplierListParams => ({ kind: null, include_inactive: false, owing_only: false, ...p });
 export const purchaseQ = (p: Partial<PurchaseListParams> = {}): PurchaseListParams => ({ supplier_id: null, from: null, to: null, ...p });
-export const spayQ = (p: Partial<SupplierPaymentListParams> = {}): SupplierPaymentListParams => ({ supplier_id: null, from: null, to: null, ...p });
 export const labQ = (p: Partial<LabCaseListParams> = {}): LabCaseListParams => ({ status: null, lab_id: null, patient_id: null, open_only: false, delayed_only: false, ...p });

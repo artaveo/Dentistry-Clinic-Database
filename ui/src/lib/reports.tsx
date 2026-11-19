@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Activity, Ban, BadgeDollarSign, BarChart3, CalendarClock, CalendarDays, ClipboardList, Coins, HandCoins, Hourglass, Layers, Megaphone, PackageCheck, PackageMinus,
+  Activity, Ban, BadgeDollarSign, Landmark, BarChart3, CalendarClock, CalendarDays, ClipboardList, Coins, HandCoins, Hourglass, Layers, Megaphone, PackageCheck, PackageMinus,
   PackageX, Percent, Receipt, ReceiptText, Scale, ShoppingCart, Smile, Stethoscope, Truck, UserPlus, Wallet, Wrench,
 } from "lucide-react";
 import type { CalendarSystem, Language, ReportCell, ReportKind } from "../../../shared/ts/contract";
@@ -13,25 +13,28 @@ import { tr } from "./medical";
 import { formatAmount } from "./money";
 
 export type ReportGroup = "financial" | "clinical" | "inventory";
-export type ReportFilter = "doctor" | "service";
+export type ReportFilter = "doctor" | "service" | "account";
 /** `range`: a first and a last day; `asOf`: only the last day matters; `now`: the state today, no period. */
 export type ReportPeriod = "range" | "asOf" | "now";
 
 export type ReportMeta = { kind: ReportKind; group: ReportGroup; icon: LucideIcon; period: ReportPeriod; filters: ReportFilter[] };
 
 export const REPORTS: ReportMeta[] = [
-  { kind: "daily_revenue", group: "financial", icon: CalendarDays, period: "range", filters: [] },
-  { kind: "monthly_revenue", group: "financial", icon: BarChart3, period: "range", filters: [] },
-  { kind: "payments", group: "financial", icon: Receipt, period: "range", filters: [] },
-  { kind: "outstanding", group: "financial", icon: Hourglass, period: "now", filters: [] },
-  { kind: "discounts", group: "financial", icon: Percent, period: "range", filters: [] },
-  { kind: "refunds", group: "financial", icon: Ban, period: "range", filters: [] },
-  { kind: "doctor_revenue", group: "financial", icon: Stethoscope, period: "range", filters: ["doctor"] },
-  { kind: "doctor_commission", group: "financial", icon: HandCoins, period: "range", filters: ["doctor"] },
-  { kind: "service_revenue", group: "financial", icon: BadgeDollarSign, period: "range", filters: ["service", "doctor"] },
+  { kind: "daily_summary", group: "financial", icon: CalendarDays, period: "range", filters: [] },
+  { kind: "monthly_summary", group: "financial", icon: BarChart3, period: "range", filters: [] },
+  { kind: "receipts", group: "financial", icon: Receipt, period: "range", filters: [] },
+  { kind: "invoices", group: "financial", icon: ReceiptText, period: "range", filters: [] },
+  { kind: "adjustments", group: "financial", icon: Percent, period: "range", filters: [] },
+  { kind: "aging", group: "financial", icon: Hourglass, period: "asOf", filters: [] },
+  { kind: "installments", group: "financial", icon: CalendarClock, period: "asOf", filters: [] },
+  { kind: "deposits", group: "financial", icon: Coins, period: "asOf", filters: [] },
   { kind: "expenses", group: "financial", icon: Wallet, period: "range", filters: [] },
-  { kind: "profit_loss", group: "financial", icon: Scale, period: "range", filters: [] },
-  { kind: "cash_closings", group: "financial", icon: Coins, period: "range", filters: [] },
+  { kind: "money_book", group: "financial", icon: Landmark, period: "range", filters: ["account"] },
+  { kind: "provider_production", group: "financial", icon: Stethoscope, period: "range", filters: ["doctor"] },
+  { kind: "service_revenue", group: "financial", icon: BadgeDollarSign, period: "range", filters: ["service", "doctor"] },
+  { kind: "doctor_shares", group: "financial", icon: HandCoins, period: "range", filters: ["doctor"] },
+  { kind: "cash_counts", group: "financial", icon: Ban, period: "range", filters: ["account"] },
+  { kind: "income_statement", group: "financial", icon: Scale, period: "range", filters: [] },
   { kind: "patients", group: "clinical", icon: UserPlus, period: "range", filters: [] },
   { kind: "treatments", group: "clinical", icon: ClipboardList, period: "range", filters: ["doctor", "service"] },
   { kind: "procedures", group: "clinical", icon: Layers, period: "range", filters: ["doctor", "service"] },
@@ -50,9 +53,9 @@ export const REPORTS: ReportMeta[] = [
 
 export const GROUPS: ReportGroup[] = ["financial", "clinical", "inventory"];
 
-/** The reports an owner opens every week (audit §7); the rest sit under «all reports». All 26 stay reachable. */
+/** The reports an owner opens every week (audit §7); the rest sit under «all reports». All stay reachable. */
 export const POPULAR: ReportKind[] = [
-  "daily_revenue", "monthly_revenue", "payments", "outstanding", "doctor_revenue", "service_revenue", "expenses", "profit_loss", "cash_closings",
+  "daily_summary", "receipts", "invoices", "aging", "expenses", "money_book", "income_statement", "provider_production",
   "patients", "treatments", "recall_list", "doctor_activity",
   "low_stock", "stock", "expiry",
 ];
@@ -114,11 +117,8 @@ export function renderCell(c: ReportCell, lang: Language, calendar: CalendarSyst
       return monthLabel(c.value, calendar, lang);
     case "name":
       return tr(c.value, lang);
-    case "tag": {
-      const k = `reports.val.${c.value}`;
-      const v = t(k);
-      return v === k ? c.value : v;
-    }
+    case "tag":
+      return tagText(c.value, t);
     case "qty": {
       const whole = c.value / 100;
       return digits(whole.toLocaleString("en-US", { maximumFractionDigits: 2 }), lang).replace(".", lang === "en" ? "." : "٫");
@@ -128,14 +128,21 @@ export function renderCell(c: ReportCell, lang: Language, calendar: CalendarSyst
   }
 }
 
+/** A `Tag` cell in words: a built-in account (`acct_1110`), a kind of finance document (`doc_rc`), or a value. */
+export function tagText(value: string, t: (k: string) => string): string {
+  const key = value.startsWith("acct_") ? `fin.account.${value.slice(5)}` : value.startsWith("doc_") ? `fin.doc.${value.slice(4)}` : `reports.val.${value}`;
+  const v = t(key);
+  return v === key ? value : v;
+}
+
 /** The words of every `Tag` value, for the Excel export (the Core cannot translate). */
 export function tagLabels(t: (k: string) => string, keys: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const k of keys) {
-    const text = t(`reports.val.${k}`);
-    if (text !== `reports.val.${k}`) out[k] = text;
+    const text = tagText(k, t);
+    if (text !== k) out[k] = text;
   }
   return out;
 }
 
-export const TAG_VALUES = ["received", "void", "pending", "contacted", "booked", "done", "dismissed", "checkup", "cleaning", "follow_up", "no_show", "other", "expired", "expiring", "lab", "supplier", "unknown"];
+export const TAG_VALUES = ["received", "void", "pending", "contacted", "booked", "done", "dismissed", "checkup", "cleaning", "follow_up", "no_show", "other", "expired", "expiring", "lab", "supplier", "unknown", "posted", "superseded", "discount", "back", "cn", "wo", "rf", "bill", "paid", "opening", "overdue", "partial"];

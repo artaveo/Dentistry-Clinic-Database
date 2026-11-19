@@ -1,16 +1,15 @@
-import { payQ } from "../../lib/billing";
-// Pieces every billing screen shares: the permissions it works with, an amount input, the badges of
-// invoices, and the receipt/invoice previews that open from any list.
+// Pieces every finance screen shares: the permissions it works with, an amount input, the badges of documents,
+// the account pickers, and the receipt/invoice previews that open from any list.
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { BillingSettings, CalendarSystem, InvoiceInfo, PayState, PaymentInfo, ToothNumbering } from "../../../../shared/ts/contract";
+import type { AccountInfo, CalendarSystem, DocStatus, FinanceSettings, InvoiceInfo, PayState, ReceiptInfo, ToothNumbering } from "../../../../shared/ts/contract";
 import { rpc } from "../../lib/api";
 import { useClinicSettings } from "../../lib/clinical";
-import { PAY_TONE, parseAfn } from "../../lib/billing";
+import { PAY_TONE, accountName, accountNameOf, moneyAccounts, parseAfn, useAccounts } from "../../lib/billing";
 import { formatAmount } from "../../lib/money";
 import { useI18n } from "../../i18n";
 import { Badge } from "../../ui/Feedback";
-import { TextInput } from "../../ui/Field";
+import { Select, TextInput } from "../../ui/Field";
 import { DocumentPreview } from "../../print/DocumentPreview";
 import { InvoiceSheet } from "../../print/finance";
 import { ReceiptPreview } from "../../print/receipt";
@@ -18,14 +17,15 @@ import { useLetterhead } from "../../print/letterhead";
 
 export type BillingPerms = {
   view: boolean;
+  /** Take money, issue invoices, pay expenses. */
   edit: boolean;
-  /** Void invoices, credit notes, refunds. */
+  /** Void, reduce, write off, refund. */
   void: boolean;
   /** Invoice a treatment at another price. */
   override: boolean;
-  /** Expenses, profit and commission reports. */
+  /** The overview, expenses, cash and bank, doctor shares, reports. */
   reports: boolean;
-  /** Payment methods, commission rules, billing settings. */
+  /** Accounts, the legal profile, doctor share rules, the receipt footer. */
   settings: boolean;
 };
 
@@ -58,23 +58,56 @@ export function PayBadge({ state }: { state: PayState }) {
   return <Badge tone={PAY_TONE[state]} dot testId={`pay-state-${state}`}>{t(`pay.state.${state}`)}</Badge>;
 }
 
-export function Money({ value, strong, tone }: { value: number; strong?: boolean; tone?: "danger" | "success" | "muted" }) {
-  const { lang } = useI18n();
-  return <span className={["num", strong && "cell-strong", tone && `money-${tone}`].filter(Boolean).join(" ")}>{formatAmount(value, lang)}</span>;
+/** Posted documents say nothing; a void or replaced one says so. */
+export function StatusBadge({ status }: { status: DocStatus }) {
+  const { t } = useI18n();
+  if (status === "posted") return null;
+  return <Badge tone="neutral" dot testId={`doc-status-${status}`}>{t(`fin.status.${status}`)}</Badge>;
 }
 
-let settingsCache: Promise<BillingSettings> | null = null;
+export function Money({ value, strong, tone }: { value: number; strong?: boolean; tone?: "danger" | "success" | "muted" }) {
+  const { lang } = useI18n();
+  return <span className={["num", strong && "cell-strong", tone && `money-${tone}`].filter(Boolean).join(" ")}>{value < 0 ? "− " : ""}{formatAmount(Math.abs(value), lang)}</span>;
+}
+
+/** A picker of the money accounts (cash drawer, banks); the cash drawer first. */
+export function MoneyAccountSelect({ value, onChange, testId, exclude }: { value: number | null; onChange: (id: number) => void; testId?: string; exclude?: number | null }) {
+  const { t } = useI18n();
+  const accounts = useAccounts();
+  const list = moneyAccounts(accounts).filter((a) => a.id !== exclude);
+  useEffect(() => {
+    if (value === null && list.length) onChange(list[0].id);
+  }, [accounts]);
+  return (
+    <Select value={value ?? ""} onChange={(e) => onChange(Number(e.target.value))} data-testid={testId}>
+      {list.map((a) => <option key={a.id} value={a.id}>{accountName(a, t)}</option>)}
+    </Select>
+  );
+}
+
+/** A picker of accounts from a list (expense accounts, …). */
+export function AccountSelect({ value, onChange, accounts, testId, placeholder }: { value: number | null; onChange: (id: number) => void; accounts: AccountInfo[]; testId?: string; placeholder?: string }) {
+  const { t } = useI18n();
+  return (
+    <Select value={value ?? ""} onChange={(e) => onChange(Number(e.target.value))} data-testid={testId}>
+      {placeholder !== undefined && <option value="">{placeholder}</option>}
+      {accounts.map((a) => <option key={a.id} value={a.id}>{accountName(a, t)}</option>)}
+    </Select>
+  );
+}
+
+let settingsCache: Promise<FinanceSettings> | null = null;
 export function invalidateBillingSettings() {
   settingsCache = null;
 }
 
-/** The billing settings (receipt footer, commission); null until loaded or when this user cannot see them. */
-export function useBillingSettings(enabled = true): BillingSettings | null {
-  const [v, setV] = useState<BillingSettings | null>(null);
+/** The finance settings (receipt footer, doctor shares, legal profile); null until loaded or when this user cannot see them. */
+export function useBillingSettings(enabled = true): FinanceSettings | null {
+  const [v, setV] = useState<FinanceSettings | null>(null);
   useEffect(() => {
     if (!enabled) return;
     let live = true;
-    settingsCache ??= rpc("billing.settings_get", {}).catch((e) => {
+    settingsCache ??= rpc("fin.settings.get", {}).catch((e) => {
       settingsCache = null;
       throw e;
     });
@@ -86,19 +119,22 @@ export function useBillingSettings(enabled = true): BillingSettings | null {
   return v;
 }
 
-/** Opens the receipt of a payment for printing; a reprint is counted by the Core, never a new payment. */
-export function ReceiptHost({ payment, calendar, onClose, onChanged }: { payment: PaymentInfo; calendar: CalendarSystem; onClose: () => void; onChanged?: (p: PaymentInfo) => void }) {
+/** Opens the receipt of a receipt, refund or allocation for printing; a reprint is counted, never new money. */
+export function ReceiptHost({ receipt, calendar, onClose, onChanged }: { receipt: ReceiptInfo; calendar: CalendarSystem; onClose: () => void; onChanged?: (r: ReceiptInfo) => void }) {
+  const { t } = useI18n();
   const settings = useBillingSettings();
+  const accounts = useAccounts();
   return (
     <ReceiptPreview
-      payment={payment}
+      receipt={receipt}
+      account={receipt.account_id !== null ? accountNameOf(receipt.account_id, accounts, t) : null}
       calendar={calendar}
       footer={settings?.receipt_footer ?? ""}
       onClose={onClose}
       onPrinted={async (pdf) => {
-        const next = await rpc("payments.mark_printed", { id: payment.id, pdf });
-        onChanged?.(next);
-        return next;
+        const next = await rpc("fin.docs.printed", { id: receipt.id, pdf });
+        onChanged?.({ ...receipt, print_count: next.print_count });
+        return next.print_count;
       }}
     />
   );
@@ -110,12 +146,8 @@ export function InvoicePrint({ invoice, calendar, onClose, onChanged }: { invoic
   const letterhead = useLetterhead();
   const settings = useClinicSettings();
   const billing = useBillingSettings();
-  const [payments, setPayments] = useState<PaymentInfo[] | null>(null);
   const [language, setLanguage] = useState(lang);
-  useEffect(() => {
-    rpc("payments.list", payQ({ invoice_id: invoice.id, limit: 100 })).then(setPayments).catch(() => setPayments([]));
-  }, [invoice.id]);
-  if (!letterhead || !payments) return null;
+  if (!letterhead) return null;
   return (
     <DocumentPreview
       title={t("inv.preview")}
@@ -124,7 +156,8 @@ export function InvoicePrint({ invoice, calendar, onClose, onChanged }: { invoic
       testId="invoice-preview"
       onClose={onClose}
       onPrinted={async (pdf) => {
-        onChanged?.(await rpc("invoices.mark_printed", { id: invoice.id, pdf }));
+        const next = await rpc("fin.docs.printed", { id: invoice.id, pdf });
+        onChanged?.({ ...invoice, print_count: next.print_count });
       }}
       extra={
         <div className="field">
@@ -136,7 +169,7 @@ export function InvoicePrint({ invoice, calendar, onClose, onChanged }: { invoic
           </div>
         </div>
       }
-      sheet={<InvoiceSheet invoice={invoice} payments={payments} letterhead={letterhead} lang={language} calendar={calendar} numbering={(settings?.tooth_numbering ?? "fdi") as ToothNumbering} footer={billing?.receipt_footer} />}
+      sheet={<InvoiceSheet invoice={invoice} letterhead={letterhead} lang={language} calendar={calendar} numbering={(settings?.tooth_numbering ?? "fdi") as ToothNumbering} footer={billing?.receipt_footer} />}
     />
   );
 }

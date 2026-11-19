@@ -1,8 +1,8 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { newClinicPage } from "./clinicClock";
 
-// v0.7.0 (Phase 6: invoices, payments, receipts, debts, installments, expenses, cash closing, commission)
-// against the real Core. Runs after the earlier files in the same clinic; it only logs in.
+// Finance (phase 1 of the finance rebuild: invoices, receipts, deposits, refunds, reductions, installments,
+// expenses, cash count, doctor-share preview, the reconciliation overview) against the real Core. Runs after the earlier files in the same clinic; it only logs in.
 test.describe.configure({ mode: "serial" });
 
 let page: Page;
@@ -82,7 +82,7 @@ test("treatment done → invoice with a discount → partial payment → receipt
   await expect(page.getByTestId("invoice-detail-paid")).toContainText("۱٬۰۰۰");
 });
 
-test("installments, advance credit, refund with a reason, credit note", async () => {
+test("installments, refund with a reason, price reduction", async () => {
   // The invoice detail is still open behind the receipt.
   await page.getByTestId("invoice-installments").click();
   await page.getByTestId("installments-count").selectOption("2");
@@ -91,36 +91,40 @@ test("installments, advance credit, refund with a reason, credit note", async ()
   await page.getByTestId("installments-save").click();
   await expect(page.getByTestId("invoice-detail-installments")).toBeVisible();
 
-  // A refund needs its reason.
-  const row = page.locator('[data-testid^="payment-row-RC-"]').first();
-  await row.getByRole("button", { name: "بازپرداخت" }).click();
+  // A refund from this invoice needs its reason; the invoice owes that much again.
+  await page.getByTestId("invoice-refund").click();
   await page.getByTestId("reason-amount").fill("200");
   await page.getByTestId("reason-confirm").click();
   await expect(page.getByTestId("field-error").first()).toBeVisible();
   await page.getByTestId("reason-text").fill("اشتباه در مبلغ");
   await page.getByTestId("reason-confirm").click();
   await expect(page.getByTestId("receipt-preview")).toBeVisible();
+  await expect(page.getByTestId("receipt-preview-paper")).toContainText("RF-");
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("invoice-detail-remaining")).toContainText("۲٬۲۰۰");
 
-  // A credit note lowers the invoice after issue.
+  // A price reduction after issue: the invoice stays as issued, what is owed goes down.
   await page.getByTestId("invoice-credit-note").click();
+  await page.getByTestId("reason-kind-reduction").click();
   await page.getByTestId("reason-amount").fill("200");
   await page.getByTestId("reason-text").fill("تخفیف بعدی");
   await page.getByTestId("reason-confirm").click();
-  await expect(page.getByTestId("invoice-detail-net")).toContainText("۲٬۸۰۰");
+  await expect(page.getByTestId("invoice-detail-net")).toContainText("۳٬۰۰۰");
+  await expect(page.getByTestId("invoice-detail-remaining")).toContainText("۲٬۰۰۰");
   await shot("03-invoice-detail");
   await page.keyboard.press("Escape");
 
-  // The account strip: total · paid · discount · refunded · remaining.
-  await expect(page.getByTestId("acct-total")).toContainText("۳٬۵۰۰");
-  await expect(page.getByTestId("acct-refunded")).toContainText("۲۰۰");
+  // The account strip: invoiced (net of discount) · reductions · paid · owed.
+  await expect(page.getByTestId("acct-total")).toContainText("۳٬۰۰۰");
+  await expect(page.getByTestId("acct-discount")).toContainText("۲۰۰");
+  await expect(page.getByTestId("acct-paid")).toContainText("۸۰۰");
   await expect(page.getByTestId("acct-remaining")).toContainText("۲٬۰۰۰");
   await shot("04-account");
 });
 
-test("debtors, installments due, cash desk closing with a reason, expenses", async () => {
+test("receivables, installments due, an expense, cash count with a reason, the books balance", async () => {
   await page.getByTestId("tab-billing").click();
+  await page.getByTestId("billing-tab-income").click();
   await page.getByTestId("billing-tab-debtors").click();
   await expect(page.getByTestId("debtors-table")).toContainText("بیمار فاکتور آزمایشی");
   await shot("05-debtors");
@@ -130,14 +134,15 @@ test("debtors, installments due, cash desk closing with a reason, expenses", asy
 
   await page.getByTestId("billing-tab-expenses").click();
   await page.getByTestId("expense-add-open").click();
-  await page.getByTestId("expense-category").selectOption({ index: 1 });
-  await page.getByTestId("expense-amount").fill("100");
-  await page.getByTestId("expense-description").fill("ماسک و دستکش");
+  await page.getByTestId("voucher-account-0").selectOption({ index: 1 });
+  await page.getByTestId("voucher-amount-0").fill("100");
+  await page.getByTestId("voucher-description-0").fill("ماسک و دستکش");
   await page.getByTestId("expense-save").click();
-  await expect(toast()).toHaveText("هزینه ثبت شد.");
-  await expect(page.getByTestId("profit-expenses")).toContainText("۱۰۰");
+  await expect(page.getByTestId("expense-dialog")).toBeHidden();
+  await expect(page.getByTestId("expenses-total")).toContainText("۱۰۰");
   await shot("06-expenses");
 
+  // Cash box today: 1 000 in, 200 refunded, 100 paid out = 700.
   await page.getByTestId("billing-tab-cash").click();
   await expect(page.getByTestId("cash-expected")).toContainText("۷۰۰");
   await page.getByTestId("cash-close-open").click();
@@ -149,9 +154,15 @@ test("debtors, installments due, cash desk closing with a reason, expenses", asy
   await page.getByTestId("cash-close-confirm").click();
   await expect(page.getByTestId("cash-closed")).toBeVisible();
   await shot("07-cash");
+
+  // The overview: net received from patients 800, and every check balances.
+  await page.getByTestId("billing-tab-overview").click();
+  await expect(page.getByTestId("ov-net-received")).toContainText("۸۰۰");
+  await expect(page.getByTestId("ov-checks")).toContainText("دفترها متوازن‌اند");
+  await shot("08-overview");
 });
 
-test("commission settings and settlement", async () => {
+test("doctor-share settings and preview", async () => {
   await page.getByTestId("billing-tab-settings").click();
   // The switch is off until the settings have loaded; then it saves and turns on.
   await expect(page.getByTestId("commission-enabled")).toBeEnabled();
@@ -161,7 +172,7 @@ test("commission settings and settlement", async () => {
   await page.getByTestId("rule-value").fill("20");
   await page.getByTestId("rule-save").click();
   await expect(page.getByTestId("commission-rules")).toContainText("۲۰");
-  await shot("08-settings");
+  await shot("09-settings");
   await page.getByTestId("billing-tab-commission").click();
   await expect(page.getByTestId("billing-commission")).toBeVisible();
 });

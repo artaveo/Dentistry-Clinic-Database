@@ -29,15 +29,21 @@ Rules: CI only (no local cargo), rustfmt + contract regeneration through a `fmt/
 ## Status
 - [x] Design v3 committed locally (953cab2)
 - [x] Migration 0021 (`core/migrations/0021_finance.sql`, registered in db.rs)
-- [x] core/src/fin: util, ledger, accounts, invoices, receipts, patients, spend, cash, docs, shares, overview (written, not compiled yet)
-- [x] shared/src/fin.rs (replaces billing.rs), method list `fin.*`, ValidationRule changes, inventory contract (supplier tin/license, purchase account_id, supplier_payments removed), ReportKind finance set + ReportParams.account_id
-- [x] reports.rs finance reports, dashboard, notifications, search; lan.rs is_change; restore.rs count
-- [ ] api.rs routes; lib.rs module; auth permissions; patient.rs merge/delete; audit.rs
-- [ ] inventory.rs (purchase → bill, supplier payments → vouchers, balances from ledger)
-- [ ] reports.rs (dashboard, notifications, finance reports moved to fin)
-- [ ] tests (hand-computed A/B scenarios, posting rules, dbsize budgets)
-- [ ] UI finance pages, patient account, print, inventory tabs, dashboard, i18n, e2e, manual test guide
-- [ ] fmt/contract branch, CI green, push main
+- [x] core/src/fin: util, ledger, accounts, invoices, receipts, patients, spend, cash, docs, shares, overview
+- [x] shared/src/fin.rs (replaces billing.rs), method list `fin.*`, ValidationRule changes, inventory contract, ReportKind finance set + ReportParams.account_id
+- [x] api.rs routes; lib.rs module; patient.rs merge/delete; audit.rs; lan.rs; restore.rs
+- [x] inventory.rs (purchase/lab/return → bills, supplier payments → vouchers, balances from ledger)
+- [x] reports.rs (15 finance reports, dashboard, notifications, search)
+- [x] Rust tests (tests_finance.rs: hand-computed patient money, money out, voids, purchases/labs, reports, settings, merge); clippy + core tests green on CI except one dashboard expectation (fixed in bc2dc26)
+- [x] UI: finance pages, patient account, print, inventory tabs (supplier payments → vouchers), reports page, dev mocks, i18n (`i18n/parts/finance.*.json`), CSS (`styles/finance.css`); tsc, vitest, i18n:check, vite build green locally
+- [x] e2e specs (v070 rewritten for the new screens; v090, v100 updated); manual guides 04b and 06 rewritten with hand-computed numbers; 03, 07, 12, 14, 15 references updated
+- [ ] Full CI (lint, tests, E2E) green
+- [ ] Before merge: `git checkout origin/main -- Cargo.lock`, delete `.github/workflows/fmt.yml`, contract.ts regenerated, merge to main
+
+## Log
+- Branch `fmt/fin-phase1` (temporary workflow `.github/workflows/fmt.yml`: fmt + contract + clippy + core tests). Run 44384077411: clippy green, 1 test (doctor dashboard net of discount) fixed in bc2dc26.
+- Cargo.lock: the fmt workflow rewrites it; restore `git checkout origin/main -- Cargo.lock` before merging.
+- UI rewritten: lib/billing.ts, print/receipt.tsx, print/finance.tsx, pages/billing/{common,dialogs,InvoiceDetail,PatientBilling,BillingPage,BillingExtras,FinanceSettings}.tsx.
 
 ## Next
-Write migration 0021.
+Full CI on the branch (E2E is the first run of the new screens against the real Core); fix what it finds; then merge to main and report phase 1. Not visually reviewed in a browser yet: the dev mock Core does not serve `fin.*`, so the finance pages need the real Core (E2E screenshots with `SHOTS=1`, or the desktop build).

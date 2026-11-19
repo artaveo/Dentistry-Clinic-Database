@@ -3,14 +3,13 @@
 // expense, so the cash closing and the profit report stay right.
 import { useEffect, useState } from "react";
 import { Ban, BookOpen, Building2, FlaskConical, Pencil, Plus, Truck, Wallet } from "lucide-react";
-import type { CalendarSystem, SupplierInfo, SupplierKind, SupplierPaymentInfo, LedgerEntry } from "../../../../shared/ts/contract";
+import type { CalendarSystem, SupplierInfo, SupplierKind, VoucherInfo, LedgerEntry } from "../../../../shared/ts/contract";
 import { isSessionError, rpc } from "../../lib/api";
-import { amountRule, parseAfn, usePaymentMethods } from "../../lib/billing";
+import { accountNameOf, amountRule, parseAfn, pvQ, useAccounts } from "../../lib/billing";
 import { todayIso } from "../../lib/calendar";
 import { formatDate } from "../../lib/dates";
-import { spayQ, supplierQ } from "../../lib/inventory";
+import { supplierQ } from "../../lib/inventory";
 import { useLive } from "../../lib/lan";
-import { tr } from "../../lib/medical";
 import { formatAmount } from "../../lib/money";
 import { useForm } from "../../lib/validation";
 import { useI18n } from "../../i18n";
@@ -19,10 +18,10 @@ import { Card, CardHeader } from "../../ui/Card";
 import { Checkbox, Segmented, Switch } from "../../ui/Controls";
 import { DateField } from "../../ui/DateField";
 import { Badge, EmptyState, ErrorState, Notice, SkeletonRows } from "../../ui/Feedback";
-import { Field, Select, TextInput, Textarea } from "../../ui/Field";
+import { Field, TextInput, Textarea } from "../../ui/Field";
 import { Dialog } from "../../ui/Overlay";
 import { useToast } from "../../ui/Toast";
-import { AmountInput } from "../billing/common";
+import { AmountInput, MoneyAccountSelect } from "../billing/common";
 import { ReasonDialog } from "../billing/dialogs";
 import { useAction } from "./common";
 import type { InventoryPerms } from "./common";
@@ -127,7 +126,7 @@ function SupplierDialog({ supplier, onClose, onDone }: { supplier?: SupplierInfo
   const [active, setActive] = useState(supplier?.is_active ?? true);
   const { busy, error, run } = useAction();
   const form = useForm(
-    { name: supplier?.name ?? "", contact: supplier?.contact_person ?? "", phone: supplier?.phone ?? "", address: supplier?.address ?? "", note: supplier?.note ?? "" },
+    { name: supplier?.name ?? "", contact: supplier?.contact_person ?? "", phone: supplier?.phone ?? "", address: supplier?.address ?? "", note: supplier?.note ?? "", tin: supplier?.tin ?? "", license: supplier?.license_no ?? "" },
     { name: (s) => (s.trim() ? null : "rule.required") },
   );
   const submit = (e: React.FormEvent) => {
@@ -143,6 +142,8 @@ function SupplierDialog({ supplier, onClose, onDone }: { supplier?: SupplierInfo
           phone: form.values.phone.trim() || null,
           address: form.values.address.trim() || null,
           note: form.values.note.trim() || null,
+          tin: form.values.tin.trim() || null,
+          license_no: form.values.license.trim() || null,
           is_active: active,
           version: supplier?.version ?? null,
         });
@@ -195,13 +196,14 @@ function LedgerDialog({ supplier, perms, calendar, tick, onClose, onChanged }: {
   const toast = useToast();
   const [info, setInfo] = useState(supplier);
   const [entries, setEntries] = useState<LedgerEntry[] | null>(null);
-  const [payments, setPayments] = useState<SupplierPaymentInfo[] | null>(null);
+  const [payments, setPayments] = useState<VoucherInfo[] | null>(null);
+  const accounts = useAccounts();
   const [error, setError] = useState("");
   const [local, setLocal] = useState(0);
   const [paying, setPaying] = useState(false);
-  const [voiding, setVoiding] = useState<SupplierPaymentInfo | null>(null);
+  const [voiding, setVoiding] = useState<VoucherInfo | null>(null);
   useEffect(() => {
-    Promise.all([rpc("suppliers.get", { id: supplier.id }), rpc("supplier_ledger.list", { supplier_id: supplier.id }), rpc("supplier_payments.list", spayQ({ supplier_id: supplier.id, from: "2000-01-01", to: todayIso() }))])
+    Promise.all([rpc("suppliers.get", { id: supplier.id }), rpc("supplier_ledger.list", { supplier_id: supplier.id }), rpc("fin.vouchers.list", pvQ({ kind: "pv", purpose: "supplier", supplier_id: supplier.id, limit: 500 }))])
       .then(([s, l, p]) => {
         setInfo(s);
         setEntries(l);
@@ -277,11 +279,11 @@ function LedgerDialog({ supplier, perms, calendar, tick, onClose, onChanged }: {
             <tbody>
               {payments?.map((p) => (
                 <tr key={p.id} data-testid={`spay-${p.id}`}>
-                  <td><bdi className="ltr num">{p.number}</bdi>{p.void && <> <Badge icon={Ban}>{t("purchase.void")}</Badge></>}</td>
-                  <td>{formatDate(p.local_date, lang, calendar)}</td>
-                  <td>{p.method ? tr(p.method, lang) : "—"}</td>
-                  <td className={`num cell-strong ${p.void ? "strike" : ""}`}>{money(p.amount)}</td>
-                  <td className="cell-actions">{perms.billingVoid && perms.manage && !p.void && <IconButton icon={Ban} label={t("supplier.payment.void")} onClick={() => setVoiding(p)} data-testid={`spay-void-${p.id}`} />}</td>
+                  <td><bdi className="ltr num">{p.number}</bdi>{p.status !== "posted" && <> <Badge icon={Ban}>{t("purchase.void")}</Badge></>}</td>
+                  <td>{formatDate(p.date, lang, calendar)}</td>
+                  <td>{accountNameOf(p.account_id, accounts, t)}</td>
+                  <td className={`num cell-strong ${p.status !== "posted" ? "strike" : ""}`}>{money(p.net)}</td>
+                  <td className="cell-actions">{perms.billingVoid && perms.manage && p.status === "posted" && <IconButton icon={Ban} label={t("supplier.payment.void")} onClick={() => setVoiding(p)} data-testid={`spay-void-${p.id}`} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -293,12 +295,12 @@ function LedgerDialog({ supplier, perms, calendar, tick, onClose, onChanged }: {
       {voiding && (
         <ReasonDialog
           title={t("supplier.payment.void")}
-          description={`${voiding.number} · ${money(voiding.amount)}`}
+          description={`${voiding.number} · ${money(voiding.net)}`}
           confirm={t("supplier.payment.void")}
           danger
           onClose={() => setVoiding(null)}
           onConfirm={async (reason) => {
-            await rpc("supplier_payments.void", { id: voiding.id, version: voiding.version, reason });
+            await rpc("fin.docs.void", { id: voiding.id, reason });
             changed(t("supplier.payment.voided"));
           }}
         />
@@ -309,22 +311,19 @@ function LedgerDialog({ supplier, perms, calendar, tick, onClose, onChanged }: {
 
 function PayDialog({ supplier, calendar, onClose, onDone }: { supplier: SupplierInfo; calendar: CalendarSystem; onClose: () => void; onDone: () => void }) {
   const { t, lang } = useI18n();
-  const methods = usePaymentMethods();
   const [date, setDate] = useState(todayIso());
+  const [account, setAccount] = useState<number | null>(null);
   const { busy, error, run } = useAction();
-  const form = useForm({ amount: supplier.balance > 0 ? String(supplier.balance / 100) : "", method: "", note: "" }, { amount: (s) => amountRule(s), method: (s) => (s ? null : "rule.required") });
-  useEffect(() => {
-    if (!form.values.method && methods?.length) form.set("method", (methods.find((m) => m.is_active && m.is_cash) ?? methods.find((m) => m.is_active))?.id ?? "");
-  }, [methods]);
+  const form = useForm({ amount: supplier.balance > 0 ? String(supplier.balance / 100) : "", note: "" }, { amount: (s) => amountRule(s) });
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.validate()) return;
+    if (!form.validate() || account === null) return;
     void run(
       async () => {
-        await rpc("supplier_payments.add", { supplier_id: supplier.id, amount: parseAfn(form.values.amount) ?? 0, method_id: form.values.method, date, note: form.values.note.trim() || null });
+        await rpc("fin.vouchers.create", { date, account_id: account, purpose: "supplier", supplier_id: supplier.id, name: null, reference: form.values.note.trim() || null, note: null, lines: [], amount: parseAfn(form.values.amount) ?? 0, withholding: null });
         onDone();
       },
-      (x) => form.serverError(x, { method_id: "method" }),
+      (x) => form.serverError(x),
     );
   };
   return (
@@ -342,10 +341,8 @@ function PayDialog({ supplier, calendar, onClose, onDone }: { supplier: Supplier
         <Field label={t("pay.amount")} error={form.error("amount") && t(form.error("amount")!)}>
           <AmountInput value={form.values.amount} onChange={(v) => form.set("amount", v)} testId="supplier-pay-amount" autoFocus />
         </Field>
-        <Field label={t("pay.method")} error={form.error("method") && t(form.error("method")!)}>
-          <Select value={form.values.method} onChange={(e) => form.set("method", e.target.value)} data-testid="supplier-pay-method">
-            {methods?.filter((m) => m.is_active).map((m) => <option key={m.id} value={m.id}>{tr(m.name, lang)}</option>)}
-          </Select>
+        <Field label={t("exp.paidFrom")}>
+          <MoneyAccountSelect value={account} onChange={setAccount} testId="supplier-pay-method" />
         </Field>
         <Field label={t("doc.date")}><DateField value={date} onChange={setDate} calendar={calendar} label={t("doc.date")} testId="supplier-pay-date" yearsBefore={1} yearsAfter={0} /></Field>
         <Field label={t("purchase.note")} optional><TextInput value={form.values.note} onChange={(e) => form.set("note", e.target.value)} maxLength={300} data-testid="supplier-pay-note" /></Field>

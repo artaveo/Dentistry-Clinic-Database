@@ -53,7 +53,7 @@ test("A report runs for a period, narrows by doctor, exports to Excel and prints
   await expect(page.getByTestId("report-table")).toBeVisible();
   await expect(page.getByTestId("report-foot")).toBeVisible();
 
-  await page.getByTestId("report-doctor_revenue").click();
+  await page.getByTestId("report-provider_production").click();
   await expect(page.getByTestId("report-doctor")).toBeVisible();
   // The period is one range control; its popup holds the quick periods (applying one closes it).
   await page.getByTestId("report-range").click();
@@ -65,14 +65,14 @@ test("A report runs for a period, narrows by doctor, exports to Excel and prints
   await expect(page.getByTestId("report-range")).toHaveCount(0);
   await expect(page.getByTestId("report-now-note")).toBeVisible();
 
-  await page.getByTestId("report-payments").click();
+  await page.getByTestId("report-receipts").click();
   // The period is one range control; its popup holds the quick periods (applying one closes it).
   await page.getByTestId("report-range").click();
   await page.getByTestId("report-range-preset-thisYear").click();
   await expect(page.getByTestId("report-foot")).toBeVisible();
 
   // Profit and loss always has the months of the period; its Excel file lands in the exports folder.
-  await page.getByTestId("report-profit_loss").click();
+  await page.getByTestId("report-income_statement").click();
   // The period is one range control; its popup holds the quick periods (applying one closes it).
   await page.getByTestId("report-range").click();
   await page.getByTestId("report-range-preset-thisYear").click();

@@ -8,6 +8,7 @@ import { isSessionError, revealExport, rpc } from "../../lib/api";
 import { presetRange, todayIso } from "../../lib/calendar";
 import { digits } from "../../lib/dates";
 import { GROUPS, POPULAR, REPORTS, TAG_VALUES, isNumeric, renderCell, tagLabels } from "../../lib/reports";
+import { accountName, moneyAccounts, useAccounts } from "../../lib/billing";
 import type { ReportGroup } from "../../lib/reports";
 import { tr } from "../../lib/medical";
 import { useI18n } from "../../i18n";
@@ -26,7 +27,7 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
   const calendar = clinic?.calendar_system ?? "shamsi";
   const letterhead = useLetterhead();
   const groups = GROUPS.filter((g) => g !== "inventory" || canSeeStock);
-  const [kind, setKind] = useState<ReportKind>("daily_revenue");
+  const [kind, setKind] = useState<ReportKind>("daily_summary");
   const meta = REPORTS.find((r) => r.kind === kind)!;
   // A quick period never ends after today: the reports have nothing to say about days that have not come.
   const upToToday = (id: "thisMonth" | "thisYear") => {
@@ -40,6 +41,8 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
   const [to, setTo] = useState(first.to);
   const [doctor, setDoctor] = useState("");
   const [service, setService] = useState("");
+  const [account, setAccount] = useState("");
+  const accounts = useAccounts();
   const [doctors, setDoctors] = useState<DoctorInfo[] | null>(null);
   const [services, setServices] = useState<ServiceInfo[] | null>(null);
   const [result, setResult] = useState<ReportResult | null>(null);
@@ -64,9 +67,10 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
       to: meta.period === "now" ? todayIso() : to,
       doctor_id: meta.filters.includes("doctor") && doctor ? doctor : null,
       service_id: meta.filters.includes("service") && service ? service : null,
+      account_id: meta.filters.includes("account") && account ? Number(account) : null,
       calendar,
     }),
-    [kind, meta, from, to, doctor, service, calendar],
+    [kind, meta, from, to, doctor, service, account, calendar],
   );
   const invalid = meta.period === "range" && from > to;
 
@@ -118,7 +122,7 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
         language: lang,
         title,
         headers: result.columns.map((c) => t(`reports.col.${c.key}`)),
-        labels: tagLabels(t, TAG_VALUES),
+        labels: tagLabels(t, [...TAG_VALUES, ...result.rows.flat().flatMap((c) => (c.type === "tag" ? [c.value] : []))]),
       });
       setExported({ name: done.file_name, path: done.file_path, rows: done.rows });
     } catch (x) {
@@ -205,6 +209,14 @@ export function ReportsPage({ clinic, canSeeStock }: { clinic: ClinicProfile | n
                 <Select value={service} onChange={(e) => setService(e.target.value)} data-testid="report-service">
                   <option value="">{t("reports.allServices")}</option>
                   {services?.map((s) => <option key={s.id} value={s.id}>{tr(s.name, lang)}</option>)}
+                </Select>
+              </Field>
+            )}
+            {meta.filters.includes("account") && (
+              <Field label={t("fin.account")}>
+                <Select value={account} onChange={(e) => setAccount(e.target.value)} data-testid="report-account">
+                  {meta.kind === "cash_counts" ? <option value="">{t("reports.allAccounts")}</option> : <option value="">{accountName(moneyAccounts(accounts)[0] ?? null, t)}</option>}
+                  {moneyAccounts(accounts).slice(meta.kind === "cash_counts" ? 0 : 1).map((a) => <option key={a.id} value={a.id}>{accountName(a, t)}</option>)}
                 </Select>
               </Field>
             )}

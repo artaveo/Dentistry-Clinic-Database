@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { newClinicPage } from "./clinicClock";
 
 // v0.9.0 (Phase 8: inventory, suppliers, dental lab) against the real Core. The rules themselves
-// (first-expiry-first-out, balances, cash expense of a payment, lab statuses) are tested in Rust
+// (first-expiry-first-out, balances, supplier bills and payment vouchers, lab statuses) are tested in Rust
 // (`core/src/tests.rs`); here the screens are checked: stock and its alerts, taking stock out, a
 // supplier's balance, and a lab case from "sent" to "back from the lab" with its late warning.
 // Runs after the earlier files in the same clinic; it only logs in.
@@ -104,7 +104,7 @@ test("Suppliers: a purchase adds to stock and to what is owed", async ({ request
   const items = await call(request, "stock_items.list", { search: "Disposable", category_id: null, only: null, include_inactive: false, expiring_days: null });
   const places = await call(request, "stock_locations.list", { include_inactive: false });
   // 20.00 pieces at 30 afghani = 600 afghani owed.
-  await call(request, "purchases.create", { supplier_id: supplier.id, date: null, note: null, paid: 0, method_id: null, lines: [{ item_id: items[0].id, qty: 2000, unit_cost: 3000, lot_no: "P-9", expiry_date: day(400), location_id: places[0].id }] });
+  await call(request, "purchases.create", { supplier_id: supplier.id, date: null, note: null, paid: 0, account_id: null, lines: [{ item_id: items[0].id, qty: 2000, unit_cost: 3000, lot_no: "P-9", expiry_date: day(400), location_id: places[0].id }] });
 
   await page.getByTestId("inventory-tab-suppliers").click();
   await expect(page.getByTestId("suppliers-table")).toBeVisible();
@@ -117,11 +117,10 @@ test("Suppliers: a purchase adds to stock and to what is owed", async ({ request
   await expect(page.getByTestId("ledger-balance")).toContainText("۶۰۰");
   await expect(page.getByTestId("ledger-table")).toContainText("PU-");
 
-  // Paying part of it lowers the balance; it is also an expense of the clinic.
+  // Paying part of it lowers the balance (a payment voucher against what is owed), here from the bank.
   await page.getByTestId("supplier-pay-open").click();
   await page.getByTestId("supplier-pay-amount").fill("250");
-  // Earlier files already closed today's cash, so this payment goes by bank.
-  await page.getByTestId("supplier-pay-method").selectOption({ label: "حواله بانکی" });
+  await page.getByTestId("supplier-pay-method").selectOption({ label: "بانک" });
   await page.getByTestId("supplier-pay-save").click();
   await expect(page.getByTestId("supplier-pay-dialog")).toBeHidden();
   await expect(page.getByTestId("ledger-balance")).toContainText("۳۵۰");

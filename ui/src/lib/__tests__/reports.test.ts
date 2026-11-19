@@ -5,13 +5,15 @@ describe("report catalog", () => {
   it("has every report once, in a known group, with unique kinds", () => {
     const kinds = REPORTS.map((r) => r.kind);
     expect(new Set(kinds).size).toBe(kinds.length);
-    expect(kinds.length).toBe(26);
+    expect(kinds.length).toBe(29);
     for (const r of REPORTS) expect(GROUPS).toContain(r.group);
   });
 
-  it("only offers a doctor or service filter where the Core uses it", () => {
-    const withDoctor = REPORTS.filter((r) => r.filters.includes("doctor")).map((r) => r.kind);
-    expect(withDoctor).toEqual(["doctor_revenue", "doctor_commission", "service_revenue", "treatments", "procedures", "doctor_activity"]);
+  it("only offers a doctor, service or account filter where the Core uses it", () => {
+    const using = (f: string) => REPORTS.filter((r) => r.filters.includes(f as never)).map((r) => r.kind);
+    expect(using("doctor")).toEqual(["provider_production", "service_revenue", "doctor_shares", "treatments", "procedures", "doctor_activity"]);
+    expect(using("service")).toEqual(["service_revenue", "treatments", "procedures"]);
+    expect(using("account")).toEqual(["money_book", "cash_counts"]);
   });
 });
 

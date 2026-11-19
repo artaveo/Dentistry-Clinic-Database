@@ -4,7 +4,7 @@
 // but are simplified; the real behaviour is covered by the Core's own tests.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
-  BatchState, LabCaseInfo, LedgerEntry, PaymentMethodInfo, PurchaseInfo, StockBatchInfo, StockItemInfo, StockLookupInfo, StockMovementInfo, SupplierInfo, SupplierPaymentInfo, Translations,
+  BatchState, LabCaseInfo, LedgerEntry, PurchaseInfo, StockBatchInfo, StockItemInfo, StockLookupInfo, StockMovementInfo, SupplierInfo, Translations, VoucherInfo,
 } from "../../../shared/ts/contract";
 
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
@@ -29,10 +29,6 @@ const categories = [
 const units = [lookup("su-piece", tri("عدد", "دانه", "Piece"), 10), lookup("su-box", tri("بسته", "بکس", "Box"), 20), lookup("su-tube", tri("تیوب", "تیوب", "Tube"), 30), lookup("su-ml", tri("میلی‌لیتر", "ملي‌لیتر", "ml"), 40)];
 const places = [lookup("sl-main", tri("گدام اصلی", "اصلي ګدام", "Main store"), 10), lookup("sl-room", tri("اتاق معاینه", "د معاینې خونه", "Treatment room"), 20)];
 
-const methods: PaymentMethodInfo[] = [
-  { id: "pm-cash", code: "cash", name: tri("نقد", "نغدي", "Cash"), is_cash: true, is_system: true, is_active: true, sort_order: 10, version: 1 },
-  { id: "pm-bank", code: "bank_transfer", name: tri("حواله بانکی", "بانکي حواله", "Bank transfer"), is_cash: false, is_system: true, is_active: true, sort_order: 20, version: 1 },
-];
 
 type Item = { id: string; code: string | null; name: Translations; category_id: string; unit_id: string; min_qty: number; note: string | null; is_active: boolean; version: number };
 type Batch = { id: string; item_id: string; location_id: string; lot_no: string | null; expiry_date: string | null; qty_left: number; unit_cost: number; received_on: string; supplier_id: string | null };
@@ -56,12 +52,12 @@ const batches: Batch[] = [
 const moves: StockMovementInfo[] = [];
 const suppliers: SupplierInfo[] = [];
 const purchases: PurchaseInfo[] = [];
-const payments: SupplierPaymentInfo[] = [];
+const payments: VoucherInfo[] = [];
 const labs: LabCaseInfo[] = [];
 const materials = new Map<string, { item_id: string; qty: number }[]>();
 
 function supplier(id: string, kind: "supplier" | "lab", name: string, contact: string, phone: string): SupplierInfo {
-  return { id, kind, name, contact_person: contact, phone, address: null, note: null, is_active: true, purchases_total: 0, lab_total: 0, returns_total: 0, paid_total: 0, balance: 0, version: 1 };
+  return { id, kind, name, contact_person: contact, phone, address: null, note: null, tin: null, license_no: null, is_active: true, purchases_total: 0, lab_total: 0, returns_total: 0, paid_total: 0, balance: 0, version: 1 };
 }
 suppliers.push(supplier("su1", "supplier", "شرکت طبی کابل", "احمد رحیمی", "0700123456"), supplier("su2", "supplier", "Herat Dental Supply", "Nazia", "0799888777"), supplier("lab1", "lab", "لابراتوار نور", "استاد کریم", "0788456123"), supplier("lab2", "lab", "Smile Dental Lab", "Hamid", "0777111222"));
 
@@ -77,7 +73,13 @@ function addPurchase(supplierId: string, date: string, lines: { item: string; qt
       return { id: uid("pl"), item_id: l.item, item_name: it.name, unit: units.find((u) => u.id === it.unit_id)!.name, qty: l.qty, unit_cost: l.cost, line_total: Math.round((l.qty * l.cost) / 100), lot_no: l.lot, expiry_date: l.expiry, location: places[0].name };
     }),
   });
-  if (paid) payments.push({ id: uid("sp"), number: `SP-1405-${String(payments.length + 1).padStart(6, "0")}`, supplier_id: supplierId, supplier_name: s.name, amount: paid, method_id: "pm-cash", method: methods[0].name, local_date: date, note: null, void: false, void_reason: null, created_by_name: "مالک", version: 1 });
+  if (paid) {
+    const id = payments.length + 1;
+    payments.push({
+      id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date, created_at: date, account_id: 1110, purpose: "supplier", source: null, supplier_id: supplierId, supplier_name: s.name,
+      name: null, reference: null, lines: [], gross: paid, withheld: 0, net: paid, due_date: null, note: null, status: "posted", void_reason: null, print_count: 0, created_by_name: "مالک",
+    });
+  }
 }
 addPurchase("su1", day(-40), [{ item: "it-gloves", qty: 1000, cost: 45_000, lot: "G-2201", expiry: day(400) }, { item: "it-files", qty: 2000, cost: 5_000, lot: "F-5", expiry: day(500) }], 300_000);
 addPurchase("su1", day(-15), [{ item: "it-comp", qty: 500, cost: 125_000, lot: "C-31", expiry: day(200) }], 0);
@@ -102,7 +104,7 @@ function recompute(): void {
   for (const s of suppliers) {
     s.purchases_total = purchases.filter((p) => p.supplier_id === s.id && !p.void).reduce((a, p) => a + p.total, 0);
     s.lab_total = labs.filter((c) => c.lab_id === s.id && (c.status === "received" || c.status === "delivered")).reduce((a, c) => a + c.cost, 0);
-    s.paid_total = payments.filter((p) => p.supplier_id === s.id && !p.void).reduce((a, p) => a + p.amount, 0);
+    s.paid_total = payments.filter((p) => p.supplier_id === s.id && p.status === "posted").reduce((a, p) => a + p.net, 0);
     s.balance = s.purchases_total + s.lab_total - s.returns_total - s.paid_total;
   }
 }
@@ -164,8 +166,6 @@ export function inventoryCall(method: string, p: any): unknown {
 
 function answer(method: string, p: any): unknown {
   switch (method) {
-    case "payment_methods.list":
-      return methods;
     case "treatments.list":
       return [];
     case "stock_categories.list":
@@ -292,7 +292,7 @@ function answer(method: string, p: any): unknown {
       if (!String(p.name).trim()) throw new Fail("required", "name");
       if (p.id) {
         const s = suppliers.find((x) => x.id === p.id)!;
-        Object.assign(s, { name: p.name, contact_person: p.contact_person, phone: p.phone, address: p.address, note: p.note, is_active: p.is_active, version: s.version + 1 });
+        Object.assign(s, { name: p.name, contact_person: p.contact_person, phone: p.phone, address: p.address, note: p.note, tin: p.tin, license_no: p.license_no, is_active: p.is_active, version: s.version + 1 });
         return s;
       }
       const s = supplier(uid("su"), p.kind, p.name, p.contact_person, p.phone);
@@ -301,9 +301,9 @@ function answer(method: string, p: any): unknown {
     }
     case "supplier_ledger.list": {
       const rows: (LedgerEntry & { key: string })[] = [];
-      for (const x of purchases.filter((q) => q.supplier_id === p.supplier_id && !q.void)) rows.push({ kind: "purchase", local_date: x.local_date, number: x.number, description: "", amount: x.total, balance: 0, key: x.local_date });
-      for (const x of labs.filter((q) => q.lab_id === p.supplier_id && (q.status === "received" || q.status === "delivered"))) rows.push({ kind: "lab", local_date: x.received_date ?? day(0), number: x.number, description: x.work_type, amount: x.cost, balance: 0, key: x.received_date ?? "" });
-      for (const x of payments.filter((q) => q.supplier_id === p.supplier_id && !q.void)) rows.push({ kind: "payment", local_date: x.local_date, number: x.number, description: "", amount: -x.amount, balance: 0, key: x.local_date });
+      for (const x of purchases.filter((q) => q.supplier_id === p.supplier_id && !q.void)) rows.push({ doc_id: 0, kind: "purchase", local_date: x.local_date, number: x.number, description: "", amount: x.total, balance: 0, key: x.local_date });
+      for (const x of labs.filter((q) => q.lab_id === p.supplier_id && (q.status === "received" || q.status === "delivered"))) rows.push({ doc_id: 0, kind: "lab", local_date: x.received_date ?? day(0), number: x.number, description: x.work_type, amount: x.cost, balance: 0, key: x.received_date ?? "" });
+      for (const x of payments.filter((q) => q.supplier_id === p.supplier_id && q.status === "posted")) rows.push({ doc_id: x.id, kind: "payment", local_date: x.date, number: x.number, description: "", amount: -x.net, balance: 0, key: x.date });
       rows.sort((a, b) => a.key.localeCompare(b.key));
       let bal = 0;
       return rows.map(({ key: _k, ...r }) => ({ ...r, balance: (bal += r.amount) }));
@@ -327,23 +327,25 @@ function answer(method: string, p: any): unknown {
       recompute();
       return q;
     }
-    case "supplier_payments.list":
-      return payments.filter((q) => !p.supplier_id || q.supplier_id === p.supplier_id).sort((a, b) => b.local_date.localeCompare(a.local_date));
-    case "supplier_payments.add": {
+    case "fin.vouchers.list":
+      return payments.filter((q) => !p.supplier_id || q.supplier_id === p.supplier_id).sort((a, b) => b.date.localeCompare(a.date));
+    case "fin.vouchers.create": {
       const s = suppliers.find((x) => x.id === p.supplier_id)!;
-      const m = methods.find((x) => x.id === p.method_id)!;
-      const pay: SupplierPaymentInfo = { id: uid("sp"), number: `SP-1405-${String(payments.length + 1).padStart(6, "0")}`, supplier_id: s.id, supplier_name: s.name, amount: p.amount, method_id: m.id, method: m.name, local_date: p.date ?? day(0), note: p.note, void: false, void_reason: null, created_by_name: "مالک", version: 1 };
+      const id = payments.length + 1;
+      const pay: VoucherInfo = {
+        id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date: p.date ?? day(0), created_at: new Date().toISOString(), account_id: p.account_id, purpose: "supplier", source: null,
+        supplier_id: s.id, supplier_name: s.name, name: null, reference: p.reference, lines: [], gross: p.amount, withheld: 0, net: p.amount, due_date: null, note: p.note, status: "posted", void_reason: null, print_count: 0, created_by_name: "مالک",
+      };
       payments.push(pay);
       recompute();
       return pay;
     }
-    case "supplier_payments.void": {
+    case "fin.docs.void": {
       const q = payments.find((x) => x.id === p.id)!;
-      q.void = true;
+      q.status = "void";
       q.void_reason = p.reason;
-      q.version++;
       recompute();
-      return q;
+      return null;
     }
     case "lab_cases.list":
       return labs.filter((c) => (!p.status || c.status === p.status) && (!p.lab_id || c.lab_id === p.lab_id) && (!p.patient_id || c.patient_id === p.patient_id) && (!p.delayed_only || c.delayed));
