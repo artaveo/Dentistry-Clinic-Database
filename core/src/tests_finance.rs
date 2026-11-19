@@ -1,4 +1,4 @@
-//! Finance rebuild, phase 1 (docs/design/finance-standard.md): every posting rule and every report
+//! Finance rebuild, phases 1 and 2 (docs/design/finance-standard.md): every posting rule and every report
 //! checked against numbers worked out by hand. Money is AFN × 100, so 350_000 is 3 500 AFN.
 
 use artaveo_shared::{methods as m, ErrorCode, RpcRequest, RpcResponse};
@@ -674,4 +674,286 @@ fn a_merged_patient_brings_the_money_along() {
         f.fr(m::PATIENTS_DELETE, json!({"id": f.patient, "version": p["version"]})).1,
         "patient_has_history"
     );
+}
+
+// ───────────────────────────── phase 2: staff, payroll, share statements ─────────────────────────────
+
+impl Fx {
+    fn employee(&self, name: &str, base: i64) -> String {
+        let e = self.ok(
+            m::FIN_EMPLOYEES_SAVE,
+            json!({"full_name": name, "position": "نرس", "hire_date": day(-60), "base_salary": base, "tin": "100200300"}),
+        );
+        e["id"].as_str().unwrap().to_string()
+    }
+    fn employee_info(&self, id: &str) -> Value {
+        let all = self.ok(m::FIN_EMPLOYEES_LIST, json!({"include_inactive": true}));
+        all.as_array().unwrap().iter().find(|e| e["id"] == id).unwrap().clone()
+    }
+}
+
+#[test]
+fn payroll_books_salaries_tax_and_advances_and_only_what_is_owed_is_paid() {
+    let f = fx();
+    let today = crate::clock::today_iso();
+    // Money in: owner capital 600 000 in cash, 300 000 in the bank.
+    f.ok(m::FIN_OTHER_RECEIPTS_CREATE, json!({"date": today, "account_id": 1110, "source": "capital", "amount": 600_000}));
+    f.ok(m::FIN_OTHER_RECEIPTS_CREATE, json!({"date": today, "account_id": 1210, "source": "capital", "amount": 300_000}));
+
+    assert_eq!(
+        f.fr(m::FIN_EMPLOYEES_SAVE, json!({"full_name": " ", "position": "x", "hire_date": today, "base_salary": 0})),
+        ("full_name".into(), "required".into())
+    );
+    assert_eq!(
+        f.fr(
+            m::FIN_EMPLOYEES_SAVE,
+            json!({"full_name": "x", "position": "x", "hire_date": today, "end_date": day(-1), "base_salary": 0})
+        ),
+        ("end_date".into(), "period_range".into())
+    );
+    let e1 = f.employee("کریم", 200_000);
+    let e2 = f.employee("نسرین", 150_000);
+    let e3 = f.employee("جاوید", 80_000);
+
+    // Advances: E1 50 000 and E3 20 000 from the cash box (Dr 1320 for the employee, Cr cash).
+    let adv1 = f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1110, "purpose": "advance", "employee_id": e1, "amount": 50_000}),
+    );
+    assert_eq!(f.rows(&adv1["id"]), vec![(1320, 50_000), (1110, -50_000)]);
+    assert_eq!(adv1["employee_id"], json!(e1));
+    assert_eq!(adv1["party_name"], json!("کریم"));
+    let adv3 = f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1110, "purpose": "advance", "employee_id": e3, "amount": 20_000}),
+    );
+    assert_eq!(
+        f.fr(m::FIN_VOUCHERS_CREATE, json!({"date": today, "account_id": 1110, "purpose": "advance", "amount": 1}))
+            .0,
+        "employee_id"
+    );
+    assert_eq!(i(&f.employee_info(&e1)["advances"]), 50_000);
+
+    // The draft: every employee at base salary, with what they still owe in advances.
+    let (from, to) = (day(-30), today.clone());
+    let draft = f.ok(m::FIN_PAYROLL_DRAFT, json!({"from": from, "to": to}));
+    assert!(draft["id"].is_null());
+    assert_eq!(draft["lines"].as_array().unwrap().len(), 3);
+    assert_eq!(i(&draft["gross"]), 430_000);
+    let line = |emp: &str, base: i64, extra: i64, commission: i64, advance: i64, tax: i64| {
+        json!({"employee_id": emp, "base": base, "extra": extra, "commission": commission, "advance": advance, "tax": tax})
+    };
+    let pay = |lines: Value| json!({"from": from, "to": to, "date": today, "lines": lines});
+    // More advance taken back than was given; more deducted than earned.
+    assert_eq!(
+        f.fr(m::FIN_PAYROLL_CREATE, pay(json!([line(&e1, 200_000, 0, 0, 60_000, 0)]))),
+        ("lines.0.advance".into(), "advance_exceeds".into())
+    );
+    assert_eq!(
+        f.fr(m::FIN_PAYROLL_CREATE, pay(json!([line(&e1, 1, 0, 0, 0, 0), line(&e2, 150_000, 0, 0, 0, 160_000)]))),
+        ("lines.1.tax".into(), "withheld_range".into())
+    );
+
+    // PR: E1 200 000 + 20 000 extra − 30 000 advance − 11 000 tax = 179 000; E2 150 000;
+    // E3 80 000 + 10 000 commission − 20 000 advance = 70 000. Gross 460 000, net 399 000.
+    let pr = f.ok(
+        m::FIN_PAYROLL_CREATE,
+        pay(json!([
+            line(&e1, 200_000, 20_000, 0, 30_000, 11_000),
+            line(&e2, 150_000, 0, 0, 0, 0),
+            line(&e3, 80_000, 0, 10_000, 20_000, 0)
+        ])),
+    );
+    assert!(pr["number"].as_str().unwrap().starts_with("PR-"));
+    assert_eq!(
+        (i(&pr["gross"]), i(&pr["advance"]), i(&pr["tax"]), i(&pr["net"])),
+        (460_000, 50_000, 11_000, 399_000)
+    );
+    assert_eq!(
+        f.rows(&pr["id"]),
+        vec![
+            (5110, 460_000),
+            (2410, -11_000),
+            (2310, -179_000),
+            (1320, -30_000),
+            (2310, -150_000),
+            (2310, -70_000),
+            (1320, -20_000)
+        ]
+    );
+    // One payroll per period; the draft now shows the approved one.
+    assert_eq!(
+        f.fr(m::FIN_PAYROLL_CREATE, pay(json!([line(&e2, 1, 0, 0, 0, 0)]))),
+        ("from".into(), "period_taken".into())
+    );
+    assert_eq!(f.ok(m::FIN_PAYROLL_DRAFT, json!({"from": today, "to": today}))["id"], pr["id"]);
+    let e1i = f.employee_info(&e1);
+    assert_eq!((i(&e1i["owed"]), i(&e1i["advances"])), (179_000, 20_000));
+    assert_eq!(i(&f.employee_info(&e3)["advances"]), 0);
+
+    // Salaries: never more than owed. E1 179 000 by bank, E2 150 000 and E3 70 000 from cash.
+    assert_eq!(
+        f.fr(
+            m::FIN_VOUCHERS_CREATE,
+            json!({"date": today, "account_id": 1110, "purpose": "salary", "employee_id": e2, "amount": 150_001})
+        ),
+        ("amount".into(), "payment_exceeds".into())
+    );
+    let s1 = f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1210, "purpose": "salary", "employee_id": e1, "amount": 179_000}),
+    );
+    assert_eq!(f.rows(&s1["id"]), vec![(2310, 179_000), (1210, -179_000)]);
+    f.ok(m::FIN_VOUCHERS_CREATE, json!({"date": today, "account_id": 1110, "purpose": "salary", "employee_id": e2, "amount": 150_000}));
+    f.ok(m::FIN_VOUCHERS_CREATE, json!({"date": today, "account_id": 1110, "purpose": "salary", "employee_id": e3, "amount": 70_000}));
+    // Salary tax withheld goes to the government from the bank; it is never withheld on an expense.
+    let tax = f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1210, "purpose": "tax", "withholding": "wage", "amount": 11_000}),
+    );
+    assert_eq!(f.rows(&tax["id"]), vec![(2410, 11_000), (1210, -11_000)]);
+    assert_eq!(
+        f.fr(
+            m::FIN_VOUCHERS_CREATE,
+            json!({"date": today, "account_id": 1110, "purpose": "expense",
+                   "lines": [{"account_id": 5210, "amount": 1000, "withheld": 10, "withholding": "wage"}]})
+        ),
+        ("withholding".into(), "withheld_range".into())
+    );
+
+    // Paid documents cannot be voided away from under the payments.
+    assert_eq!(
+        f.fr(m::FIN_DOCS_VOID, json!({"id": pr["id"], "reason": "x"})),
+        ("id".into(), "doc_not_voidable".into())
+    );
+    assert_eq!(
+        f.fr(m::FIN_DOCS_VOID, json!({"id": adv3["id"], "reason": "x"})),
+        ("id".into(), "doc_not_voidable".into())
+    );
+
+    // Cash 600 000 − 50 000 − 20 000 − 150 000 − 70 000 = 310 000; bank 300 000 − 179 000 − 11 000 = 110 000.
+    assert_eq!((f.balance(1110), f.balance(1210)), (310_000, 110_000));
+    let o = f.ok(m::FIN_OVERVIEW, json!({"from": today, "to": today}));
+    assert_eq!(i(&o["cash"]["staff_paid"]), 469_000);
+    assert_eq!(i(&o["cash"]["tax_paid"]), 11_000);
+    assert_eq!(i(&o["cash"]["operating"]), -469_000);
+    assert_eq!(i(&o["cash"]["money_closing"]) - i(&o["cash"]["money_opening"]), 420_000);
+    assert_eq!(i(&o["accrual"]["expenses_total"]), 460_000);
+    assert!(o["checks"].as_array().unwrap().iter().all(|c| c["ok"] == json!(true)), "{o}");
+
+    // R8 and R9.
+    let v = |c: &Value| i(&c["value"]);
+    let r8 = f.report("payroll");
+    assert_eq!(r8["rows"].as_array().unwrap().len(), 3);
+    assert_eq!((v(&r8["totals"][9]), v(&r8["totals"][12])), (460_000, 399_000));
+    let r9 = f.report("withholding");
+    let row = &r9["rows"][0];
+    assert_eq!(r9["rows"].as_array().unwrap().len(), 1);
+    assert_eq!((row[1]["value"].as_str(), v(&row[2]), v(&row[3]), v(&row[4])), (Some("acct_2410"), 11_000, 11_000, 0));
+
+    // An unpaid payroll of an earlier period can be voided; its period is free again.
+    let old = json!({"from": day(-90), "to": day(-61), "date": today, "lines": [line(&e2, 150_000, 0, 0, 0, 0)]});
+    let pr2 = f.ok(m::FIN_PAYROLL_CREATE, old.clone());
+    assert_eq!(i(&f.employee_info(&e2)["owed"]), 150_000);
+    f.ok(m::FIN_DOCS_VOID, json!({"id": pr2["id"], "reason": "wrong month"}));
+    assert_eq!(i(&f.employee_info(&e2)["owed"]), 0);
+    f.ok(m::FIN_PAYROLL_CREATE, old);
+}
+
+#[test]
+fn a_share_statement_freezes_what_the_doctor_earned_and_is_paid_up_to_it() {
+    let f = fx();
+    let today = crate::clock::today_iso();
+    let mut s = f.ok(m::FIN_SETTINGS_GET, json!({}));
+    s["share_enabled"] = json!(true);
+    s["share_basis"] = json!("treatment");
+    f.ok(m::FIN_SETTINGS_SAVE, s);
+    f.ok(m::FIN_SHARES_RULES_SAVE, json!({"doctor_id": f.doctor, "kind": "percent", "value": 2000}));
+    // Invoice 100 000 − 10 000 discount = 90 000; the doctor's 20 % is 18 000.
+    let t1 = f.done(&f.patient, 16, 100_000);
+    let inv = f.ok(
+        m::FIN_INVOICES_CREATE,
+        json!({"patient_id": f.patient, "items": [{"item_id": t1}], "discount": 10_000}),
+    );
+    let pre = f.ok(m::FIN_SHARES_PREVIEW, json!({"from": today, "to": today}));
+    assert_eq!((i(&pre["base_total"]), i(&pre["commission_total"])), (90_000, 18_000));
+
+    let ds = f.ok(
+        m::FIN_SHARES_STATEMENT_CREATE,
+        json!({"doctor_id": f.doctor, "from": today, "to": today, "date": today}),
+    );
+    assert!(ds["number"].as_str().unwrap().starts_with("DS-"));
+    assert_eq!((i(&ds["base"]), i(&ds["share"])), (90_000, 18_000));
+    assert_eq!(ds["lines"].as_array().unwrap().len(), 1);
+    assert_eq!(ds["lines"][0]["invoice_id"], inv["id"]);
+    assert_eq!(f.rows(&ds["id"]), vec![(5120, 18_000), (2320, -18_000)]);
+    assert_eq!(
+        f.fr(m::FIN_SHARES_STATEMENT_CREATE, json!({"doctor_id": f.doctor, "from": today, "to": today, "date": today})),
+        ("from".into(), "period_taken".into())
+    );
+    assert_eq!(
+        f.fr(
+            m::FIN_SHARES_STATEMENT_CREATE,
+            json!({"doctor_id": f.doctor, "from": day(-200), "to": day(-199), "date": today})
+        ),
+        ("doctor_id".into(), "billing_amount".into())
+    );
+
+    // A later price reduction of 9 000 changes the preview (81 000 → 16 200), not the statement.
+    f.ok(m::FIN_INVOICES_ADJUST, json!({"invoice_id": inv["id"], "kind": "reduction", "amount": 9_000, "reason": "x"}));
+    let pre = f.ok(m::FIN_SHARES_PREVIEW, json!({"from": today, "to": today}));
+    assert_eq!((i(&pre["base_total"]), i(&pre["commission_total"])), (81_000, 16_200));
+    let again = f.ok(m::FIN_SHARES_STATEMENT_GET, json!({"id": ds["id"]}));
+    assert_eq!((i(&again["base"]), i(&again["share"])), (90_000, 18_000));
+
+    // Paid up to what is owed.
+    let bal = f.ok(m::FIN_SHARES_BALANCES, json!({}));
+    assert_eq!((i(&bal[0]["approved"]), i(&bal[0]["paid"]), i(&bal[0]["owed"])), (18_000, 0, 18_000));
+    assert_eq!(
+        f.fr(
+            m::FIN_VOUCHERS_CREATE,
+            json!({"date": today, "account_id": 1110, "purpose": "share", "doctor_id": f.doctor, "amount": 18_001})
+        ),
+        ("amount".into(), "payment_exceeds".into())
+    );
+    let paid = f.ok(
+        m::FIN_VOUCHERS_CREATE,
+        json!({"date": today, "account_id": 1110, "purpose": "share", "doctor_id": f.doctor, "amount": 18_000}),
+    );
+    assert_eq!(f.rows(&paid["id"]), vec![(2320, 18_000), (1110, -18_000)]);
+    assert_eq!(paid["doctor_id"], json!(f.doctor));
+    let bal = f.ok(m::FIN_SHARES_BALANCES, json!({}));
+    assert_eq!((i(&bal[0]["approved"]), i(&bal[0]["paid"]), i(&bal[0]["owed"])), (18_000, 18_000, 0));
+    assert_eq!(
+        f.fr(m::FIN_DOCS_VOID, json!({"id": ds["id"], "reason": "x"})),
+        ("id".into(), "doc_not_voidable".into())
+    );
+    assert_eq!(f.ok(m::FIN_SHARES_STATEMENTS, json!({"doctor_id": f.doctor})).as_array().unwrap().len(), 1);
+
+    // Salaries and shares are for whoever holds the payroll permission: a receptionist does not,
+    // an accountant does.
+    f.ok(
+        m::USERS_CREATE,
+        json!({"username": "rec", "display_name": "پذیرش", "password": "rec-pass-123", "role": "receptionist"}),
+    );
+    f.ok(
+        m::USERS_CREATE,
+        json!({"username": "acc", "display_name": "حسابدار", "password": "acc-pass-123", "role": "accountant"}),
+    );
+    let rec = f.t.login("rec", "rec-pass-123");
+    let acc = f.t.login("acc", "acc-pass-123");
+    assert_eq!(
+        f.t.call(m::FIN_EMPLOYEES_LIST, json!({}), Some(&rec)).unwrap_err(),
+        ErrorCode::Forbidden
+    );
+    assert_eq!(
+        f.t.call(
+            m::FIN_VOUCHERS_CREATE,
+            json!({"date": today, "account_id": 1110, "purpose": "share", "doctor_id": f.doctor, "amount": 1}),
+            Some(&rec)
+        )
+        .unwrap_err(),
+        ErrorCode::Forbidden
+    );
+    assert!(f.t.call(m::FIN_PAYROLL_LIST, json!({}), Some(&acc)).is_ok());
 }

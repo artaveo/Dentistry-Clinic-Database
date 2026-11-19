@@ -12,6 +12,7 @@ pub mod patients;
 pub mod receipts;
 pub mod shares;
 pub mod spend;
+pub mod staff;
 pub(crate) mod util;
 
 pub(crate) use util::{

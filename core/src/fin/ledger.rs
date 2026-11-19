@@ -18,6 +18,9 @@ pub(crate) const CASH: i64 = 1110;
 pub(crate) const RECEIVABLE: i64 = 1310;
 pub(crate) const PAYABLE: i64 = 2110;
 pub(crate) const DEPOSITS: i64 = 2210;
+pub(crate) const ADVANCES: i64 = 1320;
+pub(crate) const WAGES_PAYABLE: i64 = 2310;
+pub(crate) const SHARES_PAYABLE: i64 = 2320;
 pub(crate) const TAX_WAGE: i64 = 2410;
 pub(crate) const TAX_RENT: i64 = 2420;
 pub(crate) const TAX_CONTRACTOR: i64 = 2430;
@@ -29,6 +32,8 @@ pub(crate) const OTHER_INCOME: i64 = 4190;
 pub(crate) const DISCOUNTS: i64 = 4910;
 pub(crate) const REDUCTIONS: i64 = 4920;
 pub(crate) const EXPENSES: i64 = 5000;
+pub(crate) const SALARIES: i64 = 5110;
+pub(crate) const DOCTOR_SHARES: i64 = 5120;
 pub(crate) const MATERIALS: i64 = 5230;
 pub(crate) const LAB: i64 = 5240;
 pub(crate) const BAD_DEBT: i64 = 5810;
@@ -52,6 +57,8 @@ pub(crate) fn kind_code(k: DocKind) -> &'static str {
         DocKind::Or => "or",
         DocKind::Tr => "tr",
         DocKind::Cc => "cc",
+        DocKind::Pr => "pr",
+        DocKind::Ds => "ds",
     }
 }
 
@@ -68,6 +75,8 @@ pub(crate) fn kind_of(s: &str) -> DocKind {
         "or" => DocKind::Or,
         "tr" => DocKind::Tr,
         "cc" => DocKind::Cc,
+        "pr" => DocKind::Pr,
+        "ds" => DocKind::Ds,
         _ => DocKind::Inv,
     }
 }
@@ -86,6 +95,8 @@ pub(crate) fn prefix(k: DocKind) -> &'static str {
         DocKind::Or => "OR",
         DocKind::Tr => "TR",
         DocKind::Cc => "CC",
+        DocKind::Pr => "PR",
+        DocKind::Ds => "DS",
     }
 }
 
@@ -114,6 +125,8 @@ pub(crate) struct NewDoc<'a> {
     pub date: i64,
     pub patient_id: Option<&'a str>,
     pub supplier_id: Option<&'a str>,
+    pub employee_id: Option<&'a str>,
+    pub doctor_id: Option<&'a str>,
     pub account_id: Option<i64>,
     pub account2_id: Option<i64>,
     pub ref_id: Option<i64>,
@@ -130,10 +143,16 @@ pub(crate) struct NewDoc<'a> {
 pub(crate) fn insert_doc(conn: &Connection, actor: &Actor, d: &NewDoc<'_>) -> Result<(i64, String)> {
     let kind = d.kind.unwrap_or(DocKind::Inv);
     let (year, serial) = next_serial(conn, prefix(kind))?;
-    let (party, party_id) = match (d.patient_id, d.supplier_id) {
-        (Some(p), _) => (Some("patient"), Some(p)),
-        (None, Some(s)) => (Some("supplier"), Some(s)),
-        _ => (None, None),
+    let (party, party_id) = if let Some(p) = d.patient_id {
+        (Some("patient"), Some(p))
+    } else if let Some(s) = d.supplier_id {
+        (Some("supplier"), Some(s))
+    } else if let Some(e) = d.employee_id {
+        (Some("employee"), Some(e))
+    } else if let Some(x) = d.doctor_id {
+        (Some("doctor"), Some(x))
+    } else {
+        (None, None)
     };
     conn.execute(
         "INSERT INTO fin_doc(kind, year, serial, doc_date, party, party_id, account_id, account2_id, ref_id, ext_id, amount,
@@ -406,7 +425,7 @@ mod tests {
     #[test]
     fn every_kind_has_its_own_prefix() {
         use DocKind::*;
-        let all = [Inv, Rc, Al, Rf, Cn, Wo, Pp, Bl, Pv, Or, Tr, Cc];
+        let all = [Inv, Rc, Al, Rf, Cn, Wo, Pp, Bl, Pv, Or, Tr, Cc, Pr, Ds];
         for k in all {
             assert_eq!(kind_of(kind_code(k)), k);
             assert_eq!(prefix(k).to_lowercase(), kind_code(k));

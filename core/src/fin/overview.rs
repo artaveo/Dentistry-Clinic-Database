@@ -58,6 +58,7 @@ fn cash_basis(conn: &Connection, rows: &[Flow], from: i64, to: i64) -> Result<Ca
     let expenses = by_expense_account(rows, is_pv);
     let expenses_total: i64 = expenses.iter().map(|e| e.amount).sum();
     let suppliers_paid = sum(rows, |r| is_pv(r) && r.1 == PAYABLE);
+    let staff_paid = sum(rows, |r| is_pv(r) && matches!(r.1, WAGES_PAYABLE | ADVANCES | SHARES_PAYABLE));
     let net_received = received - refunded;
     // Money accounts: opening, in, out, closing.
     let mut stmt = conn.prepare("SELECT id FROM fin_account WHERE money IS NOT NULL ORDER BY id")?;
@@ -89,7 +90,8 @@ fn cash_basis(conn: &Connection, rows: &[Flow], from: i64, to: i64) -> Result<Ca
         expenses,
         expenses_total,
         suppliers_paid,
-        operating: net_received - expenses_total - suppliers_paid,
+        staff_paid,
+        operating: net_received - expenses_total - suppliers_paid - staff_paid,
         withheld: -sum(rows, |r| is_pv(r) && r.0 != "pv:tax" && is_tax(r.1)),
         owner_in: -sum(rows, |r| r.0 == "or" && r.1 == CAPITAL),
         owner_out: sum(rows, |r| is_pv(r) && r.1 == DRAWINGS),
@@ -192,8 +194,9 @@ pub fn overview(conn: &Connection, p: &PeriodParams) -> Result<FinanceOverview> 
     let mut checks = standing_checks(conn)?;
     checks.push(check("bridge", patient_revenue - write_offs - ar_change + dep_change, cash.net_received));
     // Paid for something that is neither an expense nor a debt (equipment).
-    let assets_bought = sum(&rows, |r| is_pv(r) && r.3.is_none() && r.2 == "asset");
+    let assets_bought = sum(&rows, |r| is_pv(r) && r.3.is_none() && r.2 == "asset" && r.1 != ADVANCES);
     let explained = cash.net_received - assets_bought - cash.expenses_total - cash.suppliers_paid
+        - cash.staff_paid
         + cash.withheld
         - cash.tax_paid
         + cash.owner_in

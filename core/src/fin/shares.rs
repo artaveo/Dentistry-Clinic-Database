@@ -1,5 +1,5 @@
 //! Finance settings (receipt footer, the clinic's legal profile) and doctor shares: the rules and the
-//! preview of what each doctor earned in a period (frozen statements come in phase 2).
+//! preview of what each doctor earned in a period, and the statements that freeze it (DS).
 
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
@@ -337,6 +337,8 @@ pub fn preview(conn: &Connection, p: &CommissionReportParams) -> Result<Commissi
                 e.insert(crate::scheduling::get_doctor(conn, doctor)?.full_name);
             }
             by_doctor.entry(doctor.to_string()).or_default().push(CommissionLine {
+                invoice_id: invoice,
+                service_id: service.clone(),
                 date: iso_of(date),
                 invoice_number: number.clone(),
                 patient_name: patient.clone(),
@@ -361,6 +363,235 @@ pub fn preview(conn: &Connection, p: &CommissionReportParams) -> Result<Commissi
     }
     report.doctors.sort_by(|a, b| a.doctor_name.cmp(&b.doctor_name));
     Ok(report)
+}
+
+// ───────────────────────────── frozen statements (DS) ─────────────────────────────
+
+/// `ext_id` of a statement or payroll: its period as `yyyymmdd-yyyymmdd`.
+pub(crate) fn period_key(from: i64, to: i64) -> String {
+    format!("{from}-{to}")
+}
+
+pub(crate) fn period_of(key: &Option<String>) -> (i64, i64) {
+    let k = key.as_deref().unwrap_or("");
+    let f = k.get(0..8).and_then(|x| x.parse().ok()).unwrap_or(0);
+    let t = k.get(9..17).and_then(|x| x.parse().ok()).unwrap_or(0);
+    (f, t)
+}
+
+/// SQL: a posted document of kind ?4 (for party ?1 when given) whose period overlaps ?2..?3.
+pub(crate) const OVERLAP_SQL: &str = "SELECT EXISTS(SELECT 1 FROM fin_doc WHERE kind = ?4 AND status = 'posted'
+    AND (?1 IS NULL OR party_id = ?1)
+    AND CAST(substr(ext_id, 1, 8) AS INTEGER) <= ?3 AND CAST(substr(ext_id, 10, 8) AS INTEGER) >= ?2)";
+
+/// Approves what a doctor earned in a period: the preview's lines are copied into the statement and
+/// never recomputed (a later price reduction does not change it). Books Dr 5120 / Cr 2320 (the doctor).
+pub fn create_statement(
+    conn: &Connection,
+    actor: &Actor,
+    p: &CreateShareStatementParams,
+) -> Result<ShareStatementInfo> {
+    use super::ledger::{cr, dr, insert_doc, post, NewDoc, DOCTOR_SHARES, SHARES_PAYABLE};
+    let doctor = check_doctor(conn, &Some(p.doctor_id.clone()))?
+        .ok_or_else(|| CoreError::invalid("doctor_id", ValidationRule::Required, "choose the doctor"))?;
+    let (from, to) = period(&p.from, &p.to)?;
+    let date = doc_day("date", &p.date)?;
+    let taken: bool = conn.query_row(OVERLAP_SQL, params![doctor, from, to, "ds"], |r| r.get(0))?;
+    if taken {
+        return Err(CoreError::invalid(
+            "from",
+            ValidationRule::PeriodTaken,
+            "an approved statement of this doctor already covers part of this period",
+        ));
+    }
+    let settings = get_settings(conn)?;
+    let report = preview(
+        conn,
+        &CommissionReportParams { doctor_id: Some(doctor.clone()), from: iso_of(from), to: iso_of(to) },
+    )?;
+    let lines: Vec<CommissionLine> = report.doctors.into_iter().flat_map(|d| d.lines).collect();
+    let share: i64 = lines.iter().map(|l| l.commission).sum();
+    if share <= 0 {
+        return Err(CoreError::invalid(
+            "doctor_id",
+            ValidationRule::BillingAmount,
+            "this doctor has no share in this period",
+        ));
+    }
+    let key = period_key(from, to);
+    let (id, number) = insert_doc(
+        conn,
+        actor,
+        &NewDoc {
+            kind: Some(DocKind::Ds),
+            date,
+            doctor_id: Some(&doctor),
+            amount: share,
+            ext_id: Some(&key),
+            purpose: Some(match settings.share_basis {
+                CommissionBasis::Treatment => "treatment",
+                CommissionBasis::Payment => "payment",
+            }),
+            ..Default::default()
+        },
+    )?;
+    for (i, l) in lines.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO fin_line(doc_id, no, amount, ref_id, list_price, service_id, provider_id, name, due_date)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                id,
+                i as i64 + 1,
+                l.commission,
+                l.invoice_id,
+                l.base,
+                l.service_id,
+                doctor,
+                l.name,
+                ymd(&l.date)
+            ],
+        )?;
+    }
+    post(conn, id, date, vec![dr(DOCTOR_SHARES, share), cr(SHARES_PAYABLE, share).of(&doctor)])?;
+    audit::record(
+        conn,
+        actor,
+        "share.approve",
+        Some("doctor"),
+        Some(&doctor),
+        None,
+        Some(&json!({"number": number, "from": iso_of(from), "to": iso_of(to), "share": share})),
+    )?;
+    get_statement(conn, id)
+}
+
+/// `(id, year, serial, doctor, doctor name, period, date, basis, share, status, void reason, prints, by)`
+type StatementRow = (
+    i64,
+    i64,
+    i64,
+    String,
+    String,
+    Option<String>,
+    i64,
+    Option<String>,
+    i64,
+    String,
+    Option<String>,
+    i64,
+    Option<String>,
+);
+
+pub fn get_statement(conn: &Connection, id: i64) -> Result<ShareStatementInfo> {
+    let row: StatementRow = conn
+        .query_row(
+            "SELECT d.id, d.year, d.serial, d.party_id, COALESCE(dr.full_name, ''), d.ext_id, d.doc_date, d.purpose,
+                d.amount, d.status, d.void_reason, d.print_count, d.created_by
+             FROM fin_doc d LEFT JOIN doctor dr ON dr.id = d.party_id WHERE d.id = ?1 AND d.kind = 'ds'",
+            [id],
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                    r.get(6)?,
+                    r.get(7)?,
+                    r.get(8)?,
+                    r.get(9)?,
+                    r.get(10)?,
+                    r.get(11)?,
+                    r.get(12)?,
+                ))
+            },
+        )
+        .optional()?
+        .ok_or_else(|| {
+            CoreError::api(ErrorCode::NotFound, format!("share statement {id}"))
+                .on_field("id", ValidationRule::DocNotFound)
+        })?;
+    let (id, year, serial, doctor_id, doctor_name, key, date, basis, share, status, void_reason, print_count, by) =
+        row;
+    let mut stmt = conn.prepare_cached(&format!(
+        "SELECT l.ref_id, l.service_id, l.due_date, {}, COALESCE(p.full_name, ''), COALESCE(l.name, ''),
+            COALESCE(l.list_price, 0), l.amount
+         FROM fin_line l LEFT JOIN fin_doc d ON d.id = l.ref_id LEFT JOIN patient p ON p.id = d.party_id
+         WHERE l.doc_id = ?1 ORDER BY l.no",
+        super::ledger::NUMBER_SQL
+    ))?;
+    let lines: Vec<CommissionLine> = stmt
+        .query_map([id], |r| {
+            Ok(CommissionLine {
+                invoice_id: r.get::<_, Option<i64>>(0)?.unwrap_or(0),
+                service_id: r.get(1)?,
+                date: iso_of(r.get::<_, Option<i64>>(2)?.unwrap_or(0)),
+                invoice_number: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                patient_name: r.get(4)?,
+                name: r.get(5)?,
+                base: r.get(6)?,
+                commission: r.get(7)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    let (from, to) = period_of(&key);
+    Ok(ShareStatementInfo {
+        id,
+        number: format_number("DS", year, serial),
+        doctor_id,
+        doctor_name,
+        from: iso_of(from),
+        to: iso_of(to),
+        date: iso_of(date),
+        basis: if basis.as_deref() == Some("treatment") {
+            CommissionBasis::Treatment
+        } else {
+            CommissionBasis::Payment
+        },
+        base: lines.iter().map(|l| l.base).sum(),
+        share,
+        lines,
+        status: super::ledger::status_of(&status),
+        void_reason,
+        print_count,
+        created_by_name: user_name(conn, &by)?,
+    })
+}
+
+pub fn list_statements(conn: &Connection, p: &ShareStatementListParams) -> Result<Vec<ShareStatementInfo>> {
+    let doctor = p.doctor_id.as_deref().filter(|s| !s.is_empty());
+    let mut stmt = conn.prepare(
+        "SELECT id FROM fin_doc WHERE kind = 'ds' AND (?1 IS NULL OR party_id = ?1)
+         ORDER BY doc_date DESC, id DESC LIMIT 500",
+    )?;
+    let ids: Vec<i64> = stmt.query_map([doctor], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+    ids.into_iter().map(|id| get_statement(conn, id)).collect()
+}
+
+/// Per doctor: shares approved (net of voids), paid, and still owed (the 2320 sub-ledger).
+pub fn balances(conn: &Connection) -> Result<Vec<DoctorShareBalance>> {
+    let mut stmt = conn.prepare(
+        "SELECT g.party_id, COALESCE(dr.full_name, ''),
+            -COALESCE(SUM(CASE WHEN d.kind = 'ds' THEN g.amount END), 0),
+            COALESCE(SUM(CASE WHEN d.kind = 'pv' THEN g.amount END), 0),
+            -SUM(g.amount)
+         FROM fin_gl g JOIN fin_doc d ON d.id = g.doc_id LEFT JOIN doctor dr ON dr.id = g.party_id
+         WHERE g.account_id = 2320 AND g.party_id IS NOT NULL
+         GROUP BY g.party_id ORDER BY 2",
+    )?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(DoctorShareBalance {
+                doctor_id: r.get(0)?,
+                doctor_name: r.get(1)?,
+                approved: r.get(2)?,
+                paid: r.get(3)?,
+                owed: r.get(4)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
 }
 
 #[cfg(test)]

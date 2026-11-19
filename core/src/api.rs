@@ -1238,6 +1238,9 @@ impl Core {
                 if p.purpose == VoucherPurpose::Supplier {
                     s.require_any(&[perm::REPORTS_VIEW, perm::INVENTORY_MANAGE])?;
                 }
+                if matches!(p.purpose, VoucherPurpose::Salary | VoucherPurpose::Advance | VoucherPurpose::Share) {
+                    s.require(perm::FINANCE_PAYROLL)?;
+                }
                 ok(self.with_tx(|c| fin::spend::create_voucher(c, &actor(&s), &p))?)
             }
             m::FIN_BILLS_CREATE => {
@@ -1273,6 +1276,9 @@ impl Core {
             m::FIN_DOCS_VOID => {
                 s.require(perm::BILLING_VOID)?;
                 let p: VoidDocParams = params(p)?;
+                if self.with_db(|o| fin::docs::is_staff_doc(&o.conn, p.id))? {
+                    s.require(perm::FINANCE_PAYROLL)?;
+                }
                 ok(self.with_tx(|c| fin::docs::void(c, &actor(&s), &p))?)
             }
             m::FIN_DOCS_PRINTED => {
@@ -1313,6 +1319,55 @@ impl Core {
                 s.require(perm::REPORTS_VIEW)?;
                 let p: CommissionReportParams = params(p)?;
                 ok(self.with_db(|o| fin::shares::preview(&o.conn, &p))?)
+            }
+            m::FIN_SHARES_STATEMENT_CREATE => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let p: CreateShareStatementParams = params(p)?;
+                ok(self.with_tx(|c| fin::shares::create_statement(c, &actor(&s), &p))?)
+            }
+            m::FIN_SHARES_STATEMENTS => {
+                s.require_any(&[perm::REPORTS_VIEW, perm::FINANCE_PAYROLL])?;
+                let p: ShareStatementListParams = params(p)?;
+                ok(self.with_db(|o| fin::shares::list_statements(&o.conn, &p))?)
+            }
+            m::FIN_SHARES_STATEMENT_GET => {
+                s.require_any(&[perm::REPORTS_VIEW, perm::FINANCE_PAYROLL])?;
+                let DocIdParams { id } = params(p)?;
+                ok(self.with_db(|o| fin::shares::get_statement(&o.conn, id))?)
+            }
+            m::FIN_SHARES_BALANCES => {
+                s.require_any(&[perm::REPORTS_VIEW, perm::FINANCE_PAYROLL])?;
+                ok(self.with_db(|o| fin::shares::balances(&o.conn))?)
+            }
+            m::FIN_EMPLOYEES_LIST => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let p: EmployeeListParams = params(p)?;
+                ok(self.with_db(|o| fin::staff::list_employees(&o.conn, &p))?)
+            }
+            m::FIN_EMPLOYEES_SAVE => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let p: SaveEmployeeParams = params(p)?;
+                ok(self.with_tx(|c| fin::staff::save_employee(c, &actor(&s), &p))?)
+            }
+            m::FIN_PAYROLL_DRAFT => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let p: PayrollDraftParams = params(p)?;
+                ok(self.with_db(|o| fin::staff::draft(&o.conn, &p))?)
+            }
+            m::FIN_PAYROLL_CREATE => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let p: CreatePayrollParams = params(p)?;
+                ok(self.with_tx(|c| fin::staff::create(c, &actor(&s), &p))?)
+            }
+            m::FIN_PAYROLL_LIST => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let p: PayrollListParams = params(p)?;
+                ok(self.with_db(|o| fin::staff::list(&o.conn, &p))?)
+            }
+            m::FIN_PAYROLL_GET => {
+                s.require(perm::FINANCE_PAYROLL)?;
+                let DocIdParams { id } = params(p)?;
+                ok(self.with_db(|o| fin::staff::get(&o.conn, id))?)
             }
             m::STOCK_CATEGORIES_LIST => {
                 s.require(perm::INVENTORY_VIEW)?;
