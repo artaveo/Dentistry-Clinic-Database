@@ -1047,8 +1047,19 @@ fn payroll(c: &Ctx) -> Result<Table> {
     )?;
     Ok(table(
         &[
-            "date", "number", "period", "employee", "father_name", "tin", "base", "extra", "commission", "gross",
-            "advance", "tax", "net",
+            "date",
+            "number",
+            "period",
+            "employee",
+            "father_name",
+            "tin",
+            "base",
+            "extra",
+            "commission",
+            "gross",
+            "advance",
+            "tax",
+            "net",
         ],
         rows,
         &[6, 7, 8, 9, 10, 11, 12],

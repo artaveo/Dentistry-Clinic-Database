@@ -24,7 +24,7 @@ field: string | null,
  */
 rule: ValidationRule | null, };
 
-export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "account_not_found" | "account_inactive" | "account_kind" | "account_name" | "doc_not_found" | "doc_void" | "doc_not_voidable" | "allocation_invalid" | "same_account" | "withheld_range" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed" | "backup_minute_range" | "backup_retention_range" | "usb_interval_range" | "cloud_folder" | "activation_code_format" | "usb_mount_unknown" | "backup_file_unknown" | "tooth_conflict" | "finding_not_found" | "item_duplicate" | "patient_has_history" | "stock_code_taken" | "appointment_not_started" | "recall_duplicate";
+export type ValidationRule = "required" | "username_format" | "username_taken" | "password_too_short" | "wrong_password" | "display_name_length" | "clinic_name_length" | "role_not_assignable" | "owner_immutable" | "color_format" | "time_format" | "working_hours" | "session_timeout_range" | "backup_hour_range" | "backup_keep_range" | "logo_type" | "logo_size" | "recovery_key" | "invalid_params" | "full_name_length" | "phone_format" | "patient_not_found" | "date_format" | "age_range" | "cannot_merge_self" | "attachment_type" | "attachment_size" | "import_file_type" | "tooth_format" | "possible_duplicate" | "doctor_not_found" | "doctor_inactive" | "chair_not_found" | "chair_inactive" | "chair_not_allowed" | "chair_name_length" | "chair_name_taken" | "specialty_length" | "user_already_doctor" | "user_not_found" | "appointment_not_found" | "recall_not_found" | "patient_merged" | "time_range" | "duration_range" | "doctor_busy" | "chair_busy" | "patient_busy" | "outside_working_hours" | "doctor_on_break" | "doctor_on_leave" | "schedule_overlap" | "leave_range" | "invalid_transition" | "not_editable" | "repeat_months_range" | "role_label_length" | "role_label_taken" | "role_not_found" | "role_system" | "role_in_use" | "permission_unknown" | "permission_not_allowed" | "permissions_empty" | "self_lockout" | "not_today" | "patient_has_open_appointments" | "import_file_read" | "import_no_name_column" | "import_column" | "appointment_in_past" | "calendar_snap_range" | "medical_question_not_found" | "medical_question_group" | "medical_question_label" | "medical_detail_kind" | "medical_detail_length" | "medical_choice" | "medical_months_range" | "medical_system_question" | "document_not_found" | "document_void" | "document_text" | "document_items" | "doctor_required" | "rx_form" | "rx_dose_range" | "rx_warning_not_acknowledged" | "imaging_test_unknown" | "rest_days_range" | "drug_not_found" | "drug_class_unknown" | "template_not_found" | "template_kind" | "specialty_not_found" | "service_not_found" | "service_category_not_found" | "service_code_taken" | "service_code_format" | "service_price" | "service_sessions" | "service_variant_depth" | "service_specialty" | "license_length" | "tooth_number" | "tooth_surface" | "dentition_slots" | "condition_not_found" | "condition_abbreviation" | "plan_not_found" | "plan_not_editable" | "plan_has_work_in_progress" | "item_not_found" | "item_not_editable" | "item_teeth" | "item_phase" | "item_sessions" | "item_price" | "item_patient" | "session_number" | "session_interval" | "note_not_found" | "note_signed" | "note_empty" | "note_template_not_found" | "plan_template_not_found" | "plan_template_items" | "perio_value" | "perio_exam_not_found" | "billing_amount" | "invoice_not_found" | "invoice_empty" | "invoice_void" | "invoice_has_payments" | "item_already_billed" | "item_not_billable" | "discount_range" | "payment_exceeds" | "refund_exceeds" | "insufficient_credit" | "installments_invalid" | "credit_note_exceeds" | "cash_reason_required" | "commission_value" | "commission_rule_not_found" | "period_range" | "account_not_found" | "account_inactive" | "account_kind" | "account_name" | "doc_not_found" | "doc_void" | "doc_not_voidable" | "allocation_invalid" | "same_account" | "withheld_range" | "employee_not_found" | "period_taken" | "advance_exceeds" | "stock_item_not_found" | "stock_lookup_not_found" | "stock_quantity" | "stock_insufficient" | "stock_batch_not_found" | "stock_same_place" | "supplier_not_found" | "purchase_not_found" | "purchase_empty" | "purchase_void" | "purchase_used" | "lab_case_not_found" | "lab_status_invalid" | "lab_case_closed" | "materials_none" | "materials_already_consumed" | "backup_minute_range" | "backup_retention_range" | "usb_interval_range" | "cloud_folder" | "activation_code_format" | "usb_mount_unknown" | "backup_file_unknown" | "tooth_conflict" | "finding_not_found" | "item_duplicate" | "patient_has_history" | "stock_code_taken" | "appointment_not_started" | "recall_duplicate";
 
 export type ErrorCode = "not_set_up" | "already_set_up" | "unauthenticated" | "session_expired" | "session_locked" | "forbidden" | "invalid_credentials" | "account_locked" | "recovery_key_invalid" | "validation" | "conflict" | "not_found" | "unknown_method" | "server_unreachable" | "license_read_only" | "license_server_unavailable" | "license_rejected" | "backup_invalid" | "internal";
 
@@ -1234,7 +1234,7 @@ export type AccountType = "asset" | "liability" | "equity" | "income" | "contra"
 
 export type MoneyKind = "cash" | "bank" | "mobile";
 
-export type DocKind = "inv" | "rc" | "al" | "rf" | "cn" | "wo" | "pp" | "bl" | "pv" | "or" | "tr" | "cc";
+export type DocKind = "inv" | "rc" | "al" | "rf" | "cn" | "wo" | "pp" | "bl" | "pv" | "or" | "tr" | "cc" | "pr" | "ds";
 
 export type DocStatus = "posted" | "void" | "superseded";
 
@@ -1244,9 +1244,9 @@ export type InstallmentState = "pending" | "partial" | "paid" | "overdue";
 
 export type AdjustKind = "reduction" | "write_off";
 
-export type VoucherPurpose = "expense" | "supplier" | "tax" | "drawing" | "loan" | "other";
+export type VoucherPurpose = "expense" | "supplier" | "tax" | "drawing" | "loan" | "other" | "salary" | "advance" | "share";
 
-export type WithholdingKind = "rent" | "contractor";
+export type WithholdingKind = "rent" | "contractor" | "wage";
 
 export type OtherReceiptSource = "capital" | "loan" | "sale";
 
@@ -1532,6 +1532,18 @@ export type VoucherInfo = { id: number, kind: DocKind, number: string, date: str
  */
 account_id: number | null, purpose: VoucherPurpose | null, source: OtherReceiptSource | null, supplier_id: string | null, supplier_name: string | null, 
 /**
+ * The employee paid (salary, advance).
+ */
+employee_id: string | null, 
+/**
+ * The doctor paid (share).
+ */
+doctor_id: string | null, 
+/**
+ * The supplier, employee or doctor paid, by name.
+ */
+party_name: string | null, 
+/**
  * Who was paid / who paid (free text).
  */
 name: string | null, 
@@ -1555,6 +1567,14 @@ export type CreateVoucherParams = { date: string, account_id: number, purpose: V
  * Required for `supplier`; optional for an expense bought from a known supplier.
  */
 supplier_id: string | null, name: string | null, reference: string | null, note: string | null, 
+/**
+ * Required for `salary` and `advance`.
+ */
+employee_id: string | null, 
+/**
+ * Required for `share`.
+ */
+doctor_id: string | null, 
 /**
  * Expense lines; for `supplier` one line is made from `amount`.
  */
@@ -1674,6 +1694,10 @@ expenses: Array<AccountTotal>, expenses_total: number,
  */
 suppliers_paid: number, 
 /**
+ * Salaries, advances and doctor shares paid.
+ */
+staff_paid: number, 
+/**
  * `net_received − expenses_total − suppliers_paid`.
  */
 operating: number, 
@@ -1750,7 +1774,7 @@ export type SaveCommissionRuleParams = { id: string | null, doctor_id: string | 
 
 export type CommissionReportParams = { doctor_id: string | null, from: string, to: string, };
 
-export type CommissionLine = { date: string, invoice_number: string, patient_name: string, name: string, 
+export type CommissionLine = { invoice_id: number, service_id: string | null, date: string, invoice_number: string, patient_name: string, name: string, 
 /**
  * What the share is taken from.
  */
@@ -1759,6 +1783,84 @@ base: number, commission: number, };
 export type DoctorCommission = { doctor_id: string, doctor_name: string, base: number, commission: number, lines: Array<CommissionLine>, };
 
 export type CommissionReport = { basis: CommissionBasis, from: string, to: string, doctors: Array<DoctorCommission>, base_total: number, commission_total: number, };
+
+export type EmployeeInfo = { id: string, full_name: string, father_name: string | null, 
+/**
+ * Taxpayer number (on the payroll register).
+ */
+tin: string | null, national_id: string | null, phone: string | null, position: string, 
+/**
+ * When the employee is also one of the clinic's doctors.
+ */
+doctor_id: string | null, hire_date: string, end_date: string | null, 
+/**
+ * Monthly base salary, the payroll's starting point.
+ */
+base_salary: number, note: string | null, is_active: boolean, 
+/**
+ * Salary approved and not paid yet.
+ */
+owed: number, 
+/**
+ * Advances paid and not yet taken back.
+ */
+advances: number, version: number, };
+
+export type SaveEmployeeParams = { id: string | null, full_name: string, father_name: string | null, tin: string | null, national_id: string | null, phone: string | null, position: string, doctor_id: string | null, hire_date: string, end_date: string | null, base_salary: number, note: string | null, is_active: boolean, version: number | null, };
+
+export type EmployeeListParams = { include_inactive: boolean, };
+
+export type PayrollLineInfo = { employee_id: string, full_name: string, father_name: string | null, tin: string | null, position: string, base: number, 
+/**
+ * Allowances and overtime.
+ */
+extra: number, commission: number, gross: number, 
+/**
+ * Advance taken back.
+ */
+advance: number, 
+/**
+ * Salary tax withheld (entered by hand).
+ */
+tax: number, net: number, 
+/**
+ * Paid so far on this employee's salary (all payrolls, oldest first).
+ */
+paid: number, 
+/**
+ * Advances outstanding before this payroll (draft only).
+ */
+advances_open: number, note: string | null, };
+
+export type PayrollInfo = { 
+/**
+ * None for a draft that is not approved yet.
+ */
+id: number | null, number: string | null, from: string, to: string, date: string | null, status: DocStatus | null, lines: Array<PayrollLineInfo>, gross: number, advance: number, tax: number, net: number, void_reason: string | null, created_by_name: string | null, };
+
+export type PayrollDraftParams = { from: string, to: string, };
+
+export type NewPayrollLine = { employee_id: string, base: number, extra: number, commission: number, advance: number, tax: number, note: string | null, };
+
+export type CreatePayrollParams = { from: string, to: string, 
+/**
+ * The day the payroll is approved (booked).
+ */
+date: string, lines: Array<NewPayrollLine>, note: string | null, };
+
+export type PayrollListParams = { from: string | null, to: string | null, };
+
+export type ShareStatementInfo = { id: number, number: string, doctor_id: string, doctor_name: string, from: string, to: string, date: string, basis: CommissionBasis, lines: Array<CommissionLine>, base: number, share: number, status: DocStatus, void_reason: string | null, print_count: number, created_by_name: string | null, };
+
+export type CreateShareStatementParams = { doctor_id: string, from: string, to: string, 
+/**
+ * The day the statement is approved (booked).
+ */
+date: string, };
+
+export type ShareStatementListParams = { doctor_id: string | null, };
+
+export type DoctorShareBalance = { doctor_id: string, doctor_name: string, approved: number, paid: number, owed: number, };
 
 export type StockLookupInfo = { id: string, name: Translations, is_system: boolean, is_active: boolean, sort_order: number, version: number, };
 
@@ -2002,7 +2104,7 @@ low_stock: number | null, pending_lab: number | null, backup: BackupStatus | nul
  */
 license: string | null, };
 
-export type ReportKind = "daily_summary" | "monthly_summary" | "receipts" | "invoices" | "adjustments" | "aging" | "installments" | "deposits" | "expenses" | "money_book" | "provider_production" | "service_revenue" | "doctor_shares" | "cash_counts" | "income_statement" | "patients" | "treatments" | "procedures" | "tooth_conditions" | "doctor_activity" | "follow_ups" | "recall_list" | "referral_sources" | "stock" | "low_stock" | "purchases" | "consumption" | "expiry" | "supplier_balance";
+export type ReportKind = "daily_summary" | "monthly_summary" | "receipts" | "invoices" | "adjustments" | "aging" | "installments" | "deposits" | "expenses" | "money_book" | "provider_production" | "service_revenue" | "doctor_shares" | "cash_counts" | "income_statement" | "payroll" | "withholding" | "patients" | "treatments" | "procedures" | "tooth_conditions" | "doctor_activity" | "follow_ups" | "recall_list" | "referral_sources" | "stock" | "low_stock" | "purchases" | "consumption" | "expiry" | "supplier_balance";
 
 export type ReportParams = { kind: ReportKind, 
 /**
@@ -2339,6 +2441,16 @@ export interface Api {
   "fin.shares.rules_save": { params: SaveCommissionRuleParams; result: CommissionRuleInfo };
   "fin.shares.rules_delete": { params: IdVersionParams; result: Empty };
   "fin.shares.preview": { params: CommissionReportParams; result: CommissionReport };
+  "fin.shares.statement_create": { params: CreateShareStatementParams; result: ShareStatementInfo };
+  "fin.shares.statements": { params: ShareStatementListParams; result: Array<ShareStatementInfo> };
+  "fin.shares.statement_get": { params: DocIdParams; result: ShareStatementInfo };
+  "fin.shares.balances": { params: Empty; result: Array<DoctorShareBalance> };
+  "fin.employees.list": { params: EmployeeListParams; result: Array<EmployeeInfo> };
+  "fin.employees.save": { params: SaveEmployeeParams; result: EmployeeInfo };
+  "fin.payroll.draft": { params: PayrollDraftParams; result: PayrollInfo };
+  "fin.payroll.create": { params: CreatePayrollParams; result: PayrollInfo };
+  "fin.payroll.list": { params: PayrollListParams; result: Array<PayrollInfo> };
+  "fin.payroll.get": { params: DocIdParams; result: PayrollInfo };
   "stock_categories.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };
   "stock_categories.save": { params: SaveStockLookupParams; result: StockLookupInfo };
   "stock_units.list": { params: IncludeInactiveParams; result: Array<StockLookupInfo> };

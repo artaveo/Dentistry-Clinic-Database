@@ -1243,7 +1243,10 @@ impl Core {
                 if p.purpose == VoucherPurpose::Supplier {
                     s.require_any(&[perm::REPORTS_VIEW, perm::INVENTORY_MANAGE])?;
                 }
-                if matches!(p.purpose, VoucherPurpose::Salary | VoucherPurpose::Advance | VoucherPurpose::Share) {
+                if matches!(
+                    p.purpose,
+                    VoucherPurpose::Salary | VoucherPurpose::Advance | VoucherPurpose::Share
+                ) {
                     s.require(perm::FINANCE_PAYROLL)?;
                 }
                 ok(self.with_tx(|c| fin::spend::create_voucher(c, &actor(&s), &p))?)
