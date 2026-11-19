@@ -6,6 +6,7 @@
 // `?mock=seeded` starts with a configured clinic and some history.
 import questionsPsv from "../../../core/seeds/medical_questions.psv?raw";
 import { clinicalCall, seedClinical } from "./mockClinical";
+import { financeCall } from "./mockFinance";
 import { inventoryCall } from "./mockInventory";
 import type {
   AppointmentInfo, AppointmentStatus, AttachmentInfo, AuditEntry, BackupInfo, ChairInfo, ClinicProfile, DoctorInfo, RecallInfo, RoleInfo, ErrorCode, LabeledItem, MedicalAnswer, MedicalHistoryInfo, MedicalQuestionInfo, PatientInfo, RpcRequest, RpcResponse, Settings, UserInfo, ValidationRule,
@@ -39,7 +40,7 @@ const DISTRICTS: Record<string, [string, string, string, string][]> = {
 type Session = { user: UserInfo; perms: string[]; last: number; locked: boolean };
 type U = UserInfo & { password: string };
 
-const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.view", "billing.edit", "billing.void", "reports.view"];
+const ALL_PERMS = ["audit.view", "backup.create", "backup.restore", "backup.view", "settings.manage", "users.manage", "patients.view", "patients.edit", "clinical.view", "clinical.edit", "appointments.view", "appointments.edit", "appointments.treat", "doctors.manage", "inventory.view", "inventory.manage", "billing.view", "billing.edit", "billing.void", "billing.override", "reports.view"];
 const ROLE_PERMS: Record<string, string[]> = {
   owner: ALL_PERMS,
   administrator: ALL_PERMS.filter((p) => p !== "backup.restore"),
@@ -871,6 +872,8 @@ function call(method: string, p: any, token: string | null): unknown {
   }
   const clinical = clinicalCall(method, p);
   if (clinical !== undefined) return clinical;
+  const finance = financeCall(method, p);
+  if (finance !== undefined) return finance;
   try {
     const inventory = inventoryCall(method, p);
     if (inventory !== undefined) return inventory;

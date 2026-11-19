@@ -137,7 +137,6 @@ export function BillingSettingsTab() {
   );
   return (
     <div className="stack" data-testid="billing-settings">
-      {settings && <LegalCard settings={settings} onSave={save} />}
 
       <Card>
         <CardHeader icon={Landmark} title={t("fin.settings.money")} description={t("fin.settings.money.hint")} actions={<Button icon={Plus} onClick={() => setEditAccount("money")} data-testid="money-account-add">{t("common.add")}</Button>} />
@@ -197,6 +196,7 @@ export function BillingSettingsTab() {
 
       {editAccount && <AccountDialog account={typeof editAccount === "string" ? null : editAccount} parent={editAccount === "money" ? 1100 : 5000} onClose={() => setEditAccount(null)} onDone={() => { setEditAccount(null); invalidateAccounts(); toast.success(t("common.saved")); }} />}
       {editRule && <RuleDialog rule={editRule === "new" ? null : editRule} onClose={() => setEditRule(null)} onDone={() => { setEditRule(null); toast.success(t("common.saved")); load(); }} />}
+      {settings && <LegalCard settings={settings} onSave={save} />}
     </div>
   );
 }

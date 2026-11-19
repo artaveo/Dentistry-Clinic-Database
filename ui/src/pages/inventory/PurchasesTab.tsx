@@ -37,7 +37,7 @@ export function PurchasesTab({ perms, calendar }: { perms: InventoryPerms; calen
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<PurchaseInfo | null>(null);
   const reload = () => setTick((x) => x + 1);
-  useLive(["purchases", "stock", "supplier_payments"], reload);
+  useLive(["purchases", "stock", "fin"], reload);
   useEffect(() => {
     if (from > to) return;
     rpc("purchases.list", purchaseQ({ from, to, supplier_id: supplier || null }))

@@ -322,5 +322,6 @@
   "rule.invoice_has_payments": "این فاکتور پرداخت دارد؛ اول پول آن را بازپرداخت کنید یا به امانت برگردانید.",
   "billing.settings.category.new": "حساب مصرف تازه",
   "billing.settings.categories": "حساب‌های مصرف",
-  "comm.title": "پیش‌نمایش سهم داکتران"
+  "comm.title": "پیش‌نمایش سهم داکتران",
+  "billing.subtitle": "عاید، مصارف، صندوق و بانک، و تطبیق دفترهای کلینیک"
 }

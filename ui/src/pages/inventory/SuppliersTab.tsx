@@ -39,7 +39,7 @@ export function SuppliersTab({ perms, calendar }: { perms: InventoryPerms; calen
   const [editing, setEditing] = useState<SupplierInfo | "new" | null>(null);
   const [ledger, setLedger] = useState<SupplierInfo | null>(null);
   const reload = () => setTick((x) => x + 1);
-  useLive(["suppliers", "purchases", "supplier_payments", "lab_cases", "stock"], reload);
+  useLive(["suppliers", "purchases", "fin", "lab_cases", "stock"], reload);
   useEffect(() => {
     rpc("suppliers.list", supplierQ({ kind: kind === "all" ? null : kind, owing_only: owing, include_inactive: true }))
       .then((r) => {

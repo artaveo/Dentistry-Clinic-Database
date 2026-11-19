@@ -144,7 +144,7 @@ function OverviewTab({ calendar }: { calendar: Cal }) {
               {row(t("ov.refunded"), o?.cash.refunded, { sign: "-" })}
               {row(t("ov.netReceived"), o?.cash.net_received, { strong: true })}
               {o?.cash.expenses.map((e) => <tr key={e.account_id}><td>− {accountNameOf(e.account_id, accounts, t)}</td><td className="num">{money(e.amount)}</td></tr>)}
-              {row(t("ov.suppliersPaid"), o?.cash.suppliers_paid, { sign: "-" })}
+              {o && o.cash.suppliers_paid !== 0 && row(t("ov.suppliersPaid"), o.cash.suppliers_paid, { sign: "-" })}
               {row(t("ov.operating"), o?.cash.operating, { strong: true, testId: "recon-operating" })}
               {o && o.cash.withheld !== 0 && row(t("ov.withheld"), o.cash.withheld, { sign: "+", muted: true })}
               {o && o.cash.tax_paid !== 0 && row(t("ov.taxPaid"), o.cash.tax_paid, { sign: "-", muted: true })}
@@ -168,7 +168,7 @@ function OverviewTab({ calendar }: { calendar: Cal }) {
               {o && o.accrual.other_income !== 0 && row(t("ov.otherIncome"), o.accrual.other_income, { sign: "+" })}
               {row(t("ov.revenue"), o?.accrual.revenue, { strong: true })}
               {o?.accrual.expenses.map((e) => <tr key={e.account_id}><td>− {accountNameOf(e.account_id, accounts, t)}</td><td className="num">{money(e.amount)}</td></tr>)}
-              {row(t("ov.writeOffs"), o?.accrual.write_offs, { sign: "-" })}
+              {o && o.accrual.write_offs !== 0 && row(t("ov.writeOffs"), o.accrual.write_offs, { sign: "-" })}
               {row(t("ov.result"), o?.accrual.result, { strong: true, testId: "recon-result" })}
             </tbody>
           </table>

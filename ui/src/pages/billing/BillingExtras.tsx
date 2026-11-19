@@ -52,6 +52,7 @@ export function ExpensesTab({ perms, calendar }: { perms: BillingPerms; calendar
   const money = (v: number) => formatAmount(v, lang);
   const posted = (list ?? []).filter((v) => v.status === "posted");
   const gross = posted.reduce((s, v) => s + v.gross, 0);
+  const net = posted.reduce((s, v) => s + v.net, 0);
   const withheld = posted.reduce((s, v) => s + v.withheld, 0);
   const done = () => {
     setDialog(null);
@@ -80,7 +81,7 @@ export function ExpensesTab({ perms, calendar }: { perms: BillingPerms; calendar
       </div>
       {from > to && <Notice tone="warning">{t("rule.period_range")}</Notice>}
       <div className="stat-grid">
-        <Stat icon={Wallet} label={kind === "pv" ? t("exp.totalPaid") : t("exp.totalBilled")} value={list ? money(gross) : "…"} tone="warning" testId="expenses-total" />
+        <Stat icon={Wallet} label={kind === "pv" ? t("exp.totalPaid") : t("exp.totalBilled")} value={list ? money(kind === "pv" ? net : gross) : "…"} tone="warning" testId="expenses-total" />
         {kind === "pv" && <Stat icon={Wallet} label={t("exp.withheld")} value={list ? money(withheld) : "…"} tone="info" sub={t("exp.withheld.hint")} testId="expenses-withheld" />}
       </div>
       <Card flush>

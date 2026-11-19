@@ -166,7 +166,7 @@ export function PatientProfile({ patientId, canEdit, billing, clinical, appointm
   // Roadmap 7.3: who else has this record open, and changes made on other computers.
   const others = usePresence("patient", patientId);
   useLive(["patients"], load);
-  useLive(["chart", "notes", "plans", "treatment_items", "medical_history", "invoices", "payments", "documents", "attachments", "perio", "prescriptions", "appointments"], () => {
+  useLive(["chart", "notes", "plans", "treatment_items", "medical_history", "fin", "documents", "attachments", "perio", "prescriptions", "appointments"], () => {
     setClinicalKey((k) => k + 1);
     setMedicalRefreshKey((k) => k + 1);
   });

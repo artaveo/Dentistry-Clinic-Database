@@ -15,3 +15,7 @@
 /* Expense voucher: each line is a small group, separated so long forms stay scannable. */
 .voucher-line { padding-bottom: var(--space-3); border-bottom: 1px dashed var(--line); }
 .voucher-line:last-child { border-bottom: none; padding-bottom: 0; }
+
+/* Document numbers (RC-1405-000001) and the date column never break across lines in finance tables. */
+.table td bdi.ltr.num { white-space: nowrap; }
+[data-testid="page-billing"] .table td:first-child { white-space: nowrap; }
