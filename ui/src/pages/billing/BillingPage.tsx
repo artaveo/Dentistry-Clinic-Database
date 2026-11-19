@@ -27,10 +27,11 @@ import type { BillingPerms } from "./common";
 import { ReceiptDialog } from "./dialogs";
 import { BillingSettingsTab, CommissionTab, ExpensesTab, OtherReceiptDialog } from "./BillingExtras";
 import { InvoiceDetail } from "./InvoiceDetail";
+import { StaffTab } from "./Staff";
 
-type TabId = "overview" | "income" | "expenses" | "cash" | "commission" | "settings";
+type TabId = "overview" | "income" | "expenses" | "cash" | "staff" | "commission" | "settings";
 
-const TAB_ICONS = { overview: Gauge, income: ReceiptText, expenses: Wallet, cash: Banknote, commission: Percent, settings: Settings2 };
+const TAB_ICONS = { overview: Gauge, income: ReceiptText, expenses: Wallet, cash: Banknote, staff: UsersRound, commission: Percent, settings: Settings2 };
 
 export function BillingPage({ perms, clinic }: { perms: BillingPerms; clinic: ClinicProfile | null }) {
   const { t } = useI18n();
@@ -40,7 +41,8 @@ export function BillingPage({ perms, clinic }: { perms: BillingPerms; clinic: Cl
       ...(perms.view ? (["income"] as TabId[]) : []),
       ...(perms.reports ? (["expenses"] as TabId[]) : []),
       ...(perms.view ? (["cash"] as TabId[]) : []),
-      ...(perms.reports ? (["commission"] as TabId[]) : []),
+      ...(perms.payroll ? (["staff"] as TabId[]) : []),
+      ...(perms.reports || perms.payroll ? (["commission"] as TabId[]) : []),
       ...(perms.settings ? (["settings"] as TabId[]) : []),
     ],
     [perms],
@@ -65,7 +67,8 @@ export function BillingPage({ perms, clinic }: { perms: BillingPerms; clinic: Cl
       {tab === "income" && <IncomeTab perms={perms} calendar={calendar} />}
       {tab === "expenses" && <ExpensesTab perms={perms} calendar={calendar} />}
       {tab === "cash" && <CashTab perms={perms} calendar={calendar} />}
-      {tab === "commission" && <CommissionTab calendar={calendar} />}
+      {tab === "staff" && <StaffTab perms={perms} calendar={calendar} />}
+      {tab === "commission" && <CommissionTab perms={perms} calendar={calendar} />}
       {tab === "settings" && <BillingSettingsTab />}
     </Page>
   );
@@ -145,6 +148,7 @@ function OverviewTab({ calendar }: { calendar: Cal }) {
               {row(t("ov.netReceived"), o?.cash.net_received, { strong: true })}
               {o?.cash.expenses.map((e) => <tr key={e.account_id}><td>− {accountNameOf(e.account_id, accounts, t)}</td><td className="num">{money(e.amount)}</td></tr>)}
               {o && o.cash.suppliers_paid !== 0 && row(t("ov.suppliersPaid"), o.cash.suppliers_paid, { sign: "-" })}
+              {o && o.cash.staff_paid !== 0 && row(t("ov.staffPaid"), o.cash.staff_paid, { sign: "-" })}
               {row(t("ov.operating"), o?.cash.operating, { strong: true, testId: "recon-operating" })}
               {o && o.cash.withheld !== 0 && row(t("ov.withheld"), o.cash.withheld, { sign: "+", muted: true })}
               {o && o.cash.tax_paid !== 0 && row(t("ov.taxPaid"), o.cash.tax_paid, { sign: "-", muted: true })}

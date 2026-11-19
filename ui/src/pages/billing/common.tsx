@@ -27,9 +27,11 @@ export type BillingPerms = {
   reports: boolean;
   /** Accounts, the legal profile, doctor share rules, the receipt footer. */
   settings: boolean;
+  /** Employees, payroll, doctor-share statements and paying them. */
+  payroll: boolean;
 };
 
-export const NO_BILLING: BillingPerms = { view: false, edit: false, void: false, override: false, reports: false, settings: false };
+export const NO_BILLING: BillingPerms = { view: false, edit: false, void: false, override: false, reports: false, settings: false, payroll: false };
 
 /** An input for an amount in afghani (typed as 2500 or ۲۵۰۰), with the currency after it. */
 export function AmountInput({ value, onChange, invalid, testId, autoFocus, ...rest }: { value: string; onChange: (v: string) => void; invalid?: boolean; testId?: string; autoFocus?: boolean; id?: string; "aria-describedby"?: string }) {

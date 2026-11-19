@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity, Ban, BadgeDollarSign, Landmark, BarChart3, CalendarClock, CalendarDays, ClipboardList, Coins, HandCoins, Hourglass, Layers, Megaphone, PackageCheck, PackageMinus,
-  PackageX, Percent, Receipt, ReceiptText, Scale, ShoppingCart, Smile, Stethoscope, Truck, UserPlus, Wallet, Wrench,
+  PackageX, Percent, Receipt, ReceiptText, Scale, ShoppingCart, Smile, Stethoscope, Truck, UserPlus, UsersRound, Wallet, Wrench,
 } from "lucide-react";
 import type { CalendarSystem, Language, ReportCell, ReportKind } from "../../../shared/ts/contract";
 import { addDays, fromCalendar, inCalendar, monthRange, shiftMonth, todayIso } from "./calendar";
@@ -35,6 +35,8 @@ export const REPORTS: ReportMeta[] = [
   { kind: "doctor_shares", group: "financial", icon: HandCoins, period: "range", filters: ["doctor"] },
   { kind: "cash_counts", group: "financial", icon: Ban, period: "range", filters: ["account"] },
   { kind: "income_statement", group: "financial", icon: Scale, period: "range", filters: [] },
+  { kind: "payroll", group: "financial", icon: UsersRound, period: "range", filters: [] },
+  { kind: "withholding", group: "financial", icon: Landmark, period: "range", filters: [] },
   { kind: "patients", group: "clinical", icon: UserPlus, period: "range", filters: [] },
   { kind: "treatments", group: "clinical", icon: ClipboardList, period: "range", filters: ["doctor", "service"] },
   { kind: "procedures", group: "clinical", icon: Layers, period: "range", filters: ["doctor", "service"] },

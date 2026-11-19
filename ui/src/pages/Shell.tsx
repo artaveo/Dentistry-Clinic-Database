@@ -110,7 +110,7 @@ export function Shell({
   const tabAllowed: Record<Tab, boolean> = { dashboard: true, patients: can("patients.view"), appointments: can("appointments.view"), billing: can("billing.view"), inventory: canStock, reports: can("reports.view"), // U-16: someone who can change nothing in Settings has only "About" there; it moves into the user menu instead of taking a menu item.
     settings: sectionIds.some((x) => x !== "system") };
   const tabs = TAB_ORDER.filter((x) => tabAllowed[x]);
-  const billing: BillingPerms = { view: can("billing.view"), edit: can("billing.edit"), void: can("billing.void"), override: can("billing.override"), reports: can("reports.view"), settings: can("settings.manage") };
+  const billing: BillingPerms = { view: can("billing.view"), edit: can("billing.edit"), void: can("billing.void"), override: can("billing.override"), reports: can("reports.view"), settings: can("settings.manage"), payroll: can("finance.payroll") };
   const inventory: InventoryPerms = { view: can("inventory.view"), manage: can("inventory.manage"), billingEdit: can("billing.edit"), billingVoid: can("billing.void"), clinicalView: can("clinical.view"), clinicalEdit: can("clinical.edit"), treat: can("appointments.treat"), reports: can("reports.view"), settings: can("settings.manage"), patientsEdit: can("patients.edit") };
   const perms = { edit: can("appointments.edit"), treat: can("appointments.treat"), createPatients: can("patients.edit"), manageDoctors: can("doctors.manage") };
 

@@ -320,7 +320,7 @@ function PayDialog({ supplier, calendar, onClose, onDone }: { supplier: Supplier
     if (!form.validate() || account === null) return;
     void run(
       async () => {
-        await rpc("fin.vouchers.create", { date, account_id: account, purpose: "supplier", supplier_id: supplier.id, name: null, reference: form.values.note.trim() || null, note: null, lines: [], amount: parseAfn(form.values.amount) ?? 0, withholding: null });
+        await rpc("fin.vouchers.create", { date, account_id: account, purpose: "supplier", supplier_id: supplier.id, employee_id: null, doctor_id: null, name: null, reference: form.values.note.trim() || null, note: null, lines: [], amount: parseAfn(form.values.amount) ?? 0, withholding: null });
         onDone();
       },
       (x) => form.serverError(x),

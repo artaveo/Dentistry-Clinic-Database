@@ -1,7 +1,7 @@
 // Full A4 financial documents (docs/design/finance-standard.md): the invoice, the patient's statement, a money
 // account's day and the doctor share preview. Each has its own layout, on the clinic's letterhead like every
 // printed document; the receipt is a separate, small document (print/receipt.tsx).
-import type { CalendarSystem, CashDayInfo, CommissionReport, InvoiceInfo, Language, ReceiptInfo, StatementInfo, ToothNumbering, VoucherInfo } from "../../../shared/ts/contract";
+import type { CalendarSystem, CashDayInfo, CommissionReport, InvoiceInfo, Language, PayrollInfo, ReceiptInfo, StatementInfo, ToothNumbering, VoucherInfo } from "../../../shared/ts/contract";
 import { teethLabel } from "../chart/numbering";
 import { formatDate, formatDateTime } from "../lib/dates";
 import { formatAmount } from "../lib/money";
@@ -292,14 +292,14 @@ export function CashDaySheet({ day, account, receipts, vouchers, ...c }: Common 
   );
 }
 
-export function CommissionSheet({ report, ...c }: Common & { report: CommissionReport }) {
+export function CommissionSheet({ report, title, number, ...c }: Common & { report: CommissionReport; title?: string; number?: string }) {
   const { lang, calendar, letterhead } = c;
   const t = docT(lang);
   const money = (v: number) => formatAmount(v, lang);
   return (
     <Sheet paper="a4" lang={lang} letterhead={letterhead} testId="commission-sheet">
       <HeaderBlock letterhead={letterhead} lang={lang} doctor={null} />
-      <Title title={t("comm.title")} date={report.to} lang={lang} calendar={calendar} />
+      <Title title={title ?? t("comm.title")} number={number} date={report.to} lang={lang} calendar={calendar} />
       <div className="doc-meta" style={{ marginBottom: "2mm" }}>
         <span>{t("stmt.period")}: {formatDate(report.from, lang, calendar)} — {formatDate(report.to, lang, calendar)}</span>
         <span>{t(`comm.basis.${report.basis}`)}</span>
@@ -321,6 +321,59 @@ export function CommissionSheet({ report, ...c }: Common & { report: CommissionR
         ))}
         {!report.doctors.length && <p className="doc-muted">{t("comm.none")}</p>}
         {report.doctors.length > 1 && <Totals lang={lang} rows={[{ label: t("comm.owedTotal"), value: report.commission_total, strong: true }]} />}
+      </div>
+    </Sheet>
+  );
+}
+
+/** R8: a payroll on paper, one line per employee, signed by whoever prepared and approved it. */
+export function PayrollSheet({ payroll, ...c }: Common & { payroll: PayrollInfo }) {
+  const { lang, calendar, letterhead } = c;
+  const t = docT(lang);
+  const money = (v: number) => formatAmount(v, lang);
+  return (
+    <Sheet paper="a4" lang={lang} letterhead={letterhead} testId="payroll-sheet">
+      <HeaderBlock letterhead={letterhead} lang={lang} doctor={null} />
+      <Title title={t("staff.payroll")} number={payroll.number ?? undefined} date={payroll.date ?? payroll.to} lang={lang} calendar={calendar} />
+      <div className="doc-meta" style={{ marginBottom: "2mm" }}>
+        <span>{t("stmt.period")}: {formatDate(payroll.from, lang, calendar)} — {formatDate(payroll.to, lang, calendar)}</span>
+      </div>
+      <div className="doc-body">
+        <table className="doc-table fin-table" data-testid="payroll-lines">
+          <thead>
+            <tr>
+              <th>{t("staff.name")}</th>
+              <th>{t("fin.legal.tin")}</th>
+              <th className="num">{t("staff.base")}</th>
+              <th className="num">{t("staff.extra")}</th>
+              <th className="num">{t("staff.commission")}</th>
+              <th className="num">{t("exp.gross")}</th>
+              <th className="num">{t("staff.advanceBack")}</th>
+              <th className="num">{t("staff.tax")}</th>
+              <th className="num">{t("staff.net")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payroll.lines.map((l) => (
+              <tr key={l.employee_id}>
+                <td>{l.full_name}{l.father_name && <span className="doc-muted"> · {l.father_name}</span>}</td>
+                <td><bdi className="ltr">{l.tin ?? ""}</bdi></td>
+                <td className="num">{money(l.base)}</td>
+                <td className="num">{l.extra ? money(l.extra) : ""}</td>
+                <td className="num">{l.commission ? money(l.commission) : ""}</td>
+                <td className="num">{money(l.gross)}</td>
+                <td className="num">{l.advance ? money(l.advance) : ""}</td>
+                <td className="num">{l.tax ? money(l.tax) : ""}</td>
+                <td className="num">{money(l.net)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Totals lang={lang} rows={[{ label: t("exp.gross"), value: payroll.gross }, { label: t("staff.advanceBack"), value: payroll.advance, negative: true }, { label: t("staff.tax"), value: payroll.tax, negative: true }, { label: t("staff.net"), value: payroll.net, strong: true }]} />
+        <div className="doc-signatures">
+          <div className="doc-sign"><span className="doc-sign-line" /><span>{t("staff.sign.prepared")}</span></div>
+          <div className="doc-sign"><span className="doc-sign-line" /><span>{t("staff.sign.approved")}</span></div>
+        </div>
       </div>
     </Sheet>
   );

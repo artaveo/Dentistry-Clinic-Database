@@ -5,7 +5,7 @@ describe("report catalog", () => {
   it("has every report once, in a known group, with unique kinds", () => {
     const kinds = REPORTS.map((r) => r.kind);
     expect(new Set(kinds).size).toBe(kinds.length);
-    expect(kinds.length).toBe(29);
+    expect(kinds.length).toBe(31);
     for (const r of REPORTS) expect(GROUPS).toContain(r.group);
   });
 

@@ -96,7 +96,7 @@ export function ExpensesTab({ perms, calendar }: { perms: BillingPerms; calendar
                   <td><bdi className="ltr num">{v.number}</bdi> <StatusBadge status={v.status} /></td>
                   <td><Badge>{v.kind === "bl" ? t("exp.bill") : t(`fin.purpose.${v.purpose ?? "other"}`)}</Badge></td>
                   <td>{lineAccounts(v)}{v.lines[0]?.description && <span className="t-caption subtle"> · {v.lines[0].description}</span>}</td>
-                  <td>{v.supplier_name ?? v.name ?? "—"}{v.reference && <span className="t-caption subtle"> · <bdi className="ltr">{v.reference}</bdi></span>}</td>
+                  <td>{v.party_name ?? v.name ?? "—"}{v.reference && <span className="t-caption subtle"> · <bdi className="ltr">{v.reference}</bdi></span>}</td>
                   <td>{v.account_id !== null ? accountNameOf(v.account_id, accounts, t) : t("exp.onCredit")}</td>
                   <td className="num">{money(v.gross)}</td>
                   <td className="num">{v.withheld ? money(v.withheld) : "—"}</td>
@@ -202,6 +202,8 @@ function VoucherDialog({ purpose, calendar, onClose, onDone }: { purpose: Vouche
         account_id: account,
         purpose,
         supplier_id: supplier || null,
+        employee_id: null,
+        doctor_id: null,
         name: name.trim() || null,
         reference: reference.trim() || null,
         note: null,
@@ -233,7 +235,7 @@ function VoucherDialog({ purpose, calendar, onClose, onDone }: { purpose: Vouche
           </Field>
         )}
         {purpose === "tax" && (
-          <Segmented<WithholdingKind> value={tax} onChange={setTax} label={t("exp.withheldKind")} block options={[{ value: "rent", label: t("exp.withheld.rent"), testId: "tax-kind-rent" }, { value: "contractor", label: t("exp.withheld.contractor"), testId: "tax-kind-contractor" }]} />
+          <Segmented<WithholdingKind> value={tax} onChange={setTax} label={t("exp.withheldKind")} block options={[{ value: "rent", label: t("exp.withheld.rent"), testId: "tax-kind-rent" }, { value: "contractor", label: t("exp.withheld.contractor"), testId: "tax-kind-contractor" }, { value: "wage", label: t("exp.withheld.wage"), testId: "tax-kind-wage" }]} />
         )}
         {isLines ? (
           <LinesEditor lines={lines} setLines={setLines} withholding />

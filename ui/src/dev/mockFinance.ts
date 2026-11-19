@@ -4,7 +4,7 @@
 // posting rules live in core/src/fin and are covered by the Core's own tests.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
-  AccountInfo, AgingRow, CashCountInfo, CommissionRuleInfo, FinanceOverview, FinanceSettings, InstallmentDue, InvoiceInfo, ReceiptInfo, VoucherInfo,
+  AccountInfo, AgingRow, CashCountInfo, CommissionRuleInfo, EmployeeInfo, FinanceOverview, FinanceSettings, InstallmentDue, InvoiceInfo, PayrollInfo, ReceiptInfo, VoucherInfo,
 } from "../../../shared/ts/contract";
 
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
@@ -60,13 +60,20 @@ const invoices: InvoiceInfo[] = [
 ];
 
 const voucher = (id: number, account: number | null, line: number, amount: number, withheld: number, name: string | null, description: string): VoucherInfo => ({
-  id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date: day(0), created_at: now(), account_id: account, purpose: "expense", source: null, supplier_id: null, supplier_name: null,
+  id, kind: "pv", number: `PV-1405-${String(id).padStart(6, "0")}`, date: day(0), created_at: now(), account_id: account, purpose: "expense", source: null, supplier_id: null, supplier_name: null, employee_id: null, doctor_id: null, party_name: name,
   name, reference: null, lines: [{ no: 1, account_id: line, description, amount: amount * AFN, withheld: withheld * AFN, withholding: withheld ? "rent" : null }],
   gross: amount * AFN, withheld: withheld * AFN, net: (amount - withheld) * AFN, due_date: null, note: null, status: "posted", void_reason: null, print_count: 0, created_by_name: "مالک نمونه",
 });
 const vouchers: VoucherInfo[] = [
   voucher(901, 1210, 5210, 5_000, 500, "مالک ساختمان", "کرایه ماه"), voucher(902, 1110, 5220, 600, 0, null, "قبض برق"), voucher(903, 1110, 5230, 400, 0, null, "خرید دستکش"),
 ];
+
+const employee = (id: string, full_name: string, position: string, base: number, owed = 0, advances = 0): EmployeeInfo => ({
+  id, full_name, father_name: null, tin: null, national_id: null, phone: null, position, doctor_id: null, hire_date: day(-400), end_date: null,
+  base_salary: base * AFN, note: null, is_active: true, owed: owed * AFN, advances: advances * AFN, version: 1,
+});
+const employees: EmployeeInfo[] = [employee("emp-1", "کریم احمدی", "نرس", 20_000, 0, 5_000), employee("emp-2", "نسرین", "پذیرش", 15_000), employee("emp-3", "جاوید", "دستیار داکتر", 8_000)];
+let payroll: PayrollInfo | null = null;
 
 const counts: CashCountInfo[] = [
   { id: 950, number: "CC-1405-000001", account_id: 1110, date: day(0), created_at: now(), book: 16_550 * AFN, counted: 16_500 * AFN, difference: -50 * AFN, reason: "اشتباه شمارش تست", status: "posted", created_by_name: "مالک نمونه" },
@@ -78,7 +85,7 @@ const overview = (p: any): FinanceOverview => ({
   cash: {
     received: 28_150 * AFN, refunded: 250 * AFN, net_received: 27_900 * AFN,
     expenses: [{ account_id: 5210, amount: 5_000 * AFN }, { account_id: 5220, amount: 600 * AFN }, { account_id: 5230, amount: 400 * AFN }], expenses_total: 6_000 * AFN,
-    suppliers_paid: 0, operating: 21_900 * AFN, withheld: 500 * AFN, owner_in: 10_000 * AFN, owner_out: 0, loans_in: 0, loans_out: 0, tax_paid: 500 * AFN, other_income: 0, count_differences: -50 * AFN,
+    suppliers_paid: 0, staff_paid: 0, operating: 21_900 * AFN, withheld: 500 * AFN, owner_in: 10_000 * AFN, owner_out: 0, loans_in: 0, loans_out: 0, tax_paid: 500 * AFN, other_income: 0, count_differences: -50 * AFN,
     money: [
       { account_id: 1110, opening: 0, inflow: 22_800 * AFN, outflow: 6_300 * AFN, closing: 16_500 * AFN },
       { account_id: 1210, opening: 0, inflow: 19_350 * AFN, outflow: 5_000 * AFN, closing: 14_350 * AFN },
@@ -143,6 +150,38 @@ export function financeCall(method: string, p: any): unknown {
       if (a !== 1110) return { account_id: a, date: p.date, opening: 0, received: 0, refunded: 0, paid_out: 0, other_in: 0, transfers: 0, adjustments: 0, closing: accounts.find((x) => x.id === a)?.balance ?? 0, receipt_count: 0, counts: [] };
       return { account_id: 1110, date: p.date, opening: 0, received: 22_800 * AFN, refunded: 250 * AFN, paid_out: 1_000 * AFN, other_in: 0, transfers: -5_000 * AFN, adjustments: -50 * AFN, closing: 16_500 * AFN, receipt_count: 8, counts };
     }
+    case "fin.employees.list":
+      return employees.filter((e) => p?.include_inactive || e.is_active);
+    case "fin.employees.save": {
+      const e = employees.find((x) => x.id === p.id);
+      const row = { full_name: p.full_name, father_name: p.father_name, tin: p.tin, national_id: p.national_id, phone: p.phone, position: p.position, hire_date: p.hire_date, end_date: p.end_date, base_salary: p.base_salary, note: p.note, is_active: p.is_active };
+      if (e) Object.assign(e, row, { version: e.version + 1 });
+      else employees.push({ id: `emp-${employees.length + 1}`, doctor_id: null, owed: 0, advances: 0, version: 1, ...row });
+      return e ?? employees[employees.length - 1];
+    }
+    case "fin.payroll.draft": {
+      if (payroll && payroll.from <= p.to && payroll.to >= p.from) return payroll;
+      const lines = employees.filter((e) => e.is_active).map((e) => ({ employee_id: e.id, full_name: e.full_name, father_name: e.father_name, tin: e.tin, position: e.position, base: e.base_salary, extra: 0, commission: 0, gross: e.base_salary, advance: 0, tax: 0, net: e.base_salary, paid: 0, advances_open: e.advances, note: null }));
+      const gross = lines.reduce((x, l) => x + l.gross, 0);
+      return { id: null, number: null, from: p.from, to: p.to, date: null, status: null, lines, gross, advance: 0, tax: 0, net: gross, void_reason: null, created_by_name: null };
+    }
+    case "fin.payroll.create": {
+      const lines = p.lines.map((l: any) => {
+        const e = employees.find((x) => x.id === l.employee_id)!;
+        const gross = l.base + l.extra + l.commission;
+        const net = gross - l.advance - l.tax;
+        e.owed += net;
+        e.advances -= l.advance;
+        return { employee_id: e.id, full_name: e.full_name, father_name: e.father_name, tin: e.tin, position: e.position, base: l.base, extra: l.extra, commission: l.commission, gross, advance: l.advance, tax: l.tax, net, paid: 0, advances_open: 0, note: null };
+      });
+      const sum = (k: "gross" | "advance" | "tax" | "net") => lines.reduce((x: number, l: any) => x + l[k], 0);
+      payroll = { id: 990, number: "PR-1405-000001", from: p.from, to: p.to, date: p.date, status: "posted", lines, gross: sum("gross"), advance: sum("advance"), tax: sum("tax"), net: sum("net"), void_reason: null, created_by_name: "مالک نمونه" };
+      return payroll;
+    }
+    case "fin.shares.statements":
+      return [];
+    case "fin.shares.balances":
+      return [];
     case "fin.docs.void": {
       const v = vouchers.find((x) => x.id === p.id);
       if (!v) return undefined;
