@@ -645,10 +645,15 @@ function call(method: string, p: any, token: string | null): unknown {
     case "reports.run": {
       const money = (value: number) => ({ type: "money", value });
       const days = Array.from({ length: 8 }, (_, i) => new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10)).reverse();
-      const rows = days.map((d, i) => [{ type: "date", value: d }, { type: "int", value: 4 + (i % 5) }, money(900_000 + i * 70_000), money(700_000 + i * 90_000), money(i % 3 === 0 ? 50_000 : 0), money(650_000 + i * 90_000)]);
+      // The shape of «daily summary» (core/src/reports.rs) for every kind: enough to look at the page.
+      const rows = days.map((d, i) => {
+        const gross = 900_000 + i * 70_000, off = i % 2 ? 50_000 : 0, received = 700_000 + i * 90_000, refunded = i % 3 === 0 ? 50_000 : 0;
+        return [{ type: "date", value: d }, { type: "int", value: 3 + (i % 4) }, money(gross), money(off), money(gross - off), { type: "int", value: 4 + (i % 5) }, money(received), money(refunded), money(received - refunded)];
+      });
+      const total = (k: number) => money(rows.reduce((s, r) => s + (r[k] as { value: number }).value, 0));
       return {
-        kind: p.kind, from: p.from, to: p.to, columns: ["date", "payments", "invoiced", "received", "refunded", "net"].map((key) => ({ key })), rows,
-        totals: [{ type: "empty" }, { type: "int", value: 39 }, money(8_000_000), money(7_000_000), money(150_000), money(6_850_000)], truncated: false, millis: 12,
+        kind: p.kind, from: p.from, to: p.to, columns: ["date", "invoices", "gross", "discounts", "invoiced", "receipts", "received", "refunded", "net_received"].map((key) => ({ key })), rows,
+        totals: [{ type: "empty" }, { type: "empty" }, total(2), total(3), total(4), { type: "empty" }, total(6), total(7), total(8)], truncated: false, millis: 12,
       };
     }
     case "reports.export":

@@ -323,5 +323,7 @@
   "billing.settings.category.new": "New expense account",
   "billing.settings.categories": "Expense accounts",
   "comm.title": "Doctor shares preview",
-  "billing.subtitle": "Income, expenses, cash and bank, and the clinic's books in balance"
+  "billing.subtitle": "Income, expenses, cash and bank, and the clinic's books in balance",
+  "reports.col.discounts": "Discounts and reductions",
+  "reports.col.receipts": "Receipts"
 }

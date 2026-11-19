@@ -323,5 +323,7 @@
   "billing.settings.category.new": "د لګښت نوی حساب",
   "billing.settings.categories": "د لګښت حسابونه",
   "comm.title": "د ډاکټرانو د ونډې مخکتنه",
-  "billing.subtitle": "عاید، لګښتونه، صندوق او بانک، او د کلینیک د دفترونو تطبیق"
+  "billing.subtitle": "عاید، لګښتونه، صندوق او بانک، او د کلینیک د دفترونو تطبیق",
+  "reports.col.discounts": "تخفیف او کمښت",
+  "reports.col.receipts": "رسیدونه"
 }
