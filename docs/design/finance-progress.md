@@ -56,7 +56,7 @@ Rules: CI only (no local cargo), rustfmt + contract regeneration through a `fmt/
 | I18 | Vouchers gain purposes salary (Dr 2310, ≤ owed), advance (Dr 1320), share (Dr 2320, ≤ owed); tax payments gain `wage` (2410). Voiding a payroll, statement or staff voucher is refused when it would leave money paid but not owed. | Books stay consistent; the overview counts `staff_paid`. |
 | I19 | Migration 0022 rebuilds `fin_doc` (rows, indexes, triggers) to widen the kind and party CHECKs. | SQLite cannot alter a CHECK; nothing references fin_doc by FK. |
 
-Status: core + tests (hand-computed: 3 employees with advances, payroll 460 000 / 399 000 net, salaries, wage tax, voids refused; statement 18 000 frozen against a later reduction) pushed; UI (Staff tab, statements/balances/pay on the shares tab, payroll print, R8/R9 in reports, i18n, mocks), e2e (payroll flow in v070), manual guide (MON-24..28, REP-16/17).
+Status: **done, merged to main** (branch CI green on 567518c: fmt, clippy, Rust tests, Linux lint/tests/E2E, Windows x64/arm64). Core + tests (hand-computed: 3 employees with advances, payroll 460 000 / 399 000 net, salaries, wage tax, voids refused; statement 18 000 frozen against a later reduction) pushed; UI (Staff tab, statements/balances/pay on the shares tab, payroll print, R8/R9 in reports, i18n, mocks), e2e (payroll flow in v070), manual guide (MON-24..28, REP-16/17).
 
 ## Next
-Phase 2: full CI on `fmt/fin-phase2`, merge to main, report. Then phase 3 (periods, close and lock, journals and trial balance, adjusting entries), phase 4 (official reports with hash, opening balances, year close), phase 5 (dashboard, notifications, guide, visual review, volume test).
+Phase 3 (periods, close and lock, journals and trial balance, adjusting entries), phase 4 (official reports with hash, opening balances, year close), phase 5 (dashboard, notifications, guide, visual review, volume test).
